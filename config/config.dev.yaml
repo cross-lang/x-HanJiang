@@ -1,0 +1,9 @@
+# 开发环境配置覆盖
+server:
+  debug: true
+
+logging:
+  level: "DEBUG"
+
+rate_limit:
+  per_minute: 1000

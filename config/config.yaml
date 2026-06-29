@@ -1,0 +1,34 @@
+# 寒江（HanJiang）默认配置文件
+# 优先级：环境变量 > 环境特定配置(config.{env}.yaml) > 本文件 > 代码默认值
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  debug: true
+  workers: 1
+
+logging:
+  level: "INFO"
+  file_path: "logs/app.log"
+  rotation: "1 day"
+  retention: "7 days"
+
+cors:
+  origins:
+    - "*"
+
+rate_limit:
+  per_minute: 60
+
+auth:
+  secret_key: "change-me-in-production"
+  algorithm: "HS256"
+
+database:
+  # MySQL 数据库连接字符串（格式：mysql://user:password@host:port/database）
+  # 也可以使用 pymysql 驱动：mysql+pymysql://user:password@host:port/database
+  url: "mysql://root:123456@localhost:3306/hanjiang"
+  pool_size: 5
+
+redis:
+  url: ""

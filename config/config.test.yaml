@@ -1,0 +1,10 @@
+# 测试环境配置覆盖
+server:
+  port: 8001
+
+logging:
+  level: "DEBUG"
+  file_path: "logs/test.log"
+
+rate_limit:
+  per_minute: 10000

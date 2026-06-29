@@ -1,0 +1,14 @@
+-- 创建用户表
+-- 执行时间: 2026-05-12
+
+CREATE TABLE IF NOT EXISTS user (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户唯一标识',
+    username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名（唯一，3-50个字符）',
+    email VARCHAR(255) NOT NULL COMMENT '邮箱地址',
+    name VARCHAR(100) NOT NULL COMMENT '显示名称',
+    age INT DEFAULT NULL COMMENT '年龄（0-150）',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_username (username),
+    INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';

@@ -1,0 +1,11 @@
+# 生产环境配置覆盖
+server:
+  debug: false
+  workers: 4
+
+logging:
+  level: "WARNING"
+  retention: "30 days"
+
+rate_limit:
+  per_minute: 60

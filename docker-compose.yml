@@ -1,0 +1,23 @@
+# 寒江（HanJiang）Docker Compose 配置
+# 使用方法：docker-compose up --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: x-HanJiang
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
