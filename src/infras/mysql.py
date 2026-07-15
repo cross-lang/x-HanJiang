@@ -12,7 +12,7 @@ MySQL 数据库基础设施模块
     - 通用事务封装（不含单表业务CRUD）
 
 Usage:
-    from src.infra.mysql import get_db, engine, Base, transaction
+    from src.infras.mysql import get_db, engine, Base, transaction
 
     # 获取数据库会话
     with get_db() as session:

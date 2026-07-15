@@ -12,7 +12,7 @@
     - 支持连接自动释放
 
 Usage:
-    from src.infra.cache import get_redis, cache
+    from src.infras.cache import get_redis, cache
 
     # 获取 Redis 客户端
     redis_client = get_redis()

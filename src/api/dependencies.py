@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from src.schemas.common import PaginatedRequest
 from src.core.container import Container
-from src.infra.mysql import get_session_factory
+from src.infras.mysql import get_session_factory
 
 
 def get_request_id(request: Request) -> Optional[str]:

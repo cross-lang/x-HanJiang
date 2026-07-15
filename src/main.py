@@ -39,13 +39,13 @@ from src.core.middleware import (
 )
 
 try:
-    from src.infra.mysql import init_db, close_db
+    from src.infras.mysql import init_db, close_db
     _has_db = True
 except ImportError:
     _has_db = False
 
 try:
-    from src.infra.cache import close_redis
+    from src.infras.cache import close_redis
     _has_redis = True
 except ImportError:
     _has_redis = False

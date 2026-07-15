@@ -65,7 +65,7 @@ def _check_database() -> str:
         return "disabled"
 
     try:
-        from src.infra.mysql import get_engine
+        from src.infras.mysql import get_engine
         from sqlalchemy import text
 
         engine = get_engine()
@@ -89,7 +89,7 @@ def _check_cache() -> str:
         return "disabled"
 
     try:
-        from src.infra.cache import get_redis
+        from src.infras.cache import get_redis
 
         redis_client = get_redis()
         redis_client.ping()
