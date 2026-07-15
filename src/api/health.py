@@ -66,10 +66,11 @@ def _check_database() -> str:
 
     try:
         from src.infra.database import get_engine
+        from sqlalchemy import text
 
         engine = get_engine()
         with engine.connect() as connection:
-            connection.execute("SELECT 1")
+            connection.execute(text("SELECT 1"))
         return "ok"
     except Exception as e:
         from src.core.logger import logger

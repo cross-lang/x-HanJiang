@@ -55,7 +55,7 @@ def get_engine() -> Engine:
     global _engine, _session_factory
 
     if _engine is None:
-        database_url: str = settings.database.DATABASE_URL
+        database_url: str = settings.database.url
         if not database_url:
             raise ValueError("DATABASE_URL 配置不能为空，请在配置文件或环境变量中设置")
 
@@ -64,11 +64,11 @@ def get_engine() -> Engine:
 
         _engine = create_engine(
             database_url,
-            pool_size=settings.database.DATABASE_POOL_SIZE,
+            pool_size=settings.database.pool_size,
             max_overflow=10,
             pool_pre_ping=True,
             pool_recycle=3600,
-            echo=settings.server.SERVER_DEBUG,
+            echo=settings.server.debug,
         )
 
         _session_factory = sessionmaker(
