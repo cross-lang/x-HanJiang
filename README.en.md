@@ -21,7 +21,7 @@ x-HanJiang is a production-grade Python Web project template built on top of the
 - **Standard 3-Layer Architecture** — API Layer → Service Layer → Repository Layer, with strictly unidirectional dependencies
 - **Dependency Injection Container** — Go Wire-like DI capabilities with auto-wiring, singleton/transient lifecycle, decorator registration
 - **Dual Configuration System** — Supports both `.env` environment variables and `config.yaml` files with automatic multi-environment switching
-- **Standardized Response Format** — Unified JSON responses with code, message, data, timestamp, and request ID
+- **Standardized Response Format** — Pydantic `response_model` for response structure, returning model instances directly
 - **Global Exception Handling** — Custom exception hierarchy (Business 4xx / System 5xx) with global exception middleware
 - **Structured Logging** — Based on loguru with request ID tracking, dual file+console output, and log rotation
 - **Docker Deployment** — Standard Dockerfile and docker-compose.yml with Gunicorn + Uvicorn high-performance deployment
@@ -38,21 +38,22 @@ x-HanJiang/
 │   ├── config.prod.yaml     # Production overrides
 │   └── .env.example         # Environment variable template
 ├── docs/                    # Project documentation
-│   └── architecture.md      # Architecture documentation
+│   ├── architecture.md      # Architecture documentation
+│   └── DATABASE.md          # Database configuration guide
 ├── examples/                # Usage examples
 │   ├── basic_usage.py       # Basic usage
 │   ├── custom_api.py        # Custom API example
 │   └── di_usage.py          # Dependency injection example
-├── scripts/                 # Deployment and utility scripts
-│   ├── start_dev.sh/bat     # Development startup
-│   ├── start_prod.sh/bat    # Production startup
-│   └── run_tests.sh/bat     # Test runner
+├── migrations/              # Database migration files
+│   └── 001_create_user_table.sql
 ├── src/                     # Core business code
-│   ├── api/                 # API route layer
-│   ├── common/              # Shared components (constants, response, base models)
+│   ├── api/                 # API route layer (routes, dependencies)
 │   ├── constants/           # Business constants
 │   ├── core/                # Core infrastructure (config, logger, exceptions, DI, middleware)
-│   ├── models/              # Data models (Pydantic DTOs)
+│   ├── infra/               # Infrastructure layer (database, cache, HTTP client)
+│   ├── models/              # Data models (pure table mappings, no business logic)
+│   │   └── entities/        # SQLAlchemy ORM entity models
+│   ├── schemas/             # API request/response DTOs (Pydantic BaseModel)
 │   ├── repositories/        # Data access layer
 │   ├── services/            # Business logic layer
 │   ├── utils/               # Utility functions
@@ -129,7 +130,7 @@ Service (Business logic)
 Repository (Data access)
     │
     ▼
-Standard Response (success/error/paginated)
+Pydantic Response (response_model serialization)
     │
     ▼
 Client Response (with X-Request-ID)
@@ -199,14 +200,15 @@ Key configuration items:
 **Option 1: Local Development (with hot reload)**
 
 ```bash
-# Linux / macOS
-bash scripts/start_dev.sh
-
-# Windows
-scripts\start_dev.bat
-
-# Or use uvicorn directly
+# Using uv (recommended)
 uv run uvicorn src.main:app --reload
+
+# Or using Python module mode
+uv run python -m src.main
+
+# Without uv (using pip)
+python -m uvicorn src.main:app --reload
+python -m src.main
 ```
 
 **Option 2: Docker**
@@ -223,6 +225,7 @@ After starting, visit:
 - API Docs: http://localhost:8000/docs
 - Health Check: http://localhost:8000/api/v1/health
 - Version Info: http://localhost:8000/api/v1/version
+- User List: http://localhost:8000/api/v1/users
 
 ### Common Commands
 
@@ -238,6 +241,12 @@ uv run ruff check src/ tests/
 
 # Type checking
 uv run mypy src/
+
+# Alternative commands without uv
+python -m pytest tests/ -v
+python -m ruff format src/ tests/
+python -m ruff check src/ tests/
+python -m mypy src/
 ```
 
 ## Tech Stack

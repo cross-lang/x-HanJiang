@@ -21,7 +21,7 @@
 - **标准三层架构** — API 接口层 → 业务逻辑层（Service）→ 数据访问层（Repository），层间依赖严格单向
 - **依赖注入容器** — DI 能力，支持自动装配、单例/多例模式、装饰器注册
 - **双配置体系** — 支持 `.env` 环境变量 + `config.yaml` 配置文件双来源，多环境自动切换
-- **标准化响应** — 统一的 JSON 响应格式，包含状态码、消息、数据、时间戳、请求 ID
+- **标准化响应** — 使用 Pydantic `response_model` 定义响应结构，直接返回模型实例
 - **全局异常处理** — 自定义异常层级（业务异常 4xx / 系统异常 5xx），全局异常中间件
 - **结构化日志** — 基于 loguru，支持请求 ID 追踪、文件+控制台双输出、日志轮转
 - **Docker 部署** — 提供标准 Dockerfile 和 docker-compose.yml，支持 Gunicorn + Uvicorn 高性能部署
@@ -47,16 +47,14 @@ x-HanJiang/
 │   └── di_usage.py          # 依赖注入示例
 ├── migrations/              # 数据库迁移文件
 │   └── 001_create_user_table.sql
-├── scripts/                 # 工具脚本
-│   └── init_db.py           # 数据库初始化脚本
 ├── src/                     # 核心业务代码
-│   ├── api/                 # API 接口层
-│   ├── common/              # 公共组件（常量、响应、基础模型）
+│   ├── api/                 # API 接口层（路由、依赖注入）
 │   ├── constants/           # 业务常量
-│   ├── core/                # 核心支撑（配置、日志、异常、DI、中间件、数据库）
-│   ├── models/              # 数据模型
-│   │   ├── entities/        # ORM 实体模型
-│   │   └── user.py          # Pydantic DTO
+│   ├── core/                # 核心支撑（配置、日志、异常、DI、中间件）
+│   ├── infra/               # 基础设施层（数据库、缓存、HTTP 客户端）
+│   ├── models/              # 数据模型（纯数据表映射，不含业务逻辑）
+│   │   └── entities/        # SQLAlchemy ORM 实体模型
+│   ├── schemas/             # API 请求/响应 DTO（Pydantic BaseModel）
 │   ├── repositories/        # 数据访问层
 │   ├── services/            # 业务逻辑层
 │   ├── utils/               # 工具函数
@@ -133,7 +131,7 @@ Service (业务逻辑)
 Repository (数据访问)
     │
     ▼
-标准化响应 (success/error/paginated)
+Pydantic Response (response_model 序列化)
     │
     ▼
 Client Response (含 X-Request-ID)
@@ -209,11 +207,15 @@ cp config/.env.example config/.env
 #### 方式一：本地开发启动（热重载）
 
 ```bash
-# 直接使用 uvicorn
+# 使用 uv（推荐）
 uv run uvicorn src.main:app --reload
 
 # 或使用 Python 模块方式
 uv run python -m src.main
+
+# 如果没有安装 uv，使用 pip
+python -m uvicorn src.main:app --reload
+python -m src.main
 ```
 
 #### 方式二：Docker 启动
@@ -230,6 +232,7 @@ docker-compose up -d --build
 - API 文档：http://localhost:8000/docs
 - 健康检查：http://localhost:8000/api/v1/health
 - 版本信息：http://localhost:8000/api/v1/version
+- 用户列表：http://localhost:8000/api/v1/users
 
 ### 常用命令
 
@@ -245,6 +248,12 @@ uv run ruff check src/ tests/
 
 # 类型检查
 uv run mypy src/
+
+# 使用 pip 的替代命令
+python -m pytest tests/ -v
+python -m ruff format src/ tests/
+python -m ruff check src/ tests/
+python -m mypy src/
 ```
 
 ## 技术栈
