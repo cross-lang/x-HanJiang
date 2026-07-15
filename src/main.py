@@ -29,11 +29,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.router import api_router
-from src.common.constants import APP_NAME, APP_VERSION
+from src.constants import APP_NAME, APP_VERSION
 from src.core.config import settings
 from src.core.exceptions import register_exception_handlers
 from src.core.logger import logger, setup_logging
-from src.core.middleware import RequestIDMiddleware
+from src.core.middleware import (
+    RequestIDMiddleware,
+    RequestLoggingMiddleware,
+)
+
+try:
+    from src.infra.database import init_db, close_db
+    _has_db = True
+except ImportError:
+    _has_db = False
+
+try:
+    from src.infra.cache import close_redis
+    _has_redis = True
+except ImportError:
+    _has_redis = False
 
 
 @asynccontextmanager
@@ -45,18 +60,14 @@ async def lifespan(app: FastAPI):
     Args:
         app: FastAPI 应用实例
     """
-    # 启动阶段
     setup_logging()
     logger.info(f"{APP_NAME} v{APP_VERSION} starting up...")
-    logger.info(f"Environment: {settings.APP_ENV}")
-    logger.info(f"Debug mode: {settings.server.SERVER_DEBUG}")
-    logger.info(f"Listening on: {settings.server.SERVER_HOST}:{settings.server.SERVER_PORT}")
+    logger.info(f"Environment: {settings.app_env}")
+    logger.info(f"Debug mode: {settings.server.debug}")
+    logger.info(f"Listening on: {settings.server.host}:{settings.server.port}")
 
-    # 初始化数据库（仅在配置了数据库连接时）
-    if settings.database.DATABASE_URL:
+    if _has_db and settings.database.url:
         try:
-            from src.core.database import init_db
-
             init_db()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -66,18 +77,21 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # 关闭阶段
     logger.info(f"{APP_NAME} shutting down...")
 
-    # 关闭数据库连接
-    if settings.database.DATABASE_URL:
+    if _has_db and settings.database.url:
         try:
-            from src.core.database import close_db
-
             close_db()
             logger.info("Database connection closed")
         except Exception as e:
             logger.warning(f"Error closing database connection: {e}")
+
+    if _has_redis and settings.redis.url:
+        try:
+            close_redis()
+            logger.info("Redis connection closed")
+        except Exception as e:
+            logger.warning(f"Error closing Redis connection: {e}")
 
 
 def create_app() -> FastAPI:
@@ -86,8 +100,9 @@ def create_app() -> FastAPI:
     创建并配置 FastAPI 应用实例，包括：
         1. 注册 CORS 跨域中间件
         2. 注册请求 ID 中间件
-        3. 注册全局异常处理器
-        4. 挂载 API 路由
+        3. 注册请求日志记录中间件
+        4. 注册全局异常处理器
+        5. 挂载 API 路由
 
     Returns:
         FastAPI: 配置完成的 FastAPI 应用实例
@@ -101,26 +116,23 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # 注册中间件（注意：FastAPI 中间件按添加顺序的逆序执行）
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors.CORS_ORIGINS,
+        allow_origins=settings.cors.origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    # 注册全局异常处理器
     register_exception_handlers(app)
 
-    # 挂载 API 路由
     app.include_router(api_router)
 
     return app
 
 
-# 创建全局应用实例
 app: FastAPI = create_app()
 
 
@@ -132,10 +144,10 @@ def run() -> None:
     """
     uvicorn.run(
         "src.main:app",
-        host=settings.server.SERVER_HOST,
-        port=settings.server.SERVER_PORT,
-        reload=settings.server.SERVER_DEBUG,
-        workers=1 if settings.server.SERVER_DEBUG else settings.server.SERVER_WORKERS,
+        host=settings.server.host,
+        port=settings.server.port,
+        reload=settings.server.debug,
+        workers=1 if settings.server.debug else settings.server.workers,
     )
 
 

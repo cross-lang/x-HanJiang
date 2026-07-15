@@ -53,8 +53,8 @@ x-HanJiang/
 │   ├── constants/           # Business constants
 │   ├── core/                # Core infrastructure (config, logger, exceptions, DI, middleware)
 │   ├── models/              # Data models (Pydantic DTOs)
-│   ├── repository/          # Data access layer
-│   ├── service/             # Business logic layer
+│   ├── repositories/        # Data access layer
+│   ├── services/            # Business logic layer
 │   ├── utils/               # Utility functions
 │   └── main.py              # Application entry point
 ├── tests/                   # Test code
@@ -87,13 +87,13 @@ x-HanJiang/
                │ API → Service
                ▼
 ┌──────────────────────────────────────┐
-│        Service Layer (service/)      │
+│        Service Layer (services/)      │
 │    Business Rules │ Validation       │
 └──────────────┬───────────────────────┘
                │ Service → Repository
                ▼
 ┌──────────────────────────────────────┐
-│      Repository Layer (repository/)  │
+│      Repository Layer (repositories/)  │
 │         CRUD │ Query │ Mapping       │
 └──────────────┬───────────────────────┘
                ▼

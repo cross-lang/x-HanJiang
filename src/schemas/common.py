@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pydantic 基础模型模块
+通用数据模型
 
-本模块定义了项目中所有请求/响应模型的公共基类，提供通用字段和校验规则。
-所有业务数据模型应继承相应的基类，确保统一的模型规范。
+本模块定义了项目中所有请求/响应模型的公共基类和通用数据结构，
+提供通用字段和校验规则。
 
 基类列表：
-    - BaseRequest: 请求模型基类
-    - BaseResponse: 响应模型基类
-    - PaginatedRequest: 分页请求基类
-    - PaginatedResponse: 分页响应基类
+    - ApiResponse: 标准 API 响应模型
+    - PaginatedRequest: 分页请求模型
+    - PaginatedResponse: 分页响应模型
 """
 
-from datetime import datetime
 from typing import Any, Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,40 +19,30 @@ from pydantic import BaseModel, ConfigDict, Field
 T = TypeVar("T")
 
 
-class BaseRequest(BaseModel):
-    """请求模型基类。
-
-    所有 API 请求体模型应继承此类，自动启用 from_attributes 配置。
+class ApiResponse(BaseModel):
+    """标准 API 响应模型。
 
     Attributes:
-        request_id: 请求追踪 ID（可选，由服务端填充）
+        code: HTTP 状态码
+        message: 响应描述信息
+        data: 响应数据体
+        timestamp: 响应时间戳（UTC）
+        request_id: 请求追踪 ID
     """
 
+    code: int = Field(description="状态码")
+    message: str = Field(description="响应描述")
+    data: Optional[Any] = Field(default=None, description="响应数据")
+    timestamp: str = Field(description="响应时间戳")
     request_id: Optional[str] = Field(default=None, description="请求追踪 ID")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class BaseResponse(BaseModel):
-    """响应模型基类。
+class PaginatedRequest(BaseModel):
+    """分页请求模型。
 
-    所有 API 响应数据模型应继承此类。
-
-    Attributes:
-        id: 数据唯一标识
-        created_at: 创建时间
-    """
-
-    id: Optional[int] = Field(default=None, description="数据唯一标识")
-    created_at: Optional[datetime] = Field(default=None, description="创建时间")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PaginatedRequest(BaseRequest):
-    """分页请求基类。
-
-    提供统一的分页参数，所有需要分页的接口应使用此类或其子类。
+    提供统一的分页参数，所有需要分页的接口应使用此类。
 
     Attributes:
         page: 页码（从 1 开始）
@@ -66,7 +54,7 @@ class PaginatedRequest(BaseRequest):
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
-    """分页响应基类。
+    """分页响应模型。
 
     提供统一的分页元数据，与数据列表配合使用。
 

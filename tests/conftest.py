@@ -16,6 +16,8 @@ from fastapi.testclient import TestClient
 
 # 设置测试环境变量（必须在导入 src 模块之前）
 os.environ["APP_ENV"] = "testing"
+os.environ["DATABASE_URL"] = ""
+os.environ["REDIS_URL"] = ""
 
 
 @pytest.fixture

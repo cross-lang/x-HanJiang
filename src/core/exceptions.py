@@ -27,14 +27,14 @@ Usage:
     register_exception_handlers(app)
 """
 
+import datetime
 from typing import Any, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from src.common.constants import MSG_INTERNAL_ERROR, MSG_VALIDATION_ERROR
-from src.common.response import error as error_response
+from src.constants import MSG_INTERNAL_ERROR, MSG_VALIDATION_ERROR
 
 
 class AppException(Exception):
@@ -243,6 +243,30 @@ def _get_request_id(request: Request) -> Optional[str]:
     return getattr(request.state, "request_id", None)
 
 
+def _build_error_response(
+    code: int,
+    message: str,
+    request_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """构建错误响应字典。
+
+    Args:
+        code: HTTP 状态码
+        message: 错误消息
+        request_id: 请求追踪 ID
+
+    Returns:
+        dict[str, Any]: 标准化错误响应字典
+    """
+    return {
+        "code": code,
+        "message": message,
+        "data": None,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "request_id": request_id,
+    }
+
+
 async def _app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     """处理所有 AppException 及其子类的全局异常处理器。
 
@@ -262,7 +286,7 @@ async def _app_exception_handler(request: Request, exc: AppException) -> JSONRes
         f"{type(exc).__name__}: {exc.message}",
     )
 
-    response_data: dict[str, Any] = error_response(
+    response_data: dict[str, Any] = _build_error_response(
         code=exc.code,
         message=exc.message,
         request_id=request_id,
@@ -297,7 +321,7 @@ async def _validation_exception_handler(
         f"Validation error: {errors}"
     )
 
-    response_data: dict[str, Any] = error_response(
+    response_data: dict[str, Any] = _build_error_response(
         code=422,
         message=MSG_VALIDATION_ERROR,
         request_id=request_id,
@@ -331,7 +355,7 @@ async def _generic_exception_handler(
 
     return JSONResponse(
         status_code=500,
-        content=error_response(
+        content=_build_error_response(
             code=500,
             message=MSG_INTERNAL_ERROR,
             request_id=request_id,

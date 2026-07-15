@@ -1,41 +1,46 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-数据库连接管理模块
+数据库基础设施模块
 
 本模块提供数据库连接池管理和会话工厂，确保数据库连接的高效复用和生命周期管理。
 支持 MySQL 数据库，使用连接池提升性能。
 
 功能特性：
-    - 基于 SQLAlchemy 2.0 的异步支持
+    - 基于 SQLAlchemy 2.0 的同步支持
     - 连接池管理和配置
     - 上下文管理器确保会话自动关闭
+    - 通用事务封装（不含单表业务CRUD）
     - 支持多环境配置
 
 Usage:
-    from src.core.database import get_db, engine, Base
+    from src.infra.database import get_db, engine, Base, transaction
 
     # 获取数据库会话
-    async with get_db() as session:
-        result = await session.execute(select(User))
+    with get_db() as session:
+        result = session.execute(select(User))
+
+    # 使用事务装饰器
+    @transaction
+    def create_user(session: Session, data: dict) -> User:
+        ...
 """
 
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Callable, Generator, TypeVar
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from src.core.config import settings
+from src.core.logger import logger
 
-# 创建数据库引擎
+Base = declarative_base()
+
 _engine: Engine | None = None
-
-# 创建会话工厂
 _session_factory: sessionmaker | None = None
 
-# 声明基类，所有 ORM 模型都应继承此类
-Base = declarative_base()
+T = TypeVar("T")
 
 
 def get_engine() -> Engine:
@@ -43,6 +48,9 @@ def get_engine() -> Engine:
 
     Returns:
         Engine: SQLAlchemy 数据库引擎
+
+    Raises:
+        ValueError: DATABASE_URL 配置为空时抛出
     """
     global _engine, _session_factory
 
@@ -51,7 +59,6 @@ def get_engine() -> Engine:
         if not database_url:
             raise ValueError("DATABASE_URL 配置不能为空，请在配置文件或环境变量中设置")
 
-        # 转换 pymysql 连接字符串为 SQLAlchemy 兼容格式
         if database_url.startswith("mysql://"):
             database_url = database_url.replace("mysql://", "mysql+pymysql://")
 
@@ -64,13 +71,14 @@ def get_engine() -> Engine:
             echo=settings.server.SERVER_DEBUG,
         )
 
-        # 创建会话工厂
         _session_factory = sessionmaker(
             bind=_engine,
             autocommit=False,
             autoflush=False,
             expire_on_commit=False,
         )
+
+        logger.info(f"Database engine initialized: {database_url}")
 
     return _engine
 
@@ -84,7 +92,7 @@ def get_session_factory() -> sessionmaker:
     global _session_factory
 
     if _session_factory is None:
-        get_engine()  # 确保引擎已创建
+        get_engine()
 
     return _session_factory
 
@@ -101,7 +109,7 @@ def get_db() -> Generator[Session, None, None]:
         Session: 数据库会话对象
 
     Raises:
-        Exception: 数据库操作异常
+        Exception: 数据库操作异常时自动回滚并重新抛出
     """
     session_factory: sessionmaker = get_session_factory()
     session: Session = session_factory()
@@ -109,11 +117,45 @@ def get_db() -> Generator[Session, None, None]:
     try:
         yield session
         session.commit()
-    except Exception:
+    except Exception as e:
         session.rollback()
+        logger.error(f"Database operation failed, rolled back: {e}")
         raise
     finally:
         session.close()
+
+
+def transaction(func: Callable[..., T]) -> Callable[..., T]:
+    """事务装饰器。
+
+    为函数提供数据库事务支持，自动管理事务的提交和回滚。
+    被装饰的函数必须接受 Session 作为第一个参数。
+
+    Usage:
+        @transaction
+        def create_order(session: Session, data: dict) -> Order:
+            order = Order(**data)
+            session.add(order)
+            return order
+
+    Args:
+        func: 需要事务支持的函数
+
+    Returns:
+        Callable: 包装后的函数，自动处理事务
+    """
+
+    def wrapper(session: Session, *args: Any, **kwargs: Any) -> T:
+        try:
+            result: T = func(session, *args, **kwargs)
+            session.commit()
+            return result
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Transaction failed, rolled back: {func.__name__}, error: {e}")
+            raise
+
+    return wrapper
 
 
 def init_db() -> None:
@@ -123,6 +165,7 @@ def init_db() -> None:
     """
     engine: Engine = get_engine()
     Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created")
 
 
 def drop_db() -> None:
@@ -132,6 +175,7 @@ def drop_db() -> None:
     """
     engine: Engine = get_engine()
     Base.metadata.drop_all(bind=engine)
+    logger.warning("All database tables dropped")
 
 
 def close_db() -> None:
@@ -142,14 +186,15 @@ def close_db() -> None:
         _engine.dispose()
         _engine = None
         _session_factory = None
+        logger.info("Database connection closed")
 
 
-# 导出公共接口
 __all__ = [
     "Base",
     "get_engine",
     "get_session_factory",
     "get_db",
+    "transaction",
     "init_db",
     "drop_db",
     "close_db",

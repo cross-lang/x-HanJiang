@@ -34,10 +34,10 @@ x-HanJiang/
 │   ├── models/              # 数据模型
 │   │   ├── health.py        # 健康检查模型
 │   │   └── user.py          # 用户模型
-│   ├── repository/          # 数据访问层
+│   ├── repositories/        # 数据访问层
 │   │   ├── base_repository.py  # 抽象基类
 │   │   └── user_repository.py  # 用户实现
-│   ├── service/             # 业务逻辑层
+│   ├── services/            # 业务逻辑层
 │   │   ├── base_service.py  # 抽象基类
 │   │   └── user_service.py  # 用户实现
 │   ├── utils/               # 工具函数
@@ -75,7 +75,7 @@ x-HanJiang/
                    │ API → Service (单向依赖)
                    ▼
 ┌─────────────────────────────────────────────┐
-│            Service Layer (service/)          │
+│            Service Layer (services/)          │
 │  ┌──────────────────────────────────────┐   │
 │  │        Business Logic                │   │
 │  │  - 数据校验  - 业务规则  - 流程编排    │   │
@@ -84,7 +84,7 @@ x-HanJiang/
                    │ Service → Repository (单向依赖)
                    ▼
 ┌─────────────────────────────────────────────┐
-│          Repository Layer (repository/)      │
+│          Repository Layer (repositories/)      │
 │  ┌──────────────────────────────────────┐   │
 │  │        Data Access                   │   │
 │  │  - CRUD  - 查询  - 数据映射           │   │

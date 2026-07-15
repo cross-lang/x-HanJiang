@@ -7,8 +7,8 @@
 按照以下步骤可快速扩展新的业务接口：
 
 1. 在 src/models/ 定义数据模型
-2. 在 src/repository/ 实现数据访问
-3. 在 src/service/ 实现业务逻辑
+2. 在 src/repositories/ 实现数据访问
+3. 在 src/services/ 实现业务逻辑
 4. 在 src/api/ 定义路由端点
 5. 在 src/api/router.py 注册路由
 
@@ -43,10 +43,10 @@ class ProductResponse(BaseModel):
 
 
 # ============================================================
-# Step 2: 实现 Repository（src/repository/product_repository.py）
+# Step 2: 实现 Repository（src/repositories/product_repository.py）
 # ============================================================
 
-from src.repository.base_repository import BaseRepository
+from src.repositories.base_repository import BaseRepository
 
 
 class ProductRepository(BaseRepository[ProductResponse, int]):
@@ -88,10 +88,10 @@ class ProductRepository(BaseRepository[ProductResponse, int]):
 
 
 # ============================================================
-# Step 3: 实现 Service（src/service/product_service.py）
+# Step 3: 实现 Service（src/services/product_service.py）
 # ============================================================
 
-from src.service.base_service import BaseService
+from src.services.base_service import BaseService
 
 
 class ProductService(BaseService[ProductResponse, int]):
@@ -124,8 +124,6 @@ class ProductService(BaseService[ProductResponse, int]):
 # ============================================================
 
 from fastapi import APIRouter, Request
-
-from src.common.response import success
 
 # router = APIRouter(prefix="/products", tags=["products"])
 #

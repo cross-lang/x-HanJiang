@@ -12,12 +12,13 @@ Classes:
 
 from typing import Optional, List
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from src.models.user import UserResponse, UserCreateRequest, UserUpdateRequest
+from src.infra.database import get_session_factory
 from src.models.entities.user_entity import UserEntity
-from src.repository.base_repository import BaseRepository
+from src.repositories.base_repository import BaseRepository
+from src.schemas.user import UserResponse, UserCreateRequest, UserUpdateRequest
 
 
 class UserRepository(BaseRepository[UserResponse, int]):
@@ -30,13 +31,13 @@ class UserRepository(BaseRepository[UserResponse, int]):
         session: 数据库会话对象
     """
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session | None = None) -> None:
         """初始化用户仓库。
 
         Args:
-            session: SQLAlchemy 数据库会话
+            session: SQLAlchemy 数据库会话（可选，未提供时自动创建）
         """
-        self.session: Session = session
+        self.session: Session = session or get_session_factory()()
 
     def get_by_id(self, id: int) -> Optional[UserResponse]:
         """根据用户 ID 查询用户。
@@ -82,14 +83,12 @@ class UserRepository(BaseRepository[UserResponse, int]):
         Raises:
             ValueError: 用户名已存在时抛出
         """
-        # 检查用户名是否已存在
         existing_stmt = select(UserEntity).where(UserEntity.username == entity.username)
         existing = self.session.execute(existing_stmt).scalar_one_or_none()
 
         if existing is not None:
             raise ValueError(f"Username '{entity.username}' already exists")
 
-        # 创建新用户实体
         user_entity = UserEntity(
             username=entity.username,
             email=entity.email,
@@ -98,7 +97,7 @@ class UserRepository(BaseRepository[UserResponse, int]):
         )
 
         self.session.add(user_entity)
-        self.session.flush()  # 获取生成的 ID
+        self.session.flush()
 
         return UserResponse(**user_entity.to_dict())
 
@@ -114,15 +113,12 @@ class UserRepository(BaseRepository[UserResponse, int]):
         Returns:
             Optional[UserResponse]: 更新后的用户信息，不存在时返回 None
         """
-        # 检查用户是否存在
         user_entity = self.session.get(UserEntity, id)
         if user_entity is None:
             return None
 
-        # 构建更新数据
         update_data: dict = entity.model_dump(exclude_unset=True)
 
-        # 更新字段
         for key, value in update_data.items():
             setattr(user_entity, key, value)
 
@@ -154,8 +150,6 @@ class UserRepository(BaseRepository[UserResponse, int]):
         Returns:
             int: 用户总数
         """
-        from sqlalchemy import func
-
         stmt = select(func.count()).select_from(UserEntity)
         result = self.session.execute(stmt).scalar()
 

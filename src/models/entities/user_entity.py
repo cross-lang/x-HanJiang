@@ -15,7 +15,7 @@ from datetime import datetime
 from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.database import Base
+from src.infra.database import Base
 
 
 class UserEntity(Base):

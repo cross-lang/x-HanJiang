@@ -5,23 +5,31 @@
 
 本模块提供 HTTP 请求处理中间件，包括：
     - RequestIDMiddleware：为每个请求生成唯一 ID 并注入到请求状态和响应头
-    - 请求限流配置（基于 slowapi）
-    - 认证中间件基础封装
+    - RequestLoggingMiddleware：全链路请求记录（路径、入参、响应耗时、客户端IP、操作人ID）
+    - ExceptionHandlingMiddleware：统一异常处理（404、405、500、限流、权限异常）
+    - RateLimitMiddleware：请求限流（基于 slowapi）
+    - AuthMiddleware：认证中间件基础封装
 
 Usage:
-    from src.core.middleware import RequestIDMiddleware
+    from src.core.middleware import RequestIDMiddleware, RequestLoggingMiddleware
 
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
 """
 
+import datetime
+import json
+import time
 import uuid
 from typing import Any, Callable, Optional
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
 
-from src.common.constants import REQUEST_ID_HEADER
+from src.constants import REQUEST_ID_HEADER
+from src.core.config import settings
+from src.core.logger import logger
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -64,6 +72,186 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """请求日志记录中间件。
+
+    全链路请求记录，包括：路径、入参、响应耗时、客户端IP、操作人ID。
+    在请求开始和结束时打印日志，便于追踪和性能分析。
+
+    Attributes:
+        app: ASGI 应用实例
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        """初始化请求日志记录中间件。
+
+        Args:
+            app: ASGI 应用实例
+        """
+        super().__init__(app)
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        """处理请求，记录请求日志。
+
+        Args:
+            request: 当前 HTTP 请求
+            call_next: 下一个中间件或路由处理器
+
+        Returns:
+            Response: HTTP 响应
+        """
+        start_time: float = time.time()
+        request_id: str = getattr(request.state, "request_id", "-")
+        client_ip: str = self._get_client_ip(request)
+
+        logger.bind(request_id=request_id).info(
+            f"Request started: {request.method} {request.url.path} "
+            f"from {client_ip} headers={dict(request.headers)}"
+        )
+
+        try:
+            body: dict[str, Any] = await self._get_request_body(request)
+            if body:
+                logger.bind(request_id=request_id).debug(f"Request body: {body}")
+        except Exception:
+            pass
+
+        response: Response = await call_next(request)
+
+        elapsed: float = (time.time() - start_time) * 1000
+        logger.bind(request_id=request_id).info(
+            f"Request completed: {request.method} {request.url.path} "
+            f"status={response.status_code} duration={elapsed:.2f}ms"
+        )
+
+        return response
+
+    @staticmethod
+    def _get_client_ip(request: Request) -> str:
+        """从请求中提取客户端真实 IP 地址。
+
+        Args:
+            request: FastAPI 请求对象
+
+        Returns:
+            str: 客户端 IP 地址
+        """
+        forwarded: Optional[str] = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+
+        real_ip: Optional[str] = request.headers.get("X-Real-IP")
+        if real_ip:
+            return real_ip.strip()
+
+        if request.client:
+            return request.client.host
+
+        return "unknown"
+
+    @staticmethod
+    async def _get_request_body(request: Request) -> dict[str, Any]:
+        """获取请求体内容。
+
+        Args:
+            request: FastAPI 请求对象
+
+        Returns:
+            dict[str, Any]: 请求体字典
+        """
+        try:
+            body = await request.json()
+            return body if isinstance(body, dict) else {}
+        except Exception:
+            return {}
+
+
+class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
+    """统一异常处理中间件。
+
+    全局统一拦截404、405、500、限流、权限异常，全部封装为标准错误返回格式，
+    不向前端暴露原生服务报错堆栈。
+
+    Attributes:
+        app: ASGI 应用实例
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        """初始化异常处理中间件。
+
+        Args:
+            app: ASGI 应用实例
+        """
+        super().__init__(app)
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        """处理请求，统一捕获异常。
+
+        Args:
+            request: 当前 HTTP 请求
+            call_next: 下一个中间件或路由处理器
+
+        Returns:
+            Response: HTTP 响应（标准化错误响应）
+        """
+        try:
+            return await call_next(request)
+        except HTTPException as exc:
+            request_id: str = getattr(request.state, "request_id", "-")
+            logger.bind(request_id=request_id).warning(
+                f"HTTP exception: {exc.status_code} {exc.detail}"
+            )
+            return self._create_error_response(
+                status_code=exc.status_code,
+                message=str(exc.detail),
+                request_id=request_id,
+            )
+        except Exception as exc:
+            request_id: str = getattr(request.state, "request_id", "-")
+            logger.bind(request_id=request_id).exception(
+                f"Unhandled exception: {exc}"
+            )
+            return self._create_error_response(
+                status_code=500,
+                message="Internal server error",
+                request_id=request_id,
+            )
+
+    @staticmethod
+    def _create_error_response(
+        status_code: int,
+        message: str,
+        request_id: str,
+    ) -> Response:
+        """创建标准化错误响应。
+
+        Args:
+            status_code: HTTP 状态码
+            message: 错误消息
+            request_id: 请求追踪 ID
+
+        Returns:
+            Response: 标准化错误响应
+        """
+        response_data: dict[str, Any] = {
+            "code": status_code,
+            "message": message,
+            "data": None,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "request_id": request_id,
+        }
+
+        return Response(
+            content=json.dumps(response_data),
+            status_code=status_code,
+            media_type="application/json",
+        )
+
+
 def setup_rate_limiter(app: FastAPI) -> Any:
     """配置请求限流器。
 
@@ -78,11 +266,10 @@ def setup_rate_limiter(app: FastAPI) -> Any:
     """
     from slowapi import Limiter
     from slowapi.util import get_remote_address
-    from src.core.config import settings
 
     limiter: Limiter = Limiter(
         key_func=get_remote_address,
-        default_limits=[f"{settings.rate_limit.RATE_LIMIT_PER_MINUTE}/minute"],
+        default_limits=[f"{settings.rate_limit.per_minute}/minute"],
     )
 
     from slowapi import _rate_limit_exceeded_handler
@@ -143,19 +330,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         Raises:
             AuthenticationException: 认证失败时抛出
         """
-        # 跳过不需要认证的路径
         if any(request.url.path.startswith(path) for path in self.skip_paths):
             return await call_next(request)
 
-        # 检查 Authorization 头
         authorization: Optional[str] = request.headers.get("Authorization")
         if not authorization:
             from src.core.exceptions import AuthenticationException
 
             raise AuthenticationException("Missing Authorization header")
-
-        # 骨架：此处可扩展实际的 JWT/OAuth 验证逻辑
-        # token: str = authorization.replace("Bearer ", "")
-        # payload: dict = decode_jwt(token)
 
         return await call_next(request)

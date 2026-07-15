@@ -12,9 +12,11 @@ Classes:
 
 from typing import Any, Optional
 
-from src.models.user import UserCreateRequest, UserResponse, UserUpdateRequest
-from src.repository.user_repository import UserRepository
-from src.service.base_service import BaseService
+from src.core.exceptions import BusinessException, NotFoundException
+from src.core.logger import logger
+from src.repositories.user_repository import UserRepository
+from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
+from src.services.base_service import BaseService
 
 
 class UserService(BaseService[UserResponse, int]):
@@ -81,9 +83,6 @@ class UserService(BaseService[UserResponse, int]):
         Raises:
             BusinessException: 用户名已存在或其他业务规则违反时抛出
         """
-        from src.core.exceptions import BusinessException
-        from src.core.logger import logger
-
         try:
             request: UserCreateRequest = UserCreateRequest(**data)
             result: UserResponse = self._repository.create(request)
@@ -103,11 +102,8 @@ class UserService(BaseService[UserResponse, int]):
             Optional[UserResponse]: 更新后的用户信息，不存在时返回 None
 
         Raises:
-            BusinessException: 用户不存在时抛出
+            NotFoundException: 用户不存在时抛出
         """
-        from src.core.exceptions import NotFoundException
-        from src.core.logger import logger
-
         request: UserUpdateRequest = UserUpdateRequest(**data)
         result: Optional[UserResponse] = self._repository.update(id, request)
 
@@ -129,9 +125,6 @@ class UserService(BaseService[UserResponse, int]):
         Raises:
             NotFoundException: 用户不存在时抛出
         """
-        from src.core.exceptions import NotFoundException
-        from src.core.logger import logger
-
         existing: Optional[UserResponse] = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"User with id {id} not found")

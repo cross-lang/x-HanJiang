@@ -8,3 +8,9 @@ logging:
 
 rate_limit:
   per_minute: 10000
+
+database:
+  url: ""
+
+redis:
+  url: ""

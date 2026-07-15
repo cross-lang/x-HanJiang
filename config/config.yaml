@@ -9,8 +9,8 @@ server:
 
 logging:
   level: "INFO"
-  file_path: "logs/app.log"
-  rotation: "1 day"
+  file_path: "logs/x-HanJiang-{time:YYYYMMDDHH}.log"
+  rotation: "1 hour"
   retention: "7 days"
 
 cors:
@@ -25,8 +25,6 @@ auth:
   algorithm: "HS256"
 
 database:
-  # MySQL 数据库连接字符串（格式：mysql://user:password@host:port/database）
-  # 也可以使用 pymysql 驱动：mysql+pymysql://user:password@host:port/database
   url: "mysql://root:123456@localhost:3306/hanjiang"
   pool_size: 5
 

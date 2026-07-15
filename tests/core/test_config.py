@@ -19,57 +19,56 @@ class TestSettings:
         from src.core.config import Settings
 
         s = Settings()
-        assert s.APP_ENV in ("development", "testing")
-        assert s.server.SERVER_HOST == "0.0.0.0"
-        assert s.server.SERVER_PORT == 8000
-        assert isinstance(s.server.SERVER_DEBUG, bool)
+        assert s.app_env in ("development", "testing")
+        assert s.server.host == "0.0.0.0"
+        assert s.server.port == 8000
+        assert isinstance(s.server.debug, bool)
 
     def test_logging_config(self):
         """测试日志配置加载。"""
         from src.core.config import Settings
 
         s = Settings()
-        assert s.logging.LOGGING_LEVEL in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
-        assert s.logging.LOGGING_FILE_PATH
-        assert s.logging.LOGGING_ROTATION
-        assert s.logging.LOGGING_RETENTION
+        assert s.logging.level in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+        assert s.logging.file_path
+        assert s.logging.rotation
+        assert s.logging.retention
 
     def test_cors_config(self):
         """测试 CORS 配置加载。"""
         from src.core.config import Settings
 
         s = Settings()
-        assert isinstance(s.cors.CORS_ORIGINS, list)
-        assert len(s.cors.CORS_ORIGINS) > 0
+        assert isinstance(s.cors.origins, list)
+        assert len(s.cors.origins) > 0
 
     def test_rate_limit_config(self):
         """测试限流配置加载。"""
         from src.core.config import Settings
 
         s = Settings()
-        assert s.rate_limit.RATE_LIMIT_PER_MINUTE >= 1
+        assert s.rate_limit.per_minute >= 1
 
     def test_auth_config(self):
         """测试认证配置加载。"""
         from src.core.config import Settings
 
         s = Settings()
-        assert s.auth.AUTH_SECRET_KEY
-        assert s.auth.AUTH_ALGORITHM == "HS256"
+        assert s.auth.secret_key
+        assert s.auth.algorithm == "HS256"
 
     def test_global_singleton(self):
         """测试全局配置单例。"""
         from src.core.config import settings
 
         assert settings is not None
-        assert hasattr(settings, "APP_ENV")
+        assert hasattr(settings, "app_env")
         assert hasattr(settings, "server")
 
     def test_environment_properties(self):
         """测试环境判断属性。"""
         from src.core.config import Settings
-        from src.common.constants import ENV_DEVELOPMENT
+        from src.constants.common import ENV_DEVELOPMENT
 
         s = Settings()
-        # 默认应为开发或测试环境
-        assert s.APP_ENV in (ENV_DEVELOPMENT, "testing")
+        assert s.app_env in (ENV_DEVELOPMENT, "testing")

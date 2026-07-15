@@ -12,7 +12,6 @@ Usage:
 from src.core.config import settings
 from src.core.logger import setup_logging, logger
 from src.common.constants import APP_NAME, APP_VERSION
-from src.common.response import success, error
 
 
 def main() -> None:
@@ -27,14 +26,7 @@ def main() -> None:
     logger.info(f"监听端口: {settings.server.SERVER_PORT}")
     logger.info(f"调试模式: {settings.server.SERVER_DEBUG}")
 
-    # 3. 构建响应
-    success_resp = success(data={"message": "Hello, 寒江（HanJiang）!"})
-    logger.info(f"成功响应: {success_resp}")
-
-    error_resp = error(code=400, message="参数错误")
-    logger.warning(f"错误响应: {error_resp}")
-
-    # 4. 使用日志绑定 request_id
+    # 3. 使用日志绑定 request_id
     logger.bind(request_id="demo-request-001").info("这是一条带请求 ID 的日志")
 
     logger.info("基础使用示例运行完成！")

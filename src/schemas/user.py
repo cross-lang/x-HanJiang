@@ -4,7 +4,7 @@
 用户数据模型
 
 本模块定义了用户相关的请求和响应数据传输对象（DTO），
-作为项目三层架构的示例模型，展示标准的模型定义规范。
+用于 API 层的数据校验和序列化。
 
 Classes:
     UserCreateRequest: 用户创建请求模型
@@ -12,10 +12,10 @@ Classes:
     UserResponse: 用户响应模型
 """
 
-from datetime import datetime
+import re
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserCreateRequest(BaseModel):
@@ -39,6 +39,15 @@ class UserCreateRequest(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """校验邮箱格式。"""
+        email_pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+        if not re.match(email_pattern, v):
+            raise ValueError("邮箱格式不正确")
+        return v
+
 
 class UserUpdateRequest(BaseModel):
     """用户更新请求模型。
@@ -56,6 +65,17 @@ class UserUpdateRequest(BaseModel):
     age: Optional[int] = Field(default=None, ge=0, le=150, description="年龄")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        """校验邮箱格式（可选字段）。"""
+        if v is None:
+            return v
+        email_pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+        if not re.match(email_pattern, v):
+            raise ValueError("邮箱格式不正确")
+        return v
 
 
 class UserResponse(BaseModel):

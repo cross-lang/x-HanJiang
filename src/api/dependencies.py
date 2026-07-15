@@ -19,9 +19,9 @@ from typing import Generator, Optional
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
-from src.common.base_model import PaginatedRequest
+from src.schemas.common import PaginatedRequest
 from src.core.container import Container
-from src.core.database import get_session_factory
+from src.infra.database import get_session_factory
 
 
 def get_request_id(request: Request) -> Optional[str]:
@@ -96,11 +96,8 @@ def get_user_service(
     Returns:
         UserService: 用户业务逻辑实例
     """
-    from src.repository.user_repository import UserRepository
-    from src.service.user_service import UserService
+    from src.repositories.user_repository import UserRepository
+    from src.services.user_service import UserService
 
-    # 创建 UserRepository 实例并注入数据库会话
     user_repository = UserRepository(session=db_session)
-
-    # 创建 UserService 实例并注入 UserRepository
     return UserService(user_repository=user_repository)

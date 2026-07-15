@@ -7,46 +7,108 @@
 用于服务监控、负载均衡健康探测和部署验证。
 
 Endpoints:
-    GET /health: 健康检查
+    GET /health: 健康检查（返回数据库、缓存连通状态）
     GET /version: 版本信息
 """
 
 from fastapi import APIRouter, Request
 
-from src.common.constants import APP_NAME, APP_VERSION
-from src.common.response import success
+from src.constants import APP_NAME, APP_VERSION
 from src.core.config import settings
+from src.schemas.health import HealthResponse, VersionResponse
 
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health", summary="健康检查", description="返回服务健康状态信息")
-async def health_check(request: Request) -> dict:
+@router.get(
+    "/health",
+    summary="健康检查",
+    description="返回服务健康状态信息，包含数据库、缓存连通状态",
+    response_model=HealthResponse,
+)
+async def health_check(request: Request) -> HealthResponse:
     """健康检查接口。
 
-    返回服务当前运行状态、版本号和环境信息。
+    返回服务当前运行状态、版本号、环境信息，以及数据库和缓存的连通状态。
     用于负载均衡器健康探测和监控系统。
 
     Args:
         request: FastAPI 请求对象
 
     Returns:
-        dict: 标准化健康检查响应
+        HealthResponse: 健康检查响应模型
     """
-    request_id = getattr(request.state, "request_id", None)
-    return success(
-        data={
-            "status": "ok",
-            "app": APP_NAME,
-            "version": APP_VERSION,
-            "environment": settings.APP_ENV,
-        },
-        request_id=request_id,
+    database_status = _check_database()
+    cache_status = _check_cache()
+
+    overall_status = "ok"
+    if database_status == "error" or cache_status == "error":
+        overall_status = "error"
+
+    return HealthResponse(
+        status=overall_status,
+        app=APP_NAME,
+        version=APP_VERSION,
+        environment=settings.app_env,
+        database=database_status,
+        cache=cache_status,
     )
 
 
-@router.get("/version", summary="版本信息", description="返回应用版本号和 API 版本号")
-async def version(request: Request) -> dict:
+def _check_database() -> str:
+    """检查数据库连接状态。
+
+    Returns:
+        str: "ok" 表示连接正常，"error" 表示连接失败，"disabled" 表示未配置
+    """
+    if not settings.database.url:
+        return "disabled"
+
+    try:
+        from src.infra.database import get_engine
+
+        engine = get_engine()
+        with engine.connect() as connection:
+            connection.execute("SELECT 1")
+        return "ok"
+    except Exception as e:
+        from src.core.logger import logger
+
+        logger.warning(f"Database connection check failed: {e}")
+        return "error"
+
+
+def _check_cache() -> str:
+    """检查缓存连接状态。
+
+    Returns:
+        str: "ok" 表示连接正常，"error" 表示连接失败，"disabled" 表示未配置
+    """
+    if not settings.redis.url:
+        return "disabled"
+
+    try:
+        from src.infra.cache import get_redis
+
+        redis_client = get_redis()
+        redis_client.ping()
+        return "ok"
+    except ImportError:
+        return "disabled"
+    except Exception as e:
+        from src.core.logger import logger
+
+        logger.warning(f"Redis connection check failed: {e}")
+        return "error"
+
+
+@router.get(
+    "/version",
+    summary="版本信息",
+    description="返回应用版本号和 API 版本号",
+    response_model=VersionResponse,
+)
+async def version(request: Request) -> VersionResponse:
     """版本信息接口。
 
     返回应用版本号和 API 版本号。
@@ -55,13 +117,9 @@ async def version(request: Request) -> dict:
         request: FastAPI 请求对象
 
     Returns:
-        dict: 标准化版本信息响应
+        VersionResponse: 版本信息响应模型
     """
-    request_id = getattr(request.state, "request_id", None)
-    return success(
-        data={
-            "version": APP_VERSION,
-            "api_version": "v1",
-        },
-        request_id=request_id,
+    return VersionResponse(
+        version=APP_VERSION,
+        api_version="v1",
     )

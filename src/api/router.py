@@ -15,7 +15,7 @@
 from fastapi import APIRouter
 
 from src.api import health, user
-from src.common.constants import API_PREFIX
+from src.constants import API_PREFIX
 
 api_router = APIRouter(prefix=API_PREFIX)
 

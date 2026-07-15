@@ -19,7 +19,7 @@
 ## 核心特征
 
 - **标准三层架构** — API 接口层 → 业务逻辑层（Service）→ 数据访问层（Repository），层间依赖严格单向
-- **依赖注入容器** — 类 Go Wire 的 DI 能力，支持自动装配、单例/多例模式、装饰器注册
+- **依赖注入容器** — DI 能力，支持自动装配、单例/多例模式、装饰器注册
 - **双配置体系** — 支持 `.env` 环境变量 + `config.yaml` 配置文件双来源，多环境自动切换
 - **标准化响应** — 统一的 JSON 响应格式，包含状态码、消息、数据、时间戳、请求 ID
 - **全局异常处理** — 自定义异常层级（业务异常 4xx / 系统异常 5xx），全局异常中间件
@@ -57,8 +57,8 @@ x-HanJiang/
 │   ├── models/              # 数据模型
 │   │   ├── entities/        # ORM 实体模型
 │   │   └── user.py          # Pydantic DTO
-│   ├── repository/          # 数据访问层
-│   ├── service/             # 业务逻辑层
+│   ├── repositories/        # 数据访问层
+│   ├── services/            # 业务逻辑层
 │   ├── utils/               # 工具函数
 │   └── main.py              # 应用入口
 ├── tests/                   # 测试代码
@@ -91,13 +91,13 @@ x-HanJiang/
                │ API → Service
                ▼
 ┌──────────────────────────────────────┐
-│        Service Layer (service/)      │
+│        Service Layer (services/)      │
 │    业务规则 │ 数据校验 │ 流程编排      │
 └──────────────┬───────────────────────┘
                │ Service → Repository
                ▼
 ┌──────────────────────────────────────┐
-│      Repository Layer (repository/)  │
+│      Repository Layer (repositories/)  │
 │         CRUD │ 查询 │ 数据映射        │
 └──────────────┬───────────────────────┘
                ▼
