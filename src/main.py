@@ -39,7 +39,7 @@ from src.core.middleware import (
 )
 
 try:
-    from src.infra.database import init_db, close_db
+    from src.infra.mysql import init_db, close_db
     _has_db = True
 except ImportError:
     _has_db = False

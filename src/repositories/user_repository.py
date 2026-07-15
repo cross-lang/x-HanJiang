@@ -15,7 +15,7 @@ from typing import Optional, List
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from src.infra.database import get_session_factory
+from src.infra.mysql import get_session_factory
 from src.models.entities.user_entity import UserEntity
 from src.repositories.base_repository import BaseRepository
 from src.schemas.user import UserResponse, UserCreateRequest, UserUpdateRequest

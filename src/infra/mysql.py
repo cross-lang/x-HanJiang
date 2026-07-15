@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-数据库基础设施模块
+MySQL 数据库基础设施模块
 
-本模块提供数据库连接池管理和会话工厂，确保数据库连接的高效复用和生命周期管理。
-支持 MySQL 数据库，使用连接池提升性能。
+本模块提供 MySQL 数据库连接池管理和会话工厂，确保数据库连接的高效复用和生命周期管理。
 
 功能特性：
     - 基于 SQLAlchemy 2.0 的同步支持
-    - 连接池管理和配置
+    - MySQL 连接池管理和配置
     - 上下文管理器确保会话自动关闭
     - 通用事务封装（不含单表业务CRUD）
-    - 支持多环境配置
 
 Usage:
-    from src.infra.database import get_db, engine, Base, transaction
+    from src.infra.mysql import get_db, engine, Base, transaction
 
     # 获取数据库会话
     with get_db() as session:
@@ -44,10 +42,10 @@ T = TypeVar("T")
 
 
 def get_engine() -> Engine:
-    """获取数据库引擎单例。
+    """获取 MySQL 数据库引擎单例。
 
     Returns:
-        Engine: SQLAlchemy 数据库引擎
+        Engine: SQLAlchemy MySQL 数据库引擎
 
     Raises:
         ValueError: DATABASE_URL 配置为空时抛出
@@ -78,13 +76,13 @@ def get_engine() -> Engine:
             expire_on_commit=False,
         )
 
-        logger.info(f"Database engine initialized: {database_url}")
+        logger.info(f"MySQL engine initialized: {database_url}")
 
     return _engine
 
 
 def get_session_factory() -> sessionmaker:
-    """获取会话工厂单例。
+    """获取 MySQL 会话工厂单例。
 
     Returns:
         sessionmaker: SQLAlchemy 会话工厂
@@ -99,14 +97,14 @@ def get_session_factory() -> sessionmaker:
 
 @contextmanager
 def get_db() -> Generator[Session, None, None]:
-    """获取数据库会话的上下文管理器。
+    """获取 MySQL 数据库会话的上下文管理器。
 
     使用方式：
         with get_db() as session:
             user = session.query(User).first()
 
     Yields:
-        Session: 数据库会话对象
+        Session: MySQL 数据库会话对象
 
     Raises:
         Exception: 数据库操作异常时自动回滚并重新抛出
@@ -119,16 +117,16 @@ def get_db() -> Generator[Session, None, None]:
         session.commit()
     except Exception as e:
         session.rollback()
-        logger.error(f"Database operation failed, rolled back: {e}")
+        logger.error(f"MySQL operation failed, rolled back: {e}")
         raise
     finally:
         session.close()
 
 
 def transaction(func: Callable[..., T]) -> Callable[..., T]:
-    """事务装饰器。
+    """MySQL 事务装饰器。
 
-    为函数提供数据库事务支持，自动管理事务的提交和回滚。
+    为函数提供 MySQL 数据库事务支持，自动管理事务的提交和回滚。
     被装饰的函数必须接受 Session 作为第一个参数。
 
     Usage:
@@ -152,41 +150,41 @@ def transaction(func: Callable[..., T]) -> Callable[..., T]:
             return result
         except Exception as e:
             session.rollback()
-            logger.error(f"Transaction failed, rolled back: {func.__name__}, error: {e}")
+            logger.error(f"MySQL transaction failed, rolled back: {func.__name__}, error: {e}")
             raise
 
     return wrapper
 
 
 def init_db() -> None:
-    """初始化数据库，创建所有表。
+    """初始化 MySQL 数据库，创建所有表。
 
     注意：生产环境建议使用数据库迁移工具（如 Alembic）管理表结构变更。
     """
     engine: Engine = get_engine()
     Base.metadata.create_all(bind=engine)
-    logger.info("Database tables created")
+    logger.info("MySQL tables created")
 
 
 def drop_db() -> None:
-    """删除所有数据库表。
+    """删除所有 MySQL 数据库表。
 
     注意：此操作不可逆，仅用于测试环境或开发环境。
     """
     engine: Engine = get_engine()
     Base.metadata.drop_all(bind=engine)
-    logger.warning("All database tables dropped")
+    logger.warning("All MySQL tables dropped")
 
 
 def close_db() -> None:
-    """关闭数据库连接，清理资源。"""
+    """关闭 MySQL 数据库连接，清理资源。"""
     global _engine, _session_factory
 
     if _engine:
         _engine.dispose()
         _engine = None
         _session_factory = None
-        logger.info("Database connection closed")
+        logger.info("MySQL connection closed")
 
 
 __all__ = [

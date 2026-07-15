@@ -65,7 +65,7 @@ def _check_database() -> str:
         return "disabled"
 
     try:
-        from src.infra.database import get_engine
+        from src.infra.mysql import get_engine
         from sqlalchemy import text
 
         engine = get_engine()
