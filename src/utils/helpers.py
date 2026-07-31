@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 通用工具函数模块
 
@@ -11,7 +10,8 @@
 """
 
 import uuid
-from typing import Any, Optional
+from datetime import UTC
+from typing import Any
 
 from fastapi import Request
 
@@ -41,11 +41,11 @@ def get_client_ip(request: Request) -> str:
     Returns:
         str: 客户端 IP 地址
     """
-    forwarded: Optional[str] = request.headers.get("X-Forwarded-For")
+    forwarded: str | None = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()
 
-    real_ip: Optional[str] = request.headers.get("X-Real-IP")
+    real_ip: str | None = request.headers.get("X-Real-IP")
     if real_ip:
         return real_ip.strip()
 
@@ -55,7 +55,7 @@ def get_client_ip(request: Request) -> str:
     return "unknown"
 
 
-def mask_sensitive(data: dict[str, Any], keys: Optional[list[str]] = None) -> dict[str, Any]:
+def mask_sensitive(data: dict[str, Any], keys: list[str] | None = None) -> dict[str, Any]:
     """对字典中的敏感字段进行脱敏处理。
 
     将指定键的值替换为 "****"，用于安全日志输出。
@@ -89,6 +89,6 @@ def datetime_now_iso() -> str:
     Returns:
         str: ISO 8601 格式的 UTC 时间戳
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

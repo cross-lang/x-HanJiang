@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 统一日志管理模块
 
@@ -24,7 +23,6 @@ Usage:
 
 import os
 import sys
-from typing import Optional
 
 from loguru import logger as _logger
 
@@ -46,10 +44,10 @@ _DEFAULT_REQUEST_ID: str = "-"
 
 
 def setup_logging(
-    level: Optional[str] = None,
-    file_path: Optional[str] = None,
-    rotation: Optional[str] = None,
-    retention: Optional[str] = None,
+    level: str | None = None,
+    file_path: str | None = None,
+    rotation: str | None = None,
+    retention: str | None = None,
 ) -> None:
     """初始化日志配置，全局只能调用一次。
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 依赖注入容器测试
 
@@ -7,11 +6,10 @@
 """
 
 import pytest
-
 from src.core.container import (
+    CircularDependencyError,
     Container,
     DependencyNotFoundError,
-    CircularDependencyError,
     Lifecycle,
 )
 

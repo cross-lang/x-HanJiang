@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 FastAPI 依赖注入模块
 
@@ -14,33 +13,25 @@ Functions:
     get_user_service: 获取用户服务实例
 """
 
-from typing import Generator, Optional
+from collections.abc import Generator
 
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
-from src.schemas.common import PaginatedRequest
 from src.core.container import Container
 from src.infras.mysql import get_session_factory
+from src.schemas.common import PaginatedRequest
 
 
-def get_request_id(request: Request) -> Optional[str]:
-    """从请求状态中获取当前请求 ID。
-
-    Args:
-        request: FastAPI 请求对象
-
-    Returns:
-        Optional[str]: 请求追踪 ID
-    """
+def get_request_id(request: Request) -> str | None:
+    """从请求状态中获取当前请求 ID。"""
     return getattr(request.state, "request_id", None)
 
 
 def get_container() -> Container:
     """获取全局 DI 容器实例。
 
-    Returns:
-        Container: 全局依赖注入容器
+    用于在 endpoint 中按需获取已注册的组件（如缓存、外部服务等）。
     """
     return Container.get_instance()
 
@@ -49,15 +40,7 @@ def get_pagination(
     page: int = 1,
     page_size: int = 20,
 ) -> PaginatedRequest:
-    """获取分页参数。
-
-    Args:
-        page: 页码（从 1 开始）
-        page_size: 每页记录数
-
-    Returns:
-        PaginatedRequest: 分页请求参数
-    """
+    """获取分页参数。"""
     return PaginatedRequest(page=page, page_size=page_size)
 
 
@@ -83,21 +66,41 @@ def get_db_session() -> Generator[Session, None, None]:
         session.close()
 
 
-def get_user_service(
+def get_user_repository(
     db_session: Session = Depends(get_db_session),
+):
+    """获取用户仓库实例（可被 DI 容器覆盖）。"""
+    from src.repositories.user_repository import UserRepository
+
+    return UserRepository(session=db_session)
+
+
+def get_user_service(
+    user_repository=Depends(get_user_repository),
 ):
     """获取用户服务实例。
 
-    每次请求创建新的 UserRepository 和 UserService 实例，注入数据库会话。
-
-    Args:
-        db_session: 数据库会话（通过 FastAPI Depends 自动注入）
-
-    Returns:
-        UserService: 用户业务逻辑实例
+    通过 DI 容器优先解析；如果未注册，则回退到手写构造（兼容旧调用）。
     """
+    from src.services.user_service import UserService
+
+    container = Container.get_instance()
+    try:
+        return container.resolve(UserService)
+    except Exception:
+        # DI 未注册时退回到直接构造
+        return UserService(user_repository=user_repository)
+
+
+def register_default_bindings(container: Container) -> None:
+    """向 DI 容器注册默认组件。
+
+    由 main.create_app 在应用启动时调用。
+    """
+    from src.core.container import Lifecycle
     from src.repositories.user_repository import UserRepository
     from src.services.user_service import UserService
 
-    user_repository = UserRepository(session=db_session)
-    return UserService(user_repository=user_repository)
+    # Repository 与 Service 都是请求作用域（每次请求创建新实例，避免共享会话）
+    container.register(UserRepository, UserRepository, Lifecycle.TRANSIENT)
+    container.register(UserService, UserService, Lifecycle.TRANSIENT)

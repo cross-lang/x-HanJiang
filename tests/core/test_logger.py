@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 日志模块测试
 
 测试日志初始化、配置消费、实例单例等功能。
 """
 
-import pytest
 
 
 class TestLogger:

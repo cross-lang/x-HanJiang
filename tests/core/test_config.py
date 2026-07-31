@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 配置模块测试
 
 测试 Settings 配置加载、环境切换、默认值等功能。
 """
 
-import os
 
-import pytest
 
 
 class TestSettings:
@@ -67,8 +64,8 @@ class TestSettings:
 
     def test_environment_properties(self):
         """测试环境判断属性。"""
-        from src.core.config import Settings
         from src.constants.common import ENV_DEVELOPMENT
+        from src.core.config import Settings
 
         s = Settings()
         assert s.app_env in (ENV_DEVELOPMENT, "testing")

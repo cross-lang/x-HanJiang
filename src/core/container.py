@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 依赖注入容器模块
 
@@ -31,9 +30,8 @@ Usage:
         ...
 """
 
-import inspect
 from enum import Enum
-from typing import Any, TypeVar, Optional, Type
+from typing import Any, Optional, TypeVar
 
 T = TypeVar("T")
 
@@ -111,8 +109,8 @@ class Container:
 
     def register(
         self,
-        interface: Type[T],
-        implementation: Type[T],
+        interface: type[T],
+        implementation: type[T],
         lifecycle: Lifecycle = Lifecycle.SINGLETON,
     ) -> None:
         """注册接口到实现类的映射。
@@ -124,7 +122,7 @@ class Container:
         """
         self._registry[interface] = (implementation, lifecycle)
 
-    def resolve(self, interface: Type[T]) -> T:
+    def resolve(self, interface: type[T]) -> T:
         """解析并返回指定接口类型的实例。
 
         对于单例模式，首次创建后缓存实例；对于多例模式，每次都创建新实例。
@@ -200,7 +198,7 @@ class Container:
 
     def decorate(
         self,
-        interface: Type[T],
+        interface: type[T],
         lifecycle: Lifecycle = Lifecycle.SINGLETON,
     ) -> Any:
         """装饰器风格的依赖注册。
@@ -213,7 +211,7 @@ class Container:
             装饰器函数
         """
 
-        def decorator(cls: Type[T]) -> Type[T]:
+        def decorator(cls: type[T]) -> type[T]:
             self.register(interface, cls, lifecycle)
             return cls
 

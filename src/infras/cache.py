@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 缓存基础设施模块
 
@@ -25,8 +24,9 @@ Usage:
 """
 
 import json
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 from src.core.config import settings
 from src.core.logger import logger
@@ -38,7 +38,7 @@ except ImportError:
     redis = None
     Redis = None  # type: ignore[assignment]
 
-_redis_client: Optional[Redis] = None
+_redis_client: Redis | None = None
 
 T = TypeVar("T")
 
@@ -59,7 +59,7 @@ def get_redis() -> Redis:
         raise ImportError("redis 库未安装，请运行 pip install redis")
 
     if _redis_client is None:
-        redis_url: str = settings.redis.REDIS_URL
+        redis_url: str = settings.redis.url
         if not redis_url:
             raise ValueError("REDIS_URL 配置不能为空，请在配置文件或环境变量中设置")
 

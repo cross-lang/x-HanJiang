@@ -21,7 +21,7 @@ rate_limit:
   per_minute: 60
 
 auth:
-  secret_key: "change-me-in-production"
+  secret_key: "dev-only-do-not-use-in-prod-aaaaaaaaaaaaaaaaaaaaaa"
   algorithm: "HS256"
 
 database:

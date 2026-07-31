@@ -1,5 +1,10 @@
 # 寒江（HanJiang）Docker Compose 配置
 # 使用方法：docker-compose up --build
+#
+# 注意：生产环境部署时：
+#   1. AUTH_SECRET_KEY 必须通过 secrets/环境变量注入，禁用默认占位符
+#   2. 数据库密码同样需要外部注入
+#   3. CORS origins 应限制为可信来源
 
 services:
   app:
@@ -10,14 +15,67 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - APP_ENV=production
+      - APP_ENV=${APP_ENV:-production}
+      # 必填项：生产环境必须覆盖默认值
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?AUTH_SECRET_KEY is required (>=32 chars)}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-hanjiang}:${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}@mysql:3306/${MYSQL_DATABASE:-hanjiang}
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./config:/app/config:ro
       - ./logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request, socket; socket.setdefaulttimeout(3); urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
+
+  mysql:
+    image: mysql:8.0
+    container_name: x-HanJiang-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpass}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-hanjiang}
+      - MYSQL_USER=${MYSQL_USER:-hanjiang}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=caching_sha2_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: x-HanJiang-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:

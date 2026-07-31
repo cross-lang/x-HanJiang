@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 数据模型层（Schemas）
 
@@ -18,9 +17,9 @@
     - common: 通用模型（分页、错误响应等）
 """
 
-from src.schemas.common import PaginatedRequest, PaginatedResponse, ApiResponse
+from src.schemas.common import ApiResponse, PaginatedRequest, PaginatedResponse
 from src.schemas.health import HealthResponse, VersionResponse
-from src.schemas.user import UserCreateRequest, UserUpdateRequest, UserResponse
+from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 
 __all__ = [
     "PaginatedRequest",

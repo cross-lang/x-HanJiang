@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 数据访问层抽象基类
 
@@ -7,7 +6,7 @@
 提供通用的 CRUD 操作接口定义，确保数据访问层的统一规范。
 
 类型参数：
-    T: 实体类型
+    T: 实体类型（ORM 模型，例如 SQLAlchemy declarative class）
     ID: 主键类型
 
 Classes:
@@ -15,7 +14,7 @@ Classes:
 """
 
 from abc import ABC, abstractmethod
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 ID = TypeVar("ID")
@@ -33,7 +32,7 @@ class BaseRepository(ABC, Generic[T, ID]):
     """
 
     @abstractmethod
-    def get_by_id(self, id: ID) -> Optional[T]:
+    def get_by_id(self, id: ID) -> T | None:
         """根据主键查询实体。
 
         Args:
@@ -44,7 +43,7 @@ class BaseRepository(ABC, Generic[T, ID]):
         """
 
     @abstractmethod
-    def get_all(self, skip: int = 0, limit: int = 100) -> List[T]:
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[T]:
         """查询所有实体（分页）。
 
         Args:
@@ -60,7 +59,7 @@ class BaseRepository(ABC, Generic[T, ID]):
         """创建新实体。
 
         Args:
-            entity: 待创建的实体数据
+            entity: 待创建的实体
 
         Returns:
             T: 创建成功的实体（通常包含生成的主键）
@@ -70,12 +69,12 @@ class BaseRepository(ABC, Generic[T, ID]):
         """
 
     @abstractmethod
-    def update(self, id: ID, entity: T) -> Optional[T]:
+    def update(self, id: ID, entity: T) -> T | None:
         """更新实体。
 
         Args:
             id: 待更新实体的主键
-            entity: 更新后的实体数据
+            entity: 更新后的实体
 
         Returns:
             Optional[T]: 更新成功的实体，不存在时返回 None

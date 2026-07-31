@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 中间件模块
 
@@ -21,15 +20,29 @@ import datetime
 import json
 import time
 import uuid
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import FastAPI, HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
 
 from src.constants import REQUEST_ID_HEADER
 from src.core.config import settings
 from src.core.logger import logger
+from src.utils.helpers import mask_sensitive
+
+# 敏感请求头黑名单，日志中始终脱敏
+_SENSITIVE_HEADERS: frozenset[str] = frozenset(
+    {
+        "authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "x-auth-token",
+        "x-csrftoken",
+    }
+)
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -43,18 +56,17 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         app: ASGI 应用实例
     """
 
-    def __init__(self, app: ASGIApp) -> None:
-        """初始化请求 ID 中间件。
-
-        Args:
-            app: ASGI 应用实例
-        """
+    def __init__(self, app: ASGIApp, header_name: str = REQUEST_ID_HEADER) -> None:
         super().__init__(app)
+        self.header_name: str = header_name
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         """处理请求，生成并注入请求 ID。
+
+        如果请求中已经携带同名头（如上游网关传入），则复用之；
+        否则生成新的 UUID。
 
         Args:
             request: 当前 HTTP 请求
@@ -63,31 +75,25 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         Returns:
             Response: HTTP 响应，包含 X-Request-ID 头
         """
-        request_id: str = str(uuid.uuid4())
+        request_id: str | None = request.headers.get(self.header_name)
+        if not request_id:
+            request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 
         response: Response = await call_next(request)
-        response.headers[REQUEST_ID_HEADER] = request_id
-
+        response.headers[self.header_name] = request_id
         return response
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """请求日志记录中间件。
 
-    全链路请求记录，包括：路径、入参、响应耗时、客户端IP、操作人ID。
-    在请求开始和结束时打印日志，便于追踪和性能分析。
-
-    Attributes:
-        app: ASGI 应用实例
+    全链路请求记录，包括：路径、入参、响应耗时、客户端IP。
+    入参日志默认仅在 DEBUG 级别输出，且对敏感字段自动脱敏。
+    不消费请求体流，下游 endpoint 可正常解析 body。
     """
 
     def __init__(self, app: ASGIApp) -> None:
-        """初始化请求日志记录中间件。
-
-        Args:
-            app: ASGI 应用实例
-        """
         super().__init__(app)
 
     async def dispatch(
@@ -106,17 +112,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_id: str = getattr(request.state, "request_id", "-")
         client_ip: str = self._get_client_ip(request)
 
+        # 过滤敏感请求头后记录
+        safe_headers = self._mask_headers(dict(request.headers))
         logger.bind(request_id=request_id).info(
             f"Request started: {request.method} {request.url.path} "
-            f"from {client_ip} headers={dict(request.headers)}"
+            f"from {client_ip} headers={safe_headers}"
         )
 
-        try:
-            body: dict[str, Any] = await self._get_request_body(request)
-            if body:
-                logger.bind(request_id=request_id).debug(f"Request body: {body}")
-        except Exception:
-            pass
+        if logger.level("DEBUG").no <= 10:  # level no <= DEBUG
+            body_preview = await self._safe_read_body(request)
+            if body_preview is not None:
+                logger.bind(request_id=request_id).debug(
+                    f"Request body: {mask_sensitive(body_preview)}"
+                )
 
         response: Response = await call_next(request)
 
@@ -129,20 +137,67 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
-    def _get_client_ip(request: Request) -> str:
-        """从请求中提取客户端真实 IP 地址。
+    def _mask_headers(headers: dict[str, str]) -> dict[str, str]:
+        """对敏感请求头进行脱敏。"""
+        masked: dict[str, str] = {}
+        for k, v in headers.items():
+            if k.lower() in _SENSITIVE_HEADERS:
+                masked[k] = "****"
+            else:
+                masked[k] = v
+        return masked
+
+    @staticmethod
+    async def _safe_read_body(request: Request) -> dict[str, Any] | None:
+        """尝试读取请求体用于 DEBUG 日志，不影响下游解析。
+
+        通过缓存到 request._body 让下游仍可重复读取。
+        仅在 Content-Type 为 application/json 且请求方法可能含 body 时尝试。
 
         Args:
-            request: FastAPI 请求对象
+            request: 当前 HTTP 请求
 
         Returns:
-            str: 客户端 IP 地址
+            Optional[dict[str, Any]]: 解析后的请求体字典，无法读取时返回 None
         """
-        forwarded: Optional[str] = request.headers.get("X-Forwarded-For")
+        if request.method not in {"POST", "PUT", "PATCH"}:
+            return None
+
+        content_type: str = request.headers.get("content-type", "")
+        if "application/json" not in content_type.lower():
+            return None
+
+        try:
+            body_bytes = await request.body()
+        except Exception:
+            return None
+
+        # 将 body 缓存回 request，让下游 FastAPI 能再次读取
+        # starlette/requests 在 body() 被调用后会缓存到 request._body
+        if not hasattr(request, "_body"):
+            try:
+                # 兼容 starlette Request: 直接设置缓存字段
+                request._body = body_bytes  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+        if not body_bytes:
+            return None
+
+        try:
+            parsed = json.loads(body_bytes.decode("utf-8"))
+            return parsed if isinstance(parsed, dict) else None
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+
+    @staticmethod
+    def _get_client_ip(request: Request) -> str:
+        """从请求中提取客户端真实 IP 地址。"""
+        forwarded: str | None = request.headers.get("X-Forwarded-For")
         if forwarded:
             return forwarded.split(",")[0].strip()
 
-        real_ip: Optional[str] = request.headers.get("X-Real-IP")
+        real_ip: str | None = request.headers.get("X-Real-IP")
         if real_ip:
             return real_ip.strip()
 
@@ -151,27 +206,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         return "unknown"
 
-    @staticmethod
-    async def _get_request_body(request: Request) -> dict[str, Any]:
-        """获取请求体内容。
-
-        Args:
-            request: FastAPI 请求对象
-
-        Returns:
-            dict[str, Any]: 请求体字典
-        """
-        try:
-            body = await request.json()
-            return body if isinstance(body, dict) else {}
-        except Exception:
-            return {}
-
 
 class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
     """统一异常处理中间件。
 
-    全局统一拦截404、405、500、限流、权限异常，全部封装为标准错误返回格式，
+    全局统一拦截 404、405、500、限流、权限异常，全部封装为标准错误返回格式，
     不向前端暴露原生服务报错堆栈。
 
     Attributes:
@@ -179,11 +218,6 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(self, app: ASGIApp) -> None:
-        """初始化异常处理中间件。
-
-        Args:
-            app: ASGI 应用实例
-        """
         super().__init__(app)
 
     async def dispatch(
@@ -211,7 +245,7 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
                 request_id=request_id,
             )
         except Exception as exc:
-            request_id: str = getattr(request.state, "request_id", "-")
+            request_id = getattr(request.state, "request_id", "-")
             logger.bind(request_id=request_id).exception(
                 f"Unhandled exception: {exc}"
             )
@@ -227,21 +261,12 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
         message: str,
         request_id: str,
     ) -> Response:
-        """创建标准化错误响应。
-
-        Args:
-            status_code: HTTP 状态码
-            message: 错误消息
-            request_id: 请求追踪 ID
-
-        Returns:
-            Response: 标准化错误响应
-        """
+        """创建标准化错误响应。"""
         response_data: dict[str, Any] = {
             "code": status_code,
             "message": message,
             "data": None,
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
             "request_id": request_id,
         }
 
@@ -264,16 +289,14 @@ def setup_rate_limiter(app: FastAPI) -> Any:
     Returns:
         Limiter: slowapi 限流器实例
     """
-    from slowapi import Limiter
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
     from slowapi.util import get_remote_address
 
     limiter: Limiter = Limiter(
         key_func=get_remote_address,
         default_limits=[f"{settings.rate_limit.per_minute}/minute"],
     )
-
-    from slowapi import _rate_limit_exceeded_handler
-    from slowapi.errors import RateLimitExceeded
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
@@ -287,7 +310,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
     提供请求认证的基础框架，验证 Authorization 请求头。
     可配置跳过路径列表（如健康检查、文档等）。
 
-    此中间件为骨架实现，可根据实际需求扩展 JWT/OAuth 等认证逻辑。
+    此中间件为骨架实现，仅校验 Authorization 头是否存在。
+    完整 JWT/OAuth 校验需要接入具体的认证服务实现。
 
     Attributes:
         skip_paths: 不需要认证的路径列表
@@ -296,13 +320,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        skip_paths: Optional[list[str]] = None,
+        skip_paths: list[str] | None = None,
+        token_validator: Callable[[str], bool] | None = None,
     ) -> None:
         """初始化认证中间件。
 
         Args:
             app: ASGI 应用实例
             skip_paths: 不需要认证的路径前缀列表
+            token_validator: 自定义 token 校验回调，接收 token 字符串返回是否合法
         """
         super().__init__(app)
         self.skip_paths: list[str] = skip_paths or [
@@ -312,6 +338,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/v1/health",
             "/api/v1/version",
         ]
+        self.token_validator: Callable[[str], bool] | None = token_validator
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -333,10 +360,30 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(path) for path in self.skip_paths):
             return await call_next(request)
 
-        authorization: Optional[str] = request.headers.get("Authorization")
-        if not authorization:
+        authorization: str | None = request.headers.get("Authorization")
+        if not authorization or not authorization.strip():
             from src.core.exceptions import AuthenticationException
 
             raise AuthenticationException("Missing Authorization header")
 
+        if self.token_validator is not None:
+            token: str = (
+                authorization[7:].strip()
+                if authorization.lower().startswith("bearer ")
+                else authorization
+            )
+            if not self.token_validator(token):
+                from src.core.exceptions import AuthenticationException
+
+                raise AuthenticationException("Invalid token")
+
         return await call_next(request)
+
+
+__all__ = [
+    "RequestIDMiddleware",
+    "RequestLoggingMiddleware",
+    "ExceptionHandlingMiddleware",
+    "setup_rate_limiter",
+    "AuthMiddleware",
+]

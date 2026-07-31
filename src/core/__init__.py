@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 核心基础设施包
 
@@ -11,12 +10,18 @@
 """
 
 from src.core.config import Settings, settings
-from src.core.logger import logger, setup_logging
+from src.core.container import (
+    CircularDependencyError,
+    Container,
+    DependencyNotFoundError,
+    Lifecycle,
+)
 from src.core.exceptions import (
     AppException,
     AuthenticationException,
     AuthorizationException,
     BusinessException,
+    ConflictException,
     DatabaseException,
     ExternalServiceException,
     NotFoundException,
@@ -24,13 +29,8 @@ from src.core.exceptions import (
     ValidationException,
     register_exception_handlers,
 )
-from src.core.container import (
-    Container,
-    DependencyNotFoundError,
-    CircularDependencyError,
-    Lifecycle,
-)
-from src.core.middleware import RequestIDMiddleware, AuthMiddleware
+from src.core.logger import logger, setup_logging
+from src.core.middleware import AuthMiddleware, RequestIDMiddleware
 
 __all__ = [
     "Settings",
@@ -41,6 +41,7 @@ __all__ = [
     "AuthenticationException",
     "AuthorizationException",
     "BusinessException",
+    "ConflictException",
     "DatabaseException",
     "ExternalServiceException",
     "NotFoundException",

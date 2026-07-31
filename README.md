@@ -187,18 +187,25 @@ cp config/.env.example config/.env
 
 3. 配置优先级：**环境变量 > 环境特定 YAML > 默认 YAML > 代码默认值**
 
+4. **生产环境必填项**（缺失将拒绝启动）：
+
+   - `AUTH_SECRET_KEY`：至少 32 字符的随机字符串。可用 `python -c "from src.core.config import generate_secret_key; print(generate_secret_key())"` 生成。
+   - `DATABASE_URL`：MySQL 连接字符串
+   - `REDIS_URL`：Redis 连接字符串（可选，但启用缓存相关功能时需要）
+
 主要配置项：
 
 | 配置项 | 环境变量 | 默认值 | 说明 |
 |--------|----------|--------|------|
-| 运行环境 | APP_ENV | development | development / testing / production |
-| 监听地址 | SERVER_HOST | 0.0.0.0 | 服务监听地址 |
-| 监听端口 | SERVER_PORT | 8000 | 服务监听端口 |
-| 调试模式 | SERVER_DEBUG | true | 是否开启调试 |
-| 日志级别 | LOGGING_LEVEL | INFO | DEBUG / INFO / WARNING / ERROR |
-| 认证密钥 | AUTH_SECRET_KEY | change-me-in-production | JWT 签名密钥 |
-| 数据库连接 | DATABASE_URL | | MySQL 连接字符串 |
-| 连接池大小 | DATABASE_POOL_SIZE | 5 | 数据库连接池大小 |
+| 运行环境 | `APP_ENV` | development | development / testing / production |
+| 监听地址 | `SERVER_HOST` | 0.0.0.0 | 服务监听地址 |
+| 监听端口 | `SERVER_PORT` | 8000 | 服务监听端口 |
+| 调试模式 | `SERVER_DEBUG` | true | 是否开启调试（生产环境必须为 false） |
+| 日志级别 | `LOGGING_LEVEL` | INFO | DEBUG / INFO / WARNING / ERROR |
+| 认证密钥 | `AUTH_SECRET_KEY` | (dev 占位符) | 生产环境至少 32 字符随机字符串 |
+| 数据库连接 | `DATABASE_URL` | | MySQL 连接字符串 |
+| 连接池大小 | `DATABASE_POOL_SIZE` | 5 | 数据库连接池大小 |
+| CORS 来源 | `CORS_ORIGINS` | ["*"] | 生产环境必须为可信来源列表 |
 
 
 
@@ -234,6 +241,21 @@ docker-compose up -d --build
 - 版本信息：http://localhost:8000/api/v1/version
 - 用户列表：http://localhost:8000/api/v1/users
 
+所有 API 响应统一包装为以下格式：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { /* 业务数据 */ },
+  "timestamp": "2026-07-30T14:00:00+00:00",
+  "request_id": "uuid"
+}
+```
+
+错误响应中，`code` 字段与 HTTP 状态码保持一致；5xx 异常在生产环境不暴露 `data.details`，
+避免泄漏内部栈与查询语句。
+
 ### 常用命令
 
 ```bash
@@ -248,6 +270,13 @@ uv run ruff check src/ tests/
 
 # 类型检查
 uv run mypy src/
+
+# 数据库迁移（生产环境推荐使用 Alembic）
+uv run alembic revision --autogenerate -m "your message"
+uv run alembic upgrade head
+
+# 初始化数据库表（仅首次部署或测试环境）
+uv run python scripts/init_db.py
 
 # 使用 pip 的替代命令
 python -m pytest tests/ -v

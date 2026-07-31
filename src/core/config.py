@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 应用配置管理模块
 
@@ -20,19 +19,31 @@ Usage:
 """
 
 import os
+import secrets as _secrets
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.constants import (
-    APP_NAME,
     DEFAULT_CONFIG_DIR,
     ENV_DEVELOPMENT,
     ENV_PRODUCTION,
     ENV_TESTING,
+)
+
+# 明确禁止使用的弱密钥（不论长度）
+_FORBIDDEN_SECRET_KEYS: frozenset[str] = frozenset(
+    {
+        "change-me-in-production",
+        "change-me",
+        "secret",
+        "default",
+        "changeme",
+        "",
+    }
 )
 
 
@@ -50,9 +61,10 @@ def _find_project_root() -> Path:
 
 
 def _load_yaml_config(config_dir: Path, app_env: str) -> dict[str, Any]:
-    """加载 YAML 配置文件，合并默认配置和环境特定配置。
+    """加载 YAML 配置文件，深度合并默认配置和环境特定配置。
 
-    先加载 config.yaml 作为基础配置，再加载 config.{env}.yaml 进行覆盖合并。
+    先加载 config.yaml 作为基础配置，再加载 config.{env}.yaml 进行深度覆盖合并。
+    嵌套字典会递归合并，非字典值整体替换。
 
     Args:
         config_dir: 配置文件所在目录
@@ -65,22 +77,17 @@ def _load_yaml_config(config_dir: Path, app_env: str) -> dict[str, Any]:
 
     default_file: Path = config_dir / "config.yaml"
     if default_file.exists():
-        with open(default_file, "r", encoding="utf-8") as f:
-            default_cfg: Optional[dict[str, Any]] = yaml.safe_load(f)
+        with open(default_file, encoding="utf-8") as f:
+            default_cfg: dict[str, Any] | None = yaml.safe_load(f)
             if default_cfg and isinstance(default_cfg, dict):
-                merged.update(default_cfg)
+                merged = default_cfg
 
     env_file: Path = config_dir / f"config.{app_env}.yaml"
     if env_file.exists():
-        with open(env_file, "r", encoding="utf-8") as f:
-            env_cfg: Optional[dict[str, Any]] = yaml.safe_load(f)
+        with open(env_file, encoding="utf-8") as f:
+            env_cfg: dict[str, Any] | None = yaml.safe_load(f)
             if env_cfg and isinstance(env_cfg, dict):
-                for key, value in env_cfg.items():
-                    if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
-                        for sub_key, sub_value in value.items():
-                            merged[key][sub_key] = sub_value
-                    else:
-                        merged[key] = value
+                _deep_merge(merged, env_cfg)
 
     return merged
 
@@ -171,14 +178,21 @@ class AuthConfig(BaseSettings):
         algorithm: JWT 签名算法
     """
 
-    secret_key: str = Field(default="change-me-in-production", description="认证密钥")
+    secret_key: str = Field(
+        default="dev-only-do-not-use-in-prod-aaaaaaaaaaaaaaaaaaaaaa",
+        description="认证密钥（生产环境必须通过环境变量或 secrets 覆盖）",
+    )
     algorithm: str = Field(default="HS256", description="JWT 算法")
 
     model_config = SettingsConfigDict(env_prefix="AUTH_")
 
     @field_validator("secret_key")
     def validate_secret_key(cls, v: str, info: ValidationInfo) -> str:
-        """验证密钥长度，确保生产环境使用安全的密钥。
+        """基础密钥长度校验。
+
+        黑名单与生产环境强制校验统一在 Settings.validate() 中执行，
+        避免 yaml 默认值（如 change-me-in-production）在开发/测试环境
+        直接阻断 pydantic 实例化。
 
         Args:
             v: 密钥值
@@ -186,13 +200,20 @@ class AuthConfig(BaseSettings):
 
         Returns:
             str: 验证后的密钥
-
-        Raises:
-            ValueError: 密钥不安全时抛出
         """
-        if len(v) < 32 and os.environ.get("APP_ENV") == ENV_PRODUCTION:
-            raise ValueError("AUTH_SECRET_KEY must be at least 32 characters in production")
+        # 仅做最小长度校验，确保 dev 默认值也能通过 pydantic 校验
+        if len(v) < 16:
+            raise ValueError("AUTH_SECRET_KEY 长度至少 16 个字符")
         return v
+
+
+def generate_secret_key() -> str:
+    """生成随机安全密钥（用于本地开发或密钥轮换）。
+
+    Returns:
+        str: 64 字符 URL-safe 随机字符串
+    """
+    return _secrets.token_urlsafe(48)
 
 
 class DatabaseConfig(BaseSettings):
@@ -347,14 +368,39 @@ class Settings(BaseSettings):
     def validate(self) -> None:
         """验证配置合法性，配置错误直接阻断程序启动。
 
+        生产环境额外校验：
+            - 调试模式必须关闭
+            - AUTH_SECRET_KEY 不能是 yaml 默认占位符，且长度 ≥ 32
+            - CORS origins 不能为 "*"
+            - 数据库与 Redis 必须显式配置
+
         Raises:
             ValueError: 配置不合法时抛出
         """
         if self.is_production:
             if self.server.debug:
                 raise ValueError("DEBUG mode must be disabled in production")
-            if len(self.auth.secret_key) < 32:
-                raise ValueError("AUTH_SECRET_KEY must be at least 32 characters in production")
+
+            # 黑名单 + 长度 + 占位符前缀 三重检查
+            key = self.auth.secret_key
+            if (
+                key.lower() in _FORBIDDEN_SECRET_KEYS
+                or key.startswith("dev-only-")
+                or len(key) < 32
+            ):
+                raise ValueError(
+                    "AUTH_SECRET_KEY 在生产环境必须配置为至少 32 字符的随机字符串，"
+                    "可通过 `python -c \"from src.core.config import "
+                    "generate_secret_key; print(generate_secret_key())\"` 生成"
+                )
+
+            if "*" in self.cors.origins:
+                raise ValueError(
+                    "CORS origins 在生产环境禁止配置为 '*'，请指定可信来源列表"
+                )
+
+            if not self.database.url:
+                raise ValueError("DATABASE_URL 在生产环境必须配置")
 
         if self.database.url:
             if not self.database.url.startswith(("mysql://", "mysql+pymysql://", "postgresql://")):

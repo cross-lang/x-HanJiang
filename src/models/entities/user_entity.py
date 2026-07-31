@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 用户数据库实体模型
 
@@ -12,7 +11,7 @@ Classes:
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, Text
+from sqlalchemy import BigInteger, DateTime, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infras.mysql import Base
@@ -98,5 +97,6 @@ class UserEntity(Base):
             "email": self.email,
             "name": self.name,
             "age": self.age,
-            "created_at": self.created_at.isoformat() if self.created_at else "",
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

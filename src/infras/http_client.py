@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 HTTP 客户端基础设施模块
 
@@ -21,12 +20,11 @@ Usage:
 
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 from requests import Response, Session
 
-from src.core.config import settings
 from src.core.logger import logger
 
 
@@ -45,7 +43,7 @@ class HttpClient:
         self,
         timeout: int = 30,
         retries: int = 3,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
     ) -> None:
         """初始化 HTTP 客户端。
 
@@ -57,7 +55,7 @@ class HttpClient:
         self.session: Session = requests.Session()
         self.timeout: int = timeout
         self.retries: int = retries
-        self.base_url: Optional[str] = base_url
+        self.base_url: str | None = base_url
 
     def _build_url(self, url: str) -> str:
         """构建完整的请求 URL。
@@ -92,7 +90,7 @@ class HttpClient:
             requests.RequestException: 请求失败时抛出
         """
         full_url: str = self._build_url(url)
-        headers: Dict[str, str] = kwargs.get("headers", {})
+        headers: dict[str, str] = kwargs.get("headers", {})
 
         if "Content-Type" not in headers and kwargs.get("json") is not None:
             headers["Content-Type"] = "application/json"
@@ -120,7 +118,7 @@ class HttpClient:
 
         raise requests.RequestException(f"HTTP {method} request failed after {self.retries} attempts: {full_url}")
 
-    def get(self, url: str, params: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Any:
+    def get(self, url: str, params: dict[str, Any] | None = None, **kwargs: Any) -> Any:
         """发送 GET 请求。
 
         Args:
@@ -140,7 +138,7 @@ class HttpClient:
         except json.JSONDecodeError:
             return response.text
 
-    def post(self, url: str, data: Optional[Dict[str, Any]] = None, json: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Any:
+    def post(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
         """发送 POST 请求。
 
         Args:
@@ -161,7 +159,7 @@ class HttpClient:
         except json.JSONDecodeError:
             return response.text
 
-    def put(self, url: str, data: Optional[Dict[str, Any]] = None, json: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Any:
+    def put(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
         """发送 PUT 请求。
 
         Args:

@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 异常模块测试
 
 测试异常层级结构、默认错误码、全局异常处理器等功能。
 """
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from src.core.exceptions import (
     AppException,
     AuthenticationException,

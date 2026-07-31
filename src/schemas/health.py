@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 健康检查数据模型
 
@@ -10,7 +9,6 @@ Classes:
     VersionResponse: 版本信息响应模型
 """
 
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -31,8 +29,8 @@ class HealthResponse(BaseModel):
     version: str = Field(description="应用版本号")
     app: str = Field(description="应用名称")
     environment: str = Field(description="运行环境")
-    database: Optional[str] = Field(default=None, description="数据库连接状态")
-    cache: Optional[str] = Field(default=None, description="缓存连接状态")
+    database: str | None = Field(default=None, description="数据库连接状态")
+    cache: str | None = Field(default=None, description="缓存连接状态")
 
 
 class VersionResponse(BaseModel):
@@ -40,8 +38,20 @@ class VersionResponse(BaseModel):
 
     Attributes:
         version: 应用版本号
-        api_version: API 版本号
+        api_version: API 版本号（如 "v1"），与路由前缀一致
     """
 
     version: str = Field(description="应用版本号")
     api_version: str = Field(default="v1", description="API 版本号")
+
+    @classmethod
+    def current(cls) -> "VersionResponse":
+        """构造当前版本响应，api_version 从常量 API_PREFIX 自动推导。
+
+        Returns:
+            VersionResponse: 含最新版本号的响应模型
+        """
+        from src.constants import API_PREFIX, APP_VERSION
+
+        api_version = API_PREFIX.rstrip("/").rsplit("/", 1)[-1] or "v1"
+        return cls(version=APP_VERSION, api_version=api_version)

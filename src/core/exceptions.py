@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 统一异常处理模块
 
@@ -28,7 +27,7 @@ Usage:
 """
 
 import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -52,7 +51,7 @@ class AppException(Exception):
         self,
         message: str = "Application error",
         code: int = 500,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化应用异常。
 
@@ -63,7 +62,7 @@ class AppException(Exception):
         """
         self.message: str = message
         self.code: int = code
-        self.details: Optional[Any] = details
+        self.details: Any | None = details
         super().__init__(self.message)
 
 
@@ -77,7 +76,7 @@ class BusinessException(AppException):
         self,
         message: str = "Business error",
         code: int = 400,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化业务异常。
 
@@ -98,7 +97,7 @@ class ValidationException(BusinessException):
     def __init__(
         self,
         message: str = "Validation error",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化校验异常。
 
@@ -118,7 +117,7 @@ class AuthenticationException(BusinessException):
     def __init__(
         self,
         message: str = "Authentication failed",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化认证异常。
 
@@ -138,7 +137,7 @@ class AuthorizationException(BusinessException):
     def __init__(
         self,
         message: str = "Permission denied",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化授权异常。
 
@@ -158,7 +157,7 @@ class NotFoundException(BusinessException):
     def __init__(
         self,
         message: str = "Resource not found",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化资源未找到异常。
 
@@ -167,6 +166,26 @@ class NotFoundException(BusinessException):
             details: 附加详情
         """
         super().__init__(message=message, code=404, details=details)
+
+
+class ConflictException(BusinessException):
+    """资源冲突异常（409）。
+
+    用于资源已存在、唯一约束冲突、版本号冲突等场景。
+    """
+
+    def __init__(
+        self,
+        message: str = "Resource conflict",
+        details: Any | None = None,
+    ) -> None:
+        """初始化资源冲突异常。
+
+        Args:
+            message: 异常描述信息
+            details: 附加详情
+        """
+        super().__init__(message=message, code=409, details=details)
 
 
 class SystemException(AppException):
@@ -179,7 +198,7 @@ class SystemException(AppException):
         self,
         message: str = "Internal server error",
         code: int = 500,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化系统异常。
 
@@ -200,7 +219,7 @@ class DatabaseException(SystemException):
     def __init__(
         self,
         message: str = "Database error",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化数据库异常。
 
@@ -220,7 +239,7 @@ class ExternalServiceException(SystemException):
     def __init__(
         self,
         message: str = "External service error",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         """初始化外部服务异常。
 
@@ -231,7 +250,7 @@ class ExternalServiceException(SystemException):
         super().__init__(message=message, code=502, details=details)
 
 
-def _get_request_id(request: Request) -> Optional[str]:
+def _get_request_id(request: Request) -> str | None:
     """从请求状态中获取 request_id。
 
     Args:
@@ -246,7 +265,7 @@ def _get_request_id(request: Request) -> Optional[str]:
 def _build_error_response(
     code: int,
     message: str,
-    request_id: Optional[str] = None,
+    request_id: str | None = None,
 ) -> dict[str, Any]:
     """构建错误响应字典。
 
@@ -262,13 +281,16 @@ def _build_error_response(
         "code": code,
         "message": message,
         "data": None,
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
         "request_id": request_id,
     }
 
 
 async def _app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     """处理所有 AppException 及其子类的全局异常处理器。
+
+    生产环境下，5xx 异常的 details 不会暴露给客户端，避免泄漏内部栈信息；
+    仅在 DEBUG/开发环境下透出。
 
     Args:
         request: 当前请求对象
@@ -277,9 +299,10 @@ async def _app_exception_handler(request: Request, exc: AppException) -> JSONRes
     Returns:
         JSONResponse: 标准化的错误响应
     """
+    from src.core.config import settings
     from src.core.logger import logger
 
-    request_id: Optional[str] = _get_request_id(request)
+    request_id: str | None = _get_request_id(request)
     log_level: str = "ERROR" if exc.code >= 500 else "WARNING"
     logger.bind(request_id=request_id or "-").log(
         log_level,
@@ -291,7 +314,10 @@ async def _app_exception_handler(request: Request, exc: AppException) -> JSONRes
         message=exc.message,
         request_id=request_id,
     )
-    if exc.details is not None:
+
+    # 仅在非生产环境或 4xx 业务异常时透出 details
+    show_details = exc.code < 500 or settings.is_development
+    if exc.details is not None and show_details:
         response_data["data"] = {"details": exc.details}
 
     return JSONResponse(
@@ -314,7 +340,7 @@ async def _validation_exception_handler(
     """
     from src.core.logger import logger
 
-    request_id: Optional[str] = _get_request_id(request)
+    request_id: str | None = _get_request_id(request)
     errors: list[dict[str, Any]] = exc.errors()
 
     logger.bind(request_id=request_id or "-").warning(
@@ -348,7 +374,7 @@ async def _generic_exception_handler(
     """
     from src.core.logger import logger
 
-    request_id: Optional[str] = _get_request_id(request)
+    request_id: str | None = _get_request_id(request)
     logger.bind(request_id=request_id or "-").exception(
         f"Unhandled exception: {exc}"
     )
@@ -375,3 +401,18 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AppException, _app_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, _generic_exception_handler)  # type: ignore[arg-type]
+
+
+__all__ = [
+    "AppException",
+    "BusinessException",
+    "SystemException",
+    "ValidationException",
+    "AuthenticationException",
+    "AuthorizationException",
+    "NotFoundException",
+    "ConflictException",
+    "DatabaseException",
+    "ExternalServiceException",
+    "register_exception_handlers",
+]

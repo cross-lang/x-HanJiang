@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 通用数据模型
 
@@ -12,29 +11,32 @@
     - PaginatedResponse: 分页响应模型
 """
 
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
 
-class ApiResponse(BaseModel):
+class ApiResponse(BaseModel, Generic[T]):
     """标准 API 响应模型。
 
-    Attributes:
-        code: HTTP 状态码
-        message: 响应描述信息
-        data: 响应数据体
+    统一包装所有 HTTP 响应，字段含义：
+        code: HTTP 业务状态码（与 status 一致；4xx/5xx/2xx 标识业务结果）
+        message: 响应描述（成功 "success"，错误为错误简述）
+        data: 业务数据（成功时为业务对象，错误时为 None）
         timestamp: 响应时间戳（UTC）
         request_id: 请求追踪 ID
+
+    Type Parameters:
+        T: 业务数据类型，默认为 Any
     """
 
     code: int = Field(description="状态码")
     message: str = Field(description="响应描述")
-    data: Optional[Any] = Field(default=None, description="响应数据")
+    data: T | None = Field(default=None, description="业务数据")
     timestamp: str = Field(description="响应时间戳")
-    request_id: Optional[str] = Field(default=None, description="请求追踪 ID")
+    request_id: str | None = Field(default=None, description="请求追踪 ID")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,7 +68,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
         total_pages: 总页数
     """
 
-    items: List[T] = Field(default_factory=list, description="数据列表")
+    items: list[T] = Field(default_factory=list, description="数据列表")
     total: int = Field(default=0, ge=0, description="总记录数")
     page: int = Field(default=1, ge=1, description="当前页码")
     page_size: int = Field(default=20, ge=1, description="每页记录数")

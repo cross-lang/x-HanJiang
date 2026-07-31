@@ -3,30 +3,36 @@
 """
 自定义 API 端点示例
 
-本示例展示如何基于寒江（HanJiang） 的三层架构添加自定义 API 端点。
-按照以下步骤可快速扩展新的业务接口：
+本示例展示如何基于寒江（HanJiang）的三层架构添加自定义 API 端点：
+    1. 在 src/models/ 定义数据模型
+    2. 在 src/repositories/ 实现数据访问
+    3. 在 src/services/ 实现业务逻辑
+    4. 在 src/api/ 定义路由端点
+    5. 在 src/api/router.py 注册路由
 
-1. 在 src/models/ 定义数据模型
-2. 在 src/repositories/ 实现数据访问
-3. 在 src/services/ 实现业务逻辑
-4. 在 src/api/ 定义路由端点
-5. 在 src/api/router.py 注册路由
+本文件本身是一个可直接运行的演示，展示了 Product 资源的内存版实现。
+实际项目中应：
+    - 在 src/models/entities/ 定义 ORM 模型
+    - 在 src/repositories/ 实现 SQLAlchemy 数据访问
+    - Service 层承担 Entity ↔ Schema 转换
+    - API 层仅做参数注入和响应包装
 
 Usage:
-    参考本示例中的代码结构，创建你自己的业务接口。
+    uv run python examples/custom_api.py
 """
 
-
-# ============================================================
-# Step 1: 定义数据模型（src/models/product.py）
-# ============================================================
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
-from typing import Optional
+
+
+# ============================================================
+# Schemas
+# ============================================================
 
 
 class ProductCreateRequest(BaseModel):
-    """产品创建请求模型。"""
+    """产品创建请求。"""
 
     name: str = Field(min_length=1, max_length=200, description="产品名称")
     price: float = Field(gt=0, description="产品价格")
@@ -34,7 +40,7 @@ class ProductCreateRequest(BaseModel):
 
 
 class ProductResponse(BaseModel):
-    """产品响应模型。"""
+    """产品响应。"""
 
     id: int = Field(description="产品 ID")
     name: str = Field(description="产品名称")
@@ -43,126 +49,89 @@ class ProductResponse(BaseModel):
 
 
 # ============================================================
-# Step 2: 实现 Repository（src/repositories/product_repository.py）
+# Repository（内存版示例，生产环境请使用 SQLAlchemy 实现）
 # ============================================================
 
-from src.repositories.base_repository import BaseRepository
 
-
-class ProductRepository(BaseRepository[ProductResponse, int]):
-    """产品数据访问实现。"""
+class ProductRepository:
+    """产品数据访问（内存版）。"""
 
     def __init__(self) -> None:
-        self._storage: dict[int, dict] = {}
+        self._storage: dict[int, dict[str, Any]] = {}
         self._next_id: int = 1
 
-    def get_by_id(self, id: int) -> Optional[ProductResponse]:
-        data = self._storage.get(id)
-        return ProductResponse(**data) if data else None
+    def get_by_id(self, id: int) -> Optional[dict[str, Any]]:
+        return self._storage.get(id)
 
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[ProductResponse]:
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         items = list(self._storage.values())[skip : skip + limit]
-        return [ProductResponse(**item) for item in items]
+        return items
 
-    def create(self, entity: ProductCreateRequest) -> ProductResponse:
+    def create(self, data: ProductCreateRequest) -> dict[str, Any]:
         product_id = self._next_id
         self._next_id += 1
-        data = {"id": product_id, **entity.model_dump()}
-        self._storage[product_id] = data
-        return ProductResponse(**data)
-
-    def update(self, id: int, entity) -> Optional[ProductResponse]:
-        if id not in self._storage:
-            return None
-        self._storage[id].update(entity.model_dump(exclude_unset=True))
-        return ProductResponse(**self._storage[id])
+        record = {"id": product_id, **data.model_dump()}
+        self._storage[product_id] = record
+        return record
 
     def delete(self, id: int) -> bool:
-        if id not in self._storage:
-            return False
-        del self._storage[id]
-        return True
+        return self._storage.pop(id, None) is not None
 
     def count(self) -> int:
         return len(self._storage)
 
 
 # ============================================================
-# Step 3: 实现 Service（src/services/product_service.py）
+# Service
 # ============================================================
 
-from src.services.base_service import BaseService
 
-
-class ProductService(BaseService[ProductResponse, int]):
+class ProductService:
     """产品业务逻辑。"""
 
-    def __init__(self, product_repository: ProductRepository) -> None:
-        self._repo = product_repository
+    def __init__(self, repo: ProductRepository) -> None:
+        self._repo = repo
+
+    def create(self, data: dict[str, Any]) -> ProductResponse:
+        request = ProductCreateRequest(**data)
+        record = self._repo.create(request)
+        return ProductResponse(**record)
 
     def get_by_id(self, id: int) -> Optional[ProductResponse]:
-        return self._repo.get_by_id(id)
+        record = self._repo.get_by_id(id)
+        return ProductResponse(**record) if record else None
 
-    def get_all(self, page: int = 1, page_size: int = 20) -> dict:
+    def get_all(self, page: int = 1, page_size: int = 20) -> dict[str, Any]:
         skip = (page - 1) * page_size
         items = self._repo.get_all(skip=skip, limit=page_size)
-        return {"items": items, "total": self._repo.count(), "page": page, "page_size": page_size}
-
-    def create(self, data: dict) -> ProductResponse:
-        request = ProductCreateRequest(**data)
-        return self._repo.create(request)
-
-    def update(self, id: int, data: dict) -> Optional[ProductResponse]:
-        return self._repo.update(id, data)
-
-    def delete(self, id: int) -> bool:
-        return self._repo.delete(id)
+        return {
+            "items": [ProductResponse(**it) for it in items],
+            "total": self._repo.count(),
+            "page": page,
+            "page_size": page_size,
+        }
 
 
 # ============================================================
-# Step 4: 定义 API 路由（src/api/product.py）
+# Demo
 # ============================================================
-
-from fastapi import APIRouter, Request
-
-# router = APIRouter(prefix="/products", tags=["products"])
-#
-# @router.post("")
-# async def create_product(body: ProductCreateRequest, request: Request):
-#     service = ProductService(ProductRepository())
-#     result = service.create(body.model_dump())
-#     return success(data=result.model_dump())
-#
-# @router.get("")
-# async def list_products(request: Request, page: int = 1, page_size: int = 20):
-#     service = ProductService(ProductRepository())
-#     result = service.get_all(page=page, page_size=page_size)
-#     items = [item.model_dump() for item in result["items"]]
-#     return success(data={"items": items, "total": result["total"]})
-
-
-# ============================================================
-# Step 5: 在 src/api/router.py 中注册路由
-# ============================================================
-
-# api_router.include_router(product.router)
 
 
 def main() -> None:
-    """运行自定义 API 示例。"""
+    """演示自定义资源的三层调用。"""
     repo = ProductRepository()
+    service = ProductService(repo)
 
-    # 创建产品
-    product_data = ProductCreateRequest(name="Widget", price=9.99, description="A useful widget")
-    product = repo.create(product_data)
-    print(f"Created product: {product.model_dump()}")
+    product = service.create(
+        {"name": "Widget", "price": 9.99, "description": "A useful widget"}
+    )
+    print(f"Created product: id={product.id} name={product.name}")
 
-    # 查询产品
-    found = repo.get_by_id(product.id)
+    found = service.get_by_id(product.id)
     print(f"Found product: {found.model_dump() if found else 'Not found'}")
 
-    # 统计数量
-    print(f"Total products: {repo.count()}")
+    listing = service.get_all(page=1, page_size=10)
+    print(f"Total products: {listing['total']}")
 
 
 if __name__ == "__main__":

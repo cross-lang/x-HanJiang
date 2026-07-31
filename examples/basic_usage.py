@@ -9,9 +9,9 @@ Usage:
     uv run python examples/basic_usage.py
 """
 
+from src.constants import APP_NAME, APP_VERSION
 from src.core.config import settings
-from src.core.logger import setup_logging, logger
-from src.common.constants import APP_NAME, APP_VERSION
+from src.core.logger import logger, setup_logging
 
 
 def main() -> None:
@@ -22,9 +22,9 @@ def main() -> None:
     # 2. 读取配置
     logger.info(f"应用名称: {APP_NAME}")
     logger.info(f"应用版本: {APP_VERSION}")
-    logger.info(f"运行环境: {settings.APP_ENV}")
-    logger.info(f"监听端口: {settings.server.SERVER_PORT}")
-    logger.info(f"调试模式: {settings.server.SERVER_DEBUG}")
+    logger.info(f"运行环境: {settings.app_env}")
+    logger.info(f"监听地址: {settings.server.host}:{settings.server.port}")
+    logger.info(f"调试模式: {settings.server.debug}")
 
     # 3. 使用日志绑定 request_id
     logger.bind(request_id="demo-request-001").info("这是一条带请求 ID 的日志")
