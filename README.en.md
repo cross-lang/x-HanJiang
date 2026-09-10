@@ -191,7 +191,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ### Clone
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/cross-lang/x-HanJiang.git
 cd x-HanJiang
 ```
 
