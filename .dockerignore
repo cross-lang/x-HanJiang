@@ -1,0 +1,42 @@
+# 版本控制
+.git
+.gitignore
+.github
+
+# Python 缓存与虚拟环境
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 日志与运行时产物
+logs/
+*.log
+
+# 文档与测试（构建镜像不需要）
+docs/
+tests/
+examples/
+migrations/
+
+# 编辑器与 IDE
+.vscode/
+.idea/
+*.swp
+
+# 环境变量与密钥
+.env
+.env.*
+*.pem
+*.key
+
+# 其他
+*.md
+LICENSE
+docker-compose.yml
+Dockerfile
+.dockerignore

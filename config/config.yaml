@@ -27,8 +27,8 @@ auth:
   refresh_token_expire_days: 30
 
 database:
-  url: "mysql://root:Cx8o68F0qxE6v@10.29.64.20:3306/login_test"
+  url: "mysql://root:CHANGE_ME@localhost:3306/hanjiang"
   pool_size: 5
 
 redis:
-  url: "redis://:dataagent%40123@10.29.64.20:6379/5"
+  url: "redis://:CHANGE_ME@localhost:6379/0"

@@ -35,11 +35,14 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH="/app" \
     APP_ENV=production
 
 # 复制应用源代码
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser config/ ./config/
+# pyproject.toml 用于 _find_project_root() 定位项目根目录
+COPY --chown=appuser:appuser pyproject.toml ./
 
 # 创建 logs 目录并授权给 appuser
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
