@@ -66,6 +66,14 @@ def get_db_session() -> Generator[Session, None, None]:
         session.close()
 
 
+def get_client_ip(request: Request) -> str | None:
+    """获取客户端真实 IP（优先代理头）。"""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
 def get_user_repository(
     db_session: Session = Depends(get_db_session),
 ):

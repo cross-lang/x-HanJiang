@@ -13,7 +13,7 @@
 
 from fastapi import APIRouter
 
-from src.api import health, user
+from src.api import health, user, auth
 from src.constants import API_PREFIX
 
 api_router = APIRouter(prefix=API_PREFIX)
@@ -23,3 +23,6 @@ api_router.include_router(health.router)
 
 # 注册用户管理路由
 api_router.include_router(user.router)
+
+# 注册身份认证路由
+api_router.include_router(auth.router)
