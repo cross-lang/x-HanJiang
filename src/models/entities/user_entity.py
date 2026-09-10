@@ -16,9 +16,6 @@ class UserEntity(Base):
     id: Mapped[int] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True, comment="主键ID"
     )
-    tenant_id: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True, comment="所属租户ID(NULL=平台级账号)"
-    )
     username: Mapped[str] = mapped_column(
         String(50), nullable=False, comment="用户名"
     )
@@ -36,7 +33,10 @@ class UserEntity(Base):
         BigInteger, nullable=True, comment="主角色ID"
     )
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="active", comment="状态"
+        String(20),
+        nullable=False,
+        server_default="active",
+        comment="状态",
     )
     last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, comment="最后登录时间"
@@ -45,13 +45,15 @@ class UserEntity(Base):
         String(45), nullable=True, comment="最后登录IP"
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default="CURRENT_TIMESTAMP", comment="创建时间"
+        DateTime,
+        nullable=False,
+        server_default="CURRENT_TIMESTAMP",
+        comment="创建时间",
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
         server_default="CURRENT_TIMESTAMP",
-        onupdate=datetime.utcnow,
         comment="更新时间",
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
@@ -60,7 +62,6 @@ class UserEntity(Base):
 
     __table_args__ = (
         Index("uk_email", "email", unique=True),
-        Index("idx_tenant_id", "tenant_id"),
         Index("idx_role_id", "role_id"),
     )
 
@@ -86,19 +87,27 @@ class RoleEntity(Base):
         String(255), nullable=True, comment="角色描述"
     )
     role_type: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="custom", comment="类型"
+        String(20),
+        nullable=False,
+        server_default="custom",
+        comment="类型",
     )
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="enabled", comment="状态"
+        String(20),
+        nullable=False,
+        server_default="enabled",
+        comment="状态",
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default="CURRENT_TIMESTAMP", comment="创建时间"
+        DateTime,
+        nullable=False,
+        server_default="CURRENT_TIMESTAMP",
+        comment="创建时间",
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
         server_default="CURRENT_TIMESTAMP",
-        onupdate=datetime.utcnow,
         comment="更新时间",
     )
     deleted_at: Mapped[datetime | None] = mapped_column(

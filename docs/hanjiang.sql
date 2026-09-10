@@ -28,7 +28,6 @@ CREATE TABLE `users` (
     `deleted_at`  DATETIME  NULL  COMMENT '软删除时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_email` (`email`),
-    KEY `idx_tenant_id` (`tenant_id`),
     KEY `idx_role_id` (`role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
@@ -36,7 +35,6 @@ CREATE TABLE `users` (
 DROP TABLE IF EXISTS `roles`;
 CREATE TABLE `roles` (
     `id`  BIGINT  NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
-    `tenant_id`  BIGINT  NULL  COMMENT '所属租户ID(NULL=平台级)',
     `role_name`  VARCHAR(50)  NOT NULL  COMMENT '角色名称',
     `role_code`  VARCHAR(50)  NOT NULL  COMMENT '角色编码',
     `description`  VARCHAR(255)  COMMENT '角色描述',
@@ -46,7 +44,6 @@ CREATE TABLE `roles` (
     `updated_at`  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  COMMENT '更新时间',
     `deleted_at`  DATETIME  NULL  COMMENT '软删除时间',
     PRIMARY KEY (`id`),
-    KEY `idx_tenant_id` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
 -- 权限表
@@ -86,7 +83,6 @@ CREATE TABLE `login_logs` (
     `status`  ENUM('success','failed')  NOT NULL  COMMENT '登录结果',
     `created_at`  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',
     PRIMARY KEY (`id`),
-    KEY `idx_tenant_id` (`tenant_id`),
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录日志表';
 
