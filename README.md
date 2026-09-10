@@ -1,6 +1,6 @@
 # 寒江（HanJiang）
 
-**基于 FastAPI 深度封装的生产级 Python Web 项目框架**
+**基于 FastAPI 深度封装的生产级 Python Web 项目**
 
 [English](README.en.md) | 中文
 
@@ -8,20 +8,21 @@
 
 ## 项目简介
 
-寒江（HanJiang）是一个基于 FastAPI 框架深度封装的生产级 Python Web 项目框架，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。开箱即用，支持快速搭建企业级 RESTful API 服务，适配多环境部署。
+寒江（HanJiang）是一个基于 FastAPI 框架深度封装的生产级 Python Web 项目，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。开箱即用，支持快速搭建企业级 RESTful API 服务，适配多环境部署。
 
-**适用场景：** 中小型企业后端服务、API 网关、微服务基础脚手架、快速原型开发。
+当前项目已实现用户管理、角色管理、权限管理、登录认证、登录日志等核心业务能力。
 
 ## 核心特征
 
 - **标准三层架构** — API 接口层 → 业务逻辑层（Service）→ 数据访问层（Repository），层间依赖严格单向
 - **依赖注入容器** — DI 能力，支持自动装配、单例/多例模式、装饰器注册
 - **双配置体系** — 支持 `.env` 环境变量 + `config.yaml` 配置文件双来源，多环境自动切换
-- **标准化响应** — 使用 Pydantic `response_model` 定义响应结构，直接返回模型实例
+- **统一响应格式** — 所有接口返回 `{ code, message, data, timestamp, request_id }` 标准结构
 - **全局异常处理** — 自定义异常层级（业务异常 4xx / 系统异常 5xx），全局异常中间件
+- **统一鉴权** — 所有业务接口（除登录、刷新、健康检查外）均需 `Authorization: Bearer <token>`，缺失或无效令牌返回 401
 - **结构化日志** — 基于 loguru，支持请求 ID 追踪、文件+控制台双输出、日志轮转
+- **种子数据自动初始化** — 应用启动时自动检测并创建内置超级管理员角色与 `superadmin` 用户，幂等
 - **Docker 部署** — 提供标准 Dockerfile 和 docker-compose.yml，支持 Gunicorn + Uvicorn 高性能部署
-- **完整工程化** — pyproject.toml 统一管理、测试覆盖、CI/CD 就绪
 - **数据库支持** — 集成 SQLAlchemy ORM，支持 MySQL 数据库，开箱即用
 
 ## 项目结构
@@ -29,38 +30,49 @@
 ```
 x-HanJiang/
 ├── config/                  # 配置文件
-│   ├── config.yaml          # 默认配置
-│   ├── config.dev.yaml      # 开发环境覆盖
-│   ├── config.test.yaml     # 测试环境覆盖
-│   ├── config.prod.yaml     # 生产环境覆盖
-│   └── .env.example         # 环境变量示例
+│   └── config.yaml          # 主配置文件（database/redis/auth/server 等）
 ├── docs/                    # 项目文档
-│   ├── architecture.md      # 架构文档
-│   └── DATABASE.md          # 数据库配置指南
-├── examples/                # 使用示例
-│   ├── basic_usage.py       # 基础使用
-│   ├── custom_api.py        # 自定义 API 示例
-│   └── di_usage.py          # 依赖注入示例
-├── migrations/              # 数据库迁移文件
-│   └── 001_create_user_table.sql
+│   └── hanjiang.sql         # 数据库表结构定义（5 张表）
 ├── src/                     # 核心业务代码
 │   ├── api/                 # API 接口层（路由、依赖注入）
-│   ├── constants/           # 业务常量
-│   ├── core/                # 核心支撑（配置、日志、异常、DI、中间件）
-│   ├── infra/               # 基础设施层（数据库、缓存、HTTP 客户端）
-│   ├── models/              # 数据模型（纯数据表映射，不含业务逻辑）
-│   │   └── entities/        # SQLAlchemy ORM 实体模型
+│   │   ├── v1/              # 版本化路由
+│   │   │   ├── health.py    # 健康检查 / 版本
+│   │   │   ├── user.py      # 用户管理
+│   │   │   ├── auth.py      # 认证（登录/刷新/当前用户/登出）
+│   │   │   ├── role.py      # 角色管理 + 角色权限查询
+│   │   │   └── login_log.py # 登录日志
+│   │   ├── dependencies.py  # DI 依赖函数（service/repository/current_user）
+│   │   ├── response.py      # 统一响应封装
+│   │   └── router.py        # 路由聚合
+│   ├── constants/           # 业务常量与枚举
+│   ├── core/                # 核心支撑（配置、日志、异常、DI、中间件、令牌、种子）
+│   ├── infras/              # 基础设施层（数据库、缓存）
+│   ├── models/              # 数据模型
+│   │   └── entities/        # SQLAlchemy ORM 实体（5 张表）
 │   ├── schemas/             # API 请求/响应 DTO（Pydantic BaseModel）
-│   ├── repositories/        # 数据访问层
-│   ├── services/            # 业务逻辑层
-│   ├── utils/               # 工具函数
+│   ├── repositories/        # 数据访问层（user/role/permission/role_permission/login_log）
+│   ├── services/            # 业务逻辑层（user/auth/role/permission/login_log）
 │   └── main.py              # 应用入口
 ├── tests/                   # 测试代码
 ├── Dockerfile               # Docker 镜像构建
 ├── docker-compose.yml       # Docker 编排
-├── pyproject.toml           # 项目依赖和元信息
-└── LICENSE                  # MIT 许可证
+├── pyproject.toml          # 项目依赖和元信息
+└── LICENSE                 # MIT 许可证
 ```
+
+## 数据模型
+
+数据库共 5 张表（定义见 `docs/hanjiang.sql`）：
+
+| 表名 | 说明 | 关键字段 |
+|------|------|----------|
+| `users` | 用户表 | id, username, email, password_hash, phone, avatar_url, role_id, status(active/inactive/locked), last_login_at, last_login_ip, created_at, updated_at, deleted_at |
+| `roles` | 角色表 | id, role_name, role_code, description, role_type(system/custom), status(enabled/disabled), created_at, updated_at, deleted_at |
+| `permissions` | 权限表 | id, perm_code, perm_name, module, operation(view/create/edit/delete/export/import), description, sort_order |
+| `role_permissions` | 角色权限关联表 | id, role_id, permission_id |
+| `login_logs` | 登录日志表 | id, user_id, login_type(password/sso), ip_address, status(success/failed), created_at |
+
+所有业务表均支持软删除（`deleted_at` 非空即视为已删除）。
 
 ## 系统架构
 
@@ -70,7 +82,7 @@ x-HanJiang/
 ┌──────────────────────────────────────┐
 │              Client                   │
 └──────────────┬───────────────────────┘
-               │ HTTP Request
+               │ HTTP Request (Bearer Token)
                ▼
 ┌──────────────────────────────────────┐
 │          Middleware Layer             │
@@ -78,8 +90,12 @@ x-HanJiang/
 └──────────────┬───────────────────────┘
                ▼
 ┌──────────────────────────────────────┐
+│   Auth Guard (Depends get_current_user)│  ← 统一鉴权
+└──────────────┬───────────────────────┘
+               ▼
+┌──────────────────────────────────────┐
 │           API Layer (api/)           │
-│   health │ user │ custom endpoints   │
+│   health │ user │ auth │ role │ login-log │
 │         Pydantic 校验                │
 └──────────────┬───────────────────────┘
                │ API → Service
@@ -96,14 +112,14 @@ x-HanJiang/
 └──────────────┬───────────────────────┘
                ▼
 ┌──────────────────────────────────────┐
-│      External Storage / Database     │
+│      MySQL + Redis (令牌/登录态)      │
 └──────────────────────────────────────┘
 ```
 
 ### 请求处理流程
 
 ```
-Client Request
+Client Request (带 Bearer Token)
     │
     ▼
 RequestIDMiddleware (生成 UUID)
@@ -112,10 +128,7 @@ RequestIDMiddleware (生成 UUID)
 CORS Middleware (跨域处理)
     │
     ▼
-Router (路由匹配)
-    │
-    ▼
-Dependencies (依赖注入)
+Router (路由匹配) → Auth Guard (校验 Token，失败返回 401)
     │
     ▼
 API Endpoint (参数校验)
@@ -127,20 +140,69 @@ Service (业务逻辑)
 Repository (数据访问)
     │
     ▼
-Pydantic Response (response_model 序列化)
+统一响应封装 (response_model 序列化)
     │
     ▼
 Client Response (含 X-Request-ID)
 ```
 
+## API 接口清单
+
+所有业务接口前缀为 `/api/v1`。
+
+### 健康检查（公开）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/health` | 健康检查（数据库/缓存连通状态） |
+| GET | `/api/v1/version` | 版本信息 |
+
+### 认证（登录/刷新公开，其余需鉴权）
+
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| POST | `/api/v1/auth/login` | 用户名/邮箱 + 密码登录 | 公开 |
+| POST | `/api/v1/auth/refresh` | 刷新令牌 | 公开 |
+| GET | `/api/v1/auth/me` | 当前登录用户信息 | 需鉴权 |
+| POST | `/api/v1/auth/logout` | 退出登录（清除 Redis 登录态） | 需鉴权 |
+
+### 用户管理（需鉴权）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/users` | 创建用户 |
+| GET | `/api/v1/users` | 用户列表（分页/关键字/状态过滤） |
+| GET | `/api/v1/users/{id}` | 用户详情 |
+| GET | `/api/v1/users/export` | 导出用户（CSV） |
+| POST | `/api/v1/users/{id}/update` | 更新用户 |
+| POST | `/api/v1/users/{id}/delete` | 删除用户（软删除） |
+
+### 角色管理（需鉴权）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/roles` | 创建角色 |
+| GET | `/api/v1/roles` | 角色列表（分页/关键字/类型/状态过滤） |
+| GET | `/api/v1/roles/{id}` | 角色详情 |
+| POST | `/api/v1/roles/{id}/update` | 更新角色 |
+| POST | `/api/v1/roles/{id}/delete` | 删除角色（软删除） |
+| GET | `/api/v1/roles/{id}/permissions` | 角色权限列表（含权限详情） |
+
+### 登录日志（需鉴权）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/login-logs` | 登录日志列表（分页/用户/结果/方式/时间范围过滤） |
+| GET | `/api/v1/login-logs/{id}` | 登录日志详情 |
+
 ## 快速开始
 
 ### 环境要求
 
-| 工具 | 版本要求 | 安装方式 |
-|------|----------|----------|
-| Python | >= 3.11 | [python.org](https://www.python.org/downloads/) |
-| uv | latest | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+| 工具 | 版本要求 |
+|------|----------|
+| Python | >= 3.11 |
+| uv | latest（推荐） |
 
 **Windows 环境：**
 ```powershell
@@ -150,14 +212,13 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 **Linux / macOS 环境：**
 ```bash
-# 安装 uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ### 项目克隆
 
 ```bash
-git clone https://gitee.com/cross-lang/x-HanJiang.git
+git clone <your-repo-url>
 cd x-HanJiang
 ```
 
@@ -173,37 +234,26 @@ uv sync --no-dev
 
 ### 配置文件
 
-1. 复制环境变量示例文件：
+编辑 `config/config.yaml`，配置数据库连接、Redis 与认证密钥：
 
-```bash
-cp config/.env.example config/.env
+```yaml
+database:
+  url: "mysql://<user>:<password>@<host>:<port>/<db>"
+  pool_size: 5
+
+redis:
+  url: "redis://:<password>@<host>:<port>/<db>"
+
+auth:
+  secret_key: "<至少 32 字符随机字符串>"
+  algorithm: "HS256"
+  access_token_expire_minutes: 10080
+  refresh_token_expire_days: 30
 ```
 
-2. 根据需要编辑 `config/.env` 和 `config/config.yaml`
+> **生产环境**：建议通过环境变量覆盖敏感配置（如 `AUTH_SECRET_KEY`、`DATABASE_URL`、`REDIS_URL`），避免将密钥写入版本库。配置优先级：**环境变量 > 环境特定 YAML > 默认 YAML > 代码默认值**。
 
-3. 配置优先级：**环境变量 > 环境特定 YAML > 默认 YAML > 代码默认值**
-
-4. **生产环境必填项**（缺失将拒绝启动）：
-
-   - `AUTH_SECRET_KEY`：至少 32 字符的随机字符串。可用 `python -c "from src.core.config import generate_secret_key; print(generate_secret_key())"` 生成。
-   - `DATABASE_URL`：MySQL 连接字符串
-   - `REDIS_URL`：Redis 连接字符串（可选，但启用缓存相关功能时需要）
-
-主要配置项：
-
-| 配置项 | 环境变量 | 默认值 | 说明 |
-|--------|----------|--------|------|
-| 运行环境 | `APP_ENV` | development | development / testing / production |
-| 监听地址 | `SERVER_HOST` | 0.0.0.0 | 服务监听地址 |
-| 监听端口 | `SERVER_PORT` | 8000 | 服务监听端口 |
-| 调试模式 | `SERVER_DEBUG` | true | 是否开启调试（生产环境必须为 false） |
-| 日志级别 | `LOGGING_LEVEL` | INFO | DEBUG / INFO / WARNING / ERROR |
-| 认证密钥 | `AUTH_SECRET_KEY` | (dev 占位符) | 生产环境至少 32 字符随机字符串 |
-| 数据库连接 | `DATABASE_URL` | | MySQL 连接字符串 |
-| 连接池大小 | `DATABASE_POOL_SIZE` | 5 | 数据库连接池大小 |
-| CORS 来源 | `CORS_ORIGINS` | ["*"] | 生产环境必须为可信来源列表 |
-
-
+> **注意**：Redis 密码若包含 `@`、`:` 等特殊字符，在 `redis://` URL 中需做百分号编码（如 `@` → `%40`）。
 
 ### 服务启动
 
@@ -215,44 +265,94 @@ uv run uvicorn src.main:app --reload
 
 # 或使用 Python 模块方式
 uv run python -m src.main
-
-# 如果没有安装 uv，使用 pip
-python -m uvicorn src.main:app --reload
-python -m src.main
 ```
 
 #### 方式二：Docker 启动
 
 ```bash
-# 构建并启动
 docker-compose up --build
-
-# 后台运行
-docker-compose up -d --build
 ```
 
 服务启动后访问：
-- API 文档：http://localhost:8000/docs
+- API 文档（Swagger）：http://localhost:8000/docs
 - 健康检查：http://localhost:8000/api/v1/health
-- 版本信息：http://localhost:8000/api/v1/version
-- 用户列表：http://localhost:8000/api/v1/users
 
-所有 API 响应统一包装为以下格式：
+### 种子数据
+
+应用启动时（`lifespan`）会自动检测并初始化系统内置种子数据，**幂等**（已存在则跳过）：
+
+1. **超级管理员角色** — `role_code=super_admin`，`role_type=system`
+2. **超级管理员用户** — 用户名 `superadmin`，密码 `admin@123456`，绑定上述角色
+
+> 首次部署后可直接使用 `superadmin / admin@123456` 登录。生产环境请务必修改该密码。
+
+## 接口调用示例
+
+### 1. 登录获取令牌
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "superadmin", "password": "admin@123456"}'
+```
+
+响应（节选）：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "access_token": "eyJhbGciOi...",
+    "refresh_token": "eyJhbGciOi...",
+    "token_type": "bearer"
+  },
+  "timestamp": "2026-09-10T14:00:00+00:00",
+  "request_id": "uuid"
+}
+```
+
+### 2. 携带令牌访问受保护接口
+
+```bash
+curl http://localhost:8000/api/v1/users \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### 3. 未携带令牌（返回 401）
+
+```bash
+curl http://localhost:8000/api/v1/users
+# → 401 {"code": 401, "message": "认证失败：请先登录", ...}
+```
+
+### 4. 查询角色权限
+
+```bash
+curl http://localhost:8000/api/v1/roles/1/permissions \
+  -H "Authorization: Bearer <access_token>"
+```
+
+## 统一响应格式
+
+所有接口响应统一包装为以下结构：
 
 ```json
 {
   "code": 200,
   "message": "success",
-  "data": { /* 业务数据 */ },
-  "timestamp": "2026-07-30T14:00:00+00:00",
+  "data": { },
+  "timestamp": "2026-09-10T14:00:00+00:00",
   "request_id": "uuid"
 }
 ```
 
-错误响应中，`code` 字段与 HTTP 状态码保持一致；5xx 异常在生产环境不暴露 `data.details`，
-避免泄漏内部栈与查询语句。
+- `code`：业务状态码，与 HTTP 状态码保持一致
+- `message`：提示信息
+- `data`：业务数据（错误时可能含 `details`）
+- `timestamp`：ISO 8601 时间戳
+- `request_id`：请求追踪 ID（同时出现在响应头 `X-Request-ID`）
 
-### 常用命令
+## 常用命令
 
 ```bash
 # 运行测试（含覆盖率）
@@ -267,19 +367,11 @@ uv run ruff check src/ tests/
 # 类型检查
 uv run mypy src/
 
-# 数据库迁移（生产环境推荐使用 Alembic）
-uv run alembic revision --autogenerate -m "your message"
-uv run alembic upgrade head
-
-# 初始化数据库表（仅首次部署或测试环境）
-uv run python scripts/init_db.py
-
-# 使用 pip 的替代命令
-python -m pytest tests/ -v
-python -m ruff format src/ tests/
-python -m ruff check src/ tests/
-python -m mypy src/
+# 初始化数据库表（应用启动时也会自动建表）
+uv run python -c "from src.infras.mysql import init_db; init_db()"
 ```
+
+> **数据库表管理**：当前通过 `init_db()` 自动建表（`Base.metadata.create_all`）。生产环境建议使用 Alembic 管理表结构变更。
 
 ## 技术栈
 
@@ -287,9 +379,10 @@ python -m mypy src/
 |------|------|------|
 | Web 框架 | FastAPI | 高性能异步 Python Web 框架 |
 | ASGI 服务器 | Uvicorn | 轻量级 ASGI 服务器 |
-| 进程管理 | Gunicorn | 生产级 WSGI/ASGI 进程管理器 |
+| 进程管理 | Gunicorn | 生产级进程管理器 |
 | ORM | SQLAlchemy | Python SQL 工具包和对象关系映射 |
 | 数据库驱动 | PyMySQL | MySQL 驱动程序 |
+| 缓存 | Redis | 令牌与登录态存储 |
 | 数据校验 | Pydantic v2 | 数据模型和校验框架 |
 | 配置管理 | pydantic-settings | 基于 Pydantic 的配置管理 |
 | 日志 | Loguru | 现代化 Python 日志库 |
@@ -297,6 +390,11 @@ python -m mypy src/
 | 包管理 | uv | 高速 Python 包管理器 |
 | 容器化 | Docker | 应用容器化部署 |
 | 测试 | pytest | Python 测试框架 |
+
+## 已知限制
+
+- **鉴权粒度**：当前仅做"是否登录"校验，未实现基于角色/权限的接口级访问控制（RBAC）。如需 `super_admin` 专用接口，需额外添加 `require_role` / `require_permission` 守卫。
+- **审计能力**：登录日志（`login_logs`）已记录登录行为，但缺少业务操作审计模块。
 
 ## 许可证
 
@@ -309,13 +407,3 @@ python -m mypy src/
 - [SQLAlchemy 官方文档](https://docs.sqlalchemy.org/)
 - [uv 官方文档](https://docs.astral.sh/uv/)
 - [Uvicorn 官方文档](https://www.uvicorn.org/)
-- [Python 官方文档](https://docs.python.org/3.11/)
-- [数据库配置指南](docs/DATABASE.md)
-
-## 联系方式
-
-- **作者**：John Young（夜雨诗来）
-- **邮箱**：john.young@foxmail.com
-- **Gitee 地址**：https://gitee.com/yeyushilai
-- **GitHub 地址**：https://github.com/yeyushilai
-- **项目地址**：https://gitee.com/yeyushilai/x-HanYun
