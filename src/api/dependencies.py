@@ -15,12 +15,14 @@ Functions:
 
 from collections.abc import Generator
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from src.core.container import Container
 from src.infras.mysql import get_session_factory
+from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedRequest
+from src.services.auth_service import AuthService
 
 
 def get_request_id(request: Request) -> str | None:
@@ -100,6 +102,129 @@ def get_user_service(
         return UserService(user_repository=user_repository)
 
 
+def get_auth_service(
+    user_repository=Depends(get_user_repository),
+):
+    """获取认证服务实例。"""
+    container = Container.get_instance()
+    try:
+        return container.resolve(AuthService)
+    except Exception:
+        return AuthService(user_repository=user_repository)
+
+
+def get_role_repository(
+    db_session: Session = Depends(get_db_session),
+):
+    """获取角色仓库实例。"""
+    from src.repositories.role_repository import RoleRepository
+
+    return RoleRepository(session=db_session)
+
+
+def get_permission_repository(
+    db_session: Session = Depends(get_db_session),
+):
+    """获取权限仓库实例。"""
+    from src.repositories.permission_repository import PermissionRepository
+
+    return PermissionRepository(session=db_session)
+
+
+def get_role_permission_repository(
+    db_session: Session = Depends(get_db_session),
+):
+    """获取角色权限关联仓库实例。"""
+    from src.repositories.role_permission_repository import RolePermissionRepository
+
+    return RolePermissionRepository(session=db_session)
+
+
+def get_login_log_repository(
+    db_session: Session = Depends(get_db_session),
+):
+    """获取登录日志仓库实例。"""
+    from src.repositories.login_log_repository import LoginLogRepository
+
+    return LoginLogRepository(session=db_session)
+
+
+def get_role_service(
+    role_repository=Depends(get_role_repository),
+    role_permission_repository=Depends(get_role_permission_repository),
+    permission_repository=Depends(get_permission_repository),
+):
+    """获取角色服务实例。"""
+    from src.services.role_service import RoleService
+
+    container = Container.get_instance()
+    try:
+        return container.resolve(RoleService)
+    except Exception:
+        return RoleService(
+            role_repository=role_repository,
+            role_permission_repository=role_permission_repository,
+            permission_repository=permission_repository,
+        )
+
+
+def get_permission_service(
+    permission_repository=Depends(get_permission_repository),
+    role_permission_repository=Depends(get_role_permission_repository),
+    role_repository=Depends(get_role_repository),
+):
+    """获取权限服务实例。"""
+    from src.services.permission_service import PermissionService
+
+    container = Container.get_instance()
+    try:
+        return container.resolve(PermissionService)
+    except Exception:
+        return PermissionService(
+            permission_repository=permission_repository,
+            role_permission_repository=role_permission_repository,
+            role_repository=role_repository,
+        )
+
+
+def get_login_log_service(
+    login_log_repository=Depends(get_login_log_repository),
+):
+    """获取登录日志服务实例。"""
+    from src.services.login_log_service import LoginLogService
+
+    container = Container.get_instance()
+    try:
+        return container.resolve(LoginLogService)
+    except Exception:
+        return LoginLogService(login_log_repository=login_log_repository)
+
+
+def get_current_user(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> CurrentUserResponse:
+    """解析 Bearer 令牌，返回当前登录用户。"""
+    from src.services.auth_service import AuthService
+
+    return auth_service.get_current_user(authorization)
+
+
+def get_operator_context(
+    current_user: CurrentUserResponse | None = None,
+) -> dict[str, object]:
+    """构造操作人上下文（供写操作审计/日志使用）。
+
+    当前未启用强制鉴权，current_user 可能为 None，返回最小上下文。
+    """
+    if current_user is None:
+        return {"operator_id": None, "operator_name": None}
+    return {
+        "operator_id": current_user.id,
+        "operator_name": current_user.username,
+    }
+
+
 def register_default_bindings(container: Container) -> None:
     """向 DI 容器注册默认组件。
 
@@ -107,8 +232,10 @@ def register_default_bindings(container: Container) -> None:
     """
     from src.core.container import Lifecycle
     from src.repositories.user_repository import UserRepository
+    from src.services.auth_service import AuthService
     from src.services.user_service import UserService
 
     # Repository 与 Service 都是请求作用域（每次请求创建新实例，避免共享会话）
     container.register(UserRepository, UserRepository, Lifecycle.TRANSIENT)
     container.register(UserService, UserService, Lifecycle.TRANSIENT)
+    container.register(AuthService, AuthService, Lifecycle.TRANSIENT)

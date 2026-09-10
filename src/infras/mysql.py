@@ -161,6 +161,9 @@ def init_db() -> None:
 
     注意：生产环境建议使用数据库迁移工具（如 Alembic）管理表结构变更。
     """
+    # 确保全部实体模型已注册到 Base.metadata（否则 create_all 不会建表）
+    from src.models import entities  # noqa: F401
+
     engine: Engine = get_engine()
     Base.metadata.create_all(bind=engine)
     logger.info("MySQL tables created")

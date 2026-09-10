@@ -23,10 +23,12 @@ rate_limit:
 auth:
   secret_key: "dev-only-do-not-use-in-prod-aaaaaaaaaaaaaaaaaaaaaa"
   algorithm: "HS256"
+  access_token_expire_minutes: 10080
+  refresh_token_expire_days: 30
 
 database:
-  url: "mysql://root:123456@localhost:3306/hanjiang"
+  url: "mysql://root:Cx8o68F0qxE6v@10.29.64.20:3306/login_test"
   pool_size: 5
 
 redis:
-  url: ""
+  url: "redis://:dataagent%40123@10.29.64.20:6379/5"

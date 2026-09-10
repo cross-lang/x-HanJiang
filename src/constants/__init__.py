@@ -30,14 +30,10 @@ from src.constants.common import (
     MSG_VALIDATION_ERROR,
     REQUEST_ID_HEADER,
 )
+from src.constants.enums import CommonStatus, UserStatus
 from src.constants.user import (
-    AGE_MAX,
-    AGE_MIN,
-    NAME_MAX_LENGTH,
-    NAME_MIN_LENGTH,
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
-    UserStatus,
 )
 
 __all__ = [
@@ -61,9 +57,6 @@ __all__ = [
     "MSG_AUTHORIZATION_DENIED",
     "USERNAME_MIN_LENGTH",
     "USERNAME_MAX_LENGTH",
-    "NAME_MIN_LENGTH",
-    "NAME_MAX_LENGTH",
-    "AGE_MIN",
-    "AGE_MAX",
     "UserStatus",
+    "CommonStatus",
 ]

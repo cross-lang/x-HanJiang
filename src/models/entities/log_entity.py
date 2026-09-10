@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Index, String
+from sqlalchemy import BigInteger, DateTime, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infras.mysql import Base
@@ -34,7 +34,7 @@ class LoginLogEntity(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
-        server_default="CURRENT_TIMESTAMP",
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="创建时间",
     )
 

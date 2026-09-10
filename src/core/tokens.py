@@ -33,7 +33,7 @@ def _create_token(
         subject: 主体标识（用户ID字符串）
         token_type: 令牌类型（access/refresh）
         expires_delta: 有效时长
-        extra_claims: 额外声明（如 tenant_id、username）
+        extra_claims: 额外声明（如 username）
 
     Returns:
         str: 编码后的 JWT 字符串

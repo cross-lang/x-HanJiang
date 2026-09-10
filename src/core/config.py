@@ -183,6 +183,12 @@ class AuthConfig(BaseSettings):
         description="认证密钥（生产环境必须通过环境变量或 secrets 覆盖）",
     )
     algorithm: str = Field(default="HS256", description="JWT 算法")
+    access_token_expire_minutes: int = Field(
+        default=60 * 24 * 7, ge=1, description="访问令牌有效期（分钟）"
+    )
+    refresh_token_expire_days: int = Field(
+        default=30, ge=1, description="刷新令牌有效期（天）"
+    )
 
     model_config = SettingsConfigDict(env_prefix="AUTH_")
 

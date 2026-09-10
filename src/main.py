@@ -70,6 +70,12 @@ async def lifespan(app: FastAPI):
         try:
             init_db()
             logger.info("Database initialized successfully")
+            try:
+                from src.core.seed import init_seed_data
+
+                init_seed_data()
+            except Exception as e:
+                logger.warning(f"Seed data initialization skipped: {e}")
         except Exception as e:
             logger.warning(f"Database initialization skipped: {e}")
     else:

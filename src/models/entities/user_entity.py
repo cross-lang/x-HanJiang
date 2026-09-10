@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Index, Integer, String
+from sqlalchemy import BigInteger, DateTime, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infras.mysql import Base
@@ -47,13 +47,13 @@ class UserEntity(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
-        server_default="CURRENT_TIMESTAMP",
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="创建时间",
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
-        server_default="CURRENT_TIMESTAMP",
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="更新时间",
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
@@ -73,9 +73,6 @@ class RoleEntity(Base):
 
     id: Mapped[int] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True, comment="主键ID"
-    )
-    tenant_id: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True, comment="所属租户ID(NULL=平台级)"
     )
     role_name: Mapped[str] = mapped_column(
         String(50), nullable=False, comment="角色名称"
@@ -101,21 +98,17 @@ class RoleEntity(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
-        server_default="CURRENT_TIMESTAMP",
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="创建时间",
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
-        server_default="CURRENT_TIMESTAMP",
+        server_default=text("CURRENT_TIMESTAMP"),
         comment="更新时间",
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, comment="软删除时间"
-    )
-
-    __table_args__ = (
-        Index("idx_tenant_id", "tenant_id"),
     )
 
 

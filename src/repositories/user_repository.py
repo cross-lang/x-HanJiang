@@ -2,8 +2,8 @@
 """
 用户数据访问实现
 
-本模块提供用户 Repository 的 SQLAlchemy 数据库实现，支持真实数据库存储。
-使用 ORM 映射实现数据持久化，符合企业级应用标准。
+本模块提供用户 Repository 的 SQLAlchemy 数据库实现。
+支持软删除（deleted_at）与按关键字/状态过滤查询。
 
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
@@ -13,8 +13,9 @@ Classes:
     UserRepository: 用户数据访问 SQLAlchemy 实现
 """
 
+from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -28,7 +29,7 @@ class UserRepository(BaseRepository[UserEntity, int]):
     """用户数据访问 SQLAlchemy 实现。
 
     使用 SQLAlchemy ORM 进行数据库操作，支持连接池和事务管理。
-    实现了 BaseRepository 定义的全部 CRUD 接口。
+    实现了 BaseRepository 定义的全部 CRUD 接口，并扩展查询方法。
     异常处理：唯一约束冲突转换为 ConflictException（HTTP 409）。
 
     Attributes:
@@ -43,28 +44,83 @@ class UserRepository(BaseRepository[UserEntity, int]):
         """
         self.session: Session = session or get_session_factory()()
 
-    def get_by_id(self, id: int) -> UserEntity | None:
-        """根据用户 ID 查询用户实体。"""
-        return self.session.get(UserEntity, id)
+    def get_by_id(self, id: int, include_deleted: bool = False) -> UserEntity | None:
+        """根据用户 ID 查询用户实体（默认排除软删除）。"""
+        stmt = select(UserEntity).where(UserEntity.id == id)
+        if not include_deleted:
+            stmt = stmt.where(UserEntity.deleted_at.is_(None))
+        return self.session.execute(stmt).scalars().first()
 
     def get_all(self, skip: int = 0, limit: int = 100) -> list[UserEntity]:
-        """查询所有用户（分页）。"""
-        stmt = select(UserEntity).offset(skip).limit(limit)
+        """查询所有未删除用户（分页）。"""
+        stmt = (
+            select(UserEntity)
+            .where(UserEntity.deleted_at.is_(None))
+            .offset(skip)
+            .limit(limit)
+        )
         return list(self.session.execute(stmt).scalars().all())
 
-    def create(self, entity: UserEntity) -> UserEntity:
-        """创建新用户。
+    def count_all(self) -> int:
+        """统计未删除用户总数。"""
+        stmt = (
+            select(func.count())
+            .select_from(UserEntity)
+            .where(UserEntity.deleted_at.is_(None))
+        )
+        return self.session.execute(stmt).scalar() or 0
+
+    def get_by_username(self, username: str) -> UserEntity | None:
+        """根据用户名查询用户（含软删除，用于唯一性校验）。"""
+        stmt = select(UserEntity).where(UserEntity.username == username)
+        return self.session.execute(stmt).scalars().first()
+
+    def get_by_email(self, email: str) -> UserEntity | None:
+        """根据邮箱查询用户（含软删除，用于唯一性校验）。"""
+        stmt = select(UserEntity).where(UserEntity.email == email)
+        return self.session.execute(stmt).scalars().first()
+
+    def search(
+        self,
+        keyword: str | None = None,
+        status: str | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[list[UserEntity], int]:
+        """按关键字/状态搜索未删除用户（分页）。
 
         Args:
-            entity: 已实例化的 UserEntity
+            keyword: 关键字（匹配 username 或 email）
+            status: 状态过滤
+            skip: 偏移量
+            limit: 每页数量
 
         Returns:
-            UserEntity: 创建成功的实体（含生成的主键）
-
-        Raises:
-            ConflictException: 用户名或邮箱唯一约束冲突时抛出
-            DatabaseException: 其他数据库错误时抛出
+            tuple[list[UserEntity], int]: (实体列表, 总数)
         """
+        conditions = [UserEntity.deleted_at.is_(None)]
+        if keyword:
+            like = f"%{keyword}%"
+            conditions.append(
+                (UserEntity.username.like(like)) | (UserEntity.email.like(like))
+            )
+        if status:
+            conditions.append(UserEntity.status == status)
+
+        base = select(UserEntity).where(*conditions)
+        total = (
+            self.session.execute(
+                select(func.count()).select_from(base.subquery())
+            ).scalar()
+            or 0
+        )
+        rows = (
+            self.session.execute(base.offset(skip).limit(limit)).scalars().all()
+        )
+        return list(rows), total
+
+    def create(self, entity: UserEntity) -> UserEntity:
+        """创建新用户。"""
         try:
             self.session.add(entity)
             self.session.flush()
@@ -79,28 +135,19 @@ class UserRepository(BaseRepository[UserEntity, int]):
             raise DatabaseException(message=f"创建用户失败: {e}") from e
 
     def update(self, id: int, entity: UserEntity) -> UserEntity | None:
-        """更新用户信息。
-
-        将传入实体的字段值复制到从数据库加载出的现有实体，避免覆盖未提供字段。
-
-        Args:
-            id: 用户唯一标识
-            entity: 含有更新字段的实体
-
-        Returns:
-            Optional[UserEntity]: 更新后的实体，不存在时返回 None
-        """
-        existing = self.session.get(UserEntity, id)
+        """更新用户信息（复制非主键字段到已加载实体）。"""
+        existing = self.get_by_id(id)
         if existing is None:
             return None
 
-        # 仅复制非主键字段
-        update_data = entity.to_dict() if hasattr(entity, "to_dict") else entity.__dict__
-        update_data.pop("id", None)
-        update_data.pop("created_at", None)
+        mapper = inspect(UserEntity).columns.keys()
+        update_data = {
+            k: v
+            for k, v in entity.__dict__.items()
+            if k in mapper and k not in ("id", "created_at")
+        }
         for key, value in update_data.items():
-            if hasattr(existing, key):
-                setattr(existing, key, value)
+            setattr(existing, key, value)
 
         try:
             self.session.flush()
@@ -115,11 +162,11 @@ class UserRepository(BaseRepository[UserEntity, int]):
             raise DatabaseException(message=f"更新用户失败: {e}") from e
 
     def delete(self, id: int) -> bool:
-        """删除用户。"""
-        user_entity = self.session.get(UserEntity, id)
-        if user_entity is None:
+        """软删除用户（设置 deleted_at）。"""
+        existing = self.get_by_id(id)
+        if existing is None:
             return False
-        self.session.delete(user_entity)
+        existing.deleted_at = datetime.now()
         try:
             self.session.flush()
             return True
@@ -128,7 +175,5 @@ class UserRepository(BaseRepository[UserEntity, int]):
             raise DatabaseException(message=f"删除用户失败: {e}") from e
 
     def count(self) -> int:
-        """统计用户总数。"""
-        stmt = select(func.count()).select_from(UserEntity)
-        result = self.session.execute(stmt).scalar()
-        return result or 0
+        """统计未删除用户总数（BaseRepository 接口）。"""
+        return self.count_all()

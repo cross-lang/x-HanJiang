@@ -69,7 +69,6 @@ class CurrentUserResponse(BaseModel):
 
     Attributes:
         id: 用户ID
-        tenant_id: 租户ID
         username: 用户名
         email: 邮箱
         role_id: 主角色ID
@@ -79,7 +78,6 @@ class CurrentUserResponse(BaseModel):
     """
 
     id: int = Field(description="用户ID")
-    tenant_id: int | None = Field(default=None, description="租户ID（平台级用户为None）")
     username: str = Field(description="用户名")
     email: str = Field(description="邮箱")
     role_id: int | None = Field(default=None, description="主角色ID")

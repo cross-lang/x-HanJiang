@@ -1,12 +1,8 @@
-<p align="center">
-  <h1 align="center">寒江（HanJiang）</h1>
-  <p align="center">
-    <strong>一个基于 FastAPI 框架深度封装的生产级 Python Web 项目框架</strong>
-  </p>
-  <p align="center">
-    <a href="README.en.md">English</a> | 中文
-  </p>
-</p>
+# 寒江（HanJiang）
+
+**基于 FastAPI 深度封装的生产级 Python Web 项目框架**
+
+[English](README.en.md) | 中文
 
 ---
 

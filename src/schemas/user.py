@@ -2,8 +2,7 @@
 """
 用户数据模型
 
-本模块定义用户管理相关的请求和响应数据传输对象（DTO），
-对齐 workswarm_dev.sql 中的 users 表。
+本模块定义用户管理相关的请求和响应数据传输对象（DTO）。
 
 Classes:
     UserCreateRequest: 用户创建请求模型
@@ -23,18 +22,16 @@ class UserCreateRequest(BaseModel):
     """用户创建请求模型。
 
     Attributes:
-        tenant_id: 所属租户ID
-        username: 用户名（租户内唯一）
+        username: 用户名（3-50 位）
         email: 邮箱（全局唯一）
         password: 初始密码（8-64 位，服务端存储 bcrypt 哈希）
         phone: 手机号
         avatar_url: 头像URL
         role_id: 主角色ID
-        status: 状态
+        status: 状态（active/inactive/locked）
     """
 
-    tenant_id: int | None = Field(default=None, description="所属租户ID（平台级用户为None）")
-    username: str = Field(min_length=3, max_length=50, description="用户名（租户内唯一）")
+    username: str = Field(min_length=3, max_length=50, description="用户名")
     email: str = Field(max_length=100, description="邮箱（全局唯一）")
     password: str = Field(min_length=8, max_length=64, description="初始密码")
     phone: str | None = Field(default=None, max_length=20, description="手机号")
@@ -96,7 +93,6 @@ class UserResponse(BaseModel):
 
     Attributes:
         id: 用户唯一标识
-        tenant_id: 所属租户ID
         username: 用户名
         email: 邮箱
         phone: 手机号
@@ -110,7 +106,6 @@ class UserResponse(BaseModel):
     """
 
     id: int = Field(description="用户唯一标识")
-    tenant_id: int | None = Field(default=None, description="所属租户ID（平台级用户为None）")
     username: str = Field(description="用户名")
     email: str = Field(description="邮箱")
     phone: str | None = Field(default=None, description="手机号")
