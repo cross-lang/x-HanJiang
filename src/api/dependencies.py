@@ -15,7 +15,8 @@ Functions:
 
 from collections.abc import Generator
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from src.core.container import Container
@@ -23,6 +24,9 @@ from src.infras.mysql import get_session_factory
 from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedRequest
 from src.services.auth_service import AuthService
+
+# HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_request_id(request: Request) -> str | None:
@@ -201,13 +205,16 @@ def get_login_log_service(
 
 
 def get_current_user(
-    authorization: str | None = Header(default=None, alias="Authorization"),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> CurrentUserResponse:
-    """解析 Bearer 令牌，返回当前登录用户。"""
-    from src.services.auth_service import AuthService
+    """解析 Bearer 令牌，返回当前登录用户。
 
-    return auth_service.get_current_user(authorization)
+    使用 HTTPBearer 认证方案，Swagger UI 会自动在右上角显示 Authorize 按钮，
+    并为所有依赖本函数的接口标注锁图标；点 Authorize 填一次令牌即可全局生效。
+    """
+    token = credentials.credentials if credentials is not None else None
+    return auth_service.get_current_user(token)
 
 
 def get_operator_context(

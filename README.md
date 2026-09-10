@@ -78,72 +78,42 @@ x-HanJiang/
 
 ### 分层架构图
 
-```
-┌──────────────────────────────────────┐
-│              Client                   │
-└──────────────┬───────────────────────┘
-               │ HTTP Request (Bearer Token)
-               ▼
-┌──────────────────────────────────────┐
-│          Middleware Layer             │
-│   Request ID │ CORS │ Rate Limit     │
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│   Auth Guard (Depends get_current_user)│  ← 统一鉴权
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│           API Layer (api/)           │
-│   health │ user │ auth │ role │ login-log │
-│         Pydantic 校验                │
-└──────────────┬───────────────────────┘
-               │ API → Service
-               ▼
-┌──────────────────────────────────────┐
-│        Service Layer (services/)      │
-│    业务规则 │ 数据校验 │ 流程编排      │
-└──────────────┬───────────────────────┘
-               │ Service → Repository
-               ▼
-┌──────────────────────────────────────┐
-│      Repository Layer (repositories/)  │
-│         CRUD │ 查询 │ 数据映射        │
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│      MySQL + Redis (令牌/登录态)      │
-└──────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Client[Client] -->|HTTP Request / Bearer Token| MW[Middleware Layer<br/>Request ID · CORS · Rate Limit]
+    MW --> Guard[Auth Guard<br/>Depends get_current_user]
+    Guard -->|统一鉴权| API[API Layer<br/>health · user · auth · role · login-log<br/>Pydantic 校验]
+    API -->|API → Service| SVC[Service Layer<br/>业务规则 · 数据校验 · 流程编排]
+    SVC -->|Service → Repository| REPO[Repository Layer<br/>CRUD · 查询 · 数据映射]
+    REPO --> DB[(MySQL + Redis<br/>令牌 / 登录态)]
 ```
 
 ### 请求处理流程
 
-```
-Client Request (带 Bearer Token)
-    │
-    ▼
-RequestIDMiddleware (生成 UUID)
-    │
-    ▼
-CORS Middleware (跨域处理)
-    │
-    ▼
-Router (路由匹配) → Auth Guard (校验 Token，失败返回 401)
-    │
-    ▼
-API Endpoint (参数校验)
-    │
-    ▼
-Service (业务逻辑)
-    │
-    ▼
-Repository (数据访问)
-    │
-    ▼
-统一响应封装 (response_model 序列化)
-    │
-    ▼
-Client Response (含 X-Request-ID)
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as Middleware
+    participant G as Auth Guard
+    participant A as API Endpoint
+    participant S as Service
+    participant R as Repository
+
+    C->>M: Request（带 Bearer Token）
+    M->>M: RequestIDMiddleware（生成 UUID）
+    M->>M: CORS Middleware（跨域处理）
+    M->>G: Router（路由匹配）
+    alt Token 无效或缺失
+        G-->>C: 401 Unauthorized
+    else Token 有效
+        G->>A: 放行
+        A->>A: 参数校验（Pydantic）
+        A->>S: 调用业务逻辑
+        S->>R: 数据访问
+        R-->>S: 返回数据
+        S-->>A: 返回结果
+        A-->>C: 统一响应封装（含 X-Request-ID）
+    end
 ```
 
 ## API 接口清单

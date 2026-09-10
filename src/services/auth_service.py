@@ -162,13 +162,26 @@ class AuthService:
         )
 
     def get_current_user(self, authorization: str | None) -> CurrentUserResponse:
-        """解析 Bearer 令牌，返回当前登录用户（校验 Redis 登录态）。"""
+        """解析 Bearer 令牌，返回当前登录用户（校验 Redis 登录态）。
+
+        兼容两种 Authorization 头格式：
+            - "Bearer <token>"（标准格式，大小写不敏感）
+            - "<token>"（未带 Bearer 前缀，自动视为令牌）
+        """
         from src.infras.cache import get_redis
 
-        if not authorization or not authorization.startswith("Bearer "):
+        if not authorization or not authorization.strip():
             raise AuthenticationException(message="缺少或格式错误的 Authorization 头")
 
-        token = authorization[len("Bearer ") :].strip()
+        auth_value = authorization.strip()
+        if auth_value.lower().startswith("bearer "):
+            token = auth_value[len("bearer ") :].strip()
+        else:
+            token = auth_value
+
+        if not token:
+            raise AuthenticationException(message="缺少或格式错误的 Authorization 头")
+
         try:
             payload = decode_token(token, expected_type="access")
         except Exception as e:  # noqa: BLE001

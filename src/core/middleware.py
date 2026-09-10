@@ -112,11 +112,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_id: str = getattr(request.state, "request_id", "-")
         client_ip: str = self._get_client_ip(request)
 
+        # 记录完整 URL（含 query string）与 query 参数
+        full_url: str = str(request.url)
+        query_params: dict[str, str] = dict(request.query_params)
+
         # 过滤敏感请求头后记录
         safe_headers = self._mask_headers(dict(request.headers))
         logger.bind(request_id=request_id).info(
-            f"Request started: {request.method} {request.url.path} "
-            f"from {client_ip} headers={safe_headers}"
+            f"Request started: {request.method} {full_url} "
+            f"from {client_ip} query={query_params} headers={safe_headers}"
         )
 
         if logger.level("DEBUG").no <= 10:  # level no <= DEBUG
@@ -130,7 +134,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         elapsed: float = (time.time() - start_time) * 1000
         logger.bind(request_id=request_id).info(
-            f"Request completed: {request.method} {request.url.path} "
+            f"Request completed: {request.method} {full_url} "
             f"status={response.status_code} duration={elapsed:.2f}ms"
         )
 

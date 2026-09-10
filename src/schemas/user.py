@@ -39,7 +39,7 @@ class UserCreateRequest(BaseModel):
     role_id: int | None = Field(default=None, description="主角色ID")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="状态")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     @field_validator("email")
     @classmethod
@@ -74,7 +74,7 @@ class UserUpdateRequest(BaseModel):
     role_id: int | None = Field(default=None, description="主角色ID")
     status: UserStatus | None = Field(default=None, description="状态")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     @field_validator("email")
     @classmethod

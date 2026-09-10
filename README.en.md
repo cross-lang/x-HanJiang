@@ -82,42 +82,42 @@ All business tables support soft deletion (non-null `deleted_at` indicates delet
 
 ### Layered Architecture
 
+```mermaid
+flowchart TD
+    Client[Client] -->|HTTP Request / Bearer Token| MW[Middleware Layer<br/>Request ID · CORS · Rate Limit]
+    MW --> Guard[Auth Guard<br/>Depends get_current_user]
+    Guard -->|Unified Authentication| API[API Layer<br/>health · user · auth · role · login-log<br/>Pydantic validation]
+    API -->|API → Service| SVC[Service Layer<br/>Business rules · validation · orchestration]
+    SVC -->|Service → Repository| REPO[Repository Layer<br/>CRUD · query · mapping]
+    REPO --> DB[(MySQL + Redis<br/>token / login state)]
 ```
-┌──────────────────────────────────────┐
-│              Client                   │
-└──────────────┬───────────────────────┘
-               │ HTTP Request (Bearer Token)
-               ▼
-┌──────────────────────────────────────┐
-│          Middleware Layer             │
-│   Request ID │ CORS │ Rate Limit     │
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│   Auth Guard (Depends get_current_user)│  ← Unified Authentication
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│           API Layer (api/)           │
-│   health │ user │ auth │ role │ login-log │
-│         Pydantic validation          │
-└──────────────┬───────────────────────┘
-               │ API → Service
-               ▼
-┌──────────────────────────────────────┐
-│        Service Layer (services/)      │
-│    Business rules │ validation │ orchestration │
-└──────────────┬───────────────────────┘
-               │ Service → Repository
-               ▼
-┌──────────────────────────────────────┐
-│      Repository Layer (repositories/)  │
-│         CRUD │ query │ mapping        │
-└──────────────┬───────────────────────┘
-               ▼
-┌──────────────────────────────────────┐
-│      MySQL + Redis (token/login state) │
-└──────────────────────────────────────┘
+
+### Request Processing Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as Middleware
+    participant G as Auth Guard
+    participant A as API Endpoint
+    participant S as Service
+    participant R as Repository
+
+    C->>M: Request (with Bearer Token)
+    M->>M: RequestIDMiddleware (generate UUID)
+    M->>M: CORS Middleware (cross-origin handling)
+    M->>G: Router (route matching)
+    alt Invalid or missing token
+        G-->>C: 401 Unauthorized
+    else Valid token
+        G->>A: Allow
+        A->>A: Validate params (Pydantic)
+        A->>S: Invoke business logic
+        S->>R: Data access
+        R-->>S: Return data
+        S-->>A: Return result
+        A-->>C: Unified response (with X-Request-ID)
+    end
 ```
 
 ## API Reference
