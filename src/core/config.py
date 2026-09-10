@@ -18,6 +18,7 @@ Usage:
     port = settings.server.port
 """
 
+import json
 import os
 import secrets as _secrets
 from pathlib import Path
@@ -326,21 +327,30 @@ class Settings(BaseSettings):
         Returns:
             dict[str, Any]: 合并后的参数字典
         """
-        section_map: dict[str, type] = {
-            "server": ServerConfig,
-            "logging": LoggingConfig,
-            "cors": CORSConfig,
-            "rate_limit": RateLimitConfig,
-            "auth": AuthConfig,
-            "database": DatabaseConfig,
-            "redis": RedisConfig,
+        section_map: dict[str, str] = {
+            "server": "SERVER_",
+            "logging": "LOGGING_",
+            "cors": "CORS_",
+            "rate_limit": "RATE_LIMIT_",
+            "auth": "AUTH_",
+            "database": "DATABASE_",
+            "redis": "REDIS_",
         }
 
-        for section_name, config_cls in section_map.items():
+        for section_name, env_prefix in section_map.items():
             if section_name in yaml_data and section_name not in kwargs:
                 section_data: dict[str, Any] = yaml_data[section_name]
                 if isinstance(section_data, dict):
-                    kwargs[section_name] = config_cls(**section_data)
+                    # 将 YAML 值写入环境变量（setdefault，环境变量优先）。
+                    # 这样 pydantic-settings 读取时，真实环境变量（如 DATABASE_URL）
+                    # 会覆盖 YAML 中的占位值，实现「环境变量 > YAML」的优先级。
+                    for key, value in section_data.items():
+                        env_key = f"{env_prefix}{str(key).upper()}"
+                        if isinstance(value, (list, dict)):
+                            # 复杂类型用 JSON 序列化，供 pydantic-settings 反序列化
+                            os.environ.setdefault(env_key, json.dumps(value))
+                        else:
+                            os.environ.setdefault(env_key, str(value))
 
         return kwargs
 
