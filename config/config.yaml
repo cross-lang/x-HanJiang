@@ -21,7 +21,11 @@ rate_limit:
   per_minute: 60
 
 auth:
-  secret_key: "dev-only-do-not-use-in-prod-aaaaaaaaaaaaaaaaaaaaaa"
+  # JWT 签名密钥（HS256）。
+  # 开发环境可使用下方默认值；生产环境必须通过 AUTH_SECRET_KEY 环境变量
+  # 覆盖为至少 32 字符的随机字符串，生成方式：
+  #   python -c "from src.core.config import generate_secret_key; print(generate_secret_key())"
+  secret_key: "dev-only-change-me-in-production"
   algorithm: "HS256"
   access_token_expire_minutes: 10080
   refresh_token_expire_days: 30

@@ -180,7 +180,7 @@ class AuthConfig(BaseSettings):
     """
 
     secret_key: str = Field(
-        default="dev-only-do-not-use-in-prod-aaaaaaaaaaaaaaaaaaaaaa",
+        default="dev-only-change-me-in-production",
         description="认证密钥（生产环境必须通过环境变量或 secrets 覆盖）",
     )
     algorithm: str = Field(default="HS256", description="JWT 算法")
