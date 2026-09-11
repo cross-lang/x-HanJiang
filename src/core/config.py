@@ -20,7 +20,6 @@ Usage:
 
 import json
 import os
-import secrets as _secrets
 from pathlib import Path
 from typing import Any
 
@@ -214,15 +213,6 @@ class AuthConfig(BaseSettings):
         return v
 
 
-def generate_secret_key() -> str:
-    """生成随机安全密钥（用于本地开发或密钥轮换）。
-
-    Returns:
-        str: 64 字符 URL-safe 随机字符串
-    """
-    return _secrets.token_urlsafe(48)
-
-
 class DatabaseConfig(BaseSettings):
     """数据库配置。
 
@@ -406,7 +396,7 @@ class Settings(BaseSettings):
             ):
                 raise ValueError(
                     "AUTH_SECRET_KEY 在生产环境必须配置为至少 32 字符的随机字符串，"
-                    "可通过 `python -c \"from src.core.config import "
+                    "可通过 `python -c \"from src.core.security import "
                     "generate_secret_key; print(generate_secret_key())\"` 生成"
                 )
 

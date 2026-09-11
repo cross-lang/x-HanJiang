@@ -7,12 +7,24 @@
 Functions:
     hash_password: 对明文密码进行 bcrypt 哈希
     verify_password: 校验明文密码与哈希是否匹配
+    generate_secret_key: 生成随机安全密钥（用于 JWT 签名或密钥轮换）
 """
+
+import secrets
 
 import bcrypt
 
 # bcrypt 密码最大长度限制（字节），超出会抛 ValueError
 _BCRYPT_MAX_BYTES = 72
+
+
+def generate_secret_key() -> str:
+    """生成随机安全密钥（用于本地开发或密钥轮换）。
+
+    Returns:
+        str: 64 字符 URL-safe 随机字符串
+    """
+    return secrets.token_urlsafe(48)
 
 
 def hash_password(password: str) -> str:
