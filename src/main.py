@@ -119,7 +119,7 @@ def create_app() -> FastAPI:
     app: FastAPI = FastAPI(
         title=APP_NAME,
         version=APP_VERSION,
-        description="A production-grade FastAPI project template",
+        description="一个基于 FastAPI 框架深度封装的生产级 Python Web 项目",
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",

@@ -1,6 +1,6 @@
 # 寒江（HanJiang）
 
-**基于 FastAPI 深度封装的生产级 Python Web 项目**
+**一个基于 FastAPI 深度封装的生产级 Python Web 项目**
 
 [English](README.en.md) | 中文
 

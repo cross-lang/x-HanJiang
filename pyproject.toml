@@ -1,7 +1,7 @@
 [project]
 name = "x-HanJiang"
 version = "0.1.0"
-description = "A production-grade FastAPI project template"
+description = "一个基于 FastAPI 框架深度封装的生产级 Python Web 项目"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
