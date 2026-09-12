@@ -10,7 +10,7 @@
 
 寒江（HanJiang）是一个基于 FastAPI 框架深度封装的生产级 Python Web 项目，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。开箱即用，支持快速搭建企业级 RESTful API 服务，适配多环境部署。
 
-当前项目已实现用户管理、角色管理、权限管理、登录认证、登录日志等核心业务能力。
+当前项目已实现用户管理、角色管理、权限管理、登录认证、登录日志、业务审计和对象存储上传等核心业务能力。
 
 ## 核心特征
 
@@ -62,7 +62,7 @@ x-HanJiang/
 
 ## 数据模型
 
-数据库共 5 张表（定义见 `docs/hanjiang.sql`）：
+数据库共 6 张表（定义见 `docs/hanjiang.sql`）：
 
 | 表名 | 说明 | 关键字段 |
 |------|------|----------|
@@ -71,6 +71,7 @@ x-HanJiang/
 | `permissions` | 权限表 | id, perm_code, perm_name, module, operation(view/create/edit/delete/export/import), description, sort_order |
 | `role_permissions` | 角色权限关联表 | id, role_id, permission_id |
 | `login_logs` | 登录日志表 | id, user_id, login_type(password/sso), ip_address, status(success/failed), created_at |
+| `audit_logs` | 业务审计日志表 | entity_type, entity_id, action, operator_id, before_data, after_data, ip_address, created_at |
 
 所有业务表均支持软删除（`deleted_at` 非空即视为已删除）。
 
@@ -157,6 +158,18 @@ sequenceDiagram
 | POST | `/api/v1/roles/{id}/update` | 更新角色 |
 | POST | `/api/v1/roles/{id}/delete` | 删除角色（软删除） |
 | GET | `/api/v1/roles/{id}/permissions` | 角色权限列表（含权限详情） |
+
+### 业务审计（需鉴权）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/audit/logs` | 按实体、动作、操作人和时间范围查询业务变更 |
+
+### 文件上传（需鉴权）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/files/upload` | 上传文件；配置对象存储后写入千牛云，否则回退本地 `uploads` 目录 |
 
 ### 登录日志（需鉴权）
 
@@ -302,6 +315,22 @@ curl http://localhost:8000/api/v1/roles/1/permissions \
   -H "Authorization: Bearer <access_token>"
 ```
 
+### 5. 上传文件
+
+```bash
+curl -X POST http://localhost:8000/api/v1/files/upload \
+  -H "Authorization: Bearer <access_token>" \
+  -F "file=@./example.pdf" \
+  -F "folder=documents"
+```
+
+### 6. 查询业务审计日志
+
+```bash
+curl "http://localhost:8000/api/v1/audit/logs?entity_type=user&action=update" \
+  -H "Authorization: Bearer <access_token>"
+```
+
 ## 统一响应格式
 
 所有接口响应统一包装为以下结构：
@@ -361,10 +390,11 @@ uv run python -c "from src.infras.mysql import init_db; init_db()"
 | 容器化 | Docker | 应用容器化部署 |
 | 测试 | pytest | Python 测试框架 |
 
-## 已知限制
+## 生产部署注意事项
 
-- **鉴权粒度**：当前仅做"是否登录"校验，未实现基于角色/权限的接口级访问控制（RBAC）。如需 `super_admin` 专用接口，需额外添加 `require_role` / `require_permission` 守卫。
-- **审计能力**：登录日志（`login_logs`）已记录登录行为，但缺少业务操作审计模块。
+- 生产环境必须配置真实的 `AUTH_SECRET_KEY`、数据库、Redis 和对象存储凭证。
+- 千牛云桶的公开访问域名应配置到 `OBJECT_STORAGE_PUBLIC_URL`；私有桶不要填写公开域名，应进一步接入预签名 URL。
+- 业务写操作会记录到 `audit_logs`，包含操作人、时间、实体、动作以及变更前后数据。
 
 ## 许可证
 

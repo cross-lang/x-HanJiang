@@ -239,6 +239,21 @@ class RedisConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="REDIS_")
 
 
+class ObjectStorageConfig(BaseSettings):
+    """对象存储配置"""
+
+    endpoint_url: str = Field(default="", description="对象存储 S3 端点 URL")
+    access_key: str = Field(default="", description="对象存储 Access Key")
+    secret_key: str = Field(default="", description="对象存储 Secret Key")
+    bucket: str = Field(default="x-hanjiang", description="存储桶名称")
+    region: str = Field(default="cn-east-1", description="桶区域")
+    prefix: str = Field(default="uploads", description="对象前缀")
+    public_url: str = Field(default="", description="公开访问地址前缀")
+    use_ssl: bool = Field(default=True, description="是否使用 HTTPS")
+
+    model_config = SettingsConfigDict(env_prefix="OBJECT_STORAGE_")
+
+
 class Settings(BaseSettings):
     """应用全局配置类。
 
@@ -268,6 +283,7 @@ class Settings(BaseSettings):
     auth: AuthConfig = Field(default_factory=AuthConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
+    object_storage: ObjectStorageConfig = Field(default_factory=ObjectStorageConfig)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -325,6 +341,7 @@ class Settings(BaseSettings):
             "auth": "AUTH_",
             "database": "DATABASE_",
             "redis": "REDIS_",
+            "object_storage": "OBJECT_STORAGE_",
         }
 
         for section_name, env_prefix in section_map.items():

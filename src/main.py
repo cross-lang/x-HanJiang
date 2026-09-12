@@ -70,6 +70,7 @@ async def lifespan(app: FastAPI):
         try:
             init_db()
             logger.info("Database initialized successfully")
+            
             try:
                 from src.core.seed import init_seed_data
 

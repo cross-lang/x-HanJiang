@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Request
 
 from src.api.dependencies import (
     get_current_user,
+    get_operator_context,
     get_permission_service,
     get_role_service,
 )
@@ -85,7 +86,7 @@ async def create_role(
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """创建角色接口。"""
-    result = service.create(body.model_dump())
+    result = service.create(body.model_dump(), operator=get_operator_context(current_user))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -122,7 +123,11 @@ async def update_role(
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """更新角色接口。"""
-    result = service.update(role_id, body.model_dump(exclude_unset=True))
+    result = service.update(
+        role_id,
+        body.model_dump(exclude_unset=True),
+        operator=get_operator_context(current_user),
+    )
     return success_response(result.model_dump(), request)
 
 
@@ -138,7 +143,7 @@ async def delete_role(
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """删除角色接口。"""
-    service.delete(role_id)
+    service.delete(role_id, operator=get_operator_context(current_user))
     return success_response({"message": "角色删除成功"}, request)
 
 

@@ -16,11 +16,12 @@ Endpoints:
 import csv
 import io
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
 from src.api.dependencies import (
     get_current_user,
+    get_operator_context,
     get_user_service,
 )
 from src.api.response import success_response
@@ -45,7 +46,7 @@ async def create_user(
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """创建用户接口。"""
-    result = service.create(body.model_dump())
+    result = service.create(body.model_dump(), operator=get_operator_context(current_user))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -168,7 +169,11 @@ async def update_user(
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """更新用户接口。"""
-    result = service.update(user_id, body.model_dump(exclude_unset=True))
+    result = service.update(
+        user_id,
+        body.model_dump(exclude_unset=True),
+        operator=get_operator_context(current_user),
+    )
     return success_response(result.model_dump(), request)
 
 
@@ -184,5 +189,43 @@ async def delete_user(
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """删除用户接口。"""
-    service.delete(user_id)
+    service.delete(user_id, operator=get_operator_context(current_user))
     return success_response({"message": "用户删除成功"}, request)
+
+
+@router.post(
+    "/import",
+    summary="导入用户列表",
+    description="上传 CSV 文件批量导入用户（基础版本）",
+)
+async def import_users(
+    request: Request,
+    file: UploadFile = File(...),
+    service: UserService = Depends(get_user_service),
+    current_user: CurrentUserResponse = Depends(get_current_user),
+):
+    """导入用户列表接口（CSV）。"""
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise ValueError("仅支持 CSV 文件导入")
+
+    csv_content = (await file.read()).decode("utf-8-sig")
+    rows = list(csv.DictReader(csv_content.splitlines()))
+
+    imported = 0
+    operator_ctx = get_operator_context(current_user)
+    for row in rows:
+        if not row.get("username") or not row.get("email"):
+            continue
+        payload = {
+            "username": row["username"],
+            "email": row["email"],
+            "password": row.get("password") or "ChangeMe@123",
+            "phone": row.get("phone"),
+            "avatar_url": row.get("avatar_url"),
+            "role_id": int(row["role_id"]) if row.get("role_id") else None,
+            "status": row.get("status") or "active",
+        }
+        service.create(payload, operator=operator_ctx)
+        imported += 1
+
+    return success_response({"imported": imported, "filename": file.filename}, request)

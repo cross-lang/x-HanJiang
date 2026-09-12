@@ -85,7 +85,7 @@ class PermissionService(BaseService[PermissionResponse, int]):
             "page_size": page_size,
         }
 
-    def create(self, data: dict[str, Any]) -> PermissionResponse:
+    def create(self, data: dict[str, Any], operator: dict[str, Any] | None = None) -> PermissionResponse:
         """创建权限。"""
         perm_code = data.get("perm_code")
         if perm_code and self._repository.get_by_code(perm_code) is not None:
@@ -101,11 +101,19 @@ class PermissionService(BaseService[PermissionResponse, int]):
         )
         created = self._repository.create(entity)
         self._commit()
+        self._audit(
+            entity_id=created.id,
+            action="create",
+            operator=operator,
+            before_data=None,
+            after_data={"perm_code": created.perm_code, "perm_name": created.perm_name},
+            remarks="permission created",
+        )
         result = self._to_response(created)
         logger.info(f"Permission created: id={result.id} code={result.perm_code}")
         return result
 
-    def update(self, id: int, data: dict[str, Any]) -> PermissionResponse:
+    def update(self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None) -> PermissionResponse:
         """更新权限信息。"""
         existing = self._repository.get_by_id(id)
         if existing is None:
@@ -135,17 +143,33 @@ class PermissionService(BaseService[PermissionResponse, int]):
         if updated is None:
             raise NotFoundException(message=f"权限 {id} 不存在")
         self._commit()
+        self._audit(
+            entity_id=updated.id,
+            action="update",
+            operator=operator,
+            before_data={"perm_code": existing.perm_code, "perm_name": existing.perm_name, "module": existing.module, "operation": existing.operation},
+            after_data={"perm_code": updated.perm_code, "perm_name": updated.perm_name, "module": updated.module, "operation": updated.operation},
+            remarks="permission updated",
+        )
         result = self._to_response(updated)
         logger.info(f"Permission updated: id={result.id} code={result.perm_code}")
         return result
 
-    def delete(self, id: int) -> bool:
+    def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
         """删除权限（同时清理角色绑定关系）。"""
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"权限 {id} 不存在")
         self._repository.delete(id)
         self._commit()
+        self._audit(
+            entity_id=id,
+            action="delete",
+            operator=operator,
+            before_data={"perm_code": existing.perm_code, "perm_name": existing.perm_name, "module": existing.module, "operation": existing.operation},
+            after_data=None,
+            remarks="permission deleted",
+        )
         logger.info(f"Permission deleted: id={id}")
         return True
 
@@ -164,7 +188,44 @@ class PermissionService(BaseService[PermissionResponse, int]):
             for e in entities
         ]
 
-    def bind_permission(self, role_id: int, permission_id: int) -> RolePermissionResponse:
+    def has_permission(self, user_id: int, permission_code: str) -> bool:
+        """判断用户是否拥有某权限，使用 Redis 缓存避免反复查库。"""
+        from src.infras.cache import get_json_cache, set_json_cache
+        from sqlalchemy import select
+
+        from src.models.entities.user_entity import PermissionEntity
+
+        cache_key = f"perm:{user_id}:{permission_code}"
+        cached = get_json_cache(cache_key, ttl=300)
+        if cached is not None:
+            return bool(cached)
+
+        from src.repositories.user_repository import UserRepository
+
+        user = UserRepository(session=self._repository.session).get_by_id(user_id)
+        if user is None:
+            set_json_cache(cache_key, False, ttl=300)
+            return False
+
+        if user.role_id is None:
+            set_json_cache(cache_key, False, ttl=300)
+            return False
+
+        permission_ids = self._rp_repository.get_permission_ids_by_role(user.role_id)
+        if not permission_ids:
+            set_json_cache(cache_key, False, ttl=300)
+            return False
+
+        stmt = select(PermissionEntity.id).where(
+            PermissionEntity.id.in_(permission_ids),
+            PermissionEntity.perm_code == permission_code,
+        )
+        allowed = self._repository.session.execute(stmt).scalar() is not None
+
+        set_json_cache(cache_key, allowed, ttl=300)
+        return allowed
+
+    def bind_permission(self, role_id: int, permission_id: int, operator: dict[str, Any] | None = None) -> RolePermissionResponse:
         """为角色绑定权限。"""
         if self._role_repository.get_by_id(role_id) is None:
             raise NotFoundException(message=f"角色 {role_id} 不存在")
@@ -174,16 +235,57 @@ class PermissionService(BaseService[PermissionResponse, int]):
 
         self._rp_repository.add_permission(role_id, permission_id)
         self._commit()
+        self._audit(
+            entity_id=role_id,
+            action="bind_permission",
+            operator=operator,
+            before_data={"role_id": role_id, "permission_id": permission_id},
+            after_data={"role_id": role_id, "permission_id": permission_id},
+            remarks="role permission bound",
+        )
         return RolePermissionResponse(
             role_id=role_id, permission=self._to_response(perm)
         )
 
-    def unbind_permission(self, role_id: int, permission_id: int) -> bool:
+    def unbind_permission(self, role_id: int, permission_id: int, operator: dict[str, Any] | None = None) -> bool:
         """解除角色与权限的绑定。"""
         result = self._rp_repository.remove_permission(role_id, permission_id)
         if result:
             self._commit()
+            self._audit(
+                entity_id=role_id,
+                action="unbind_permission",
+                operator=operator,
+                before_data={"role_id": role_id, "permission_id": permission_id},
+                after_data=None,
+                remarks="role permission unbound",
+            )
         return result
+
+    def _audit(
+        self,
+        entity_id: int,
+        action: str,
+        operator: dict[str, Any] | None,
+        before_data: dict[str, Any] | None,
+        after_data: dict[str, Any] | None,
+        remarks: str,
+    ) -> None:
+        if not hasattr(self._repository, "session"):
+            return
+        from src.services.audit_service import AuditService
+
+        AuditService().log_event(
+            entity_type="permission",
+            entity_id=entity_id,
+            action=action,
+            operator_id=operator.get("operator_id") if operator else None,
+            operator_name=operator.get("operator_name") if operator else None,
+            before_data=before_data,
+            after_data=after_data,
+            ip_address=operator.get("ip_address") if operator else None,
+            remarks=remarks,
+        )
 
     def _to_response(self, entity: PermissionEntity) -> PermissionResponse:
         """实体转响应 DTO。"""

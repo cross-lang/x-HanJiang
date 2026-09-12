@@ -168,4 +168,25 @@ def invalidate_cache(pattern: str, *args: Any, **kwargs: Any) -> None:
         logger.warning(f"Failed to invalidate cache: {e}")
 
 
-__all__ = ["get_redis", "close_redis", "cache", "invalidate_cache"]
+def get_json_cache(key: str, ttl: int = 300) -> Any:
+    """获取 JSON 缓存，未命中返回 None。"""
+    try:
+        redis_client = get_redis()
+        cached = redis_client.get(key)
+        if cached is None:
+            return None
+        return json.loads(cached)
+    except Exception:
+        return None
+
+
+def set_json_cache(key: str, value: Any, ttl: int = 300) -> None:
+    """写入 JSON 缓存。"""
+    try:
+        redis_client = get_redis()
+        redis_client.setex(key, ttl, json.dumps(value, ensure_ascii=False))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Failed to set JSON cache: {exc}")
+
+
+__all__ = ["get_redis", "close_redis", "cache", "invalidate_cache", "get_json_cache", "set_json_cache"]

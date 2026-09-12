@@ -20,6 +20,12 @@ class UserEntity(Base):
         String(50), nullable=False, comment="用户名"
     )
     email: Mapped[str] = mapped_column(String(100), nullable=False, comment="邮箱")
+    name: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, comment="姓名"
+    )
+    age: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="年龄"
+    )
     password_hash: Mapped[str | None] = mapped_column(
         String(255), nullable=True, comment="密码哈希"
     )

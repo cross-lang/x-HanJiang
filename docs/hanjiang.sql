@@ -43,7 +43,7 @@ CREATE TABLE `roles` (
     `created_at`  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',
     `updated_at`  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  COMMENT '更新时间',
     `deleted_at`  DATETIME  NULL  COMMENT '软删除时间',
-    PRIMARY KEY (`id`),
+    PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
 -- 权限表
@@ -85,5 +85,25 @@ CREATE TABLE `login_logs` (
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录日志表';
+
+-- 业务审计日志表
+DROP TABLE IF EXISTS `audit_logs`;
+CREATE TABLE `audit_logs` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '审计日志ID',
+    `entity_type` VARCHAR(100) NOT NULL COMMENT '实体类型',
+    `entity_id` VARCHAR(100) NULL COMMENT '实体ID',
+    `action` VARCHAR(50) NOT NULL COMMENT '操作类型',
+    `operator_id` BIGINT NULL COMMENT '操作者ID',
+    `operator_name` VARCHAR(100) NULL COMMENT '操作者用户名',
+    `before_data` JSON NULL COMMENT '变更前数据',
+    `after_data` JSON NULL COMMENT '变更后数据',
+    `ip_address` VARCHAR(45) NULL COMMENT '操作IP',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `remarks` TEXT NULL COMMENT '备注',
+    PRIMARY KEY (`id`),
+    KEY `idx_audit_entity` (`entity_type`, `entity_id`),
+    KEY `idx_audit_operator` (`operator_id`),
+    KEY `idx_audit_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务审计日志表';
 
 SET FOREIGN_KEY_CHECKS = 1;

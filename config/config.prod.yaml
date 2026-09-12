@@ -9,3 +9,9 @@ logging:
 
 rate_limit:
   per_minute: 60
+
+# 对象存储凭证请通过 OBJECT_STORAGE_* 环境变量注入，不要写入配置文件
+object_storage:
+  bucket: "x-hanjiang"
+  prefix: "uploads"
+  use_ssl: true

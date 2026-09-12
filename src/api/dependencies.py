@@ -14,16 +14,24 @@ Functions:
 """
 
 from collections.abc import Generator
+from functools import lru_cache
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from src.core.container import Container
+from src.core.exceptions import AuthorizationException
+from src.infras.cache import get_json_cache, set_json_cache
 from src.infras.mysql import get_session_factory
 from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedRequest
+from src.services.alert_service import AlertService
+from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
+from src.services.file_service import FileStorageService
+from src.services.mfa_service import MFAService
+from src.services.permission_service import PermissionService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -92,29 +100,42 @@ def get_user_repository(
 def get_user_service(
     user_repository=Depends(get_user_repository),
 ):
-    """获取用户服务实例。
-
-    通过 DI 容器优先解析；如果未注册，则回退到手写构造（兼容旧调用）。
-    """
+    """使用当前请求的 Repository 创建用户服务。"""
     from src.services.user_service import UserService
 
-    container = Container.get_instance()
-    try:
-        return container.resolve(UserService)
-    except Exception:
-        # DI 未注册时退回到直接构造
-        return UserService(user_repository=user_repository)
+    return UserService(user_repository=user_repository)
+
+
+def get_alert_service() -> AlertService:
+    """获取告警服务实例。"""
+    return AlertService()
+
+
+def get_audit_service(
+    db_session: Session = Depends(get_db_session),
+) -> AuditService:
+    """使用当前请求的数据库会话创建审计服务。"""
+    from src.repositories.audit_log_repository import AuditLogRepository
+
+    return AuditService(audit_log_repository=AuditLogRepository(session=db_session))
+
+
+@lru_cache(maxsize=1)
+def get_file_service() -> FileStorageService:
+    """获取共享的文件存储服务，复用对象存储客户端。"""
+    return FileStorageService()
+
+
+def get_mfa_service() -> MFAService:
+    """获取 MFA 服务实例。"""
+    return MFAService()
 
 
 def get_auth_service(
     user_repository=Depends(get_user_repository),
 ):
-    """获取认证服务实例。"""
-    container = Container.get_instance()
-    try:
-        return container.resolve(AuthService)
-    except Exception:
-        return AuthService(user_repository=user_repository)
+    """使用当前请求的用户和角色 Repository 创建认证服务。"""
+    return AuthService(user_repository=user_repository)
 
 
 def get_role_repository(
@@ -158,18 +179,14 @@ def get_role_service(
     role_permission_repository=Depends(get_role_permission_repository),
     permission_repository=Depends(get_permission_repository),
 ):
-    """获取角色服务实例。"""
+    """使用当前请求的 Repository 创建角色服务。"""
     from src.services.role_service import RoleService
 
-    container = Container.get_instance()
-    try:
-        return container.resolve(RoleService)
-    except Exception:
-        return RoleService(
-            role_repository=role_repository,
-            role_permission_repository=role_permission_repository,
-            permission_repository=permission_repository,
-        )
+    return RoleService(
+        role_repository=role_repository,
+        role_permission_repository=role_permission_repository,
+        permission_repository=permission_repository,
+    )
 
 
 def get_permission_service(
@@ -177,44 +194,63 @@ def get_permission_service(
     role_permission_repository=Depends(get_role_permission_repository),
     role_repository=Depends(get_role_repository),
 ):
-    """获取权限服务实例。"""
+    """使用当前请求的 Repository 创建权限服务。"""
     from src.services.permission_service import PermissionService
 
-    container = Container.get_instance()
-    try:
-        return container.resolve(PermissionService)
-    except Exception:
-        return PermissionService(
-            permission_repository=permission_repository,
-            role_permission_repository=role_permission_repository,
-            role_repository=role_repository,
-        )
+    return PermissionService(
+        permission_repository=permission_repository,
+        role_permission_repository=role_permission_repository,
+        role_repository=role_repository,
+    )
 
 
 def get_login_log_service(
     login_log_repository=Depends(get_login_log_repository),
 ):
-    """获取登录日志服务实例。"""
+    """使用当前请求的 Repository 创建登录日志服务。"""
     from src.services.login_log_service import LoginLogService
 
-    container = Container.get_instance()
-    try:
-        return container.resolve(LoginLogService)
-    except Exception:
-        return LoginLogService(login_log_repository=login_log_repository)
+    return LoginLogService(login_log_repository=login_log_repository)
 
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> CurrentUserResponse:
-    """解析 Bearer 令牌，返回当前登录用户。
+    """解析 Bearer 令牌，返回当前登录用户.
 
     使用 HTTPBearer 认证方案，Swagger UI 会自动在右上角显示 Authorize 按钮，
     并为所有依赖本函数的接口标注锁图标；点 Authorize 填一次令牌即可全局生效。
     """
     token = credentials.credentials if credentials is not None else None
     return auth_service.get_current_user(token)
+
+
+def require_role(role_code: str):
+    """要求当前用户必须属于指定角色。"""
+
+    def dependency(
+        current_user: CurrentUserResponse = Depends(get_current_user),
+    ) -> CurrentUserResponse:
+        if current_user.role_code != role_code and current_user.role_code != "super_admin":
+            raise AuthorizationException(message=f"需要角色 {role_code}")
+        return current_user
+
+    return dependency
+
+
+def require_permission(permission_code: str):
+    """要求当前用户必须拥有指定权限。权限结果按角色缓存。"""
+
+    def dependency(
+        current_user: CurrentUserResponse = Depends(get_current_user),
+        permission_service: PermissionService = Depends(get_permission_service),
+    ) -> CurrentUserResponse:
+        if not permission_service.has_permission(current_user.id, permission_code):
+            raise AuthorizationException(message=f"缺少权限: {permission_code}")
+        return current_user
+
+    return dependency
 
 
 def get_operator_context(

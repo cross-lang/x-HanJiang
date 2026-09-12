@@ -1,5 +1,6 @@
 """数据库实体模型包。"""
 
+from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import (
     PermissionEntity,
@@ -14,4 +15,5 @@ __all__ = [
     "PermissionEntity",
     "RolePermissionEntity",
     "LoginLogEntity",
+    "AuditLogEntity",
 ]
