@@ -8,7 +8,7 @@ from src.api.response import success_response
 from src.schemas.auth import CurrentUserResponse
 from src.services.mfa_service import MFAService
 
-router = APIRouter(prefix="/security", tags=["security"])
+router = APIRouter(prefix="/security", tags=["安全与 MFA"])
 
 
 @router.get(

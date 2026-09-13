@@ -33,7 +33,7 @@ from src.schemas.role import (
 from src.services.permission_service import PermissionService
 from src.services.role_service import RoleService
 
-router = APIRouter(prefix="/roles", tags=["roles"])
+router = APIRouter(prefix="/roles", tags=["角色管理"])
 
 
 @router.get(

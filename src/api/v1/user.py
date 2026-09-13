@@ -30,7 +30,7 @@ from src.schemas.common import PaginatedResponse
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.user_service import UserService
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=["用户管理"])
 
 
 @router.post(

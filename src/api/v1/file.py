@@ -8,7 +8,7 @@ from src.api.response import success_response
 from src.schemas.auth import CurrentUserResponse
 from src.services.file_service import FileStorageService
 
-router = APIRouter(prefix="/files", tags=["files"])
+router = APIRouter(prefix="/files", tags=["文件管理"])
 
 
 @router.post(

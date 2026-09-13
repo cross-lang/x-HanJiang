@@ -16,7 +16,7 @@ from src.schemas.login_log import LoginLogResponse
 from src.services.audit_service import AuditService
 from src.services.login_log_service import LoginLogService
 
-router = APIRouter(prefix="/audit", tags=["audit"])
+router = APIRouter(prefix="/audit", tags=["审计日志"])
 
 
 @router.get(

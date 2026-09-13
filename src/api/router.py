@@ -29,7 +29,7 @@ api_router.include_router(role.router)
 # 注册审计日志路由
 api_router.include_router(audit.router)
 
-# 注册文件上传路由
+# 注册文件管理路由
 api_router.include_router(file.router)
 
 # 注册安全与 MFA 路由

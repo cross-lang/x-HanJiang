@@ -18,7 +18,7 @@ from src.api.response import success_response
 from src.schemas.auth import CurrentUserResponse, LoginRequest, RefreshTokenRequest
 from src.services.auth_service import AuthService
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["身份认证"])
 
 
 @router.post(

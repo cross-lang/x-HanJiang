@@ -20,7 +20,7 @@ from src.core.config import settings
 from src.schemas.common import ApiResponse
 from src.schemas.health import HealthResponse, VersionResponse
 
-router = APIRouter(tags=["health"])
+router = APIRouter(tags=["健康检查"])
 
 
 def _build_success_response(data: object, request: Request, code: int = 200) -> JSONResponse:
