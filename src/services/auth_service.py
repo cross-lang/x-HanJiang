@@ -215,6 +215,8 @@ class AuthService:
             id=user.id,
             username=user.username,
             email=user.email,
+            name=user.name,
+            age=user.age,
             role_id=user.role_id,
             role_code=role_code,
             status=user.status or UserStatus.ACTIVE.value,

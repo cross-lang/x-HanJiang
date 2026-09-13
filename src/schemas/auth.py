@@ -71,6 +71,8 @@ class CurrentUserResponse(BaseModel):
         id: 用户ID
         username: 用户名
         email: 邮箱
+        name: 姓名
+        age: 年龄
         role_id: 主角色ID
         role_code: 角色编码（解析自角色表，未设置时为 None）
         status: 用户状态
@@ -80,6 +82,8 @@ class CurrentUserResponse(BaseModel):
     id: int = Field(description="用户ID")
     username: str = Field(description="用户名")
     email: str = Field(description="邮箱")
+    name: str | None = Field(default=None, description="姓名")
+    age: int | None = Field(default=None, description="年龄")
     role_id: int | None = Field(default=None, description="主角色ID")
     role_code: str | None = Field(default=None, description="角色编码")
     status: str = Field(description="用户状态")
