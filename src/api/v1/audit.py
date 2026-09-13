@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, Query, Request
 from src.api.dependencies import get_audit_service, get_current_user
 from src.api.response import success_response
 from src.schemas.auth import CurrentUserResponse
+from src.schemas.audit import AuditLogResponse
+from src.schemas.common import PaginatedResponse
 from src.services.audit_service import AuditService
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -59,4 +61,15 @@ async def list_audit_logs(
         page=page,
         page_size=page_size,
     )
-    return success_response(result, request)
+    page_result = PaginatedResponse[AuditLogResponse](
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+        total_pages=(
+            (result["total"] + result["page_size"] - 1) // result["page_size"]
+            if result["page_size"] > 0
+            else 0
+        ),
+    )
+    return success_response(page_result.model_dump(), request)
