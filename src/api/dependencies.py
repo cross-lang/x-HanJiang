@@ -30,7 +30,6 @@ from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
-from src.services.mfa_service import MFAService
 from src.services.permission_service import PermissionService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -124,11 +123,6 @@ def get_audit_service(
 def get_file_service() -> FileStorageService:
     """获取共享的文件存储服务，复用对象存储客户端。"""
     return FileStorageService()
-
-
-def get_mfa_service() -> MFAService:
-    """获取 MFA 服务实例。"""
-    return MFAService()
 
 
 def get_auth_service(
