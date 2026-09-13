@@ -1,31 +1,22 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-应用配置管理模块
+应用配置管理
 
-本模块实现统一配置加载逻辑，支持多环境切换，为全局唯一配置入口。
-配置优先级：环境变量 > 环境特定 YAML 配置 > 默认 YAML 配置 > 代码默认值。
-
-功能特性：
-    - 支持 .env 环境变量 + config.yaml 配置文件双来源
-    - 支持多环境切换（development / testing / production），通过 APP_ENV 环境变量识别
-    - 基于 pydantic-settings 实现配置项类型校验和默认值管理
-    - 敏感信息（密钥、数据库地址、端口）通过配置/环境变量注入，禁止硬编码
-    - 所有配置项支持默认值、类型自动转换、启动时合法性校验
-    - 密钥、凭证类配置禁止打印至日志、禁止序列化返回前端，统一脱敏处理
+支持从环境变量和 YAML 配置文件读取配置，使用 dataclass 描述各配置段。
+配置优先级：环境变量 > 环境特定配置(config.{env}.yaml) > 默认配置(config.yaml) > 代码默认值。
 
 Usage:
     from src.core.config import settings
     port = settings.server.port
 """
 
-import json
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import yaml
-from pydantic import Field, ValidationInfo, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.constants import (
     DEFAULT_CONFIG_DIR,
@@ -34,7 +25,39 @@ from src.constants import (
     ENV_TESTING,
 )
 
-# 明确禁止使用的弱密钥（不论长度）
+
+# ============================================================
+# 辅助函数
+# ============================================================
+
+def _to_bool(value: str | None) -> bool:
+    """将字符串转换为布尔值。"""
+    return value.lower() == "true" if value else False
+
+
+def _to_int(value: str | None, default: int = 0) -> int:
+    """将字符串转换为整数。"""
+    return int(value) if value else default
+
+
+def _to_float(value: str | None, default: float = 0.0) -> float:
+    """将字符串转换为浮点数。"""
+    return float(value) if value else default
+
+
+def _find_project_root() -> Path:
+    """向上查找项目根目录（包含 pyproject.toml 的目录）。"""
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    return current.parent.parent
+
+
+# ============================================================
+# 明确禁止使用的弱密钥
+# ============================================================
+
 _FORBIDDEN_SECRET_KEYS: frozenset[str] = frozenset(
     {
         "change-me-in-production",
@@ -42,372 +65,373 @@ _FORBIDDEN_SECRET_KEYS: frozenset[str] = frozenset(
         "secret",
         "default",
         "changeme",
+        "dev-only-change-me-in-production",
         "",
     }
 )
 
 
-def _find_project_root() -> Path:
-    """向上查找项目根目录（包含 pyproject.toml 的目录）。
+# ============================================================
+# Dataclass 配置段
+# ============================================================
 
-    Returns:
-        Path: 项目根目录的绝对路径
-    """
-    current: Path = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").exists():
-            return parent
-    return current.parent.parent
-
-
-def _load_yaml_config(config_dir: Path, app_env: str) -> dict[str, Any]:
-    """加载 YAML 配置文件，深度合并默认配置和环境特定配置。
-
-    先加载 config.yaml 作为基础配置，再加载 config.{env}.yaml 进行深度覆盖合并。
-    嵌套字典会递归合并，非字典值整体替换。
-
-    Args:
-        config_dir: 配置文件所在目录
-        app_env: 当前运行环境标识
-
-    Returns:
-        dict[str, Any]: 合并后的配置字典
-    """
-    merged: dict[str, Any] = {}
-
-    default_file: Path = config_dir / "config.yaml"
-    if default_file.exists():
-        with open(default_file, encoding="utf-8") as f:
-            default_cfg: dict[str, Any] | None = yaml.safe_load(f)
-            if default_cfg and isinstance(default_cfg, dict):
-                merged = default_cfg
-
-    env_file: Path = config_dir / f"config.{app_env}.yaml"
-    if env_file.exists():
-        with open(env_file, encoding="utf-8") as f:
-            env_cfg: dict[str, Any] | None = yaml.safe_load(f)
-            if env_cfg and isinstance(env_cfg, dict):
-                _deep_merge(merged, env_cfg)
-
-    return merged
+@dataclass
+class ServerConfig:
+    """服务器配置。"""
+    host: str = "0.0.0.0"
+    port: int = 8000
+    debug: bool = True
+    workers: int = 1
 
 
-def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """递归深度合并两个字典，override 中的值覆盖 base 中的同名键。
-
-    Args:
-        base: 基础字典，会被原地修改
-        override: 覆盖字典
-
-    Returns:
-        dict[str, Any]: 合并后的字典（即 base 本身）
-    """
-    for key, value in override.items():
-        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
-            _deep_merge(base[key], value)
-        else:
-            base[key] = value
-    return base
+@dataclass
+class LoggingConfig:
+    """日志配置。"""
+    level: str = "INFO"
+    format: str = "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
+    file_path: str = "logs/x-HanJiang-{time:YYYYMMDDHH}.log"
+    rotation: str = "1 day"
+    retention: str = "7 days"
+    compression: str = "zip"
+    console_output: bool = True
 
 
-class ServerConfig(BaseSettings):
-    """服务配置。
-
-    Attributes:
-        host: 监听地址
-        port: 监听端口
-        debug: 是否开启调试模式
-        workers: 工作进程数（生产环境）
-    """
-
-    host: str = Field(default="0.0.0.0", description="服务监听地址")
-    port: int = Field(default=8000, ge=1, le=65535, description="服务监听端口")
-    debug: bool = Field(default=True, description="调试模式开关")
-    workers: int = Field(default=1, ge=1, le=64, description="工作进程数")
-
-    model_config = SettingsConfigDict(env_prefix="SERVER_")
+@dataclass
+class CORSConfig:
+    """跨域配置。"""
+    enabled: bool = True
+    origins: list[str] = field(default_factory=lambda: ["*"])
+    allow_credentials: bool = True
+    allow_methods: list[str] = field(default_factory=lambda: ["*"])
+    allow_headers: list[str] = field(default_factory=lambda: ["*"])
 
 
-class LoggingConfig(BaseSettings):
-    """日志配置。
-
-    Attributes:
-        level: 日志级别
-        file_path: 日志文件路径
-        rotation: 日志轮转周期
-        retention: 日志保留时间
-    """
-
-    level: str = Field(default="INFO", description="日志级别")
-    file_path: str = Field(
-        default="logs/x-HanJiang-{time:YYYYMMDDHH}.log",
-        description="日志文件路径",
-    )
-    rotation: str = Field(default="1 day", description="日志轮转周期")
-    retention: str = Field(default="7 days", description="日志保留时间")
-
-    model_config = SettingsConfigDict(env_prefix="LOGGING_")
+@dataclass
+class RateLimitConfig:
+    """限流配置。"""
+    enabled: bool = True
+    per_minute: int = 60
+    per_hour: int = 1000
 
 
-class CORSConfig(BaseSettings):
-    """跨域配置。
-
-    Attributes:
-        origins: 允许的来源列表
-    """
-
-    origins: list[str] = Field(default=["*"], description="允许的跨域来源")
-
-    model_config = SettingsConfigDict(env_prefix="CORS_")
+@dataclass
+class AuthConfig:
+    """认证 / JWT 配置。"""
+    secret_key: str = "dev-only-change-me-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 10080
+    refresh_token_expire_days: int = 30
 
 
-class RateLimitConfig(BaseSettings):
-    """请求限流配置。
-
-    Attributes:
-        per_minute: 每分钟最大请求数
-    """
-
-    per_minute: int = Field(default=60, ge=1, description="每分钟最大请求数")
-
-    model_config = SettingsConfigDict(env_prefix="RATE_LIMIT_")
-
-
-class AuthConfig(BaseSettings):
-    """认证配置。
-
-    Attributes:
-        secret_key: JWT 签名密钥
-        algorithm: JWT 签名算法
-    """
-
-    secret_key: str = Field(
-        default="dev-only-change-me-in-production",
-        description="认证密钥（生产环境必须通过环境变量或 secrets 覆盖）",
-    )
-    algorithm: str = Field(default="HS256", description="JWT 算法")
-    access_token_expire_minutes: int = Field(
-        default=60 * 24 * 7, ge=1, description="访问令牌有效期（分钟）"
-    )
-    refresh_token_expire_days: int = Field(
-        default=30, ge=1, description="刷新令牌有效期（天）"
-    )
-
-    model_config = SettingsConfigDict(env_prefix="AUTH_")
-
-    @field_validator("secret_key")
-    def validate_secret_key(cls, v: str, info: ValidationInfo) -> str:
-        """基础密钥长度校验。
-
-        黑名单与生产环境强制校验统一在 Settings.validate() 中执行，
-        避免 yaml 默认值（如 change-me-in-production）在开发/测试环境
-        直接阻断 pydantic 实例化。
-
-        Args:
-            v: 密钥值
-            info: 验证信息
-
-        Returns:
-            str: 验证后的密钥
-        """
-        # 仅做最小长度校验，确保 dev 默认值也能通过 pydantic 校验
-        if len(v) < 16:
-            raise ValueError("AUTH_SECRET_KEY 长度至少 16 个字符")
-        return v
+@dataclass
+class DatabaseConfig:
+    """数据库配置。"""
+    enabled: bool = True
+    url: str = "mysql://root:CHANGE_ME@localhost:3306/hanjiang"
+    pool_size: int = 5
+    max_overflow: int = 10
+    pool_timeout: int = 30
+    pool_recycle: int = 3600
+    echo: bool = False
 
 
-class DatabaseConfig(BaseSettings):
-    """数据库配置。
-
-    Attributes:
-        url: 数据库连接字符串
-        pool_size: 连接池大小
-    """
-
-    url: str = Field(default="", description="数据库连接地址")
-    pool_size: int = Field(default=5, ge=1, description="连接池大小")
-
-    model_config = SettingsConfigDict(env_prefix="DATABASE_")
+@dataclass
+class RedisConfig:
+    """Redis 配置。"""
+    enabled: bool = True
+    url: str = "redis://:CHANGE_ME@localhost:6379/0"
+    pool_size: int = 10
+    max_connections: int = 50
+    decode_responses: bool = True
+    socket_timeout: int = 5
 
 
-class RedisConfig(BaseSettings):
-    """Redis 配置。
-
-    Attributes:
-        url: Redis 连接地址
-    """
-
-    url: str = Field(default="", description="Redis 连接地址")
-
-    model_config = SettingsConfigDict(env_prefix="REDIS_")
-
-
-class ObjectStorageConfig(BaseSettings):
-    """对象存储配置"""
-
-    endpoint_url: str = Field(default="", description="对象存储 S3 端点 URL")
-    access_key: str = Field(default="", description="对象存储 Access Key")
-    secret_key: str = Field(default="", description="对象存储 Secret Key")
-    bucket: str = Field(default="x-hanjiang", description="存储桶名称")
-    region: str = Field(default="cn-east-1", description="桶区域")
-    prefix: str = Field(default="uploads", description="对象前缀")
-    public_url: str = Field(default="", description="公开访问地址前缀")
-    use_ssl: bool = Field(default=True, description="是否使用 HTTPS")
-
-    model_config = SettingsConfigDict(env_prefix="OBJECT_STORAGE_")
+@dataclass
+class ObjectStorageConfig:
+    """对象存储配置。"""
+    endpoint_url: str = ""
+    access_key: str = ""
+    secret_key: str = ""
+    bucket: str = "x-hanjiang"
+    region: str = "cn-east-1"
+    prefix: str = "uploads"
+    public_url: str = ""
+    use_ssl: bool = True
 
 
-class Settings(BaseSettings):
+# ============================================================
+# 环境变量 → YAML 配置段 映射
+# ============================================================
+
+_ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
+    "server": ("SERVER_", ["host", "port", "debug", "workers"]),
+    "logging": ("LOGGING_", ["level", "format", "file_path", "rotation", "retention", "compression", "console_output"]),
+    "cors": ("CORS_", ["enabled", "origins", "allow_credentials", "allow_methods", "allow_headers"]),
+    "rate_limit": ("RATE_LIMIT_", ["enabled", "per_minute", "per_hour"]),
+    "auth": ("AUTH_", ["secret_key", "algorithm", "access_token_expire_minutes", "refresh_token_expire_days"]),
+    "database": ("DATABASE_", ["enabled", "url", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
+    "redis": ("REDIS_", ["enabled", "url", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
+    "object_storage": ("OBJECT_STORAGE_", [
+        "endpoint_url", "access_key", "secret_key", "bucket",
+        "region", "prefix", "public_url", "use_ssl",
+    ]),
+}
+
+
+# ============================================================
+# 核心配置类
+# ============================================================
+
+class Settings:
     """应用全局配置类。
 
     配置加载优先级（从高到低）：
-        1. 环境变量（包括 .env 文件）
+        1. 环境变量
         2. 环境特定 YAML 配置（config.{env}.yaml）
         3. 默认 YAML 配置（config.yaml）
         4. 代码中的默认值
 
     Attributes:
         app_env: 当前运行环境
-        server: 服务配置
+        server: 服务器配置
         logging: 日志配置
         cors: 跨域配置
         rate_limit: 限流配置
         auth: 认证配置
         database: 数据库配置
         redis: Redis 配置
+        object_storage: 对象存储配置
     """
 
-    app_env: str = Field(default=ENV_DEVELOPMENT, description="运行环境")
+    CONFIG_FILE_PATH: Final[str] = "config/config.yaml"
 
-    server: ServerConfig = Field(default_factory=ServerConfig)
-    logging: LoggingConfig = Field(default_factory=LoggingConfig)
-    cors: CORSConfig = Field(default_factory=CORSConfig)
-    rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
-    auth: AuthConfig = Field(default_factory=AuthConfig)
-    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
-    redis: RedisConfig = Field(default_factory=RedisConfig)
-    object_storage: ObjectStorageConfig = Field(default_factory=ObjectStorageConfig)
+    def __init__(self) -> None:
+        """初始化配置。"""
+        self._config: dict[str, Any] = self._load_config()
+        self._parse_config()
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    # ----------------------------------------------------------
+    # 配置加载
+    # ----------------------------------------------------------
 
-    def __init__(self, **kwargs: Any) -> None:
-        """初始化配置，从 YAML 和环境变量加载配置。
+    def _load_config(self) -> dict[str, Any]:
+        """加载配置，优先级：环境变量 > YAML 文件 > 默认值。"""
+        config = self._get_default_config()
+        self._load_from_yaml(config)
+        self._load_from_env(config)
+        return config
 
-        Args:
-            **kwargs: 可选的关键字参数，用于覆盖默认配置
-        """
-        config_dir: Path = kwargs.pop("config_dir", None) or Path(
-            os.environ.get("CONFIG_DIR", DEFAULT_CONFIG_DIR)
-        )
-
-        env_file: Path = config_dir / ".env"
-        if env_file.exists():
-            from dotenv import load_dotenv
-
-            load_dotenv(env_file, override=False)
-
-        app_env: str = os.environ.get("APP_ENV", ENV_DEVELOPMENT)
-
-        project_root: Path = _find_project_root()
-        yaml_config_dir: Path = (
-            config_dir if config_dir.is_absolute() else project_root / config_dir
-        )
-        yaml_data: dict[str, Any] = _load_yaml_config(yaml_config_dir, app_env)
-
-        kwargs.setdefault("app_env", app_env)
-        kwargs = self._merge_yaml_into_kwargs(kwargs, yaml_data)
-
-        super().__init__(**kwargs)
-
-    @staticmethod
-    def _merge_yaml_into_kwargs(
-        kwargs: dict[str, Any], yaml_data: dict[str, Any]
-    ) -> dict[str, Any]:
-        """将 YAML 配置数据展平合并到 kwargs 中。
-
-        Args:
-            kwargs: 现有的关键字参数
-            yaml_data: 从 YAML 文件加载的配置数据
-
-        Returns:
-            dict[str, Any]: 合并后的参数字典
-        """
-        section_map: dict[str, str] = {
-            "server": "SERVER_",
-            "logging": "LOGGING_",
-            "cors": "CORS_",
-            "rate_limit": "RATE_LIMIT_",
-            "auth": "AUTH_",
-            "database": "DATABASE_",
-            "redis": "REDIS_",
-            "object_storage": "OBJECT_STORAGE_",
+    def _get_default_config(self) -> dict[str, Any]:
+        """返回所有配置段的代码默认值。"""
+        return {
+            "app_env": ENV_DEVELOPMENT,
+            "server": {
+                "host": "0.0.0.0",
+                "port": 8000,
+                "debug": True,
+                "workers": 1,
+            },
+            "logging": {
+                "level": "INFO",
+                "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+                "file_path": "logs/x-HanJiang-{time:YYYYMMDDHH}.log",
+                "rotation": "1 day",
+                "retention": "7 days",
+                "compression": "zip",
+                "console_output": True,
+            },
+            "cors": {
+                "enabled": True,
+                "origins": ["*"],
+                "allow_credentials": True,
+                "allow_methods": ["*"],
+                "allow_headers": ["*"],
+            },
+            "rate_limit": {
+                "enabled": True,
+                "per_minute": 60,
+                "per_hour": 1000,
+            },
+            "auth": {
+                "secret_key": "dev-only-change-me-in-production",
+                "algorithm": "HS256",
+                "access_token_expire_minutes": 10080,
+                "refresh_token_expire_days": 30,
+            },
+            "database": {
+                "enabled": True,
+                "url": "mysql://root:CHANGE_ME@localhost:3306/hanjiang",
+                "pool_size": 5,
+                "max_overflow": 10,
+                "pool_timeout": 30,
+                "pool_recycle": 3600,
+                "echo": False,
+            },
+            "redis": {
+                "enabled": True,
+                "url": "redis://:CHANGE_ME@localhost:6379/0",
+                "pool_size": 10,
+                "max_connections": 50,
+                "decode_responses": True,
+                "socket_timeout": 5,
+            },
+            "object_storage": {
+                "endpoint_url": "",
+                "access_key": "",
+                "secret_key": "",
+                "bucket": "x-hanjiang",
+                "region": "cn-east-1",
+                "prefix": "uploads",
+                "public_url": "",
+                "use_ssl": True,
+            },
         }
 
-        for section_name, env_prefix in section_map.items():
-            if section_name in yaml_data and section_name not in kwargs:
-                section_data: dict[str, Any] = yaml_data[section_name]
-                if isinstance(section_data, dict):
-                    # 将 YAML 值写入环境变量（setdefault，环境变量优先）。
-                    # 这样 pydantic-settings 读取时，真实环境变量（如 DATABASE_URL）
-                    # 会覆盖 YAML 中的占位值，实现「环境变量 > YAML」的优先级。
-                    for key, value in section_data.items():
-                        env_key = f"{env_prefix}{str(key).upper()}"
-                        if isinstance(value, (list, dict)):
-                            # 复杂类型用 JSON 序列化，供 pydantic-settings 反序列化
-                            os.environ.setdefault(env_key, json.dumps(value))
-                        else:
-                            os.environ.setdefault(env_key, str(value))
+    def _merge_config(self, base: dict[str, Any], override: dict[str, Any]) -> None:
+        """递归合并配置字典，override 中的值覆盖 base 中的同名键。"""
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                self._merge_config(base[key], value)
+            else:
+                base[key] = value
 
-        return kwargs
+    def _load_from_yaml(self, config: dict[str, Any]) -> None:
+        """从 YAML 文件加载配置。
+
+        先加载默认 config.yaml，再加载 config.{env}.yaml 进行深度覆盖。
+        """
+        project_root = _find_project_root()
+        config_dir = project_root / DEFAULT_CONFIG_DIR
+
+        # 1. 加载默认配置
+        default_file = config_dir / "config.yaml"
+        if default_file.exists():
+            try:
+                with open(default_file, encoding="utf-8") as f:
+                    default_cfg = yaml.safe_load(f) or {}
+                if isinstance(default_cfg, dict):
+                    self._merge_config(config, default_cfg)
+            except Exception as e:
+                print(f"Warning: Cannot load config file {default_file}: {e}")
+
+        # 2. 加载环境特定配置（覆盖默认配置）
+        app_env = os.environ.get("APP_ENV", config.get("app_env", ENV_DEVELOPMENT))
+        env_file = config_dir / f"config.{app_env}.yaml"
+        if env_file.exists():
+            try:
+                with open(env_file, encoding="utf-8") as f:
+                    env_cfg = yaml.safe_load(f) or {}
+                if isinstance(env_cfg, dict):
+                    self._merge_config(config, env_cfg)
+            except Exception as e:
+                print(f"Warning: Cannot load config file {env_file}: {e}")
+
+        # 3. 加载 .env 文件（如有）
+        env_dot_file = config_dir / ".env"
+        if env_dot_file.exists():
+            try:
+                from dotenv import load_dotenv
+
+                load_dotenv(env_dot_file, override=False)
+            except Exception as e:
+                print(f"Warning: Cannot load .env file {env_dot_file}: {e}")
+
+    def _load_from_env(self, config: dict[str, Any]) -> None:
+        """从环境变量加载配置，覆盖 YAML 和默认值。
+
+        映射规则：
+            APP_ENV       → app_env
+            SERVER_HOST   → server.host
+            DATABASE_URL  → database.url
+            … 以此类推
+        """
+        # 顶层 app_env
+        if value := os.environ.get("APP_ENV"):
+            config["app_env"] = value
+
+        # 各配置段
+        for section_name, (prefix, keys) in _ENV_SECTION_MAP.items():
+            if section_name not in config:
+                continue
+            section = config[section_name]
+            for key in keys:
+                env_key = f"{prefix}{key.upper()}"
+                value = os.environ.get(env_key)
+                if value is None:
+                    continue
+                # 根据默认值类型进行转换
+                default_val = section.get(key)
+                if isinstance(default_val, bool):
+                    section[key] = _to_bool(value)
+                elif isinstance(default_val, int):
+                    section[key] = _to_int(value)
+                elif isinstance(default_val, float):
+                    section[key] = _to_float(value)
+                elif isinstance(default_val, list):
+                    section[key] = [v.strip() for v in value.split(",")]
+                else:
+                    section[key] = value
+
+    # ----------------------------------------------------------
+    # 解析到 dataclass
+    # ----------------------------------------------------------
+
+    def _parse_config(self) -> None:
+        """将原始配置字典解析为 dataclass 实例。"""
+        self.app_env: str = self._config.get("app_env", ENV_DEVELOPMENT)
+
+        self.server = ServerConfig(**self._config.get("server", {}))
+        self.logging = LoggingConfig(**self._config.get("logging", {}))
+        self.cors = CORSConfig(**self._config.get("cors", {}))
+        self.rate_limit = RateLimitConfig(**self._config.get("rate_limit", {}))
+        self.auth = AuthConfig(**self._config.get("auth", {}))
+        self.database = DatabaseConfig(**self._config.get("database", {}))
+        self.redis = RedisConfig(**self._config.get("redis", {}))
+        self.object_storage = ObjectStorageConfig(**self._config.get("object_storage", {}))
+
+    # ----------------------------------------------------------
+    # 环境判断
+    # ----------------------------------------------------------
 
     @property
     def is_development(self) -> bool:
-        """是否为开发环境。
-
-        Returns:
-            bool: 当前是否处于开发环境
-        """
+        """是否为开发环境。"""
         return self.app_env == ENV_DEVELOPMENT
 
     @property
-    def is_production(self) -> bool:
-        """是否为生产环境。
-
-        Returns:
-            bool: 当前是否处于生产环境
-        """
-        return self.app_env == ENV_PRODUCTION
+    def is_testing(self) -> bool:
+        """是否为测试环境。"""
+        return self.app_env == ENV_TESTING
 
     @property
-    def is_testing(self) -> bool:
-        """是否为测试环境。
+    def is_production(self) -> bool:
+        """是否为生产环境。"""
+        return self.app_env == ENV_PRODUCTION
 
-        Returns:
-            bool: 当前是否处于测试环境
-        """
-        return self.app_env == ENV_TESTING
+    # ----------------------------------------------------------
+    # 配置校验
+    # ----------------------------------------------------------
 
     def validate(self) -> None:
         """验证配置合法性，配置错误直接阻断程序启动。
 
         生产环境额外校验：
             - 调试模式必须关闭
-            - AUTH_SECRET_KEY 不能是 yaml 默认占位符，且长度 ≥ 32
-            - CORS origins 不能为 "*"
+            - AUTH_SECRET_KEY 不能是占位符，且长度 ≥ 32
+            - CORS origins 不能为 '*'
             - 数据库与 Redis 必须显式配置
 
         Raises:
             ValueError: 配置不合法时抛出
         """
+        # 通用校验：密钥最小长度
+        if len(self.auth.secret_key) < 16:
+            raise ValueError("AUTH_SECRET_KEY 长度至少 16 个字符")
+
         if self.is_production:
             if self.server.debug:
                 raise ValueError("DEBUG mode must be disabled in production")
 
-            # 黑名单 + 长度 + 占位符前缀 三重检查
             key = self.auth.secret_key
             if (
                 key.lower() in _FORBIDDEN_SECRET_KEYS
@@ -428,10 +452,31 @@ class Settings(BaseSettings):
             if not self.database.url:
                 raise ValueError("DATABASE_URL 在生产环境必须配置")
 
-        if self.database.url:
-            if not self.database.url.startswith(("mysql://", "mysql+pymysql://", "postgresql://")):
-                raise ValueError("Unsupported database type, only MySQL and PostgreSQL are supported")
+            if not self.redis.url:
+                raise ValueError("REDIS_URL 在生产环境必须配置")
+
+        # 数据库协议校验
+        if self.database.url and not self.database.url.startswith(
+            ("mysql://", "mysql+pymysql://", "postgresql://", "sqlite://")
+        ):
+            raise ValueError(
+                "Unsupported database type, only MySQL, PostgreSQL and SQLite are supported"
+            )
+
+    # ----------------------------------------------------------
+    # 热重载
+    # ----------------------------------------------------------
+
+    def reload(self) -> None:
+        """重新加载全部配置（YAML + 环境变量），并重新校验。"""
+        self._config = self._load_config()
+        self._parse_config()
+        self.validate()
 
 
-settings: Settings = Settings()
+# ============================================================
+# 全局单例
+# ============================================================
+
+settings: Final[Settings] = Settings()
 settings.validate()
