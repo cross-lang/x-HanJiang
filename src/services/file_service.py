@@ -130,7 +130,11 @@ class FileStorageService:
 
         filename = Path(normalized_path).name
         media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-        content_disposition = f'attachment; filename="{filename}"'
+        encoded_filename = urllib.parse.quote(filename, safe="")
+        content_disposition = (
+            f'attachment; filename="download{Path(filename).suffix}"; '
+            f"filename*=UTF-8''{encoded_filename}"
+        )
 
         if self.s3_client is not None:
             try:
