@@ -288,6 +288,7 @@ docker-compose up --build
 
 服务启动后访问：
 - API 文档（Swagger）：http://localhost:8000/docs
+- API 文档（ReDoc）：http://localhost:8000/redoc
 - 健康检查：http://localhost:8000/api/v1/health
 
 ### 种子数据

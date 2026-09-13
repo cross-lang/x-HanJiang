@@ -139,7 +139,10 @@ class LoggingConfig(BaseSettings):
     """
 
     level: str = Field(default="INFO", description="日志级别")
-    file_path: str = Field(default="logs/app.log", description="日志文件路径")
+    file_path: str = Field(
+        default="logs/x-HanJiang-{time:YYYYMMDDHH}.log",
+        description="日志文件路径",
+    )
     rotation: str = Field(default="1 day", description="日志轮转周期")
     retention: str = Field(default="7 days", description="日志保留时间")
 

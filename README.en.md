@@ -242,6 +242,7 @@ docker-compose up --build
 
 After startup:
 - Swagger docs: http://localhost:8000/docs
+- ReDoc docs: http://localhost:8000/redoc
 - Health check: http://localhost:8000/api/v1/health
 
 ### Seed Data

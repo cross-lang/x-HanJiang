@@ -28,7 +28,8 @@ class FileStorageService:
     """对象存储适配器"""
 
     def __init__(self, base_dir: str | None = None) -> None:
-        self.base_dir = Path(base_dir or settings.logging.file_path).parent / "uploads"
+        project_root = Path(__file__).resolve().parents[2]
+        self.base_dir = Path(base_dir) if base_dir else project_root / "static"
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.s3_config = settings.object_storage
         self.s3_client = None
