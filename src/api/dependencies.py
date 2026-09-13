@@ -114,7 +114,7 @@ def get_alert_service() -> AlertService:
 def get_audit_service(
     db_session: Session = Depends(get_db_session),
 ) -> AuditService:
-    """使用当前请求的数据库会话创建审计服务。"""
+    """获取审计服务。"""
     from src.repositories.audit_log_repository import AuditLogRepository
 
     return AuditService(audit_log_repository=AuditLogRepository(session=db_session))
@@ -134,7 +134,7 @@ def get_mfa_service() -> MFAService:
 def get_auth_service(
     user_repository=Depends(get_user_repository),
 ):
-    """使用当前请求的用户和角色 Repository 创建认证服务。"""
+    """获取认证服务。"""
     return AuthService(user_repository=user_repository)
 
 

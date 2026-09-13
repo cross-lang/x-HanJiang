@@ -88,3 +88,7 @@ class AuditService:
             "page": page,
             "page_size": page_size,
         }
+
+    def get_by_id(self, log_id: int) -> AuditLogEntity | None:
+        """根据日志 ID 查询单条审计日志。"""
+        return self._repository.get_by_id(log_id)

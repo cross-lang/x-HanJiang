@@ -9,7 +9,7 @@
 
 from fastapi import APIRouter
 
-from src.api.v1 import audit, auth, files, health, login_log, role, security, user
+from src.api.v1 import audit, auth, files, health, role, security, user
 from src.constants import API_PREFIX
 
 api_router = APIRouter(prefix=API_PREFIX)
@@ -25,9 +25,6 @@ api_router.include_router(auth.router)
 
 # 注册角色管理路由
 api_router.include_router(role.router)
-
-# 注册登录日志路由
-api_router.include_router(login_log.router)
 
 # 注册审计日志路由
 api_router.include_router(audit.router)

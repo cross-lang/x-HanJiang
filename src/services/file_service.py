@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""文件上传与对象存储抽象服务。"""
+"""文件存储和管理服务。"""
 
 from __future__ import annotations
 
 import hashlib
+import mimetypes
 import os
 import urllib.parse
 from datetime import datetime, timezone
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 
 try:
     import boto3
@@ -18,6 +20,7 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency for S3 sto
     boto3 = None
 
 from src.core.config import settings
+from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 
 
@@ -118,3 +121,45 @@ class FileStorageService:
         if self.s3_client is not None and self.s3_config.public_url:
             return urllib.parse.urljoin(self.s3_config.public_url.rstrip("/") + "/", relative_path.lstrip("/"))
         return f"/files/{relative_path.lstrip('/')}"
+
+    def download_file(self, relative_path: str) -> FileResponse | StreamingResponse:
+        """读取文件并构造下载响应。"""
+        normalized_path = relative_path.strip("/")
+        if not normalized_path or ".." in Path(normalized_path).parts:
+            raise ValidationException(message="文件路径无效")
+
+        filename = Path(normalized_path).name
+        media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        content_disposition = f'attachment; filename="{filename}"'
+
+        if self.s3_client is not None:
+            try:
+                response = self.s3_client.get_object(
+                    Bucket=self.s3_config.bucket,
+                    Key=normalized_path,
+                )
+            except Exception as exc:
+                error_code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+                if error_code in {"NoSuchKey", "404", "NotFound"}:
+                    raise NotFoundException(message="文件不存在") from exc
+                raise
+
+            return StreamingResponse(
+                response["Body"].iter_chunks(),
+                media_type=response.get("ContentType") or media_type,
+                headers={"Content-Disposition": content_disposition},
+            )
+
+        file_path = (self.base_dir / normalized_path).resolve()
+        try:
+            file_path.relative_to(self.base_dir.resolve())
+        except ValueError as exc:
+            raise ValidationException(message="文件路径无效") from exc
+        if not file_path.is_file():
+            raise NotFoundException(message="文件不存在")
+
+        return FileResponse(
+            path=file_path,
+            media_type=media_type,
+            filename=filename,
+        )
