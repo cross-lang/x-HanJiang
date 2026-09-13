@@ -20,13 +20,33 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 )
 async def list_audit_logs(
     request: Request,
-    entity_type: str | None = Query(default=None),
-    action: str | None = Query(default=None),
-    operator_id: int | None = Query(default=None),
-    start_time: datetime | None = Query(default=None),
-    end_time: datetime | None = Query(default=None),
-    page: int = 1,
-    page_size: int = 20,
+    entity_type: str | None = Query(
+        default=None,
+        description="被操作的数据类型，例如 user、role、permission。留空表示查询全部类型。",
+    ),
+    action: str | None = Query(
+        default=None,
+        description="操作类型，例如 create、update、delete。留空表示查询全部操作。",
+    ),
+    operator_id: int | None = Query(
+        default=None,
+        description="操作人用户 ID，只查询指定用户产生的审计记录。",
+    ),
+    start_time: datetime | None = Query(
+        default=None,
+        description="查询起始时间，包含该时间点，格式为 ISO 8601，例如 2026-09-01T00:00:00。",
+    ),
+    end_time: datetime | None = Query(
+        default=None,
+        description="查询结束时间，包含该时间点，格式为 ISO 8601，例如 2026-09-13T23:59:59。",
+    ),
+    page: int = Query(default=1, ge=1, description="页码，从 1 开始。"),
+    page_size: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+        description="每页返回的记录数，范围为 1-100。",
+    ),
     service: AuditService = Depends(get_audit_service),
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
