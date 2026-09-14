@@ -69,15 +69,17 @@ storage:
 
 # ============================================================
 # SMTP 邮件配置（用于发送密码重置邮件等）
+# QQ 邮箱：smtp.qq.com, 端口 465(SSL) 或 587(TLS), 密码填授权码
+# 163 邮箱：smtp.163.com, 端口 465(SSL) 或 25, 密码填授权码
 # ============================================================
 smtp:
-  host: "smtp.gmail.com"
-  port: 587
-  username: ""
+  host: "smtp.qq.com"
+  port: 465
+  username: "xxx@XXX.com"
   password: ""
   use_tls: true
   from_name: "HanJiang"
-  from_address: ""
+  from_address: "xxx@XXX.com"
 
 # ============================================================
 # 密码重置配置

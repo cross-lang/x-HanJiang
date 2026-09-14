@@ -446,21 +446,21 @@ class Settings:
 
         if value := os.environ.get("STORAGE_LOCAL_BASE_DIR"):
             storage_local["base_dir"] = value
-        if value := os.environ.get("OBJECT_STORAGE_ENDPOINT_URL"):
+        if value := os.environ.get("STORAGE_S3_ENDPOINT_URL"):
             storage_s3["endpoint_url"] = value
-        if value := os.environ.get("OBJECT_STORAGE_ACCESS_KEY"):
+        if value := os.environ.get("STORAGE_S3_ACCESS_KEY"):
             storage_s3["access_key"] = value
-        if value := os.environ.get("OBJECT_STORAGE_SECRET_KEY"):
+        if value := os.environ.get("STORAGE_S3_SECRET_KEY"):
             storage_s3["secret_key"] = value
-        if value := os.environ.get("OBJECT_STORAGE_BUCKET"):
+        if value := os.environ.get("STORAGE_S3_BUCKET"):
             storage_s3["bucket"] = value
-        if value := os.environ.get("OBJECT_STORAGE_REGION"):
+        if value := os.environ.get("STORAGE_S3_REGION"):
             storage_s3["region"] = value
-        if value := os.environ.get("OBJECT_STORAGE_PREFIX"):
+        if value := os.environ.get("STORAGE_S3_PREFIX"):
             storage_s3["prefix"] = value
-        if value := os.environ.get("OBJECT_STORAGE_PUBLIC_URL"):
+        if value := os.environ.get("STORAGE_S3_PUBLIC_URL"):
             storage_s3["public_url"] = value
-        if value := os.environ.get("OBJECT_STORAGE_USE_SSL"):
+        if value := os.environ.get("STORAGE_S3_USE_SSL"):
             storage_s3["use_ssl"] = _to_bool(value)
 
         # SMTP 邮件配置的环境变量

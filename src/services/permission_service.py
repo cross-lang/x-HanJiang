@@ -27,8 +27,19 @@ from src.schemas.role import (
 from src.services.base_service import BaseService
 
 
-class PermissionService(BaseService[PermissionResponse, int]):
-    """权限业务逻辑实现。"""
+class PermissionService(BaseService[PermissionResponse, int, PermissionRepository]):
+    """权限业务逻辑实现。
+
+    继承 BaseService 提供的通用能力：
+        - get_by_id / get_all / _commit / _audit / _log_action
+
+    本类负责：
+        - 权限特有的业务校验（编码唯一性）
+        - Entity → PermissionResponse 转换
+        - 角色权限绑定管理
+    """
+
+    entity_type = "permission"
 
     def __init__(
         self,
@@ -44,22 +55,6 @@ class PermissionService(BaseService[PermissionResponse, int]):
         self._role_repository = role_repository or RoleRepository(
             session=permission_repository.session
         )
-
-    def get_by_id(self, id: int) -> PermissionResponse | None:
-        """根据权限 ID 查询权限。"""
-        entity = self._repository.get_by_id(id)
-        return self._to_response(entity) if entity else None
-
-    def get_all(self, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-        """查询所有权限（分页）。"""
-        skip = (page - 1) * page_size
-        entities = self._repository.get_all(skip=skip, limit=page_size)
-        return {
-            "items": [self._to_response(e) for e in entities],
-            "total": self._repository.count_all(),
-            "page": page,
-            "page_size": page_size,
-        }
 
     def search(
         self,
@@ -262,31 +257,6 @@ class PermissionService(BaseService[PermissionResponse, int]):
             )
         return result
 
-    def _audit(
-        self,
-        entity_id: int,
-        action: str,
-        operator: dict[str, Any] | None,
-        before_data: dict[str, Any] | None,
-        after_data: dict[str, Any] | None,
-        remarks: str,
-    ) -> None:
-        if not hasattr(self._repository, "session"):
-            return
-        from src.services.audit_service import AuditService
-
-        AuditService().log_event(
-            entity_type="permission",
-            entity_id=entity_id,
-            action=action,
-            operator_id=operator.get("operator_id") if operator else None,
-            operator_name=operator.get("operator_name") if operator else None,
-            before_data=before_data,
-            after_data=after_data,
-            ip_address=operator.get("ip_address") if operator else None,
-            remarks=remarks,
-        )
-
     def _to_response(self, entity: PermissionEntity) -> PermissionResponse:
         """实体转响应 DTO。"""
         return PermissionResponse(
@@ -298,11 +268,3 @@ class PermissionService(BaseService[PermissionResponse, int]):
             description=entity.description,
             sort_order=entity.sort_order,
         )
-
-    def _commit(self) -> None:
-        """提交当前会话事务。"""
-        try:
-            self._repository.session.commit()
-        except Exception as e:  # noqa: BLE001
-            self._repository.session.rollback()
-            raise e

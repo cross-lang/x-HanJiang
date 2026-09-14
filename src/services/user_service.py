@@ -3,7 +3,6 @@
 用户业务逻辑实现
 
 提供用户 CRUD、登录凭据校验、登录信息记录。
-不依赖 role/audit 等已移除的模块。
 
 Classes:
     UserService: 用户业务逻辑实现
@@ -22,37 +21,23 @@ from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.base_service import BaseService
 
 
-class UserService(BaseService[UserResponse, int]):
+class UserService(BaseService[UserResponse, int, UserRepository]):
     """用户业务逻辑实现。
 
-    Attributes:
-        _repository: 用户数据访问实例
+    继承 BaseService 提供的通用能力：
+        - get_by_id / get_all / _commit / _audit / _log_action
+
+    本类负责：
+        - 用户特有的业务校验（邮箱/用户名唯一性）
+        - Entity → UserResponse 转换
+        - 登录凭据校验
     """
+
+    entity_type = "user"
 
     def __init__(self, user_repository: UserRepository) -> None:
         """初始化用户服务。"""
         self._repository: UserRepository = user_repository
-
-    def get_by_id(self, id: int) -> UserResponse | None:
-        """根据用户 ID 查询用户。"""
-        entity = self._repository.get_by_id(id)
-        return self._to_response(entity) if entity else None
-
-    def get_all(self, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-        """查询所有用户（分页）。"""
-        skip = (page - 1) * page_size
-        entities = self._repository.get_all(skip=skip, limit=page_size)
-        total = getattr(self._repository, "count_all", None)
-        if callable(total):
-            total_count = total()
-        else:
-            total_count = self._repository.count()
-        return {
-            "items": [self._to_response(e) for e in entities],
-            "total": total_count,
-            "page": page,
-            "page_size": page_size,
-        }
 
     def search(
         self,
@@ -241,41 +226,3 @@ class UserService(BaseService[UserResponse, int]):
         if finder is not None:
             return finder(username)
         return next((item for item in self._repository.get_all() if item.username == username), None)
-
-    def _audit(
-        self,
-        entity_id: int,
-        action: str,
-        operator: dict[str, Any] | None,
-        before_data: dict[str, Any] | None,
-        after_data: dict[str, Any] | None,
-        remarks: str,
-    ) -> None:
-        if not hasattr(self._repository, "session"):
-            return
-        from src.services.audit_service import AuditService
-
-        AuditService().log_event(
-            entity_type="user",
-            entity_id=entity_id,
-            action=action,
-            operator_id=operator.get("operator_id") if operator else None,
-            operator_name=operator.get("operator_name") if operator else None,
-            before_data=before_data,
-            after_data=after_data,
-            ip_address=operator.get("ip_address") if operator else None,
-            remarks=remarks,
-        )
-
-    def _commit(self) -> None:
-        """提交当前会话事务。测试用的内存仓库没有 SQLAlchemy session，需安全忽略。"""
-        session = getattr(self._repository, "session", None)
-        if session is None:
-            return
-
-        try:
-            session.commit()
-        except Exception as e:  # noqa: BLE001
-            if hasattr(session, "rollback"):
-                session.rollback()
-            raise e

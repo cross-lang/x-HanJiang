@@ -29,8 +29,19 @@ from src.schemas.role import (
 from src.services.base_service import BaseService
 
 
-class RoleService(BaseService[RoleResponse, int]):
-    """角色业务逻辑实现。"""
+class RoleService(BaseService[RoleResponse, int, RoleRepository]):
+    """角色业务逻辑实现。
+
+    继承 BaseService 提供的通用能力：
+        - get_by_id / get_all / _commit / _audit / _log_action
+
+    本类负责：
+        - 角色特有的业务校验（编码/名称唯一性）
+        - Entity → RoleResponse 转换
+        - 角色权限绑定管理
+    """
+
+    entity_type = "role"
 
     def __init__(
         self,
@@ -46,22 +57,6 @@ class RoleService(BaseService[RoleResponse, int]):
         self._permission_repository = permission_repository or PermissionRepository(
             session=role_repository.session
         )
-
-    def get_by_id(self, id: int) -> RoleResponse | None:
-        """根据角色 ID 查询角色。"""
-        entity = self._repository.get_by_id(id)
-        return self._to_response(entity) if entity else None
-
-    def get_all(self, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-        """查询所有角色（分页）。"""
-        skip = (page - 1) * page_size
-        entities = self._repository.get_all(skip=skip, limit=page_size)
-        return {
-            "items": [self._to_response(e) for e in entities],
-            "total": self._repository.count_all(),
-            "page": page,
-            "page_size": page_size,
-        }
 
     def search(
         self,
@@ -171,31 +166,6 @@ class RoleService(BaseService[RoleResponse, int]):
             logger.info(f"Role deleted: id={id} code={existing.role_code}")
         return deleted
 
-    def _audit(
-        self,
-        entity_id: int,
-        action: str,
-        operator: dict[str, Any] | None,
-        before_data: dict[str, Any] | None,
-        after_data: dict[str, Any] | None,
-        remarks: str,
-    ) -> None:
-        if not hasattr(self._repository, "session"):
-            return
-        from src.services.audit_service import AuditService
-
-        AuditService().log_event(
-            entity_type="role",
-            entity_id=entity_id,
-            action=action,
-            operator_id=operator.get("operator_id") if operator else None,
-            operator_name=operator.get("operator_name") if operator else None,
-            before_data=before_data,
-            after_data=after_data,
-            ip_address=operator.get("ip_address") if operator else None,
-            remarks=remarks,
-        )
-
     def get_permissions(self, role_id: int) -> list[PermissionResponse]:
         """查询角色绑定的权限列表。"""
         if self._repository.get_by_id(role_id) is None:
@@ -228,11 +198,3 @@ class RoleService(BaseService[RoleResponse, int]):
             description=entity.description,
             sort_order=entity.sort_order,
         )
-
-    def _commit(self) -> None:
-        """提交当前会话事务。"""
-        try:
-            self._repository.session.commit()
-        except Exception as e:  # noqa: BLE001
-            self._repository.session.rollback()
-            raise e

@@ -38,15 +38,20 @@ class EmailService:
     def _create_smtp_connection(self) -> smtplib.SMTP:
         """创建 SMTP 连接。
 
+        端口 465 使用隐式 SSL（SMTP_SSL），其他端口使用明文 + 可选 STARTTLS。
+
         Returns:
             smtplib.SMTP: SMTP 连接对象
 
         Raises:
             Exception: 连接失败时抛出
         """
-        smtp = smtplib.SMTP(self._smtp_host, self._smtp_port, timeout=30)
-        if self._use_tls:
-            smtp.starttls()
+        if self._smtp_port == 465:
+            smtp = smtplib.SMTP_SSL(self._smtp_host, self._smtp_port, timeout=30)
+        else:
+            smtp = smtplib.SMTP(self._smtp_host, self._smtp_port, timeout=30)
+            if self._use_tls:
+                smtp.starttls()
         if self._smtp_username and self._smtp_password:
             smtp.login(self._smtp_username, self._smtp_password)
         return smtp
