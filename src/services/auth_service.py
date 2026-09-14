@@ -14,8 +14,11 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+import jwt
+
 from src.constants.enums import UserStatus
-from src.core.exceptions import AuthenticationException
+from src.core.config import settings
+from src.core.exceptions import AuthenticationException, BusinessException, DatabaseException
 from src.core.logger import logger
 from src.core.security import verify_password
 from src.core.tokens import (
@@ -261,3 +264,270 @@ class AuthService:
         except Exception as e:  # noqa: BLE001
             self._user_repository.session.rollback()
             logger.warning(f"写入登录日志失败: {e}")
+
+    # ----------------------------------------------------------
+    # 密码重置相关方法
+    # ----------------------------------------------------------
+
+    def _generate_reset_token(self, user_id: int, email: str) -> str:
+        """生成密码重置令牌。
+
+        使用 JWT 签发，包含用户 ID 和邮箱，有效期从配置读取。
+
+        Args:
+            user_id: 用户 ID
+            email: 用户邮箱
+
+        Returns:
+            str: JWT 格式的重置令牌
+        """
+        from datetime import timedelta
+
+        now = datetime.now(UTC)
+        expire_minutes = settings.password_reset.token_expire_minutes
+        payload = {
+            "sub": str(user_id),
+            "email": email,
+            "type": "password_reset",
+            "iat": now,
+            "exp": now + timedelta(minutes=expire_minutes),
+            "jti": f"reset-{user_id}-{now.timestamp():.0f}",
+        }
+        return jwt.encode(
+            payload,
+            settings.auth.secret_key,
+            algorithm=settings.auth.algorithm,
+        )
+
+    def _verify_reset_token(self, token: str) -> dict[str, Any]:
+        """验证密码重置令牌。
+
+        Args:
+            token: JWT 格式的重置令牌
+
+        Returns:
+            dict: 令牌载荷
+
+        Raises:
+            AuthenticationException: 令牌无效或已过期
+        """
+        try:
+            payload = jwt.decode(
+                token,
+                settings.auth.secret_key,
+                algorithms=[settings.auth.algorithm],
+            )
+            if payload.get("type") != "password_reset":
+                raise AuthenticationException(message="无效的重置令牌类型")
+            return payload
+        except jwt.ExpiredSignatureError as e:
+            raise AuthenticationException(message="重置令牌已过期") from e
+        except jwt.InvalidTokenError as e:
+            raise AuthenticationException(message="无效的重置令牌") from e
+
+    def _check_rate_limit(self, email: str) -> None:
+        """检查密码重置请求频率限制。
+
+        每个邮箱每小时最多请求 max_attempts_per_hour 次。
+
+        Args:
+            email: 用户邮箱
+
+        Raises:
+            BusinessException: 超过频率限制
+        """
+        from src.infras.cache import get_redis
+
+        try:
+            redis_client = get_redis()
+            key = f"password_reset:attempts:{email}"
+            attempts = redis_client.get(key)
+
+            if attempts and int(attempts) >= settings.password_reset.max_attempts_per_hour:
+                raise BusinessException(
+                    message="密码重置请求过于频繁，请稍后再试",
+                    code=429,
+                )
+
+            # 增加计数器，有效期 1 小时
+            pipe = redis_client.pipeline()
+            pipe.incr(key)
+            pipe.expire(key, 3600)
+            pipe.execute()
+        except BusinessException:
+            raise
+        except Exception as e:
+            logger.warning(f"Redis 频率限制检查失败（放行）: {e}")
+
+    def request_password_reset(self, email: str) -> bool:
+        """请求密码重置。
+
+        流程：
+        1. 验证邮箱是否存在
+        2. 检查频率限制
+        3. 生成重置令牌
+        4. 发送重置邮件
+
+        Args:
+            email: 用户邮箱
+
+        Returns:
+            bool: 邮件发送成功返回 True
+
+        Raises:
+            NotFoundException: 邮箱不存在
+            BusinessException: 超过频率限制
+        """
+        from src.core.exceptions import NotFoundException
+        from src.infras.email import EmailService
+
+        # 查找用户
+        user = self._user_repository.get_by_email(email)
+        if user is None:
+            raise NotFoundException(message="该邮箱未注册")
+
+        if user.status == UserStatus.LOCKED.value:
+            raise BusinessException(message="账户已被锁定，请联系管理员")
+
+        # 检查频率限制
+        self._check_rate_limit(email)
+
+        # 生成令牌
+        token = self._generate_reset_token(user.id, user.email)
+
+        # 存储令牌到 Redis（用于验证和撤销）
+        try:
+            redis_client = get_redis()
+            key = f"password_reset:token:{user.id}"
+            redis_client.setex(
+                key,
+                settings.password_reset.token_expire_minutes * 60,
+                token,
+            )
+        except Exception as e:
+            logger.warning(f"Redis 令牌存储失败（继续发送邮件）: {e}")
+
+        # 发送邮件
+        email_service = EmailService()
+        return email_service.send_password_reset_email(
+            to_address=user.email,
+            username=user.username,
+            reset_token=token,
+        )
+
+    def verify_reset_token(self, token: str) -> dict[str, Any]:
+        """验证密码重置令牌。
+
+        Args:
+            token: JWT 格式的重置令牌
+
+        Returns:
+            dict: 包含 valid、email（脱敏）、expires_at
+
+        Raises:
+            AuthenticationException: 令牌无效或已过期
+        """
+        from src.infras.cache import get_redis
+
+        payload = self._verify_reset_token(token)
+
+        user_id = int(payload.get("sub", 0))
+
+        # 检查令牌是否已被撤销
+        try:
+            redis_client = get_redis()
+            stored_token = redis_client.get(f"password_reset:token:{user_id}")
+            if stored_token and stored_token != token:
+                raise AuthenticationException(message="重置令牌已失效")
+        except AuthenticationException:
+            raise
+        except Exception as e:
+            logger.warning(f"Redis 令牌验证失败（放行）: {e}")
+
+        # 脱敏邮箱
+        email = payload.get("email", "")
+        masked_email = self._mask_email(email)
+
+        return {
+            "valid": True,
+            "email": masked_email,
+            "expires_at": datetime.fromtimestamp(payload.get("exp", 0), tz=UTC),
+        }
+
+    def reset_password(self, token: str, new_password: str) -> bool:
+        """重置密码。
+
+        流程：
+        1. 验证令牌
+        2. 更新密码
+        3. 撤销令牌
+        4. 清除登录态
+
+        Args:
+            token: JWT 格式的重置令牌
+            new_password: 新密码
+
+        Returns:
+            bool: 重置成功返回 True
+
+        Raises:
+            AuthenticationException: 令牌无效或已过期
+            DatabaseException: 数据库更新失败
+        """
+        from src.core.security import hash_password
+        from src.infras.cache import get_redis
+
+        # 验证令牌
+        payload = self._verify_reset_token(token)
+        user_id = int(payload.get("sub", 0))
+
+        # 查找用户
+        user = self._user_repository.get_by_id(user_id)
+        if user is None:
+            raise AuthenticationException(message="用户不存在")
+
+        # 更新密码
+        try:
+            user.password_hash = hash_password(new_password)
+            self._user_repository.session.flush()
+            self._user_repository.session.commit()
+        except Exception as e:
+            self._user_repository.session.rollback()
+            logger.error(f"密码更新失败: {e}")
+            raise DatabaseException(message="密码更新失败") from e
+
+        # 撤销令牌
+        try:
+            redis_client = get_redis()
+            redis_client.delete(f"password_reset:token:{user_id}")
+        except Exception as e:
+            logger.warning(f"Redis 令牌撤销失败: {e}")
+
+        # 清除登录态（强制重新登录）
+        self.logout(user_id)
+
+        logger.info(f"密码重置成功: user_id={user_id}")
+        return True
+
+    @staticmethod
+    def _mask_email(email: str) -> str:
+        """邮箱脱敏处理。
+
+        例如：user@example.com -> u***r@example.com
+
+        Args:
+            email: 原始邮箱
+
+        Returns:
+            str: 脱敏后的邮箱
+        """
+        if not email or "@" not in email:
+            return email
+
+        local, domain = email.split("@", 1)
+        if len(local) <= 2:
+            masked_local = local[0] + "***"
+        else:
+            masked_local = local[0] + "***" + local[-1]
+
+        return f"{masked_local}@{domain}"

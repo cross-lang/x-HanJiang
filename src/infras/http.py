@@ -12,7 +12,7 @@ HTTP 客户端基础设施模块
     - JSON 响应自动解析
 
 Usage:
-    from src.infras.http_client import HttpClient
+    from src.infras.http import HttpClient
 
     client = HttpClient()
     response = client.get("https://api.example.com/users")

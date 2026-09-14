@@ -2,20 +2,32 @@
 """
 认证接口
 
-本模块提供登录、令牌刷新、当前用户信息查询、退出登录接口。
+本模块提供登录、令牌刷新、当前用户信息查询、退出登录、密码重置接口。
 
 Endpoints:
-    POST /auth/login:        用户名或邮箱 + 密码登录
-    POST /auth/refresh:      刷新令牌
-    GET  /auth/me:           获取当前登录用户信息
-    POST /auth/logout:       退出登录（清除 Redis 登录态）
+    POST /auth/login:              用户名或邮箱 + 密码登录
+    POST /auth/refresh:            刷新令牌
+    GET  /auth/me:                 获取当前登录用户信息
+    POST /auth/logout:             退出登录（清除 Redis 登录态）
+    POST /auth/password-reset:     请求密码重置（发送邮件）
+    POST /auth/password-reset/verify: 验证重置令牌
+    POST /auth/password-reset/confirm: 确认密码重置
 """
 
 from fastapi import APIRouter, Depends, Request
 
 from src.api.dependencies import get_auth_service, get_client_ip, get_current_user
 from src.api.response import success_response
-from src.schemas.auth import CurrentUserResponse, LoginRequest, RefreshTokenRequest
+from src.schemas.auth import (
+    CurrentUserResponse,
+    LoginRequest,
+    PasswordResetConfirmRequest,
+    PasswordResetRequest,
+    PasswordResetResponse,
+    RefreshTokenRequest,
+    VerifyResetTokenRequest,
+    VerifyResetTokenResponse,
+)
 from src.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["身份认证"])
@@ -89,3 +101,98 @@ async def logout(
     """
     service.logout(current_user.id)
     return success_response({"message": "退出登录成功"}, request)
+
+
+@router.post(
+    "/password-reset",
+    summary="请求密码重置",
+    description="发送密码重置邮件到用户邮箱（无需登录）",
+    response_model=PasswordResetResponse,
+)
+async def request_password_reset(
+    body: PasswordResetRequest,
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+):
+    """请求密码重置接口。
+
+    流程：
+    1. 验证邮箱是否存在
+    2. 检查频率限制（每小时最多 5 次）
+    3. 生成重置令牌
+    4. 发送重置邮件
+
+    注意：即使邮箱不存在，也返回成功（防止邮箱枚举攻击）。
+    """
+    try:
+        service.request_password_reset(body.email)
+    except Exception:
+        # 即使失败也返回成功，防止邮箱枚举
+        pass
+
+    return success_response(
+        PasswordResetResponse(
+            message="如果该邮箱已注册，您将收到密码重置邮件",
+            success=True,
+        ).model_dump(),
+        request,
+    )
+
+
+@router.post(
+    "/password-reset/verify",
+    summary="验证重置令牌",
+    description="验证密码重置令牌是否有效（无需登录）",
+    response_model=VerifyResetTokenResponse,
+)
+async def verify_reset_token(
+    body: VerifyResetTokenRequest,
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+):
+    """验证重置令牌接口。
+
+    用于前端在用户点击邮件链接后，验证令牌是否有效。
+    """
+    result = service.verify_reset_token(body.token)
+    return success_response(
+        VerifyResetTokenResponse(**result).model_dump(),
+        request,
+    )
+
+
+@router.post(
+    "/password-reset/confirm",
+    summary="确认密码重置",
+    description="使用重置令牌设置新密码（无需登录）",
+    response_model=PasswordResetResponse,
+)
+async def confirm_password_reset(
+    body: PasswordResetConfirmRequest,
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+):
+    """确认密码重置接口。
+
+    流程：
+    1. 验证令牌
+    2. 验证两次密码输入一致
+    3. 更新密码
+    4. 撤销令牌
+    5. 清除登录态（强制重新登录）
+    """
+    # 验证两次密码输入一致
+    if body.new_password != body.confirm_password:
+        from src.core.exceptions import ValidationException
+        raise ValidationException(message="两次密码输入不一致")
+
+    # 执行密码重置
+    service.reset_password(body.token, body.new_password)
+
+    return success_response(
+        PasswordResetResponse(
+            message="密码重置成功，请使用新密码登录",
+            success=True,
+        ).model_dump(),
+        request,
+    )

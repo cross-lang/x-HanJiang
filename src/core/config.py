@@ -187,6 +187,26 @@ class StorageConfig:
     s3: S3StorageConfig = field(default_factory=S3StorageConfig)
 
 
+@dataclass
+class SmtpConfig:
+    """SMTP 邮件服务器配置。"""
+    host: str = "smtp.gmail.com"
+    port: int = 587
+    username: str = ""
+    password: str = ""
+    use_tls: bool = True
+    from_name: str = "HanJiang"
+    from_address: str = ""
+
+
+@dataclass
+class PasswordResetConfig:
+    """密码重置配置。"""
+    token_expire_minutes: int = 15
+    max_attempts_per_hour: int = 5
+    frontend_url: str = "http://localhost:3000"
+
+
 # ============================================================
 # 环境变量 → YAML 配置段 映射
 # ============================================================
@@ -200,6 +220,8 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "database": ("DATABASE_", ["enabled", "url", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
     "redis": ("REDIS_", ["enabled", "url", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
     "storage": ("STORAGE_", ["provider"]),
+    "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
+    "password_reset": ("PASSWORD_RESET_", ["token_expire_minutes", "max_attempts_per_hour", "frontend_url"]),
 }
 
 
@@ -316,6 +338,20 @@ class Settings:
                     "use_ssl": True,
                 },
             },
+            "smtp": {
+                "host": "smtp.gmail.com",
+                "port": 587,
+                "username": "",
+                "password": "",
+                "use_tls": True,
+                "from_name": "HanJiang",
+                "from_address": "",
+            },
+            "password_reset": {
+                "token_expire_minutes": 15,
+                "max_attempts_per_hour": 5,
+                "frontend_url": "http://localhost:3000",
+            },
         }
 
     def _merge_config(self, base: dict[str, Any], override: dict[str, Any]) -> None:
@@ -427,6 +463,32 @@ class Settings:
         if value := os.environ.get("OBJECT_STORAGE_USE_SSL"):
             storage_s3["use_ssl"] = _to_bool(value)
 
+        # SMTP 邮件配置的环境变量
+        smtp = config.setdefault("smtp", {})
+        if value := os.environ.get("SMTP_HOST"):
+            smtp["host"] = value
+        if value := os.environ.get("SMTP_PORT"):
+            smtp["port"] = _to_int(value, 587)
+        if value := os.environ.get("SMTP_USERNAME"):
+            smtp["username"] = value
+        if value := os.environ.get("SMTP_PASSWORD"):
+            smtp["password"] = value
+        if value := os.environ.get("SMTP_USE_TLS"):
+            smtp["use_tls"] = _to_bool(value)
+        if value := os.environ.get("SMTP_FROM_NAME"):
+            smtp["from_name"] = value
+        if value := os.environ.get("SMTP_FROM_ADDRESS"):
+            smtp["from_address"] = value
+
+        # 密码重置配置的环境变量
+        password_reset = config.setdefault("password_reset", {})
+        if value := os.environ.get("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES"):
+            password_reset["token_expire_minutes"] = _to_int(value, 15)
+        if value := os.environ.get("PASSWORD_RESET_MAX_ATTEMPTS_PER_HOUR"):
+            password_reset["max_attempts_per_hour"] = _to_int(value, 5)
+        if value := os.environ.get("PASSWORD_RESET_FRONTEND_URL"):
+            password_reset["frontend_url"] = value
+
     # ----------------------------------------------------------
     # 解析到 dataclass
     # ----------------------------------------------------------
@@ -452,6 +514,14 @@ class Settings:
             local=LocalStorageConfig(**local_raw),
             s3=S3StorageConfig(**s3_raw),
         )
+
+        # SMTP 邮件配置
+        smtp_raw = self._config.get("smtp", {})
+        self.smtp = SmtpConfig(**smtp_raw)
+
+        # 密码重置配置
+        password_reset_raw = self._config.get("password_reset", {})
+        self.password_reset = PasswordResetConfig(**password_reset_raw)
 
     # ----------------------------------------------------------
     # 环境判断

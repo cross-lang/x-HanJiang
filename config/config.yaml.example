@@ -66,3 +66,26 @@ storage:
     # 公开访问域名（可选，含协议头，如 https://cdn.example.com）
     public_url: ""
     use_ssl: true
+
+# ============================================================
+# SMTP 邮件配置（用于发送密码重置邮件等）
+# ============================================================
+smtp:
+  host: "smtp.gmail.com"
+  port: 587
+  username: ""
+  password: ""
+  use_tls: true
+  from_name: "HanJiang"
+  from_address: ""
+
+# ============================================================
+# 密码重置配置
+# ============================================================
+password_reset:
+  # 重置令牌有效期（分钟）
+  token_expire_minutes: 15
+  # 每小时最大重置请求次数（防暴力破解）
+  max_attempts_per_hour: 5
+  # 前端重置密码页面 URL（邮件中的链接会指向此地址）
+  frontend_url: "http://localhost:3000"
