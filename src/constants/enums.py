@@ -7,6 +7,7 @@
 Classes:
     CommonStatus: 通用启用/停用状态（对齐 roles/permissions 等表的 status 列）
     UserStatus: 用户状态（对齐 users.status ENUM）
+    AlertChannel: 系统告警发送渠道
 """
 
 from enum import Enum
@@ -25,3 +26,11 @@ class UserStatus(Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     LOCKED = "locked"
+
+
+class AlertChannel(Enum):
+    """系统告警发送渠道。"""
+
+    EMAIL = "email"
+    DINGTALK = "dingtalk"
+    FEISHU = "feishu"

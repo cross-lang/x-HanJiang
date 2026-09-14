@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from src.core.container import Container
 from src.core.exceptions import AuthorizationException
 from src.infras.cache import get_json_cache, set_json_cache
+from src.infras.email import EmailService
 from src.infras.mysql import get_session_factory
 from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedRequest
@@ -30,6 +31,7 @@ from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
+from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -105,9 +107,16 @@ def get_user_service(
     return UserService(user_repository=user_repository)
 
 
-def get_alert_service() -> AlertService:
+def get_email_service() -> EmailService:
+    """获取邮件发送基础设施实例。"""
+    return EmailService()
+
+
+def get_alert_service(
+    email_service: EmailService = Depends(get_email_service),
+) -> AlertService:
     """获取告警服务实例。"""
-    return AlertService()
+    return AlertService(email_service=email_service)
 
 
 def get_audit_service(
@@ -129,9 +138,14 @@ def get_file_service() -> FileStorageService:
 
 def get_auth_service(
     user_repository=Depends(get_user_repository),
+    email_service: EmailService = Depends(get_email_service),
 ):
     """获取认证服务。"""
-    return AuthService(user_repository=user_repository)
+    notification_service = NotificationService(email_service=email_service)
+    return AuthService(
+        user_repository=user_repository,
+        notification_service=notification_service,
+    )
 
 
 def get_role_repository(

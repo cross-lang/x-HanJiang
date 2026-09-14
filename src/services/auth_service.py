@@ -27,8 +27,10 @@ from src.core.tokens import (
     create_refresh_token,
     decode_token,
 )
+from src.infras.email import EmailService
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import RoleEntity, UserEntity
+from src.services.notification_service import NotificationService
 from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.auth import (
@@ -51,10 +53,14 @@ class AuthService:
         self,
         user_repository: UserRepository,
         role_repository: RoleRepository | None = None,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self._user_repository: UserRepository = user_repository
         self._role_repository = role_repository or RoleRepository(
             session=user_repository.session
+        )
+        self._notification_service = notification_service or NotificationService(
+            email_service=EmailService()
         )
 
     def login(
@@ -379,7 +385,7 @@ class AuthService:
             BusinessException: 超过频率限制
         """
         from src.core.exceptions import NotFoundException
-        from src.infras.email import EmailService
+        from src.infras.cache import get_redis
 
         # 查找用户
         user = self._user_repository.get_by_email(email)
@@ -408,8 +414,7 @@ class AuthService:
             logger.warning(f"Redis 令牌存储失败（继续发送邮件）: {e}")
 
         # 发送邮件
-        email_service = EmailService()
-        return email_service.send_password_reset_email(
+        return self._notification_service.send_password_reset_email(
             to_address=user.email,
             username=user.username,
             reset_token=token,
