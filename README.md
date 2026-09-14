@@ -253,20 +253,21 @@ auth:
   access_token_expire_minutes: 10080
   refresh_token_expire_days: 30
 
-object_storage:
-  endpoint_url: "https://<qiniu-s3-endpoint>"
-  bucket: "x-hanjiang"
-  region: "<bucket-region>"
-  prefix: "uploads"
-  public_url: ""
-  use_ssl: true
+storage:
+  provider: "qiniu"
+  qiniu:
+    access_key: "<your-ak>"
+    secret_key: "<your-sk>"
+    bucket: "x-hanjiang"
+    domain: "https://cdn.example.com"
+    prefix: "uploads"
 ```
 
-> **生产环境**：建议通过环境变量覆盖敏感配置（如 `AUTH_SECRET_KEY`、`DATABASE_URL`、`REDIS_URL`、`OBJECT_STORAGE_ACCESS_KEY`、`OBJECT_STORAGE_SECRET_KEY`），避免将密钥写入版本库。配置优先级：**环境变量 > 环境特定 YAML > 默认 YAML > 代码默认值**。
+> **生产环境**：建议通过环境变量覆盖敏感配置（如 `AUTH_SECRET_KEY`、`DATABASE_URL`、`REDIS_URL`、`STORAGE_QINIU_ACCESS_KEY`、`STORAGE_QINIU_SECRET_KEY`），避免将密钥写入版本库。配置优先级：**环境变量 > 环境特定 YAML > 默认 YAML > 代码默认值**。
 
 > **注意**：Redis 密码若包含 `@`、`:` 等特殊字符，在 `redis://` URL 中需做百分号编码（如 `@` → `%40`）。
 
-> **对象存储**：七牛云 Kodo 使用 S3 兼容接口。请根据存储区域配置 `OBJECT_STORAGE_ENDPOINT_URL` 和 `OBJECT_STORAGE_REGION`，并通过环境变量注入 AK/SK。桶名按当前部署约定为 `x-hanjiang`。私有桶不要配置 `OBJECT_STORAGE_PUBLIC_URL`，对外下载时应使用预签名 URL。
+> **对象存储**：通过 `storage.provider` 切换存储后端（`local` | `qiniu`），业务代码零改动。七牛 Kodo 需配置 `access_key`、`secret_key`、`bucket` 和 `domain`，通过环境变量注入 AK/SK 避免密钥写入版本库。
 
 ### 服务启动
 
@@ -437,8 +438,8 @@ uv run python -c "from src.infras.mysql import init_db; init_db()"
 
 ## 生产部署注意事项
 
-- 生产环境必须配置真实的 `AUTH_SECRET_KEY`、数据库、Redis 和对象存储凭证。
-- 千牛云桶的公开访问域名应配置到 `OBJECT_STORAGE_PUBLIC_URL`；私有桶不要填写公开域名，应进一步接入预签名 URL。
+- 生产环境必须配置真实的 `AUTH_SECRET_KEY`、数据库、Redis 和存储凭证。
+- 通过 `storage.provider` 切换存储后端（`local` | `qiniu`），七牛需配置 `access_key`、`secret_key`、`bucket` 和 `domain`。
 - 业务写操作会记录到 `audit_logs`，包含操作人、时间、实体、动作以及变更前后数据。
 - 当前 MFA 是 TOTP 基础能力，用户密钥的持久化、启用状态和恢复码管理需要业务侧继续接入用户安全字段或独立安全表。
 

@@ -121,8 +121,10 @@ def get_audit_service(
 
 @lru_cache(maxsize=1)
 def get_file_service() -> FileStorageService:
-    """获取共享的文件存储服务，复用对象存储客户端。"""
-    return FileStorageService()
+    """获取共享的文件存储服务，使用 StorageProvider 抽象层。"""
+    from src.infras.storage import get_cached_storage_provider
+
+    return FileStorageService(provider=get_cached_storage_provider())
 
 
 def get_auth_service(

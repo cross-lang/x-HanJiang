@@ -68,6 +68,10 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         如果请求中已经携带同名头（如上游网关传入），则复用之；
         否则生成新的 UUID。
 
+        使用 ``logger.contextualize()`` 将 request_id 注入 loguru 上下文，
+        该请求作用域内所有 logger 调用（包括下游 service / repository）
+        都会自动携带 request_id，无需手动 ``.bind()``。
+
         Args:
             request: 当前 HTTP 请求
             call_next: 下一个中间件或路由处理器
@@ -80,9 +84,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 
-        response: Response = await call_next(request)
-        response.headers[self.header_name] = request_id
-        return response
+        # contextualize 基于 contextvars，自动传播到所有 async 子任务
+        with logger.contextualize(request_id=request_id):
+            response: Response = await call_next(request)
+            response.headers[self.header_name] = request_id
+            return response
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):

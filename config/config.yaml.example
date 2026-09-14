@@ -12,9 +12,14 @@ server:
 
 logging:
   level: "INFO"
+  # json — 结构化 JSON 日志（适合 Loki / ELK 收集，生产默认）
+  # console — 彩色人可读格式（适合本地开发）
+  format: "json"
   file_path: "logs/x-HanJiang-{time:YYYYMMDDHH}.log"
   rotation: "1 hour"
   retention: "7 days"
+  compression: "zip"
+  console_output: true
 
 cors:
   origins:
@@ -40,12 +45,24 @@ database:
 redis:
   url: "redis://:CHANGE_ME@localhost:6379/0"
 
-object_storage:
-  endpoint_url: ""
-  access_key: ""
-  secret_key: ""
-  bucket: "x-hanjiang"
-  region: "cn-east-1"
-  prefix: "uploads"
-  public_url: ""
-  use_ssl: true
+# ============================================================
+# 统一存储抽象层配置
+# provider: "local"（本地文件系统）| "s3"（S3 兼容对象存储）
+# 切换存储后端只需修改 provider 字段，业务代码零改动
+# ============================================================
+storage:
+  provider: "local"
+  local:
+    base_dir: "static"
+  s3:
+    # S3 兼容服务地址（七牛 Kodo 格式：https://s3.<region>.qiniucs.com）
+    endpoint_url: "https://s3.cn-south-1.qiniucs.com"
+    access_key: ""
+    secret_key: ""
+    bucket: "x-hanjiang"
+    # 存储区域（标准 S3 区域标识，七牛 Kodo 华南：cn-south-1）
+    region: "cn-south-1"
+    prefix: "uploads"
+    # 公开访问域名（可选，含协议头，如 https://cdn.example.com）
+    public_url: ""
+    use_ssl: true

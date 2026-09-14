@@ -61,10 +61,13 @@ async def lifespan(app: FastAPI):
     在应用启动时初始化日志和核心组件，在应用关闭时执行清理操作。
     """
     setup_logging()
+
     logger.info(f"{APP_NAME} v{APP_VERSION} starting up...")
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Debug mode: {settings.server.debug}")
+    logger.info(f"Storage provider: {settings.storage.provider}")
     logger.info(f"Listening on: {settings.server.host}:{settings.server.port}")
+    
 
     if _has_db and settings.database.url:
         try:

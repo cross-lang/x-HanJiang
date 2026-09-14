@@ -16,4 +16,4 @@
     - http_client: 通用HTTP请求客户端
 """
 
-__all__ = ["database", "cache", "http_client"]
+__all__ = ["database", "cache", "http_client", "storage"]

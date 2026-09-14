@@ -86,9 +86,14 @@ class ServerConfig:
 
 @dataclass
 class LoggingConfig:
-    """日志配置。"""
+    """日志配置。
+
+    format:
+        "json"    — 结构化 JSON 日志，适合 Loki / ELK 收集（生产默认）
+        "console" — 彩色人可读格式，适合本地开发
+    """
     level: str = "INFO"
-    format: str = "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
+    format: str = "json"
     file_path: str = "logs/x-HanJiang-{time:YYYYMMDDHH}.log"
     rotation: str = "1 day"
     retention: str = "7 days"
@@ -147,16 +152,39 @@ class RedisConfig:
 
 
 @dataclass
-class ObjectStorageConfig:
-    """对象存储配置。"""
+class LocalStorageConfig:
+    """本地文件存储配置。"""
+    base_dir: str = "static"
+
+
+@dataclass
+class S3StorageConfig:
+    """S3 兼容存储配置（七牛 Kodo S3 API / AWS S3 / MinIO 等）。
+
+    通过 endpoint_url 指定 S3 兼容服务地址，region 使用标准 S3 区域标识。
+    七牛 Kodo S3 兼容 endpoint 格式：https://s3.<region>.qiniucs.com
+    """
     endpoint_url: str = ""
     access_key: str = ""
     secret_key: str = ""
     bucket: str = "x-hanjiang"
-    region: str = "cn-east-1"
+    region: str = "cn-south-1"
     prefix: str = "uploads"
     public_url: str = ""
     use_ssl: bool = True
+
+
+@dataclass
+class StorageConfig:
+    """统一存储配置。
+
+    provider: "local" | "s3"
+        - local:  本地文件系统（开发环境默认）
+        - s3:     S3 兼容对象存储（七牛 Kodo / AWS S3 / MinIO，生产环境推荐）
+    """
+    provider: str = "local"
+    local: LocalStorageConfig = field(default_factory=LocalStorageConfig)
+    s3: S3StorageConfig = field(default_factory=S3StorageConfig)
 
 
 # ============================================================
@@ -171,10 +199,7 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "auth": ("AUTH_", ["secret_key", "algorithm", "access_token_expire_minutes", "refresh_token_expire_days"]),
     "database": ("DATABASE_", ["enabled", "url", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
     "redis": ("REDIS_", ["enabled", "url", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
-    "object_storage": ("OBJECT_STORAGE_", [
-        "endpoint_url", "access_key", "secret_key", "bucket",
-        "region", "prefix", "public_url", "use_ssl",
-    ]),
+    "storage": ("STORAGE_", ["provider"]),
 }
 
 
@@ -200,7 +225,7 @@ class Settings:
         auth: 认证配置
         database: 数据库配置
         redis: Redis 配置
-        object_storage: 对象存储配置
+        storage: 统一存储配置
     """
 
     CONFIG_FILE_PATH: Final[str] = "config/config.yaml"
@@ -233,7 +258,7 @@ class Settings:
             },
             "logging": {
                 "level": "INFO",
-                "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+                "format": "json",
                 "file_path": "logs/x-HanJiang-{time:YYYYMMDDHH}.log",
                 "rotation": "1 day",
                 "retention": "7 days",
@@ -275,15 +300,21 @@ class Settings:
                 "decode_responses": True,
                 "socket_timeout": 5,
             },
-            "object_storage": {
-                "endpoint_url": "",
-                "access_key": "",
-                "secret_key": "",
-                "bucket": "x-hanjiang",
-                "region": "cn-east-1",
-                "prefix": "uploads",
-                "public_url": "",
-                "use_ssl": True,
+            "storage": {
+                "provider": "local",
+                "local": {
+                    "base_dir": "static",
+                },
+                "s3": {
+                    "endpoint_url": "",
+                    "access_key": "",
+                    "secret_key": "",
+                    "bucket": "x-hanjiang",
+                    "region": "cn-south-1",
+                    "prefix": "uploads",
+                    "public_url": "",
+                    "use_ssl": True,
+                },
             },
         }
 
@@ -372,6 +403,30 @@ class Settings:
                 else:
                     section[key] = value
 
+        # 嵌套存储配置的环境变量
+        storage = config.setdefault("storage", {})
+        storage_local = storage.setdefault("local", {})
+        storage_s3 = storage.setdefault("s3", {})
+
+        if value := os.environ.get("STORAGE_LOCAL_BASE_DIR"):
+            storage_local["base_dir"] = value
+        if value := os.environ.get("OBJECT_STORAGE_ENDPOINT_URL"):
+            storage_s3["endpoint_url"] = value
+        if value := os.environ.get("OBJECT_STORAGE_ACCESS_KEY"):
+            storage_s3["access_key"] = value
+        if value := os.environ.get("OBJECT_STORAGE_SECRET_KEY"):
+            storage_s3["secret_key"] = value
+        if value := os.environ.get("OBJECT_STORAGE_BUCKET"):
+            storage_s3["bucket"] = value
+        if value := os.environ.get("OBJECT_STORAGE_REGION"):
+            storage_s3["region"] = value
+        if value := os.environ.get("OBJECT_STORAGE_PREFIX"):
+            storage_s3["prefix"] = value
+        if value := os.environ.get("OBJECT_STORAGE_PUBLIC_URL"):
+            storage_s3["public_url"] = value
+        if value := os.environ.get("OBJECT_STORAGE_USE_SSL"):
+            storage_s3["use_ssl"] = _to_bool(value)
+
     # ----------------------------------------------------------
     # 解析到 dataclass
     # ----------------------------------------------------------
@@ -387,7 +442,16 @@ class Settings:
         self.auth = AuthConfig(**self._config.get("auth", {}))
         self.database = DatabaseConfig(**self._config.get("database", {}))
         self.redis = RedisConfig(**self._config.get("redis", {}))
-        self.object_storage = ObjectStorageConfig(**self._config.get("object_storage", {}))
+
+        # 存储抽象层配置（嵌套 dataclass）
+        storage_raw = self._config.get("storage", {})
+        local_raw = storage_raw.pop("local", {})
+        s3_raw = storage_raw.pop("s3", {})
+        self.storage = StorageConfig(
+            provider=storage_raw.get("provider", "local"),
+            local=LocalStorageConfig(**local_raw),
+            s3=S3StorageConfig(**s3_raw),
+        )
 
     # ----------------------------------------------------------
     # 环境判断
