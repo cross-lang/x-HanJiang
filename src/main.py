@@ -42,13 +42,13 @@ from src.core.middleware import (
 )
 
 try:
-    from src.infras.mysql import close_db, init_db
+    from src.infras.database import get_cached_database_provider
     _has_db = True
 except ImportError:
     _has_db = False
 
 try:
-    from src.infras.cache import close_redis
+    from src.infras.cache import get_cached_cache_provider
     _has_redis = True
 except ImportError:
     _has_redis = False
@@ -71,6 +71,8 @@ async def lifespan(app: FastAPI):
 
     if _has_db and settings.database.url:
         try:
+            db_provider = get_cached_database_provider()
+            from src.infras.database import init_db
             init_db()
             logger.info("Database initialized successfully")
             
@@ -91,14 +93,14 @@ async def lifespan(app: FastAPI):
 
     if _has_db and settings.database.url:
         try:
-            close_db()
+            get_cached_database_provider().close()
             logger.info("Database connection closed")
         except Exception as e:
             logger.warning(f"Error closing database connection: {e}")
 
     if _has_redis and settings.redis.url:
         try:
-            close_redis()
+            get_cached_cache_provider().close()
             logger.info("Redis connection closed")
         except Exception as e:
             logger.warning(f"Error closing Redis connection: {e}")

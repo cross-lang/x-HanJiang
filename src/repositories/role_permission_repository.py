@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.exceptions import DatabaseException
-from src.infras.mysql import get_session_factory
+from src.infras.database import get_cached_database_provider
 from src.models.entities.user_entity import (
     PermissionEntity,
     RolePermissionEntity,
@@ -34,7 +34,7 @@ class RolePermissionRepository(BaseRepository[RolePermissionEntity, int]):
 
     def __init__(self, session: Session | None = None) -> None:
         """初始化角色权限关联仓库。"""
-        self.session: Session = session or get_session_factory()()
+        self.session: Session = session or get_cached_database_provider().get_session_factory()()
 
     def get_by_id(self, id: int) -> RolePermissionEntity | None:
         """根据关联 ID 查询。"""

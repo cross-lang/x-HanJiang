@@ -12,14 +12,17 @@ HTTP 客户端基础设施模块
     - JSON 响应自动解析
 
 Usage:
-    from src.infras.http import HttpClient
+    from src.infras.http import get_cached_http_provider
 
-    client = HttpClient()
+    client = get_cached_http_provider()
     response = client.get("https://api.example.com/users")
 """
 
+from __future__ import annotations
+
 import json
 import time
+from abc import ABC, abstractmethod
 from typing import Any
 
 import requests
@@ -28,8 +31,40 @@ from requests import Response, Session
 from src.core.logger import logger
 
 
-class HttpClient:
-    """通用 HTTP 请求客户端。
+# ============================================================
+# 抽象基类
+# ============================================================
+
+class HttpProvider(ABC):
+    """HTTP 客户端抽象接口。
+
+    所有 HTTP 客户端后端必须实现此接口。业务层仅依赖此抽象，
+    切换 HTTP 实现只需修改配置，无需改动任何业务代码。
+    """
+
+    @abstractmethod
+    def get(self, url: str, params: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """发送 GET 请求。"""
+
+    @abstractmethod
+    def post(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """发送 POST 请求。"""
+
+    @abstractmethod
+    def put(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """发送 PUT 请求。"""
+
+    @abstractmethod
+    def delete(self, url: str, **kwargs: Any) -> Any:
+        """发送 DELETE 请求。"""
+
+
+# ============================================================
+# requests 实现
+# ============================================================
+
+class RequestsHttpProvider(HttpProvider):
+    """基于 requests 库的 HTTP 客户端实现。
 
     提供统一的 HTTP 请求封装，支持常见的 HTTP 方法和错误处理。
 
@@ -202,7 +237,32 @@ class HttpClient:
     def close(self) -> None:
         """关闭 HTTP 会话。"""
         self.session.close()
-        logger.info("HTTP client session closed")
 
 
-__all__ = ["HttpClient"]
+# ============================================================
+# 工厂函数
+# ============================================================
+
+def get_http_provider(**kwargs: Any) -> HttpProvider:
+    """创建 HTTP 客户端实例。"""
+    return RequestsHttpProvider(**kwargs)
+
+
+# 模块级缓存实例
+_http_provider: HttpProvider | None = None
+
+
+def get_cached_http_provider(**kwargs: Any) -> HttpProvider:
+    """获取缓存的 HTTP 客户端（应用级别单例）。"""
+    global _http_provider
+    if _http_provider is None:
+        _http_provider = get_http_provider(**kwargs)
+    return _http_provider
+
+
+__all__ = [
+    "HttpProvider",
+    "RequestsHttpProvider",
+    "get_http_provider",
+    "get_cached_http_provider",
+]

@@ -11,7 +11,7 @@ import requests
 from src.constants.enums import AlertChannel
 from src.core.config import settings
 from src.core.logger import logger
-from src.infras.email import EmailService
+from src.infras.email import get_cached_email_provider
 
 
 class AlertService:
@@ -47,7 +47,7 @@ class AlertService:
 
         html_content = metadata.get("html_content") or message
         text_content = metadata.get("text_content") or message
-        return EmailService().send_email(
+        return get_cached_email_provider().send_email(
             to_address=to_email,
             subject=subject,
             html_content=html_content,

@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.core.exceptions import DatabaseException
-from src.infras.mysql import get_session_factory
+from src.infras.database import get_cached_database_provider
 from src.models.entities.log_entity import LoginLogEntity
 from src.repositories.base_repository import BaseRepository
 
@@ -33,7 +33,7 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
 
     def __init__(self, session: Session | None = None) -> None:
         """初始化登录日志仓库。"""
-        self.session: Session = session or get_session_factory()()
+        self.session: Session = session or get_cached_database_provider().get_session_factory()()
 
     def get_by_id(self, id: int) -> LoginLogEntity | None:
         """根据日志 ID 查询登录日志。"""

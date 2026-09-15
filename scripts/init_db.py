@@ -18,7 +18,7 @@ sys.path.insert(0, str(project_root))
 
 from src.core.config import settings
 from src.core.logger import logger, setup_logging
-from src.infras.mysql import Base, get_engine, init_db
+from src.infras.database import Base, get_cached_database_provider, init_db
 from src.models.entities.user_entity import UserEntity  # noqa: F401  确保模型被注册
 
 
@@ -40,7 +40,7 @@ def main() -> None:
     try:
         init_db()
 
-        engine = get_engine()
+        engine = get_cached_database_provider().get_engine()
         tables = Base.metadata.tables.keys()
 
         logger.info("=" * 60)

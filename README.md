@@ -412,7 +412,7 @@ uv run ruff check src/ tests/
 uv run mypy src/
 
 # 初始化数据库表（应用启动时也会自动建表）
-uv run python -c "from src.infras.mysql import init_db; init_db()"
+uv run python -c "from src.infras.database import init_db; init_db()"
 ```
 
 > **数据库表管理**：当前通过 `init_db()` 自动建表（`Base.metadata.create_all`）。生产环境建议使用 Alembic 管理表结构变更。

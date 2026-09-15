@@ -83,9 +83,9 @@ def _check_database() -> str:
     try:
         from sqlalchemy import text
 
-        from src.infras.mysql import get_engine
+        from src.infras.database import get_cached_database_provider
 
-        engine = get_engine()
+        engine = get_cached_database_provider().get_engine()
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         return "ok"
@@ -102,10 +102,10 @@ def _check_cache() -> str:
         return "disabled"
 
     try:
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
-        redis_client = get_redis()
-        redis_client.ping()
+        provider = get_cached_cache_provider()
+        provider.ping()
         return "ok"
     except ImportError:
         return "disabled"

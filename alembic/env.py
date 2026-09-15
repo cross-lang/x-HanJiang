@@ -1,6 +1,6 @@
 """Alembic 环境配置。
 
-注入应用配置中的 DATABASE_URL，并通过 src.infras.mysql.Base.metadata
+注入应用配置中的 DATABASE_URL，并通过 src.infras.database.Base.metadata
 获取模型定义，避免在迁移脚本中重复声明表结构。
 """
 
@@ -10,7 +10,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from src.core.config import settings
-from src.infras.mysql import Base
+from src.infras.database import Base
 from src.models.entities import user_entity  # noqa: F401  注册模型
 
 config = context.config

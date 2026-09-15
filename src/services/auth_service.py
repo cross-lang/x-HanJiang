@@ -27,7 +27,7 @@ from src.core.tokens import (
     create_refresh_token,
     decode_token,
 )
-from src.infras.email import EmailService
+from src.infras.email import EmailProvider
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import RoleEntity, UserEntity
 from src.services.notification_service import NotificationService
@@ -60,7 +60,7 @@ class AuthService:
             session=user_repository.session
         )
         self._notification_service = notification_service or NotificationService(
-            email_service=EmailService()
+            email_provider=EmailProvider()
         )
 
     def login(
@@ -75,7 +75,7 @@ class AuthService:
         校验用户名/邮箱 + 密码，成功后签发 access/refresh 令牌并写入 Redis 登录态。
         无论成功失败均记录 login_logs。
         """
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         user = self._find_account(account)
 
@@ -103,11 +103,11 @@ class AuthService:
 
         # 维护 Redis 登录态：记录当前生效的 access token jti
         try:
-            redis_client = get_redis()
-            redis_client.setex(
+            provider = get_cached_cache_provider()
+            provider.set(
                 f"{_LOGIN_KEY_PREFIX}{user.id}",
-                _LOGIN_STATE_TTL,
                 access_jti or "",
+                ttl=_LOGIN_STATE_TTL,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态写入失败（登录仍成功）: {e}")
@@ -131,7 +131,7 @@ class AuthService:
 
     def refresh(self, refresh_token: str) -> TokenResponse:
         """使用刷新令牌换取新的令牌对。"""
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         try:
             payload = decode_token(refresh_token, expected_type=REFRESH_TOKEN_TYPE)
@@ -154,11 +154,11 @@ class AuthService:
         access_jti = decode_token(access_token).get("jti")
 
         try:
-            redis_client = get_redis()
-            redis_client.setex(
+            provider = get_cached_cache_provider()
+            provider.set(
                 f"{_LOGIN_KEY_PREFIX}{user.id}",
-                _LOGIN_STATE_TTL,
                 access_jti or "",
+                ttl=_LOGIN_STATE_TTL,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态写入失败（刷新仍成功）: {e}")
@@ -177,7 +177,7 @@ class AuthService:
             - "Bearer <token>"（标准格式，大小写不敏感）
             - "<token>"（未带 Bearer 前缀，自动视为令牌）
         """
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         if not authorization or not authorization.strip():
             raise AuthenticationException(message="缺少或格式错误的 Authorization 头")
@@ -203,8 +203,8 @@ class AuthService:
 
         # 校验 Redis 登录态：令牌 jti 必须仍为当前生效令牌
         try:
-            redis_client = get_redis()
-            stored_jti = redis_client.get(f"{_LOGIN_KEY_PREFIX}{user.id}")
+            provider = get_cached_cache_provider()
+            stored_jti = provider.get(f"{_LOGIN_KEY_PREFIX}{user.id}")
             if stored_jti is None:
                 raise AuthenticationException(message="登录态已失效，请重新登录")
             if stored_jti and stored_jti != payload.get("jti"):
@@ -235,11 +235,11 @@ class AuthService:
 
     def logout(self, user_id: int) -> None:
         """退出登录：清除 Redis 登录态。"""
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         try:
-            redis_client = get_redis()
-            redis_client.delete(f"{_LOGIN_KEY_PREFIX}{user_id}")
+            provider = get_cached_cache_provider()
+            provider.delete(f"{_LOGIN_KEY_PREFIX}{user_id}")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态清除失败: {e}")
 
@@ -342,12 +342,12 @@ class AuthService:
         Raises:
             BusinessException: 超过频率限制
         """
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         try:
-            redis_client = get_redis()
+            provider = get_cached_cache_provider()
             key = f"password_reset:attempts:{email}"
-            attempts = redis_client.get(key)
+            attempts = provider.get(key)
 
             if attempts and int(attempts) >= settings.password_reset.max_attempts_per_hour:
                 raise BusinessException(
@@ -356,10 +356,7 @@ class AuthService:
                 )
 
             # 增加计数器，有效期 1 小时
-            pipe = redis_client.pipeline()
-            pipe.incr(key)
-            pipe.expire(key, 3600)
-            pipe.execute()
+            provider.atomic_incr(key, ttl=3600)
         except BusinessException:
             raise
         except Exception as e:
@@ -385,7 +382,7 @@ class AuthService:
             BusinessException: 超过频率限制
         """
         from src.core.exceptions import NotFoundException
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         # 查找用户
         user = self._user_repository.get_by_email(email)
@@ -401,14 +398,14 @@ class AuthService:
         # 生成令牌
         token = self._generate_reset_token(user.id, user.email)
 
-        # 存储令牌到 Redis（用于验证和撤销）
+        # 存储令牌到缓存（用于验证和撤销）
         try:
-            redis_client = get_redis()
+            provider = get_cached_cache_provider()
             key = f"password_reset:token:{user.id}"
-            redis_client.setex(
+            provider.set(
                 key,
-                settings.password_reset.token_expire_minutes * 60,
                 token,
+                ttl=settings.password_reset.token_expire_minutes * 60,
             )
         except Exception as e:
             logger.warning(f"Redis 令牌存储失败（继续发送邮件）: {e}")
@@ -432,7 +429,7 @@ class AuthService:
         Raises:
             AuthenticationException: 令牌无效或已过期
         """
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         payload = self._verify_reset_token(token)
 
@@ -440,8 +437,8 @@ class AuthService:
 
         # 检查令牌是否已被撤销
         try:
-            redis_client = get_redis()
-            stored_token = redis_client.get(f"password_reset:token:{user_id}")
+            provider = get_cached_cache_provider()
+            stored_token = provider.get(f"password_reset:token:{user_id}")
             if stored_token and stored_token != token:
                 raise AuthenticationException(message="重置令牌已失效")
         except AuthenticationException:
@@ -480,7 +477,7 @@ class AuthService:
             DatabaseException: 数据库更新失败
         """
         from src.core.security import hash_password
-        from src.infras.cache import get_redis
+        from src.infras.cache import get_cached_cache_provider
 
         # 验证令牌
         payload = self._verify_reset_token(token)
@@ -503,8 +500,8 @@ class AuthService:
 
         # 撤销令牌
         try:
-            redis_client = get_redis()
-            redis_client.delete(f"password_reset:token:{user_id}")
+            provider = get_cached_cache_provider()
+            provider.delete(f"password_reset:token:{user_id}")
         except Exception as e:
             logger.warning(f"Redis 令牌撤销失败: {e}")
 

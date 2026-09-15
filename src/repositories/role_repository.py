@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.exceptions import ConflictException, DatabaseException
-from src.infras.mysql import get_session_factory
+from src.infras.database import get_cached_database_provider
 from src.models.entities.user_entity import RoleEntity
 from src.repositories.base_repository import BaseRepository
 
@@ -32,7 +32,7 @@ class RoleRepository(BaseRepository[RoleEntity, int]):
 
     def __init__(self, session: Session | None = None) -> None:
         """初始化角色仓库。"""
-        self.session: Session = session or get_session_factory()()
+        self.session: Session = session or get_cached_database_provider().get_session_factory()()
 
     def get_by_id(self, id: int, include_deleted: bool = False) -> RoleEntity | None:
         """根据角色 ID 查询角色（默认排除软删除）。"""

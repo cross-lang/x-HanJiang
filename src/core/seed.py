@@ -18,7 +18,7 @@ from sqlalchemy import select
 
 from src.core.logger import logger
 from src.core.security import hash_password
-from src.infras.mysql import get_session_factory
+from src.infras.database import get_cached_database_provider
 from src.models.entities.user_entity import (
     PermissionEntity,
     RoleEntity,
@@ -47,7 +47,7 @@ def init_seed_data() -> None:
         3. permissions 表中是否存在 perm_code=user:view 的权限，无则创建
         4. role_permissions 表中是否存在该角色与权限的关联，无则创建
     """
-    session = get_session_factory()()
+    session = get_cached_database_provider().get_session_factory()()
     try:
         # 1. 超级管理员角色
         role = session.execute(

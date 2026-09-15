@@ -184,14 +184,15 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         ]
 
     def has_permission(self, user_id: int, permission_code: str) -> bool:
-        """判断用户是否拥有某权限，使用 Redis 缓存避免反复查库。"""
-        from src.infras.cache import get_json_cache, set_json_cache
+        """判断用户是否拥有某权限，使用缓存避免反复查库。"""
+        from src.infras.cache import get_cached_cache_provider
         from sqlalchemy import select
 
         from src.models.entities.user_entity import PermissionEntity
 
         cache_key = f"perm:{user_id}:{permission_code}"
-        cached = get_json_cache(cache_key, ttl=300)
+        provider = get_cached_cache_provider()
+        cached = provider.get(cache_key)
         if cached is not None:
             return bool(cached)
 
@@ -199,16 +200,16 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
 
         user = UserRepository(session=self._repository.session).get_by_id(user_id)
         if user is None:
-            set_json_cache(cache_key, False, ttl=300)
+            provider.set(cache_key, False, ttl=300)
             return False
 
         if user.role_id is None:
-            set_json_cache(cache_key, False, ttl=300)
+            provider.set(cache_key, False, ttl=300)
             return False
 
         permission_ids = self._rp_repository.get_permission_ids_by_role(user.role_id)
         if not permission_ids:
-            set_json_cache(cache_key, False, ttl=300)
+            provider.set(cache_key, False, ttl=300)
             return False
 
         stmt = select(PermissionEntity.id).where(
@@ -217,7 +218,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         )
         allowed = self._repository.session.execute(stmt).scalar() is not None
 
-        set_json_cache(cache_key, allowed, ttl=300)
+        provider.set(cache_key, allowed, ttl=300)
         return allowed
 
     def bind_permission(self, role_id: int, permission_id: int, operator: dict[str, Any] | None = None) -> RolePermissionResponse:

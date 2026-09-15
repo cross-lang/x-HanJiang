@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import BigInteger, DateTime, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infras.mysql import Base
+from src.infras.database import Base
 
 
 class LoginLogEntity(Base):

@@ -6,14 +6,22 @@
 仅提供基础资源，不包含业务逻辑。
 
 核心原则：
-    - 数据库、缓存、MQ等核心基础设施必须基于抽象基类定义标准接口
-    - 业务层仅依赖抽象，实现类可动态替换解耦
+    - 每个模块基于抽象基类（ABC）定义标准接口
+    - 业务层仅依赖抽象接口，实现类可动态替换解耦
     - infra 永不反向依赖 repository/service/api
 
+统一风格：
+    - XxxProvider(ABC)         — 抽象接口
+    - YyyXxxProvider           — 具体实现
+    - get_xxx_provider()       — 工厂函数（读配置创建实例）
+    - get_cached_xxx_provider()— 单例缓存
+
 子模块：
-    - database: 数据库引擎、连接池、会话工厂、事务封装
-    - cache: Redis客户端初始化、序列化、连接复用管理
-    - http_client: 通用HTTP请求客户端
+    - database: DatabaseProvider → MySqlProvider
+    - cache:    CacheProvider → RedisCacheProvider
+    - email:    EmailProvider → SmtpEmailProvider
+    - http:     HttpProvider → RequestsHttpProvider
+    - storage:  StorageProvider → LocalStorage / S3CompatibleStorage
 """
 
-__all__ = ["database", "cache", "http_client", "storage"]
+__all__ = ["cache", "database", "email", "http", "storage"]

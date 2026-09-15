@@ -2,14 +2,14 @@
 """业务通知服务。"""
 
 from src.core.config import settings
-from src.infras.email import EmailService
+from src.infras.email import EmailProvider
 
 
 class NotificationService:
     """业务通知服务。"""
 
-    def __init__(self, email_service: EmailService) -> None:
-        self._email_service = email_service
+    def __init__(self, email_provider: EmailProvider) -> None:
+        self._email_provider = email_provider
 
     def send_password_reset_email(
         self,
@@ -77,7 +77,7 @@ class NotificationService:
 此链接有效期为 {expire_minutes} 分钟。如果您没有请求重置密码，请忽略此邮件。
 """
 
-        return self._email_service.send_email(
+        return self._email_provider.send_email(
             to_address=to_address,
             subject="【HanJiang】密码重置请求",
             html_content=html_content,

@@ -22,9 +22,8 @@ from sqlalchemy.orm import Session
 
 from src.core.container import Container
 from src.core.exceptions import AuthorizationException
-from src.infras.cache import get_json_cache, set_json_cache
-from src.infras.email import EmailService
-from src.infras.mysql import get_session_factory
+from src.infras.email import EmailProvider, get_cached_email_provider
+from src.infras.database import get_cached_database_provider
 from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedRequest
 from src.services.alert_service import AlertService
@@ -68,7 +67,7 @@ def get_db_session() -> Generator[Session, None, None]:
     Yields:
         Session: 数据库会话对象
     """
-    session_factory = get_session_factory()
+    session_factory = get_cached_database_provider().get_session_factory()
     session = session_factory()
 
     try:
@@ -107,16 +106,14 @@ def get_user_service(
     return UserService(user_repository=user_repository)
 
 
-def get_email_service() -> EmailService:
+def get_email_provider() -> EmailProvider:
     """获取邮件发送基础设施实例。"""
-    return EmailService()
+    return get_cached_email_provider()
 
 
-def get_alert_service(
-    email_service: EmailService = Depends(get_email_service),
-) -> AlertService:
+def get_alert_service() -> AlertService:
     """获取告警服务实例。"""
-    return AlertService(email_service=email_service)
+    return AlertService()
 
 
 def get_audit_service(
@@ -138,10 +135,10 @@ def get_file_service() -> FileStorageService:
 
 def get_auth_service(
     user_repository=Depends(get_user_repository),
-    email_service: EmailService = Depends(get_email_service),
+    email_provider: EmailProvider = Depends(get_email_provider),
 ):
     """获取认证服务。"""
-    notification_service = NotificationService(email_service=email_service)
+    notification_service = NotificationService(email_provider=email_provider)
     return AuthService(
         user_repository=user_repository,
         notification_service=notification_service,

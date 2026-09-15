@@ -16,11 +16,11 @@ from src.core.config import settings
 from src.core.logger import logger
 
 try:
-    from src.infras.cache import get_redis
+    from src.infras.cache import get_cached_cache_provider
 
-    _HAS_REDIS = True
+    _HAS_CACHE = True
 except ImportError:  # pragma: no cover
-    _HAS_REDIS = False
+    _HAS_CACHE = False
 
 
 def _key(user_id: int) -> str:
@@ -39,11 +39,11 @@ def set_login_status(user_id: int, token: str, ttl_seconds: int) -> None:
         token: 当前有效的访问令牌
         ttl_seconds: 过期秒数（建议等于刷新令牌有效期）
     """
-    if not _HAS_REDIS or not settings.redis.url:
+    if not _HAS_CACHE or not settings.redis.url:
         return
     try:
-        redis_client = get_redis()
-        redis_client.set(_key(user_id), token, ex=ttl_seconds)
+        provider = get_cached_cache_provider()
+        provider.set(_key(user_id), token, ttl=ttl_seconds)
     except Exception as e:  # noqa: BLE001
         # 登录态写入失败不应阻断登录，仅告警
         logger.warning(f"SetLoginStatus failed for user {user_id}: {e}")
@@ -58,10 +58,10 @@ def get_login_status(user_id: int) -> str | None:
     Returns:
         str | None: 登录态令牌，未登录或异常时为 None
     """
-    if not _HAS_REDIS or not settings.redis.url:
+    if not _HAS_CACHE or not settings.redis.url:
         return None
     try:
-        return get_redis().get(_key(user_id))
+        return get_cached_cache_provider().get(_key(user_id))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"GetLoginStatus failed for user {user_id}: {e}")
         return None
@@ -79,7 +79,7 @@ def is_logged_in(user_id: int) -> bool:
     Returns:
         bool: 存在登录态记录即为已登录；Redis 不可用时降级放行
     """
-    if not _HAS_REDIS or not settings.redis.url:
+    if not _HAS_CACHE or not settings.redis.url:
         return True
     return get_login_status(user_id) is not None
 
@@ -90,10 +90,10 @@ def clear_login_status(user_id: int) -> None:
     Args:
         user_id: 用户ID
     """
-    if not _HAS_REDIS or not settings.redis.url:
+    if not _HAS_CACHE or not settings.redis.url:
         return
     try:
-        get_redis().delete(_key(user_id))
+        get_cached_cache_provider().delete(_key(user_id))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"ClearLoginStatus failed for user {user_id}: {e}")
 
