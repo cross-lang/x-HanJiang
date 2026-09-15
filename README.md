@@ -85,45 +85,101 @@ x-HanJiang/
 
 ## 系统架构
 
-### 分层架构图
+### 系统分层架构
+
+```mermaid
+flowchart TB
+  Client[客户端 / 管理端] -->|HTTP / JSON| API[API 接口层<br/>路由聚合 · 参数校验 · 统一响应]
+
+  subgraph Application[应用层]
+    API --> Auth[认证与权限入口<br/>Bearer Token · 当前用户 · RBAC]
+    Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 文件]
+  end
+
+  subgraph Data[数据访问层]
+    Service --> Repository[Repository 层<br/>CRUD · 查询 · Entity 映射]
+    Repository --> Entity[Models / Entities<br/>SQLAlchemy ORM 实体]
+    Service --> Schema[Schemas<br/>Pydantic 请求与响应 DTO]
+  end
+
+  subgraph Support[核心支撑与基础设施]
+    Core[Core<br/>配置 · DI · 中间件 · 异常 · 令牌 · 日志]
+    Infra[Infras<br/>数据库 · 缓存 · 邮件 · HTTP · 存储]
+  end
+
+  Core -.提供横切能力.-> API
+  Core -.提供横切能力.-> Service
+  Repository --> Infra
+  Entity --> Infra
+  Service -->|文件读写| Infra
+  Infra --> DB[(MySQL)]
+  Infra --> Redis[(Redis)]
+  Infra --> OSS[(S3 兼容对象存储 / 本地存储)]
+```
+
+### 核心业务流程
 
 ```mermaid
 flowchart TD
-    Client[Client] -->|HTTP Request / Bearer Token| MW[Middleware Layer<br/>Request ID · CORS · Rate Limit]
-    MW --> Guard[Auth Guard<br/>Depends get_current_user · RBAC]
-    Guard -->|统一鉴权与权限校验| API[API Layer<br/>health · user · auth · role · audit · files · security<br/>Pydantic 校验]
-    API -->|API → Service| SVC[Service Layer<br/>业务规则 · 数据校验 · 流程编排]
-    SVC -->|Service → Repository| REPO[Repository Layer<br/>CRUD · 查询 · 数据映射]
-    REPO --> DB[(MySQL + Redis<br/>业务数据 / 登录态 / 权限缓存)]
-    SVC --> OSS[(S3 兼容对象存储<br/>七牛云 Kodo / 本地回退)]
+  Start([客户端发起请求]) --> Public{公开接口?}
+  Public -->|是：登录 / 刷新 / 健康检查| Route[API 路由与参数校验]
+  Public -->|否| Token{Bearer Token 有效?}
+  Token -->|否| Unauthorized[返回 401 未授权]
+  Token -->|是| Permission{具备所需角色或权限?}
+  Permission -->|否| Forbidden[返回 403 无权限]
+  Permission -->|是| Route
+
+  Route --> Login{认证请求?}
+  Login -->|是| Verify[校验账号与密码]
+  Verify -->|失败| LoginFailed[记录失败登录日志<br/>返回认证失败]
+  Verify -->|成功| IssueToken[签发访问令牌与刷新令牌<br/>记录成功登录日志]
+  Login -->|否| Service[调用对应业务 Service]
+  Service --> Repository[Repository 读写数据]
+  Repository --> Database[(MySQL / Redis)]
+  Service --> Audit[记录业务审计日志<br/>操作者 · IP · 前后数据]
+  Database --> Result[组装业务结果]
+  Audit --> Result
+  IssueToken --> Response[统一响应 + X-Request-ID]
+  Result --> Response
+  LoginFailed --> Response
+  Unauthorized --> End([请求结束])
+  Forbidden --> End
+  Response --> End
 ```
 
-### 请求处理流程
+### 模块依赖关系
 
 ```mermaid
-sequenceDiagram
-    participant C as Client
-    participant M as Middleware
-    participant G as Auth Guard
-    participant A as API Endpoint
-    participant S as Service
-    participant R as Repository
+flowchart LR
+  Main[main.py] --> Router[api.router]
+  Router --> API[api.v1 路由]
+  API --> Dependencies[api.dependencies]
+  API --> Schemas[schemas]
+  API --> Services[services]
 
-    C->>M: Request（带 Bearer Token）
-    M->>M: RequestIDMiddleware（生成 UUID）
-    M->>M: CORS Middleware（跨域处理）
-    M->>G: Router（路由匹配）
-    alt Token 无效或缺失
-        G-->>C: 401 Unauthorized
-    else Token 有效
-        G->>A: 放行
-        A->>A: 参数校验（Pydantic）
-        A->>S: 调用业务逻辑
-        S->>R: 数据访问
-        R-->>S: 返回数据
-        S-->>A: 返回结果
-        A-->>C: 统一响应封装（含 X-Request-ID）
-    end
+  Dependencies --> Container[core.container<br/>依赖注入]
+  Dependencies --> Services
+  Services --> Repositories[repositories]
+  Services --> Schemas
+  Services --> Core[core<br/>配置 · 异常 · 日志 · 令牌]
+  Services --> Infra[infras<br/>缓存 · 邮件 · HTTP · 存储]
+
+  Repositories --> Entities[models.entities]
+  Repositories --> Database[infras.database]
+  Entities --> Database
+  Core --> Infra
+  Core --> Constants[constants]
+  API --> Constants
+
+  classDef entry fill:#e8f1ff,stroke:#3973c6,color:#16345c;
+  classDef app fill:#eaf7ef,stroke:#3b8c5a,color:#1f4d31;
+  classDef support fill:#fff4df,stroke:#c68a22,color:#68470f;
+  classDef data fill:#f5eafa,stroke:#8b5ba7,color:#4b2d5d;
+
+  class Main,Router entry;
+  class API,Dependencies,Services app;
+  class Core,Infra,Container,Constants support;
+  class Repositories,Entities,Database,Schemas data;
 ```
 
 ## API 接口清单
