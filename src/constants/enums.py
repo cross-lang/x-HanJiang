@@ -31,7 +31,7 @@ class AlertChannel(Enum):
     FEISHU = "feishu"
 
 
-class HttpStatus(int, BaseEnum):
+class HttpStatus(BaseEnum):
     """HTTP 状态码"""
 
     OK = 200, "OK"
