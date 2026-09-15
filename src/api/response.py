@@ -6,6 +6,7 @@ API 响应工具
 
 Functions:
     success_response: 构造统一成功响应
+    error_response: 构造统一错误响应
 """
 
 from datetime import UTC, datetime
@@ -14,7 +15,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from src.constants import MSG_SUCCESS
+from src.constants import MSG_INTERNAL_ERROR, MSG_SUCCESS
 from src.schemas.common import ApiResponse
 
 
@@ -34,6 +35,33 @@ def success_response(
 
     Returns:
         JSONResponse: 统一格式的成功响应
+    """
+    payload = ApiResponse[object](
+        code=code,
+        message=message,
+        data=data,
+        timestamp=datetime.now(UTC).isoformat(),
+        request_id=getattr(request.state, "request_id", None),
+    ).model_dump(mode="json", exclude_none=False)
+    return JSONResponse(status_code=code, content=payload)
+
+
+def error_response(
+    request: Request,
+    code: int = 500,
+    message: str = MSG_INTERNAL_ERROR,
+    data: Any = None,
+) -> JSONResponse:
+    """构造统一错误响应。
+
+    Args:
+        request: 当前请求对象（用于提取 request_id）
+        code: HTTP 状态码
+        message: 错误描述
+        data: 附加错误详情（如校验错误列表、details 等），默认 None
+
+    Returns:
+        JSONResponse: 统一格式的错误响应
     """
     payload = ApiResponse[object](
         code=code,

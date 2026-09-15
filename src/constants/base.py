@@ -1,18 +1,19 @@
-# -*- coding: utf-8 -*-
-"""
-枚举基类
+#!/usr/bin/env python3
+"""可描述枚举基类。
 
-提供可描述枚举类的基类封装
+为枚举成员附加 mark（唯一标识）和 desc（描述信息），
+使枚举可直接与 str/int 比较，并兼容 Pydantic 序列化。
 """
 
 from enum import Enum
 
 
 class BaseEnum(Enum):
-    """
-    可描述的枚举类基建
-    mark: int | str    唯一标识
-    desc: str          描述信息
+    """可描述枚举基类。
+
+    每个成员持有两个属性：
+        mark: 唯一标识（int 或 str），用于数据库存储和序列化
+        desc: 人类可读的描述信息
     """
 
     def __init__(self, mark: int | str, desc: str) -> None:
@@ -21,15 +22,17 @@ class BaseEnum(Enum):
 
     @property
     def mark(self) -> int | str:
+        """枚举唯一标识。"""
         return self._mark
 
     @property
     def value(self) -> str:
-        """重写 value，使枚举可直接赋值给 str 类型字段（如 Pydantic BaseModel）"""
+        """重写 value，使枚举可直接赋值给 str 类型字段（如 Pydantic BaseModel）。"""
         return str(self._mark)
 
     @property
     def desc(self) -> str:
+        """人类可读的描述信息。"""
         return self._desc
 
     def __str__(self) -> str:
@@ -47,7 +50,8 @@ class BaseEnum(Enum):
 
     @classmethod
     def get_all_marks(cls) -> list[int | str]:
-        return [described_enum.mark for described_enum in cls]
+        """获取所有枚举成员的 mark 列表。"""
+        return [member.mark for member in cls]
 
     @classmethod
     def get_all_descs(cls) -> list[str]:
