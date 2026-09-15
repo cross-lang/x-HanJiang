@@ -32,7 +32,7 @@ from src.constants.constants import (
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
 )
-from src.constants.enums import AlertChannel, CommonStatus, UserStatus
+from src.constants.enums import AlertChannel, CommonStatus, HttpMediaType, UserStatus
 
 __all__ = [
     "APP_ID",
@@ -58,4 +58,5 @@ __all__ = [
     "UserStatus",
     "CommonStatus",
     "AlertChannel",
+    "HttpMediaType",
 ]

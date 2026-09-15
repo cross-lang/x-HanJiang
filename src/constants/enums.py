@@ -6,7 +6,7 @@
 """
 
 from enum import Enum
-
+from src.constants.base import BaseEnum
 
 class CommonStatus(Enum):
     """通用启用/停用状态（对齐 roles、permissions 等表的 status 列）。"""
@@ -29,3 +29,36 @@ class AlertChannel(Enum):
     EMAIL = "email"
     DINGTALK = "dingtalk"
     FEISHU = "feishu"
+
+
+class HttpStatus(int, BaseEnum):
+    """HTTP 状态码"""
+
+    OK = 200, "OK"
+    CREATED = 201, "Created"
+    ACCEPTED = 202, "Accepted"
+    NO_CONTENT = 204, "No Content"
+
+    BAD_REQUEST = 400, "Bad Request"
+    UNAUTHORIZED = 401, "Unauthorized"
+    FORBIDDEN = 403, "Forbidden"
+    NOT_FOUND = 404, "Not Found"
+    METHOD_NOT_ALLOWED = 405, "Method Not Allowed"
+    CONFLICT = 409, "Conflict"
+    UNPROCESSABLE_ENTITY = 422, "Unprocessable Entity"
+    TOO_MANY_REQUESTS = 429, "Too Many Requests"
+
+    INTERNAL_SERVER_ERROR = 500, "Internal Server Error"
+    NOT_IMPLEMENTED = 501, "Not Implemented"
+    BAD_GATEWAY = 502, "Bad Gateway"
+    SERVICE_UNAVAILABLE = 503, "Service Unavailable"
+    GATEWAY_TIMEOUT = 504, "Gateway Timeout"
+
+
+class HttpMediaType(Enum):
+    """HTTP 内容类型（Content-Type）。"""
+
+    JSON = "application/json"
+    FILE = "application/octet-stream"
+    FORM_URLENCODED = "application/x-www-form-urlencoded"
+    MULTIPART = "multipart/form-data"

@@ -2,8 +2,7 @@
 """通用全局常量。
 
 集中定义应用信息、环境标识、请求上下文键、响应消息、
-用户字段约束及 HTTP 内容类型等全局常量。
-禁止在业务代码中硬编码这些值。
+用户字段约束等全局常量。禁止在业务代码中硬编码这些值。
 """
 
 # -- 应用信息 -----------------------------------------------------------
@@ -40,8 +39,4 @@ MSG_VALIDATION_ERROR: str = "Validation error"
 MSG_AUTHENTICATION_FAILED: str = "Authentication failed"
 MSG_AUTHORIZATION_DENIED: str = "Permission denied"
 
-# -- HTTP 内容类型 ------------------------------------------------------
-JSON_CONTENT_TYPE: str = "application/json"
-FILE_CONTENT_TYPE: str = "application/octet-stream"
-FORM_URL_ENCODED_CONTENT_TYPE: str = "application/x-www-form-urlencoded"
-MULTIPART_FORM_DATA_CONTENT_TYPE: str = "multipart/form-data"
+
