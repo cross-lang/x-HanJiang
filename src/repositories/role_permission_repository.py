@@ -14,10 +14,8 @@ Classes:
 """
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from src.core.exceptions import DatabaseException
-from src.infras.database import get_cached_database_provider
 from src.models.entities.user_entity import (
     PermissionEntity,
     RolePermissionEntity,
@@ -26,32 +24,11 @@ from src.repositories.base_repository import BaseRepository
 
 
 class RolePermissionRepository(BaseRepository[RolePermissionEntity, int]):
-    """角色权限关联数据访问 SQLAlchemy 实现。
+    """角色权限关联数据访问 SQLAlchemy 实现。"""
 
-    Attributes:
-        session: 数据库会话对象
-    """
+    model_class = RolePermissionEntity
 
-    def __init__(self, session: Session | None = None) -> None:
-        """初始化角色权限关联仓库。"""
-        self.session: Session = session or get_cached_database_provider().get_session_factory()()
-
-    def get_by_id(self, id: int) -> RolePermissionEntity | None:
-        """根据关联 ID 查询。"""
-        stmt = select(RolePermissionEntity).where(RolePermissionEntity.id == id)
-        return self.session.execute(stmt).scalars().first()
-
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[RolePermissionEntity]:
-        """查询所有关联记录（分页）。"""
-        stmt = select(RolePermissionEntity).offset(skip).limit(limit)
-        return list(self.session.execute(stmt).scalars().all())
-
-    def count_all(self) -> int:
-        """统计关联记录总数。"""
-        from sqlalchemy import func
-
-        stmt = select(func.count()).select_from(RolePermissionEntity)
-        return self.session.execute(stmt).scalar() or 0
+    # ── 业务查询 ──────────────────────────────────────────
 
     def get_permission_ids_by_role(self, role_id: int) -> list[int]:
         """查询某角色绑定的全部权限 ID 列表。"""
@@ -102,26 +79,9 @@ class RolePermissionRepository(BaseRepository[RolePermissionEntity, int]):
             raise DatabaseException(message=f"解绑权限失败: {e}") from e
 
     def create(self, entity: RolePermissionEntity) -> RolePermissionEntity:
-        """创建关联记录。"""
+        """创建关联记录（委托 add_permission）。"""
         return self.add_permission(entity.role_id, entity.permission_id)
 
     def update(self, id: int, entity: RolePermissionEntity) -> RolePermissionEntity | None:
-        """更新关联记录（基类接口，关联表通常无需更新）。"""
+        """关联表通常无需更新，仅回读。"""
         return self.get_by_id(id)
-
-    def delete(self, id: int) -> bool:
-        """根据关联 ID 删除记录。"""
-        existing = self.get_by_id(id)
-        if existing is None:
-            return False
-        try:
-            self.session.delete(existing)
-            self.session.flush()
-            return True
-        except Exception as e:
-            self.session.rollback()
-            raise DatabaseException(message=f"删除关联失败: {e}") from e
-
-    def count(self) -> int:
-        """统计关联记录总数（BaseRepository 接口）。"""
-        return self.count_all()

@@ -15,12 +15,9 @@ Classes:
 
 from datetime import datetime
 
-from sqlalchemy import func, inspect, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-from src.core.exceptions import ConflictException, DatabaseException
-from src.infras.database import get_cached_database_provider
+from src.core.exceptions import ConflictException
 from src.models.entities.user_entity import UserEntity
 from src.repositories.base_repository import BaseRepository
 
@@ -31,44 +28,21 @@ class UserRepository(BaseRepository[UserEntity, int]):
     使用 SQLAlchemy ORM 进行数据库操作，支持连接池和事务管理。
     实现了 BaseRepository 定义的全部 CRUD 接口，并扩展查询方法。
     异常处理：唯一约束冲突转换为 ConflictException（HTTP 409）。
-
-    Attributes:
-        session: 数据库会话对象
     """
 
-    def __init__(self, session: Session | None = None) -> None:
-        """初始化用户仓库。
+    model_class = UserEntity
 
-        Args:
-            session: SQLAlchemy 数据库会话（可选，未提供时自动创建）
-        """
-        self.session: Session = session or get_cached_database_provider().get_session_factory()()
+    def _base_query(self):
+        """排除软删除用户。"""
+        return select(UserEntity).where(UserEntity.deleted_at.is_(None))
 
-    def get_by_id(self, id: int, include_deleted: bool = False) -> UserEntity | None:
-        """根据用户 ID 查询用户实体（默认排除软删除）。"""
-        stmt = select(UserEntity).where(UserEntity.id == id)
-        if not include_deleted:
-            stmt = stmt.where(UserEntity.deleted_at.is_(None))
-        return self.session.execute(stmt).scalars().first()
-
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[UserEntity]:
-        """查询所有未删除用户（分页）。"""
-        stmt = (
-            select(UserEntity)
-            .where(UserEntity.deleted_at.is_(None))
-            .offset(skip)
-            .limit(limit)
+    def _handle_integrity_error(self, error, entity):
+        raise ConflictException(
+            message="用户名或邮箱已存在",
+            details={"error": str(error.orig)},
         )
-        return list(self.session.execute(stmt).scalars().all())
 
-    def count_all(self) -> int:
-        """统计未删除用户总数。"""
-        stmt = (
-            select(func.count())
-            .select_from(UserEntity)
-            .where(UserEntity.deleted_at.is_(None))
-        )
-        return self.session.execute(stmt).scalar() or 0
+    # ── 业务查询 ──────────────────────────────────────────
 
     def get_by_username(self, username: str) -> UserEntity | None:
         """根据用户名查询用户（含软删除，用于唯一性校验）。"""
@@ -106,60 +80,7 @@ class UserRepository(BaseRepository[UserEntity, int]):
             )
         if status:
             conditions.append(UserEntity.status == status)
-
-        base = select(UserEntity).where(*conditions)
-        total = (
-            self.session.execute(
-                select(func.count()).select_from(base.subquery())
-            ).scalar()
-            or 0
-        )
-        rows = (
-            self.session.execute(base.offset(skip).limit(limit)).scalars().all()
-        )
-        return list(rows), total
-
-    def create(self, entity: UserEntity) -> UserEntity:
-        """创建新用户。"""
-        try:
-            self.session.add(entity)
-            self.session.flush()
-            return entity
-        except IntegrityError as e:
-            self.session.rollback()
-            raise ConflictException(
-                message="用户名或邮箱已存在", details={"error": str(e.orig)}
-            ) from e
-        except Exception as e:
-            self.session.rollback()
-            raise DatabaseException(message=f"创建用户失败: {e}") from e
-
-    def update(self, id: int, entity: UserEntity) -> UserEntity | None:
-        """更新用户信息（复制非主键字段到已加载实体）。"""
-        existing = self.get_by_id(id)
-        if existing is None:
-            return None
-
-        mapper = inspect(UserEntity).columns.keys()
-        update_data = {
-            k: v
-            for k, v in entity.__dict__.items()
-            if k in mapper and k not in ("id", "created_at")
-        }
-        for key, value in update_data.items():
-            setattr(existing, key, value)
-
-        try:
-            self.session.flush()
-            return existing
-        except IntegrityError as e:
-            self.session.rollback()
-            raise ConflictException(
-                message="用户名或邮箱已被其他用户占用", details={"error": str(e.orig)}
-            ) from e
-        except Exception as e:
-            self.session.rollback()
-            raise DatabaseException(message=f"更新用户失败: {e}") from e
+        return self._paginate(conditions, skip, limit)
 
     def delete(self, id: int) -> bool:
         """软删除用户（设置 deleted_at）。"""
@@ -173,7 +94,3 @@ class UserRepository(BaseRepository[UserEntity, int]):
         except Exception as e:
             self.session.rollback()
             raise DatabaseException(message=f"删除用户失败: {e}") from e
-
-    def count(self) -> int:
-        """统计未删除用户总数（BaseRepository 接口）。"""
-        return self.count_all()

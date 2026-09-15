@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""业务审计日志仓库。"""
+"""
+业务审计日志仓库。
+
+审计日志为只追加流水，不提供更新操作。
+
+Classes:
+    AuditLogRepository: 审计日志数据访问 SQLAlchemy 实现
+"""
 
 from datetime import datetime
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from src.core.exceptions import DatabaseException
-from src.infras.database import get_cached_database_provider
 from src.models.entities.audit_entity import AuditLogEntity
 from src.repositories.base_repository import BaseRepository
 
@@ -15,20 +20,13 @@ from src.repositories.base_repository import BaseRepository
 class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
     """审计日志数据访问实现。"""
 
-    def __init__(self, session: Session | None = None) -> None:
-        self.session: Session = session or get_cached_database_provider().get_session_factory()()
+    model_class = AuditLogEntity
 
-    def get_by_id(self, id: int) -> AuditLogEntity | None:
-        stmt = select(AuditLogEntity).where(AuditLogEntity.id == id)
-        return self.session.execute(stmt).scalars().first()
+    def _base_query(self):
+        """默认按创建时间倒序。"""
+        return select(AuditLogEntity).order_by(AuditLogEntity.created_at.desc())
 
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[AuditLogEntity]:
-        stmt = select(AuditLogEntity).order_by(AuditLogEntity.created_at.desc()).offset(skip).limit(limit)
-        return list(self.session.execute(stmt).scalars().all())
-
-    def count_all(self) -> int:
-        stmt = select(func.count()).select_from(AuditLogEntity)
-        return self.session.execute(stmt).scalar() or 0
+    # ── 业务查询 ──────────────────────────────────────────
 
     def search(
         self,
@@ -40,6 +38,7 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[AuditLogEntity], int]:
+        """按条件搜索审计日志（分页）。"""
         conditions = []
         if entity_type:
             conditions.append(AuditLogEntity.entity_type == entity_type)
@@ -51,31 +50,8 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
             conditions.append(AuditLogEntity.created_at >= start_time)
         if end_time:
             conditions.append(AuditLogEntity.created_at <= end_time)
-
-        base = select(AuditLogEntity).where(*conditions).order_by(AuditLogEntity.created_at.desc())
-        total = self.session.execute(select(func.count()).select_from(base.subquery())).scalar() or 0
-        rows = self.session.execute(base.offset(skip).limit(limit)).scalars().all()
-        return list(rows), total
-
-    def create(self, entity: AuditLogEntity) -> AuditLogEntity:
-        try:
-            self.session.add(entity)
-            self.session.flush()
-            return entity
-        except Exception as e:  # noqa: BLE001
-            self.session.rollback()
-            raise DatabaseException(message=f"创建审计日志失败: {e}") from e
+        return self._paginate(conditions, skip, limit)
 
     def update(self, id: int, entity: AuditLogEntity) -> AuditLogEntity | None:
+        """审计日志不可变更，仅回读。"""
         return self.get_by_id(id)
-
-    def delete(self, id: int) -> bool:
-        existing = self.get_by_id(id)
-        if existing is None:
-            return False
-        self.session.delete(existing)
-        self.session.flush()
-        return True
-
-    def count(self) -> int:
-        return self.count_all()
