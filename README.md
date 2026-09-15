@@ -14,7 +14,7 @@
 
 ## 核心特征
 
-- **标准三层架构** — API 接口层 → 业务逻辑层（Service）→ 数据访问层（Repository），层间依赖严格单向
+- **标准三层架构** — API 接口层（API）→ 业务逻辑层（Service）→ 数据访问层（Repository），层间依赖严格单向
 - **依赖注入容器** — DI 能力，支持自动装配、单例/多例模式、装饰器注册
 - **双配置体系** — 支持 `.env` 环境变量 + `config.yaml` 配置文件双来源，多环境自动切换
 - **统一响应格式** — 所有接口返回 `{ code, message, data, timestamp, request_id }` 标准结构
