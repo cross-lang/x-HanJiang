@@ -250,8 +250,6 @@ class Settings:
         storage: 统一存储配置
     """
 
-    CONFIG_FILE_PATH: Final[str] = "config.yaml"
-
     def __init__(self) -> None:
         """初始化配置。"""
         self._config: dict[str, Any] = self._load_config()
