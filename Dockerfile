@@ -41,7 +41,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 # 复制应用源代码
 COPY --chown=appuser:appuser src/ ./src/
-COPY --chown=appuser:appuser config/ ./config/
+COPY --chown=appuser:appuser config*.yaml ./
 # pyproject.toml 用于 _find_project_root() 定位项目根目录
 COPY --chown=appuser:appuser pyproject.toml ./
 

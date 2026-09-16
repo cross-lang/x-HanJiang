@@ -250,7 +250,7 @@ class Settings:
         storage: 统一存储配置
     """
 
-    CONFIG_FILE_PATH: Final[str] = "config/config.yaml"
+    CONFIG_FILE_PATH: Final[str] = "config.yaml"
 
     def __init__(self) -> None:
         """初始化配置。"""
@@ -393,8 +393,7 @@ class Settings:
             except Exception as e:
                 print(f"Warning: Cannot load config file {env_file}: {e}")
 
-        # 3. 加载 .env 文件（如有）
-        env_dot_file = config_dir / ".env"
+        env_dot_file = project_root / ".env"
         if env_dot_file.exists():
             try:
                 from dotenv import load_dotenv

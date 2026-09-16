@@ -19,7 +19,7 @@ ENV_TESTING: str = "testing"
 ENV_PRODUCTION: str = "production"
 
 # -- 配置文件 -----------------------------------------------------------
-DEFAULT_CONFIG_DIR: str = "config"
+DEFAULT_CONFIG_DIR: str = "."
 DEFAULT_CONFIG_FILE: str = "config.yaml"
 
 # -- 请求上下文 ---------------------------------------------------------

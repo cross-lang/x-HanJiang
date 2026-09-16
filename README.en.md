@@ -33,8 +33,7 @@ The project currently implements core business capabilities including user manag
 
 ```
 x-HanJiang/
-├── config/                  # Configuration files
-│   └── config.yaml          # Main configuration (database/redis/auth/server)
+├── config.yaml              # Main configuration (database/redis/auth/server)
 ├── docs/                    # Project documentation
 │   └── hanjiang.sql         # Database schema (5 tables)
 ├── src/                     # Core business code
@@ -205,7 +204,7 @@ uv sync --no-dev
 
 ### Configuration
 
-Edit `config/config.yaml` to configure the database, Redis, and auth secret:
+Edit `config.yaml` to configure the database, Redis, and auth secret:
 
 ```yaml
 database:

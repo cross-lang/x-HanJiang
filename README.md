@@ -33,10 +33,9 @@
 
 ```
 x-HanJiang/
-├── config/                  # 配置文件
-│   ├── config.yaml          # 默认配置
-│   ├── config.prod.yaml     # 生产环境覆盖配置
-│   └── .env.example         # 环境变量模板
+├── .env.example             # 环境变量模板
+├── config.yaml              # 默认配置
+├── config.prod.yaml         # 生产环境覆盖配置
 ├── docs/                    # 项目文档
 │   └── hanjiang.sql         # 数据库表结构定义（6 张表）
 ├── src/                     # 核心业务代码
@@ -293,7 +292,7 @@ uv sync --no-dev
 
 ### 配置文件
 
-编辑 `config/config.yaml`，配置数据库连接、Redis 与认证密钥：
+编辑 `config.yaml`，配置数据库连接、Redis 与认证密钥：
 
 ```yaml
 database:
