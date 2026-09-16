@@ -132,6 +132,12 @@ class AuthConfig:
 class DatabaseConfig:
     """数据库配置。"""
     enabled: bool = True
+    host: str = "localhost"
+    port: int = 3306
+    root_password: str = ""
+    user: str = "hanjiang"
+    password: str = ""
+    database: str = "hanjiang"
     url: str = "mysql://root:CHANGE_ME@localhost:3306/hanjiang"
     pool_size: int = 5
     max_overflow: int = 10
@@ -144,6 +150,11 @@ class DatabaseConfig:
 class RedisConfig:
     """Redis 配置。"""
     enabled: bool = True
+    host: str = "localhost"
+    port: int = 6379
+    user: str = "default"
+    password: str = ""
+    db: int = 0
     url: str = "redis://:CHANGE_ME@localhost:6379/0"
     pool_size: int = 10
     max_connections: int = 50
@@ -368,6 +379,16 @@ class Settings:
         project_root = _find_project_root()
         config_dir = project_root / DEFAULT_CONFIG_DIR
 
+        # 先加载项目根目录的 .env，使其中的 APP_ENV 可用于选择环境配置。
+        env_dot_file = project_root / ".env"
+        if env_dot_file.exists():
+            try:
+                from dotenv import load_dotenv
+
+                load_dotenv(env_dot_file, override=False)
+            except Exception as e:
+                print(f"Warning: Cannot load .env file {env_dot_file}: {e}")
+
         # 1. 加载默认配置
         default_file = config_dir / "config.yaml"
         if default_file.exists():
@@ -390,15 +411,6 @@ class Settings:
                     self._merge_config(config, env_cfg)
             except Exception as e:
                 print(f"Warning: Cannot load config file {env_file}: {e}")
-
-        env_dot_file = project_root / ".env"
-        if env_dot_file.exists():
-            try:
-                from dotenv import load_dotenv
-
-                load_dotenv(env_dot_file, override=False)
-            except Exception as e:
-                print(f"Warning: Cannot load .env file {env_dot_file}: {e}")
 
     def _load_from_env(self, config: dict[str, Any]) -> None:
         """从环境变量加载配置，覆盖 YAML 和默认值。
@@ -435,6 +447,34 @@ class Settings:
                     section[key] = [v.strip() for v in value.split(",")]
                 else:
                     section[key] = value
+
+        # 将 MySQL/Redis 环境变量映射到结构化配置，并生成连接 URL。
+        database = config["database"]
+        database["host"] = os.environ.get("MYSQL_HOST", database["host"])
+        database["port"] = _to_int(os.environ.get("MYSQL_PORT"), database["port"])
+        database["root_password"] = os.environ.get(
+            "MYSQL_ROOT_PASSWORD", database["root_password"]
+        )
+        database["user"] = os.environ.get("MYSQL_USER", database["user"])
+        database["password"] = os.environ.get("MYSQL_PASSWORD", database["password"])
+        database["database"] = os.environ.get("MYSQL_DATABASE", database["database"])
+        if database["password"]:
+            database["url"] = (
+                f"mysql+pymysql://{database['user']}:{database['password']}"
+                f"@{database['host']}:{database['port']}/{database['database']}"
+            )
+
+        redis = config["redis"]
+        redis["host"] = os.environ.get("REDIS_HOST", redis["host"])
+        redis["port"] = _to_int(os.environ.get("REDIS_PORT"), redis["port"])
+        redis["user"] = os.environ.get("REDIS_USER", redis["user"])
+        redis["password"] = os.environ.get("REDIS_PASSWORD", redis["password"])
+        redis["db"] = _to_int(os.environ.get("REDIS_DB"), redis["db"])
+        if redis["password"]:
+            redis["url"] = (
+                f"redis://{redis['user']}:{redis['password']}"
+                f"@{redis['host']}:{redis['port']}/{redis['db']}"
+            )
 
         # 嵌套存储配置的环境变量
         storage = config.setdefault("storage", {})

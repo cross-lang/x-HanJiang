@@ -19,8 +19,16 @@ services:
       - APP_ENV=${APP_ENV:-production}
       # 必填项：生产环境必须覆盖默认值
       - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?AUTH_SECRET_KEY is required (>=32 chars)}
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-hanjiang}:${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}@mysql:3306/${MYSQL_DATABASE:-hanjiang}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_USER=${MYSQL_USER:-hanjiang}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-hanjiang}
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_USER=${REDIS_USER:-default}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      - REDIS_DB=${REDIS_DB:-0}
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
     depends_on:
       mysql:
@@ -62,6 +70,7 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=caching_sha2_password
+      - --port=${MYSQL_PORT:-3306}
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -90,13 +99,17 @@ services:
   redis:
     image: redis:7-alpine
     container_name: x-HanJiang-redis
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    environment:
+      - REDIS_USER=${REDIS_USER:-default}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+    command: ["redis-server", "--appendonly", "yes", "--port", "${REDIS_PORT:-6379}", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     volumes:
       - redis_data:/data
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "redis-cli -h localhost -p $${REDIS_PORT} --user $${REDIS_USER} -a $${REDIS_PASSWORD} ping"]
       interval: 10s
       timeout: 3s
       retries: 5
