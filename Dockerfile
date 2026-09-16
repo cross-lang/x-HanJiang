@@ -8,8 +8,8 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# 安装 uv 包管理器
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# 安装 uv 包管理器（固定版本确保构建可复现）
+COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /usr/local/bin/uv
 
 # 复制依赖声明文件（含 lock 以支持 --frozen）
 COPY pyproject.toml uv.lock ./
@@ -36,7 +36,8 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app" \
-    APP_ENV=production
+    APP_ENV=production \
+    GUNICORN_WORKERS=4
 
 # 复制应用源代码
 COPY --chown=appuser:appuser src/ ./src/
@@ -56,12 +57,13 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request, socket; socket.setdefaulttimeout(3); urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
 
-# 使用 Gunicorn + Uvicorn Worker 启动
-CMD ["gunicorn", "src.main:app", \
-     "-w", "4", \
-     "-k", "uvicorn.workers.UvicornWorker", \
-     "-b", "0.0.0.0:8000", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "--timeout", "60", \
-     "--graceful-timeout", "30"]
+# 使用 Gunicorn + Uvicorn Worker 启动（shell form 支持环境变量替换）
+CMD gunicorn src.main:app \
+    -w ${GUNICORN_WORKERS:-4} \
+    -k uvicorn.workers.UvicornWorker \
+    -b 0.0.0.0:8000 \
+    --access-logfile - \
+    --error-logfile - \
+    --timeout 60 \
+    --graceful-timeout 30 \
+    --keep-alive 5

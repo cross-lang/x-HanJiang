@@ -2,9 +2,10 @@
 # 使用方法：docker-compose up --build
 #
 # 注意：生产环境部署时：
-#   1. AUTH_SECRET_KEY 必须通过 secrets/环境变量注入，禁用默认占位符
+#   1. AUTH_SECRET_KEY 必须通过环境变量注入，禁用默认占位符
 #   2. 数据库密码同样需要外部注入
 #   3. CORS origins 应限制为可信来源
+#   4. 创建 .env 文件或通过 CI/CD 注入所有 ? required 变量
 
 services:
   app:
@@ -19,16 +20,31 @@ services:
       # 必填项：生产环境必须覆盖默认值
       - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?AUTH_SECRET_KEY is required (>=32 chars)}
       - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-hanjiang}:${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}@mysql:3306/${MYSQL_DATABASE:-hanjiang}
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
     volumes:
       - ./config:/app/config:ro
-      - ./logs:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request, socket; socket.setdefaulttimeout(3); urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 30s
@@ -40,7 +56,7 @@ services:
     image: mysql:8.0
     container_name: x-HanJiang-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpass}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-hanjiang}
       - MYSQL_USER=${MYSQL_USER:-hanjiang}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
@@ -50,32 +66,62 @@ services:
       - --default-authentication-plugin=caching_sha2_password
     volumes:
       - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
     container_name: x-HanJiang-redis
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 5s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   mysql_data:
   redis_data:
+
+networks:
+  backend:
+    driver: bridge
