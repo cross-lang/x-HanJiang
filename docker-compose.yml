@@ -26,7 +26,6 @@ services:
       - MYSQL_DATABASE=${MYSQL_DATABASE:-hanjiang}
       - REDIS_HOST=redis
       - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_USER=${REDIS_USER:-default}
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       - REDIS_DB=${REDIS_DB:-0}
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}

@@ -247,7 +247,7 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "rate_limit": ("RATE_LIMIT_", ["enabled", "per_minute", "per_hour"]),
     "auth": ("AUTH_", ["secret_key", "algorithm", "access_token_expire_minutes", "refresh_token_expire_days"]),
     "database": ("DATABASE_", ["enabled", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
-    "redis": ("REDIS_", ["enabled", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
+    "redis": ("REDIS_", ["enabled", "host", "port", "user", "password", "db", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
     "storage": ("STORAGE_", ["provider"]),
     "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
     "password_reset": ("PASSWORD_RESET_", ["token_expire_minutes", "max_attempts_per_hour", "frontend_url"]),
@@ -398,6 +398,7 @@ class Settings:
             else:
                 base[key] = value
 
+
     def _load_from_yaml(self, config: dict[str, Any]) -> None:
         """从 YAML 文件加载配置。
 
@@ -474,25 +475,22 @@ class Settings:
                 else:
                     section[key] = value
 
-        # 将 MySQL/Redis 环境变量映射到结构化配置，并生成连接 URL。
+        # 数据库连接字段（MYSQL_* 前缀，与 DATABASE_* 配置字段区分）
         database = config["database"]
-        database.pop("url", None)
-        database["host"] = os.environ.get("MYSQL_HOST", database["host"])
-        database["port"] = _to_int(os.environ.get("MYSQL_PORT"), database["port"])
-        database["root_password"] = os.environ.get(
-            "MYSQL_ROOT_PASSWORD", database["root_password"]
-        )
-        database["user"] = os.environ.get("MYSQL_USER", database["user"])
-        database["password"] = os.environ.get("MYSQL_PASSWORD", database["password"])
-        database["database"] = os.environ.get("MYSQL_DATABASE", database["database"])
-
-        redis = config["redis"]
-        redis.pop("url", None)
-        redis["host"] = os.environ.get("REDIS_HOST", redis["host"])
-        redis["port"] = _to_int(os.environ.get("REDIS_PORT"), redis["port"])
-        redis["user"] = os.environ.get("REDIS_USER", redis["user"])
-        redis["password"] = os.environ.get("REDIS_PASSWORD", redis["password"])
-        redis["db"] = _to_int(os.environ.get("REDIS_DB"), redis["db"])
+        if v := os.environ.get("MYSQL_HOST"):
+            database["host"] = v
+        if v := os.environ.get("MYSQL_PORT"):
+            database["port"] = _to_int(v, database["port"])
+        if v := os.environ.get("MYSQL_ROOT_PASSWORD"):
+            database["root_password"] = v
+        if v := os.environ.get("MYSQL_USER"):
+            database["user"] = v
+        if v := os.environ.get("MYSQL_PASSWORD"):
+            database["password"] = v
+        if v := os.environ.get("MYSQL_DATABASE"):
+            database["database"] = v
+        if v := os.environ.get("MYSQL_POOL_SIZE"):
+            database["pool_size"] = _to_int(v, database["pool_size"])
 
         # 嵌套存储配置的环境变量
         storage = config.setdefault("storage", {})

@@ -80,6 +80,52 @@ class TestSettings:
         assert s.redis.db == 2
         assert s.redis.url == "redis://default:redis-password@redis:6380/2"
 
+    def test_local_database_and_redis_environment_overrides(self, monkeypatch):
+        """测试本地开发环境使用 MYSQL_*/REDIS_* 配置。"""
+        monkeypatch.setenv("MYSQL_HOST", "127.0.0.1")
+        monkeypatch.setenv("MYSQL_PORT", "3308")
+        monkeypatch.setenv("MYSQL_USER", "local-user")
+        monkeypatch.setenv("MYSQL_PASSWORD", "local-password")
+        monkeypatch.setenv("MYSQL_DATABASE", "local_db")
+        monkeypatch.setenv("REDIS_HOST", "127.0.0.1")
+        monkeypatch.setenv("REDIS_PORT", "6381")
+        monkeypatch.setenv("REDIS_PASSWORD", "local-redis-password")
+
+        from src.core.config import Settings
+
+        s = Settings()
+
+        assert s.database.url == "mysql+pymysql://local-user:local-password@127.0.0.1:3308/local_db"
+        assert s.redis.url == "redis://default:local-redis-password@127.0.0.1:6381/0"
+
+    def test_env_var_generic_loop_coverage(self, monkeypatch):
+        """DATABASE_*/REDIS_* env vars correctly override config via generic loop."""
+        monkeypatch.setenv("MYSQL_HOST", "prod-mysql")
+        monkeypatch.setenv("MYSQL_PORT", "3307")
+        monkeypatch.setenv("MYSQL_USER", "prod-user")
+        monkeypatch.setenv("MYSQL_PASSWORD", "prod-pass")
+        monkeypatch.setenv("MYSQL_DATABASE", "prod_db")
+        monkeypatch.setenv("MYSQL_POOL_SIZE", "20")
+        monkeypatch.setenv("REDIS_HOST", "prod-redis")
+        monkeypatch.setenv("REDIS_PORT", "6380")
+        monkeypatch.setenv("REDIS_PASSWORD", "redis-pass")
+
+        from src.core.config import Settings
+
+        s = Settings()
+
+        assert s.database.host == "prod-mysql"
+        assert s.database.port == 3307
+        assert s.database.user == "prod-user"
+        assert s.database.password == "prod-pass"
+        assert s.database.database == "prod_db"
+        assert s.database.pool_size == 20
+        assert s.database.url == "mysql+pymysql://prod-user:prod-pass@prod-mysql:3307/prod_db"
+        assert s.redis.host == "prod-redis"
+        assert s.redis.port == 6380
+        assert s.redis.password == "redis-pass"
+        assert s.redis.url == "redis://default:redis-pass@prod-redis:6380/0"
+
     def test_global_singleton(self):
         """测试全局配置单例。"""
         from src.core.config import settings

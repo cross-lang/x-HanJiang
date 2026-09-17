@@ -41,9 +41,9 @@ auth:
 database:
   host: "localhost"
   port: 3306
-  root_password: "change-me-root-password"
-  user: "hanjiang"
-  password: "change-me-user-password"
+  root_password: ""
+  user: "root"
+  password: ""
   database: "hanjiang"
   pool_size: 5
 
@@ -51,7 +51,7 @@ redis:
   host: "localhost"
   port: 6379
   user: "default"
-  password: "change-me-redis-password"
+  password: ""
   db: 0
 
 # ============================================================
