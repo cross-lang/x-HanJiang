@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Database initialization skipped: {e}")
     else:
-        logger.info("DATABASE_URL not configured, database features disabled")
+        logger.info("MySQL connection fields not configured, database features disabled")
 
     yield
 

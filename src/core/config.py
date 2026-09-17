@@ -15,6 +15,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
+from urllib.parse import quote_plus
 
 import yaml
 
@@ -134,16 +135,25 @@ class DatabaseConfig:
     enabled: bool = True
     host: str = "localhost"
     port: int = 3306
-    root_password: str = ""
-    user: str = "hanjiang"
-    password: str = ""
+    root_password: str = "123456"
+    user: str = "root"
+    password: str = "123456"
     database: str = "hanjiang"
-    url: str = "mysql://root:CHANGE_ME@localhost:3306/hanjiang"
     pool_size: int = 5
     max_overflow: int = 10
     pool_timeout: int = 30
     pool_recycle: int = 3600
     echo: bool = False
+
+    @property
+    def url(self) -> str:
+        """根据结构化数据库配置生成 SQLAlchemy 连接串。"""
+        if not self.password:
+            return ""
+        return (
+            f"mysql+pymysql://{quote_plus(self.user)}:{quote_plus(self.password)}"
+            f"@{self.host}:{self.port}/{quote_plus(self.database)}"
+        )
 
 
 @dataclass
@@ -153,13 +163,21 @@ class RedisConfig:
     host: str = "localhost"
     port: int = 6379
     user: str = "default"
-    password: str = ""
+    password: str = "123456"
     db: int = 0
-    url: str = "redis://:CHANGE_ME@localhost:6379/0"
     pool_size: int = 10
     max_connections: int = 50
     decode_responses: bool = True
     socket_timeout: int = 5
+
+    @property
+    def url(self) -> str:
+        """根据结构化 Redis 配置生成连接串。"""
+        if self.password:
+            credentials = f"{quote_plus(self.user)}:{quote_plus(self.password)}@"
+        else:
+            credentials = ""
+        return f"redis://{credentials}{self.host}:{self.port}/{self.db}"
 
 
 @dataclass
@@ -228,8 +246,8 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "cors": ("CORS_", ["enabled", "origins", "allow_credentials", "allow_methods", "allow_headers"]),
     "rate_limit": ("RATE_LIMIT_", ["enabled", "per_minute", "per_hour"]),
     "auth": ("AUTH_", ["secret_key", "algorithm", "access_token_expire_minutes", "refresh_token_expire_days"]),
-    "database": ("DATABASE_", ["enabled", "url", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
-    "redis": ("REDIS_", ["enabled", "url", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
+    "database": ("DATABASE_", ["enabled", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
+    "redis": ("REDIS_", ["enabled", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
     "storage": ("STORAGE_", ["provider"]),
     "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
     "password_reset": ("PASSWORD_RESET_", ["token_expire_minutes", "max_attempts_per_hour", "frontend_url"]),
@@ -316,7 +334,12 @@ class Settings:
             },
             "database": {
                 "enabled": True,
-                "url": "mysql://root:CHANGE_ME@localhost:3306/hanjiang",
+                "host": "localhost",
+                "port": 3306,
+                "root_password": "",
+                "user": "hanjiang",
+                "password": "",
+                "database": "hanjiang",
                 "pool_size": 5,
                 "max_overflow": 10,
                 "pool_timeout": 30,
@@ -325,7 +348,11 @@ class Settings:
             },
             "redis": {
                 "enabled": True,
-                "url": "redis://:CHANGE_ME@localhost:6379/0",
+                "host": "localhost",
+                "port": 6379,
+                "user": "default",
+                "password": "",
+                "db": 0,
                 "pool_size": 10,
                 "max_connections": 50,
                 "decode_responses": True,
@@ -418,7 +445,6 @@ class Settings:
         映射规则：
             APP_ENV       → app_env
             SERVER_HOST   → server.host
-            DATABASE_URL  → database.url
             … 以此类推
         """
         # 顶层 app_env
@@ -450,6 +476,7 @@ class Settings:
 
         # 将 MySQL/Redis 环境变量映射到结构化配置，并生成连接 URL。
         database = config["database"]
+        database.pop("url", None)
         database["host"] = os.environ.get("MYSQL_HOST", database["host"])
         database["port"] = _to_int(os.environ.get("MYSQL_PORT"), database["port"])
         database["root_password"] = os.environ.get(
@@ -458,23 +485,14 @@ class Settings:
         database["user"] = os.environ.get("MYSQL_USER", database["user"])
         database["password"] = os.environ.get("MYSQL_PASSWORD", database["password"])
         database["database"] = os.environ.get("MYSQL_DATABASE", database["database"])
-        if database["password"]:
-            database["url"] = (
-                f"mysql+pymysql://{database['user']}:{database['password']}"
-                f"@{database['host']}:{database['port']}/{database['database']}"
-            )
 
         redis = config["redis"]
+        redis.pop("url", None)
         redis["host"] = os.environ.get("REDIS_HOST", redis["host"])
         redis["port"] = _to_int(os.environ.get("REDIS_PORT"), redis["port"])
         redis["user"] = os.environ.get("REDIS_USER", redis["user"])
         redis["password"] = os.environ.get("REDIS_PASSWORD", redis["password"])
         redis["db"] = _to_int(os.environ.get("REDIS_DB"), redis["db"])
-        if redis["password"]:
-            redis["url"] = (
-                f"redis://{redis['user']}:{redis['password']}"
-                f"@{redis['host']}:{redis['port']}/{redis['db']}"
-            )
 
         # 嵌套存储配置的环境变量
         storage = config.setdefault("storage", {})

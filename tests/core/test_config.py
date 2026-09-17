@@ -54,6 +54,32 @@ class TestSettings:
         assert s.auth.secret_key
         assert s.auth.algorithm == "HS256"
 
+    def test_database_and_redis_environment_overrides(self, monkeypatch):
+        """测试数据库和 Redis 环境变量覆盖默认配置。"""
+        monkeypatch.setenv("MYSQL_HOST", "mysql")
+        monkeypatch.setenv("MYSQL_PORT", "3307")
+        monkeypatch.setenv("MYSQL_USER", "app")
+        monkeypatch.setenv("MYSQL_PASSWORD", "mysql-password")
+        monkeypatch.setenv("MYSQL_DATABASE", "app_db")
+        monkeypatch.setenv("REDIS_HOST", "redis")
+        monkeypatch.setenv("REDIS_PORT", "6380")
+        monkeypatch.setenv("REDIS_PASSWORD", "redis-password")
+        monkeypatch.setenv("REDIS_DB", "2")
+
+        from src.core.config import Settings
+
+        s = Settings()
+
+        assert s.database.host == "mysql"
+        assert s.database.port == 3307
+        assert s.database.url == "mysql+pymysql://app:mysql-password@mysql:3307/app_db"
+        s.database.password = "password with @"
+        assert s.database.url == "mysql+pymysql://app:password+with+%40@mysql:3307/app_db"
+        assert s.redis.host == "redis"
+        assert s.redis.port == 6380
+        assert s.redis.db == 2
+        assert s.redis.url == "redis://default:redis-password@redis:6380/2"
+
     def test_global_singleton(self):
         """测试全局配置单例。"""
         from src.core.config import settings
