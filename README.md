@@ -29,6 +29,18 @@
 - **Docker 部署** — 提供标准 Dockerfile 和 docker-compose.yml，支持 Gunicorn + Uvicorn 高性能部署
 - **数据库支持** — 集成 SQLAlchemy ORM，支持 MySQL 数据库，开箱即用
 
+## Postman API 文档
+
+可直接将 [docs/x-HanJiang.postman-openapi.json](docs/x-HanJiang.postman-openapi.json) 导入 Postman，选择 **Import** 即可生成请求集合。
+
+应用路由或请求模型变更后，执行以下命令重新导出：
+
+```bash
+uv run python scripts/export_openapi.py
+```
+
+导入后可在 Postman 的 collection variables 中将 `http://localhost:8000` 替换为实际服务地址。
+
 ## 项目结构
 
 ```
