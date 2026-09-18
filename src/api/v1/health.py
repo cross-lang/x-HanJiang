@@ -10,38 +10,15 @@ Endpoints:
     GET /version: 版本信息
 """
 
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from src.constants import APP_NAME, MSG_SUCCESS
+from src.api.response import success_response
+from src.constants import APP_NAME
 from src.core.config import settings
-from src.schemas.common import ApiResponse
 from src.schemas.health import HealthResponse, VersionResponse
 
 router = APIRouter(tags=["健康检查"])
-
-
-def _build_success_response(data: object, request: Request, code: int = 200) -> JSONResponse:
-    """构造统一格式的成功响应。
-
-    Args:
-        data: 业务数据
-        request: FastAPI 请求对象（用于取 request_id）
-        code: 业务状态码，默认 200
-
-    Returns:
-        JSONResponse: 标准化包装的响应
-    """
-    payload = ApiResponse[object](
-        code=code,
-        message=MSG_SUCCESS,
-        data=data,
-        timestamp=datetime.now(UTC).isoformat(),
-        request_id=getattr(request.state, "request_id", None),
-    ).model_dump(exclude_none=False)
-    return JSONResponse(status_code=code, content=payload)
 
 
 @router.get(
@@ -72,7 +49,7 @@ async def health_check(request: Request) -> JSONResponse:
     # 注入应用版本
     from src.constants import APP_VERSION
     body = body.model_copy(update={"version": APP_VERSION})
-    return _build_success_response(body.model_dump(), request)
+    return success_response(body.model_dump(), request)
 
 
 def _check_database() -> str:
@@ -124,4 +101,4 @@ def _check_cache() -> str:
 async def version(request: Request) -> JSONResponse:
     """版本信息接口。"""
     body = VersionResponse.current()
-    return _build_success_response(body.model_dump(), request)
+    return success_response(body.model_dump(), request)

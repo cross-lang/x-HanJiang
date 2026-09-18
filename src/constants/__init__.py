@@ -12,6 +12,7 @@
 
 from src.constants.constants import (
     API_PREFIX,
+    APP_DESCRIPTION,
     APP_ID,
     APP_NAME,
     APP_VERSION,
@@ -38,6 +39,7 @@ __all__ = [
     "APP_ID",
     "APP_NAME",
     "APP_VERSION",
+    "APP_DESCRIPTION",
     "API_PREFIX",
     "ENV_DEVELOPMENT",
     "ENV_TESTING",

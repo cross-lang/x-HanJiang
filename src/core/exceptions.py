@@ -26,13 +26,13 @@ Usage:
     register_exception_handlers(app)
 """
 
-import datetime
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from src.api.response import error_response
 from src.constants import MSG_INTERNAL_ERROR, MSG_VALIDATION_ERROR
 
 
@@ -250,42 +250,6 @@ class ExternalServiceException(SystemException):
         super().__init__(message=message, code=502, details=details)
 
 
-def _get_request_id(request: Request) -> str | None:
-    """从请求状态中获取 request_id。
-
-    Args:
-        request: FastAPI 请求对象
-
-    Returns:
-        Optional[str]: 请求 ID，如不存在则返回 None
-    """
-    return getattr(request.state, "request_id", None)
-
-
-def _build_error_response(
-    code: int,
-    message: str,
-    request_id: str | None = None,
-) -> dict[str, Any]:
-    """构建错误响应字典。
-
-    Args:
-        code: HTTP 状态码
-        message: 错误消息
-        request_id: 请求追踪 ID
-
-    Returns:
-        dict[str, Any]: 标准化错误响应字典
-    """
-    return {
-        "code": code,
-        "message": message,
-        "data": None,
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
-        "request_id": request_id,
-    }
-
-
 async def _app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     """处理所有 AppException 及其子类的全局异常处理器。
 
@@ -302,27 +266,24 @@ async def _app_exception_handler(request: Request, exc: AppException) -> JSONRes
     from src.core.config import settings
     from src.core.logger import logger
 
-    request_id: str | None = _get_request_id(request)
+    request_id: str | None = getattr(request.state, "request_id", None)
     log_level: str = "ERROR" if exc.code >= 500 else "WARNING"
     logger.bind(request_id=request_id or "-").log(
         log_level,
         f"{type(exc).__name__}: {exc.message}",
     )
 
-    response_data: dict[str, Any] = _build_error_response(
-        code=exc.code,
-        message=exc.message,
-        request_id=request_id,
-    )
-
     # 仅在非生产环境或 4xx 业务异常时透出 details
     show_details = exc.code < 500 or settings.is_development
+    data: dict[str, Any] | None = None
     if exc.details is not None and show_details:
-        response_data["data"] = {"details": exc.details}
+        data = {"details": exc.details}
 
-    return JSONResponse(
-        status_code=exc.code,
-        content=response_data,
+    return error_response(
+        request=request,
+        code=exc.code,
+        message=exc.message,
+        data=data,
     )
 
 
@@ -340,23 +301,18 @@ async def _validation_exception_handler(
     """
     from src.core.logger import logger
 
-    request_id: str | None = _get_request_id(request)
+    request_id: str | None = getattr(request.state, "request_id", None)
     errors: list[dict[str, Any]] = exc.errors()
 
     logger.bind(request_id=request_id or "-").warning(
         f"Validation error: {errors}"
     )
 
-    response_data: dict[str, Any] = _build_error_response(
+    return error_response(
+        request=request,
         code=422,
         message=MSG_VALIDATION_ERROR,
-        request_id=request_id,
-    )
-    response_data["data"] = {"details": errors}
-
-    return JSONResponse(
-        status_code=422,
-        content=response_data,
+        data={"details": errors},
     )
 
 
@@ -374,18 +330,15 @@ async def _generic_exception_handler(
     """
     from src.core.logger import logger
 
-    request_id: str | None = _get_request_id(request)
+    request_id: str | None = getattr(request.state, "request_id", None)
     logger.bind(request_id=request_id or "-").exception(
         f"Unhandled exception: {exc}"
     )
 
-    return JSONResponse(
-        status_code=500,
-        content=_build_error_response(
-            code=500,
-            message=MSG_INTERNAL_ERROR,
-            request_id=request_id,
-        ),
+    return error_response(
+        request=request,
+        code=500,
+        message=MSG_INTERNAL_ERROR,
     )
 
 

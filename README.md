@@ -337,17 +337,30 @@ storage:
 
 ### 服务启动
 
-#### 方式一：本地开发启动（热重载）
+#### 方式一：CLI 命令启动（推荐）
 
 ```bash
-# 使用 uv（推荐）
-uv run uvicorn src.main:app --reload
+# 启动服务
+uv run x-HanJiang
 
-# 或使用 Python 模块方式
-uv run python -m src.main
+# 启用热重载（开发模式）
+uv run x-HanJiang --reload
+
+# 自定义端口
+uv run x-HanJiang --port 9000
 ```
 
-#### 方式二：Docker 启动
+#### 方式二：uvicorn 直接启动
+
+```bash
+# 本地开发（热重载）
+uv run uvicorn src.main:app --reload
+
+# 生产环境
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
+```
+
+#### 方式三：Docker 启动
 
 ```bash
 docker-compose up --build

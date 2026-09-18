@@ -227,13 +227,30 @@ auth:
 
 ### Run
 
-#### Local Development (hot reload)
+#### Option 1: CLI Command (Recommended)
 
 ```bash
-uv run uvicorn src.main:app --reload
+# Start the server
+uv run x-HanJiang
+
+# With hot reload (development)
+uv run x-HanJiang --reload
+
+# Custom port
+uv run x-HanJiang --port 9000
 ```
 
-#### Docker
+#### Option 2: Uvicorn Direct
+
+```bash
+# Local development (hot reload)
+uv run uvicorn src.main:app --reload
+
+# Production
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
+```
+
+#### Option 3: Docker
 
 ```bash
 docker-compose up --build

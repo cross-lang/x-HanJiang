@@ -8,14 +8,14 @@
 
 Functions:
     create_app: 应用工厂函数，创建并配置 FastAPI 实例
-    run: 命令行启动入口
+    main: 命令行启动入口
 
 Usage:
-    # 开发模式启动
-    uv run python -m src.main
+    # 启动服务
+    uv run x-HanJiang
 
-    # 或使用 uvicorn
-    uv run uvicorn src.main:app --reload
+    # 启用热重载（开发模式）
+    uv run x-HanJiang --reload
 
     # 在代码中使用
     from src.main import app
@@ -178,20 +178,60 @@ def create_app() -> FastAPI:
 app: FastAPI = create_app()
 
 
-def run() -> None:
-    """命令行启动入口。
+def main() -> None:
+    """命令行启动入口（pyproject.toml 中的 entry point）。
 
-    使用 uvicorn 运行应用，开发模式下启用热重载。
-    生产环境建议使用 Gunicorn + Uvicorn Worker 组合。
+    支持通过 CLI 参数控制启动行为：
+        uv run x-HanJiang                # 默认启动
+        uv run x-HanJiang --reload        # 热重载（开发模式）
+        uv run x-HanJiang --port 9000     # 自定义端口
+        uv run x-HanJiang -V              # 查看版本
     """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="x-HanJiang",
+        description="汉匠（HanJiang） — 基于 FastAPI 的生产级 Web 应用框架",
+    )
+    parser.add_argument(
+        "-V", "--version",
+        action="version",
+        version=f"x-HanJiang {APP_VERSION}",
+    )
+    parser.add_argument(
+        "--host",
+        default=settings.server.host,
+        help=f"服务器监听地址（默认 {settings.server.host}）",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=settings.server.port,
+        help=f"服务器监听端口（默认 {settings.server.port}）",
+    )
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="启用热重载（开发模式）",
+    )
+    args = parser.parse_args()
+
+    reload = args.reload or settings.server.debug
+    workers = 1 if reload else settings.server.workers
+
+    logger.info(f"Starting {APP_NAME} v{APP_VERSION}...")
+    logger.info(f"  Address:  http://{args.host}:{args.port}")
+    logger.info(f"  Reload:   {reload}")
+    logger.info(f"  Workers:  {workers}")
+
     uvicorn.run(
         "src.main:app",
-        host=settings.server.host,
-        port=settings.server.port,
-        reload=settings.server.debug,
-        workers=1 if settings.server.debug else settings.server.workers,
+        host=args.host,
+        port=args.port,
+        reload=reload,
+        workers=workers,
     )
 
 
 if __name__ == "__main__":
-    run()
+    main()

@@ -24,6 +24,7 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
 
@@ -270,7 +271,7 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
         status_code: int,
         message: str,
         request_id: str,
-    ) -> Response:
+    ) -> JSONResponse:
         """创建标准化错误响应。"""
         response_data: dict[str, Any] = {
             "code": status_code,
@@ -280,10 +281,9 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
             "request_id": request_id,
         }
 
-        return Response(
-            content=json.dumps(response_data),
+        return JSONResponse(
             status_code=status_code,
-            media_type="application/json",
+            content=response_data,
         )
 
 
