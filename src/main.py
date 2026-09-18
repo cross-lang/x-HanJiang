@@ -29,7 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.dependencies import register_default_bindings
 from src.api.router import api_router
-from src.constants import APP_NAME, APP_VERSION
+from src.constants import APP_NAME, APP_VERSION, APP_DESCRIPTION
 from src.core.config import settings
 from src.core.container import Container
 from src.core.exceptions import register_exception_handlers
@@ -124,7 +124,7 @@ def create_app() -> FastAPI:
     app: FastAPI = FastAPI(
         title=APP_NAME,
         version=APP_VERSION,
-        description="一个基于 FastAPI 框架深度封装的生产级 Python Web 项目",
+        description=APP_DESCRIPTION,
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
