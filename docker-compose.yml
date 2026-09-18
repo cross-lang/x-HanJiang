@@ -1,4 +1,4 @@
-# 寒江（HanJiang）Docker Compose 配置
+# 汉匠（HanJiang）Docker Compose 配置
 # 使用方法：docker-compose up --build
 #
 # 注意：生产环境部署时：

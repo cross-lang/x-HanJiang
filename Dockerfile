@@ -1,4 +1,4 @@
-# 寒江（HanJiang）Dockerfile
+# 汉匠（HanJiang）Dockerfile
 # 多阶段构建：builder（安装依赖）+ runtime（运行应用）
 
 # ==========================================

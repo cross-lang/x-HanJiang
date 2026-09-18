@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">HanJiang (寒江)</h1>
+  <h1 align="center">HanJiang (汉匠)</h1>
   <p align="center">
     <strong>A Production-Grade FastAPI Python Web Project</strong>
   </p>
@@ -12,7 +12,7 @@
 
 ## Introduction
 
-HanJiang (寒江) is a production-grade Python Web project built on top of the FastAPI framework, following industry best engineering practices. It provides a standardized, modular, highly extensible, and maintainable backend service infrastructure, ready to use out of the box for rapid development of enterprise-grade RESTful APIs with multi-environment deployment.
+HanJiang (汉匠) is a production-grade Python Web project built on top of the FastAPI framework, following industry best engineering practices. It provides a standardized, modular, highly extensible, and maintainable backend service infrastructure, ready to use out of the box for rapid development of enterprise-grade RESTful APIs with multi-environment deployment.
 
 The project currently implements core business capabilities including user management, role management, permission management, authentication, and login logging.
 
