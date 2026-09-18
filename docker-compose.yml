@@ -21,7 +21,7 @@ services:
       - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?AUTH_SECRET_KEY is required (>=32 chars)}
       - MYSQL_HOST=mysql
       - MYSQL_PORT=${MYSQL_PORT:-3306}
-      - MYSQL_USER=${MYSQL_USER:-hanjiang}
+      - MYSQL_USER=${MYSQL_USER:-root}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-hanjiang}
       - REDIS_HOST=redis
@@ -63,7 +63,7 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-hanjiang}
-      - MYSQL_USER=${MYSQL_USER:-hanjiang}
+      - MYSQL_USER=${MYSQL_USER:-root}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
     command:
       - --character-set-server=utf8mb4
