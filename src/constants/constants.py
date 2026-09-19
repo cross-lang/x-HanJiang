@@ -7,7 +7,7 @@
 
 # -- 应用信息 -----------------------------------------------------------
 APP_ID: str = "x-HanJiang"
-APP_NAME: str = "汉匠（HanJiang）"
+APP_NAME: str = "汉江（HanJiang）"
 APP_DESCRIPTION: str = "一个基于 FastAPI 框架深度封装的生产级 Python Web 应用框架"
 APP_VERSION: str = "0.1.0"
 

@@ -1,4 +1,4 @@
-# 汉匠（HanJiang）默认配置文件
+# 汉江（HanJiang）默认配置文件
 # 优先级：环境变量 > 环境特定配置(config.{env}.yaml) > 本文件 > 代码默认值
 # 与 .env.example 保持完全一致的配置字段和语义
 

@@ -3,7 +3,7 @@
 """
 依赖注入使用示例
 
-本示例展示如何使用汉匠（HanJiang） 的 DI 容器进行依赖注册和自动注入。
+本示例展示如何使用汉江（HanJiang） 的 DI 容器进行依赖注册和自动注入。
 
 Usage:
     uv run python examples/di_usage.py

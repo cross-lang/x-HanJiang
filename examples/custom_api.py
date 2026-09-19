@@ -3,7 +3,7 @@
 """
 自定义 API 端点示例
 
-本示例展示如何基于汉匠（HanJiang）的三层架构添加自定义 API 端点：
+本示例展示如何基于汉江（HanJiang）的三层架构添加自定义 API 端点：
     1. 在 src/models/ 定义数据模型
     2. 在 src/repositories/ 实现数据访问
     3. 在 src/services/ 实现业务逻辑

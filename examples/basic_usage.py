@@ -3,7 +3,7 @@
 """
 基础使用示例
 
-本示例展示如何导入和使用汉匠（HanJiang） 的核心模块。
+本示例展示如何导入和使用汉江（HanJiang） 的核心模块。
 
 Usage:
     uv run python examples/basic_usage.py

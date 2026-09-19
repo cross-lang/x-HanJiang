@@ -191,7 +191,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         prog="x-HanJiang",
-        description="汉匠（HanJiang） — 基于 FastAPI 的生产级 Web 应用框架",
+        description="汉江（HanJiang） — 基于 FastAPI 的生产级 Web 应用框架",
     )
     parser.add_argument(
         "-V", "--version",
