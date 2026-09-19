@@ -1,12 +1,8 @@
-<p align="center">
-  <h1 align="center">HanJiang (汉匠)</h1>
-  <p align="center">
-    <strong>A Production-Grade FastAPI Python Web Project</strong>
-  </p>
-  <p align="center">
-    <a href="README.md">中文</a> | English
-  </p>
-</p>
+# HanJiang
+
+**A production-grade Python Web project built on top of the FastAPI framework**
+
+[中文](README.md) | English
 
 ---
 
