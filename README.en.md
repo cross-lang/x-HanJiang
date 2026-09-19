@@ -347,3 +347,10 @@ This project is open-sourced under the [MIT License](LICENSE).
 - [SQLAlchemy Documentation](https://docs.sqlalchemy.org/)
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [Uvicorn Documentation](https://www.uvicorn.org/)
+
+## Contact
+
+- **Author**: John Young（夜雨诗来）
+- **Email**: [john.young@foxmail.com](mailto:john.young@foxmail.com)
+- **Gitee**: [https://gitee.com/yeyushilai](https://gitee.com/yeyushilai)
+- **GitHub**: [https://github.com/yeyushilai](https://github.com/yeyushilai)

@@ -533,3 +533,10 @@ uv run python -c "from src.infras.database import init_db; init_db()"
 - [SQLAlchemy 官方文档](https://docs.sqlalchemy.org/)
 - [uv 官方文档](https://docs.astral.sh/uv/)
 - [Uvicorn 官方文档](https://www.uvicorn.org/)
+
+## 联系方式
+
+- **作者**：John Young（夜雨诗来）
+- **邮箱**：[john.young@foxmail.com](mailto:john.young@foxmail.com)
+- **Gitee**：[https://gitee.com/yeyushilai](https://gitee.com/yeyushilai)
+- **GitHub**：[https://github.com/yeyushilai](https://github.com/yeyushilai)
