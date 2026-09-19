@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 """
-登录会话存储（有状态 JWT / 混合会话）
-
-对标 Go 服务的 Redis 登录态维护：
-    SetLoginStatus   -> 登录时写入 login:{user_id} = token（TTL = 刷新令牌有效期）
-    GetLoginStatus   -> 鉴权时校验该用户是否处于登录态
-    ClearLoginStatus -> 登出时删除 login:{user_id}
+登录会话管理模块（有状态 JWT / 混合会话）
 
 JWT 仍作为令牌载体，真正的"是否登录"判据来自 Redis，从而实现即时登出。
 """

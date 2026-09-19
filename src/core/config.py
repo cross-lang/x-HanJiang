@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-应用配置管理
+应用配置管理模块
 
 支持从环境变量和 YAML 配置文件读取配置，使用 dataclass 描述各配置段。
 配置优先级：环境变量 > 环境特定配置(config.{env}.yaml) > 默认配置(config.yaml) > 代码默认值。

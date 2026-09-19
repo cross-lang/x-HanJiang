@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-JWT 令牌工具
+令牌管理模块
 
 基于 PyJWT 实现访问/刷新令牌的签发与校验。
 

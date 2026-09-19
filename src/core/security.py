@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-密码安全工具
+安全工具模块
 
 基于 bcrypt 实现密码哈希与校验，避免引入未安装的 passlib 依赖。
 

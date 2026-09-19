@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-种子数据初始化
+种子数据管理模块
 
 应用启动时检测并自动创建系统内置种子数据：
     1. 超级管理员角色（roles 表，role_type=system，role_code=super_admin）
