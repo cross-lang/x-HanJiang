@@ -1,14 +1,12 @@
 # 汉匠（HanJiang）
 
-**一个基于 FastAPI 框架深度封装的生产级 Python Web 应用框架**
-
 [English](README.en.md) | 中文
 
 ---
 
 ## 项目简介
 
-汉匠（HanJiang）是一个基于 FastAPI 框架深度封装的生产级 Python Web 应用框架，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。开箱即用，支持快速搭建企业级 RESTful API 服务，适配多环境部署。
+`汉匠（HanJiang）`是一个基于 FastAPI 框架深度封装的生产级 Python Web 应用框架，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。开箱即用，支持快速搭建企业级 RESTful API 服务，适配多环境部署。
 
 
 ## 核心特征
