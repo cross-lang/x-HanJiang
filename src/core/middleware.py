@@ -93,7 +93,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """请求日志记录中间件。
+    """全链路请求记录。
 
     全链路请求记录，包括：路径、入参、响应耗时、客户端IP。
     入参日志默认仅在 DEBUG 级别输出，且对敏感字段自动脱敏。
