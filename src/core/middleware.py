@@ -16,7 +16,6 @@ Usage:
     app.add_middleware(RequestLoggingMiddleware)
 """
 
-import datetime
 import json
 import time
 import uuid
@@ -28,10 +27,11 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
 
+from src.api.response import error_response
 from src.constants import REQUEST_ID_HEADER
 from src.core.config import settings
 from src.core.logger import logger
-from src.utils.helpers import mask_sensitive
+from src.utils.helpers import get_client_ip, mask_sensitive
 
 # 敏感请求头黑名单，日志中始终脱敏
 _SENSITIVE_HEADERS: frozenset[str] = frozenset(
@@ -117,14 +117,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """
         start_time: float = time.time()
         request_id: str = getattr(request.state, "request_id", "-")
-        client_ip: str = self._get_client_ip(request)
+        client_ip: str = get_client_ip(request)
 
         # 记录完整 URL（含 query string）与 query 参数
         full_url: str = str(request.url)
         query_params: dict[str, str] = dict(request.query_params)
 
         # 过滤敏感请求头后记录
-        safe_headers = self._mask_headers(dict(request.headers))
+        safe_headers = mask_sensitive(dict(request.headers), keys=list(_SENSITIVE_HEADERS))
         logger.bind(request_id=request_id).info(
             f"Request started: {request.method} {full_url} "
             f"from {client_ip} query={query_params} headers={safe_headers}"
@@ -146,17 +146,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         )
 
         return response
-
-    @staticmethod
-    def _mask_headers(headers: dict[str, str]) -> dict[str, str]:
-        """对敏感请求头进行脱敏。"""
-        masked: dict[str, str] = {}
-        for k, v in headers.items():
-            if k.lower() in _SENSITIVE_HEADERS:
-                masked[k] = "****"
-            else:
-                masked[k] = v
-        return masked
 
     @staticmethod
     async def _safe_read_body(request: Request) -> dict[str, Any] | None:
@@ -212,9 +201,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         if real_ip:
             return real_ip.strip()
 
-        if request.client:
-            return request.client.host
-
         return "unknown"
 
 
@@ -250,41 +236,21 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
             logger.bind(request_id=request_id).warning(
                 f"HTTP exception: {exc.status_code} {exc.detail}"
             )
-            return self._create_error_response(
-                status_code=exc.status_code,
+            return error_response(
+                request=request,
+                code=exc.status_code,
                 message=str(exc.detail),
-                request_id=request_id,
             )
         except Exception as exc:
             request_id = getattr(request.state, "request_id", "-")
             logger.bind(request_id=request_id).exception(
                 f"Unhandled exception: {exc}"
             )
-            return self._create_error_response(
-                status_code=500,
+            return error_response(
+                request=request,
+                code=500,
                 message="Internal server error",
-                request_id=request_id,
             )
-
-    @staticmethod
-    def _create_error_response(
-        status_code: int,
-        message: str,
-        request_id: str,
-    ) -> JSONResponse:
-        """创建标准化错误响应。"""
-        response_data: dict[str, Any] = {
-            "code": status_code,
-            "message": message,
-            "data": None,
-            "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
-            "request_id": request_id,
-        }
-
-        return JSONResponse(
-            status_code=status_code,
-            content=response_data,
-        )
 
 
 def setup_rate_limiter(app: FastAPI) -> Any:

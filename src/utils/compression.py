@@ -13,14 +13,13 @@ from pathlib import Path
 from typing import Any
 
 
-class ZipExtractor:
-    @classmethod
-    def extract_zip(cls, zip_file_path: str | Path, extract_folder: str | Path) -> None:
-        extract_path = Path(extract_folder)
-        extract_path.mkdir(parents=True, exist_ok=True)
+def extract_zip(zip_file_path: str | Path, extract_folder: str | Path) -> None:
+    """解压 ZIP 文件到指定目录。"""
+    extract_path = Path(extract_folder)
+    extract_path.mkdir(parents=True, exist_ok=True)
 
-        with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
-            zip_ref.extractall(extract_path)
+    with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
+        zip_ref.extractall(extract_path)
 
 
 class SevenZipExtractor:

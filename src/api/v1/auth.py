@@ -16,7 +16,7 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import get_auth_service, get_client_ip, get_current_user
+from src.api.dependencies import get_auth_service, get_current_user
 from src.api.response import success_response
 from src.schemas.auth import (
     CurrentUserResponse,
@@ -29,6 +29,7 @@ from src.schemas.auth import (
     VerifyResetTokenResponse,
 )
 from src.services.auth_service import AuthService
+from src.utils.helpers import get_client_ip
 
 router = APIRouter(prefix="/auth", tags=["身份认证"])
 

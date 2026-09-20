@@ -56,199 +56,188 @@ NUM_ARABIC_TO_TRA_CH_MAP: dict[int, str] = {
 }
 
 
-class TextTool:
+def get_same_start_end(pattern: str) -> list[int]:
+    """获取最长前后缀相同的字符位数。"""
+    n = len(pattern)
+    result_list: list[int] = [0] * n
 
-    @classmethod
-    def get_same_start_end(cls, pattern: str) -> list[int]:
-        """获取最长前后缀相同的字符位数"""
-        n = len(pattern)
-        result_list: list[int] = [0] * n
-
-        # pattern为单个字符，认为它没有公共头尾
-        if n <= 1:
-            return result_list
-
-        i = 2
-        while i < n:
-            if pattern[i - 1] == pattern[result_list[i - 1]]:
-                result_list[i] = result_list[i - 1] + 1
-            i += 1
+    if n <= 1:
         return result_list
 
-    @classmethod
-    def match_sub_str(cls, string: str, pattern: str) -> int:
-        """
-            用来在字符串中搜索一个子字符串
-            使用kmp算法
-            string是字符串，pattern是模式字符串
-            返回值为匹配到的第一个字符串的第一个字符的索引，没匹配到返回-1
-            算法时间复杂度O(n)
-        """
-        s_length = len(string)
-        p_length = len(pattern)
-        i = 0  # 指向string
-        j = 0  # 指向pattern
-        next_list = cls.get_same_start_end(pattern)
-        while i < s_length:
-            if string[i] == pattern[j]:  # 匹配
-                if j == p_length - 1:
-                    return i + 1 - p_length  # 子串匹配到尾部，命中，返回匹配的起始位置
-                else:
-                    i += 1
-                    j += 1
+    i = 2
+    while i < n:
+        if pattern[i - 1] == pattern[result_list[i - 1]]:
+            result_list[i] = result_list[i - 1] + 1
+        i += 1
+    return result_list
+
+
+def match_sub_str(string: str, pattern: str) -> int:
+    """使用 KMP 算法在字符串中搜索子串。返回起始索引，未找到返回 -1。"""
+    s_length = len(string)
+    p_length = len(pattern)
+    i = 0
+    j = 0
+    next_list = get_same_start_end(pattern)
+    while i < s_length:
+        if string[i] == pattern[j]:
+            if j == p_length - 1:
+                return i + 1 - p_length
             else:
-                if j == 0:
-                    i += 1  # j已经在串首，说明第一个字符不匹配，不必再回溯子串，主串迭代进1
-                else:
-                    j = next_list[j]  # 失配，j回溯，回溯的目标位置是已经匹配到的子串的头尾公共部分的长度处
-        return -1  # 查找失败
+                i += 1
+                j += 1
+        else:
+            if j == 0:
+                i += 1
+            else:
+                j = next_list[j]
+    return -1
 
-    @classmethod
-    def is_str(cls, value: Any) -> bool:
-        """ 判断变量的值是否为字符串 """
-        return isinstance(value, (str, bytes))
 
-    @classmethod
-    def is_all_chinese(cls, value: str) -> bool:
-        """ 检验是否全是中文字符 """
-        for _char in value:
-            if not u'\u4e00' <= _char <= u'\u9fff':
-                return False
-        return True
+def is_str(value: Any) -> bool:
+    """判断变量的值是否为字符串。"""
+    return isinstance(value, (str, bytes))
 
-    @classmethod
-    def is_contains_chinese(cls, value: str) -> bool:
-        """ 检验是否含有中文字符 """
-        for _char in value:
-            if u'\u4e00' <= _char <= u'\u9fff':
-                return True
-        return False
 
-    @classmethod
-    def is_md5_value(cls, value: str) -> bool:
-        """使用正则表达式检查是否为32个十六进制字符"""
-        md5_pattern = re.compile(r"^[0-9a-fA-F]{32}$")
-        return bool(md5_pattern.match(value))
+def is_all_chinese(value: str) -> bool:
+    """检验是否全是中文字符。"""
+    for _char in value:
+        if not u'\u4e00' <= _char <= u'\u9fff':
+            return False
+    return True
 
-    @classmethod
-    def is_sha1_value(cls, value: str) -> bool:
-        """使用正则表达式检查是否为40个十六进制字符"""
-        sha1_pattern = re.compile(r"^[0-9a-fA-F]{40}$")
-        return bool(sha1_pattern.match(value))
 
-    @classmethod
-    def is_sha256_value(cls, value: str) -> bool:
-        """使用正则表达式检查是否为64个十六进制字符"""
-        sha256_pattern = re.compile(r"^[0-9a-fA-F]{64}$")
-        return bool(sha256_pattern.match(value))
+def is_contains_chinese(value: str) -> bool:
+    """检验是否含有中文字符。"""
+    for _char in value:
+        if u'\u4e00' <= _char <= u'\u9fff':
+            return True
+    return False
 
-    @classmethod
-    def calculate_crc32(cls, value: str) -> int:
-        crc32_value = zlib.crc32(value.encode("utf-8"))
-        return crc32_value
 
-    @classmethod
-    def calculate_md5(cls, value: str) -> str:
-        md5_hash = hashlib.md5()
-        md5_hash.update(value.encode("utf-8"))
-        return md5_hash.hexdigest()
+def is_md5_value(value: str) -> bool:
+    """检查是否为 32 个十六进制字符（MD5）。"""
+    md5_pattern = re.compile(r"^[0-9a-fA-F]{32}$")
+    return bool(md5_pattern.match(value))
 
-    @classmethod
-    def calculate_sha1(cls, value: str) -> str:
-        sha1_hash = hashlib.sha1()
-        sha1_hash.update(value.encode("utf-8"))
-        return sha1_hash.hexdigest()
 
-    @classmethod
-    def calculate_sha256(cls, value: str) -> str:
-        sha256_hash = hashlib.sha256()
-        sha256_hash.update(value.encode("utf-8"))
-        return sha256_hash.hexdigest()
+def is_sha1_value(value: str) -> bool:
+    """检查是否为 40 个十六进制字符（SHA1）。"""
+    sha1_pattern = re.compile(r"^[0-9a-fA-F]{40}$")
+    return bool(sha1_pattern.match(value))
 
-    @staticmethod
-    def get_char_max_index(text: str, char: str) -> int:
-        """获取文本中某一个字符的最大索引"""
-        return max((i for i, _ in enumerate(text) if _ == char))
 
-    @staticmethod
-    def string_similar(str1: str, str2: str) -> float:
-        """计算文本相似度"""
-        return difflib.SequenceMatcher(None, str1, str2).quick_ratio()
+def is_sha256_value(value: str) -> bool:
+    """检查是否为 64 个十六进制字符（SHA256）。"""
+    sha256_pattern = re.compile(r"^[0-9a-fA-F]{64}$")
+    return bool(sha256_pattern.match(value))
 
-    @staticmethod
-    def convert_ch_to_arabic(text: str) -> str:
-        """将文本中的汉字数字转换为拼音数字"""
-        return (
-            "".join(
-                (
-                    str(NUM_CH_TO_ARABIC_MAP.get(_))
-                    if _ in NUM_CH_TO_ARABIC_MAP.keys() else _
-                    for _ in text
+
+def calculate_crc32(value: str) -> int:
+    """计算 CRC32 值。"""
+    return zlib.crc32(value.encode("utf-8"))
+
+
+def calculate_md5(value: str) -> str:
+    """计算字符串的 MD5 哈希。"""
+    md5_hash = hashlib.md5()
+    md5_hash.update(value.encode("utf-8"))
+    return md5_hash.hexdigest()
+
+
+def calculate_sha1(value: str) -> str:
+    """计算字符串的 SHA1 哈希。"""
+    sha1_hash = hashlib.sha1()
+    sha1_hash.update(value.encode("utf-8"))
+    return sha1_hash.hexdigest()
+
+
+def calculate_sha256(value: str) -> str:
+    """计算字符串的 SHA256 哈希。"""
+    sha256_hash = hashlib.sha256()
+    sha256_hash.update(value.encode("utf-8"))
+    return sha256_hash.hexdigest()
+
+
+def get_char_max_index(text: str, char: str) -> int:
+    """获取文本中某字符的最大索引。"""
+    return max((i for i, _ in enumerate(text) if _ == char))
+
+
+def string_similar(str1: str, str2: str) -> float:
+    """计算文本相似度。"""
+    return difflib.SequenceMatcher(None, str1, str2).quick_ratio()
+
+
+def convert_ch_to_arabic(text: str) -> str:
+    """将文本中的汉字数字转换为阿拉伯数字。"""
+    return (
+        "".join(
+            (
+                str(NUM_CH_TO_ARABIC_MAP.get(_))
+                if _ in NUM_CH_TO_ARABIC_MAP.keys() else _
+                for _ in text
+            )
+        )
+    )
+
+
+def hanzi_to_pinyin(hanzi_name: str) -> str:
+    """汉字转为拼音（基础版）。"""
+    return (
+        "".join(
+            (
+                pinyin_ls[0]
+                for pinyin_ls
+                in pinyin(
+                    hanzi_name,
+                    style=Style.NORMAL,
+                    errors='ignore',
+                    strict=False,
+                    heteronym=True
                 )
             )
         )
+    )
 
-    @staticmethod
-    def hanzi_to_pinyin(hanzi_name: str) -> str:
-        """汉字转为拼音（基础版）"""
-        return (
-            "".join(
-                (
-                    pinyin_ls[0]
-                    for pinyin_ls
-                    in pinyin(
-                        hanzi_name,
-                        style=Style.NORMAL,
-                        errors='ignore',
-                        strict=False,
-                        heteronym=True
-                    )
+
+def advanced_hanzi_to_pinyin(hanzi_name: str) -> str:
+    """汉字转为拼音（高级版，阿拉伯数字先转汉字再转拼音）。"""
+    str_arabic_list = [str(_) for _ in NUM_ARABIC_TO_TRA_CH_MAP.keys()]
+
+    return (
+        "".join(
+            (
+                pinyin_ls[0]
+                for pinyin_ls
+                in pinyin(
+                    "".join(
+                        (
+                            NUM_ARABIC_TO_TRA_CH_MAP[int(_)]
+                            if _.isdigit() and _ in str_arabic_list else _
+                            for _ in hanzi_name
+                        )
+                    ),
+                    style=Style.NORMAL,
+                    errors='ignore',
+                    strict=False,
+                    heteronym=True
                 )
             )
         )
-
-    @staticmethod
-    def advanced_hanzi_to_pinyin(hanzi_name: str) -> str:
-        """汉字转为拼音（高级版）
-
-        高级特色：
-        1.汉字中如果有阿拉伯数字，则将阿拉伯数字先转为汉字数字，而后再转为汉字拼音
-        """
-        str_arabic_list = [str(_) for _ in NUM_ARABIC_TO_TRA_CH_MAP.keys()]
-
-        return (
-            "".join(
-                (
-                    pinyin_ls[0]
-                    for pinyin_ls
-                    in pinyin(
-                        "".join(
-                            (
-                                NUM_ARABIC_TO_TRA_CH_MAP[int(_)]
-                                if _.isdigit() and _ in str_arabic_list else _
-                                for _ in hanzi_name
-                            )
-                        ),
-                        style=Style.NORMAL,
-                        errors='ignore',
-                        strict=False,
-                        heteronym=True
-                    )
-                )
-            )
-        )
+    )
 
 
 if __name__ == '__main__':
-    print(TextTool.is_str(u"xxx"))
-    print(TextTool.is_contains_chinese("我们中国ss"))
-    print(TextTool.is_all_chinese("我们中国ss"))
-    print(TextTool.is_contains_chinese("ss"))
-    print(TextTool.is_all_chinese("ss"))
-    print(TextTool.calculate_crc32("106.75.54.33"))
-    print(TextTool.calculate_crc32("2.57.122.123"))
-    print(TextTool.calculate_md5("2.57.122.123"))
-    print(TextTool.calculate_sha1("2.57.122.123"))
-    print(TextTool.calculate_sha256("2.57.122.123"))
-    print(TextTool.is_md5_value("7daad22ca20b7fef23fea40ba37d0315"))
-    print(TextTool.is_sha256_value("045bb77ae9f41e4e8df7681af68c7ad4ede3ebc27dbd9dfbf79e3bdc674023f3"))
+    print(is_str(u"xxx"))
+    print(is_contains_chinese("我们中国ss"))
+    print(is_all_chinese("我们中国ss"))
+    print(is_contains_chinese("ss"))
+    print(is_all_chinese("ss"))
+    print(calculate_crc32("106.75.54.33"))
+    print(calculate_crc32("2.57.122.123"))
+    print(calculate_md5("2.57.122.123"))
+    print(calculate_sha1("2.57.122.123"))
+    print(calculate_sha256("2.57.122.123"))
+    print(is_md5_value("7daad22ca20b7fef23fea40ba37d0315"))
+    print(is_sha256_value("045bb77ae9f41e4e8df7681af68c7ad4ede3ebc27dbd9dfbf79e3bdc674023f3"))

@@ -16,31 +16,29 @@ import hmac
 AUTH_API_SECRETKEY: str = ""
 
 
-class AuthFunc:
-    """ 简单接口鉴权 """
+def _calc_token(timestr: str) -> str:
+    """token 计算方式，使用 HMAC-SHA256。"""
+    return hmac.new(
+        AUTH_API_SECRETKEY.encode("utf-8"),
+        timestr.encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest()
 
-    @classmethod
-    def _calc_token(cls, timestr: str) -> str:
-        """token计算方式，使用 HMAC-SHA256"""
-        return hmac.new(
-            AUTH_API_SECRETKEY.encode("utf-8"),
-            timestr.encode("utf-8"),
-            hashlib.sha256
-        ).hexdigest()
 
-    @classmethod
-    def gen_token(cls) -> str:
-        """生成token"""
-        timestr = datetime.datetime.now().strftime("%Y%m%d%H")
-        return cls._calc_token(timestr)
+def gen_token() -> str:
+    """生成 token。"""
+    timestr = datetime.datetime.now().strftime("%Y%m%d%H")
+    return _calc_token(timestr)
 
-    @classmethod
-    def verify_token(cls, token: str) -> bool:
-        """验证token"""
-        # 上一小时的token在这一小时的前5分钟内仍然有效
-        token_expire_delay = 5
-        now = datetime.datetime.now()
-        tokens: set[datetime.datetime] = {now}
-        if now.minute <= token_expire_delay:
-            tokens.add(now - datetime.timedelta(hours=1))
-        return token in {cls._calc_token(dt.strftime("%Y%m%d%H")) for dt in tokens}
+
+def verify_token(token: str) -> bool:
+    """验证 token。
+
+    上一小时的 token 在这一小时的前 5 分钟内仍然有效。
+    """
+    token_expire_delay = 5
+    now = datetime.datetime.now()
+    tokens: set[datetime.datetime] = {now}
+    if now.minute <= token_expire_delay:
+        tokens.add(now - datetime.timedelta(hours=1))
+    return token in {_calc_token(dt.strftime("%Y%m%d%H")) for dt in tokens}

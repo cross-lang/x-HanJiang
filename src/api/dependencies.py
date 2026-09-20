@@ -32,6 +32,7 @@ from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
 from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
+from src.utils.helpers import get_client_ip
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -78,14 +79,6 @@ def get_db_session() -> Generator[Session, None, None]:
         raise
     finally:
         session.close()
-
-
-def get_client_ip(request: Request) -> str | None:
-    """获取客户端真实 IP（优先代理头）。"""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else None
 
 
 def get_user_repository(

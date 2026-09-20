@@ -12,20 +12,17 @@ import time
 import secrets
 
 
-class IDGenerator:
+def gen_uuid() -> str:
+    """生成 UUID4 字符串。"""
+    return str(uuid.uuid4())
 
-    @classmethod
-    def gen_uuid(cls) -> str:
-        new_uuid = uuid.uuid4()
-        return str(new_uuid)
 
-    @classmethod
-    def gen_timestamp_id(cls) -> int:
-        # microseconds since epoch (approx) + small random suffix
-        micros = time.time_ns() // 1_000
-        return int(micros) + secrets.randbelow(9000) + 1000
+def gen_timestamp_id() -> int:
+    """生成基于时间戳的唯一 ID（微秒级 + 随机后缀）。"""
+    micros = time.time_ns() // 1_000
+    return int(micros) + secrets.randbelow(9000) + 1000
 
 
 if __name__ == '__main__':
-    print(IDGenerator.gen_uuid())
-    print(IDGenerator.gen_timestamp_id())
+    print(gen_uuid())
+    print(gen_timestamp_id())

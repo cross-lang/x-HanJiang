@@ -15,14 +15,11 @@ _IP_RE: re.Pattern[str] = re.compile(
 _MAC_RE: re.Pattern[str] = re.compile(r"^([0-9a-fA-F]{2}[:]){5}[0-9a-fA-F]{2}$")
 
 
-class ReTool:
+def match_ip() -> re.Pattern[str]:
+    """匹配 IP 地址的正则模式。"""
+    return _IP_RE
 
-    @classmethod
-    def match_ip(cls) -> re.Pattern[str]:
-        """ 匹配IP地址 """
-        return _IP_RE
 
-    @classmethod
-    def match_mac(cls) -> re.Pattern[str]:
-        """ 匹配MAC地址 """
-        return _MAC_RE
+def match_mac() -> re.Pattern[str]:
+    """匹配 MAC 地址的正则模式。"""
+    return _MAC_RE

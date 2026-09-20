@@ -13,7 +13,6 @@ Usage:
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Final
 from urllib.parse import quote_plus
 
@@ -25,34 +24,18 @@ from src.constants import (
     ENV_PRODUCTION,
     ENV_TESTING,
 )
+from src.utils.convert import to_bool, to_float, to_int
+from src.utils.helpers import find_project_root
 
 
 # ============================================================
-# 辅助函数
+# 辅助函数（已迁移至 src.utils，此处保留向后兼容别名）
 # ============================================================
 
-def _to_bool(value: str | None) -> bool:
-    """将字符串转换为布尔值。"""
-    return value.lower() == "true" if value else False
-
-
-def _to_int(value: str | None, default: int = 0) -> int:
-    """将字符串转换为整数。"""
-    return int(value) if value else default
-
-
-def _to_float(value: str | None, default: float = 0.0) -> float:
-    """将字符串转换为浮点数。"""
-    return float(value) if value else default
-
-
-def _find_project_root() -> Path:
-    """向上查找项目根目录（包含 pyproject.toml 的目录）。"""
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").exists():
-            return parent
-    return current.parent.parent
+_to_bool = to_bool
+_to_int = to_int
+_to_float = to_float
+_find_project_root = find_project_root
 
 
 # ============================================================

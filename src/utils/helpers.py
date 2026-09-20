@@ -7,10 +7,12 @@
     - 客户端 IP 提取
     - 敏感数据脱敏
     - 时间戳格式化
+    - 项目根目录定位
 """
 
 import uuid
 from datetime import UTC
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request
@@ -92,3 +94,22 @@ def datetime_now_iso() -> str:
     from datetime import datetime
 
     return datetime.now(UTC).isoformat()
+
+
+def find_project_root(marker: str = "pyproject.toml") -> Path:
+    """从当前文件位置向上查找项目根目录。
+
+    逐级向上遍历父目录，返回第一个包含 *marker* 文件的目录；
+    若未找到，则回退到 ``<当前文件>/../../``（即 src 的上两级）。
+
+    Args:
+        marker: 用于标识项目根目录的文件名，默认 ``pyproject.toml``
+
+    Returns:
+        Path: 项目根目录的绝对路径
+    """
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / marker).exists():
+            return parent
+    return current.parent.parent
