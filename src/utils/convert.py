@@ -9,7 +9,6 @@
 """
 
 import json
-import xmltodict
 
 from typing import Any
 
@@ -40,6 +39,8 @@ def to_float(value: str | None, default: float = 0.0) -> float:
 
 def xml_file_to_json_file(xml_file: str, json_file: str) -> dict[str, Any] | None:
     """将 xml 格式文件转为 json 格式文件（python 对象）。"""
+    import xmltodict
+
     with open(xml_file, mode="r", encoding="utf-8") as f, open(json_file, "w", encoding="utf-8") as f1:
         order_dict = xmltodict.parse(f.read(), encoding="utf-8")
         common_dict: dict[str, Any] = json.loads(json.dumps(order_dict, ensure_ascii=False))
@@ -49,6 +50,8 @@ def xml_file_to_json_file(xml_file: str, json_file: str) -> dict[str, Any] | Non
 
 def xml_data_to_json_data(xml_data: str) -> dict[str, Any]:
     """将 xml 格式数据转为 json 格式数据。"""
+    import xmltodict
+
     order_dict = xmltodict.parse(xml_data, encoding="utf-8")
     return json.loads(json.dumps(order_dict, ensure_ascii=False))
 
