@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 
 - Standard three-layer architecture (API → Service → Repository) with strictly unidirectional dependencies
-- Dependency injection container with auto-wiring, singleton/transient lifecycle, and decorator registration
+- FastAPI Depends-based dependency injection with layered resolution (API → Service → Repository)
 - Dual configuration system supporting `.env` environment variables and `config.yaml` files with automatic multi-environment switching
 - Unified response format: `{ code, message, data, timestamp, request_id }`
 - Global exception handling with custom exception hierarchy (Business 4xx / System 5xx)

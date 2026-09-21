@@ -7,7 +7,6 @@ FastAPI 依赖注入模块
 
 Functions:
     get_request_id: 获取当前请求 ID
-    get_container: 获取 DI 容器实例
     get_pagination: 获取分页参数
     get_db_session: 获取数据库会话（FastAPI 依赖）
     get_user_service: 获取用户服务实例
@@ -20,7 +19,6 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from src.core.container import Container
 from src.core.exceptions import AuthorizationException
 from src.infras.email import EmailProvider, get_cached_email_provider
 from src.infras.database import get_cached_database_provider
@@ -41,14 +39,6 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 def get_request_id(request: Request) -> str | None:
     """从请求状态中获取当前请求 ID。"""
     return getattr(request.state, "request_id", None)
-
-
-def get_container() -> Container:
-    """获取全局 DI 容器实例。
-
-    用于在 endpoint 中按需获取已注册的组件（如缓存、外部服务等）。
-    """
-    return Container.get_instance()
 
 
 def get_pagination(
@@ -268,17 +258,4 @@ def get_operator_context(
     }
 
 
-def register_default_bindings(container: Container) -> None:
-    """向 DI 容器注册默认组件。
 
-    由 main.create_app 在应用启动时调用。
-    """
-    from src.core.container import Lifecycle
-    from src.repositories.user_repository import UserRepository
-    from src.services.auth_service import AuthService
-    from src.services.user_service import UserService
-
-    # Repository 与 Service 都是请求作用域（每次请求创建新实例，避免共享会话）
-    container.register(UserRepository, UserRepository, Lifecycle.TRANSIENT)
-    container.register(UserService, UserService, Lifecycle.TRANSIENT)
-    container.register(AuthService, AuthService, Lifecycle.TRANSIENT)

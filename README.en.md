@@ -8,7 +8,7 @@
 
 HanJiang (汉江) is a production-grade Python Web application framework built on top of FastAPI, following industry best engineering practices. It provides a standardized, modular, highly extensible, and maintainable backend service infrastructure.
 
-The project is ready to use out of the box, featuring a standard three-layer architecture (API → Service → Repository), dependency injection container, dual configuration system, unified authentication with RBAC access control, structured logging, business audit, S3-compatible object storage, and idempotent seed data initialization. It enables rapid development of enterprise-grade RESTful APIs suitable for local development, testing, and multi-environment production deployment.
+The project is ready to use out of the box, featuring a standard three-layer architecture (API → Service → Repository), FastAPI native dependency injection, dual configuration system, unified authentication with RBAC access control, structured logging, business audit, S3-compatible object storage, and idempotent seed data initialization. It enables rapid development of enterprise-grade RESTful APIs suitable for local development, testing, and multi-environment production deployment.
 
 ## Quick Start
 
@@ -202,7 +202,6 @@ x-HanJiang/
 │   │   └── constants.py      # Global constant definitions
 │   ├── core/                 # Core support modules
 │   │   ├── config.py         # Configuration loading and parsing
-│   │   ├── container.py      # Dependency injection container
 │   │   ├── exceptions.py     # Custom exceptions and global exception handling
 │   │   ├── logger.py         # Logger initialization (loguru)
 │   │   ├── middleware.py     # Middleware (request ID, logging, CORS, rate limiting)
@@ -304,7 +303,6 @@ flowchart LR
   API --> Schemas[schemas]
   API --> Services[services]
 
-  Dependencies --> Container[core.container<br/>Dependency Injection]
   Dependencies --> Services
   Services --> Repositories[repositories]
   Services --> Schemas
@@ -325,7 +323,7 @@ flowchart LR
 
   class Main,Router entry;
   class API,Dependencies,Services app;
-  class Core,Infra,Container,Constants support;
+  class Core,Infra,Constants support;
   class Repositories,Entities,Database,Schemas data;
 ```
 

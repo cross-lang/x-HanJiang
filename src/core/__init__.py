@@ -5,17 +5,10 @@
     - config: 配置管理
     - logger: 日志管理
     - exceptions: 异常处理
-    - container: 依赖注入容器
     - middleware: HTTP 中间件
 """
 
 from src.core.config import Settings, settings
-from src.core.container import (
-    CircularDependencyError,
-    Container,
-    DependencyNotFoundError,
-    Lifecycle,
-)
 from src.core.exceptions import (
     AppException,
     AuthenticationException,
@@ -48,10 +41,6 @@ __all__ = [
     "SystemException",
     "ValidationException",
     "register_exception_handlers",
-    "Container",
-    "DependencyNotFoundError",
-    "CircularDependencyError",
-    "Lifecycle",
     "RequestIDMiddleware",
     "AuthMiddleware",
 ]

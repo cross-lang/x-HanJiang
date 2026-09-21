@@ -8,7 +8,7 @@
 
 `汉江（HanJiang）`是一个基于 FastAPI 框架深度封装的生产级 Python Web 应用框架，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。
 
-项目开箱即用，具备标准三层架构（API → Service → Repository）、依赖注入容器、双配置体系、统一鉴权与 RBAC 权限控制、结构化日志、业务审计、S3 兼容对象存储、种子数据自动初始化等能力，支持快速搭建企业级 RESTful API 服务，适配本地开发、测试与多环境生产部署。
+项目开箱即用，具备标准三层架构（API → Service → Repository）、FastAPI 原生依赖注入、双配置体系、统一鉴权与 RBAC 权限控制、结构化日志、业务审计、S3 兼容对象存储、种子数据自动初始化等能力，支持快速搭建企业级 RESTful API 服务，适配本地开发、测试与多环境生产部署。
 
 ## 快速开始
 
@@ -202,7 +202,6 @@ x-HanJiang/
 │   │   └── constants.py      # 全局常量定义
 │   ├── core/                 # 核心支撑模块
 │   │   ├── config.py         # 配置加载与解析
-│   │   ├── container.py      # 依赖注入容器
 │   │   ├── exceptions.py     # 自定义异常与全局异常处理
 │   │   ├── logger.py         # 日志初始化（loguru）
 │   │   ├── middleware.py     # 中间件（请求ID、日志、CORS、限流）
@@ -304,7 +303,6 @@ flowchart LR
   API --> Schemas[schemas]
   API --> Services[services]
 
-  Dependencies --> Container[core.container<br/>依赖注入]
   Dependencies --> Services
   Services --> Repositories[repositories]
   Services --> Schemas
@@ -325,7 +323,7 @@ flowchart LR
 
   class Main,Router entry;
   class API,Dependencies,Services app;
-  class Core,Infra,Container,Constants support;
+  class Core,Infra,Constants support;
   class Repositories,Entities,Database,Schemas data;
 ```
 

@@ -27,11 +27,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.dependencies import register_default_bindings
 from src.api.router import api_router
 from src.constants import APP_NAME, APP_VERSION, APP_DESCRIPTION
 from src.core.config import settings
-from src.core.container import Container
 from src.core.exceptions import register_exception_handlers
 from src.core.logger import logger, setup_logging
 from src.core.middleware import (
@@ -165,10 +163,6 @@ def create_app() -> FastAPI:
         )
     except Exception as e:
         logger.warning(f"Rate limiter setup failed (slowapi not installed?): {e}")
-
-    # 注册 DI 默认绑定
-    container = Container.get_instance()
-    register_default_bindings(container)
 
     app.include_router(api_router)
 
