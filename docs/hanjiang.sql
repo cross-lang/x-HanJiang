@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 汉江（HanJiang） - 数据库建表脚本
 -- 数据库: MySQL 8.0+  |  数据库名: hanjiang_dev  |  字符集: utf8mb4
--- 生成时间: 2026-09-10
+-- 生成时间: 2026-09-23
 -- ============================================================================
 
 CREATE DATABASE IF NOT EXISTS `hanjiang_dev` DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_general_ci;
@@ -105,5 +105,45 @@ CREATE TABLE `audit_logs` (
     KEY `idx_audit_operator` (`operator_id`),
     KEY `idx_audit_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务审计日志表';
+
+-- 通知发送记录表
+DROP TABLE IF EXISTS `notification_records`;
+CREATE TABLE `notification_records` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `event_type` VARCHAR(64) NOT NULL COMMENT '事件类型',
+    `channel` VARCHAR(32) NOT NULL COMMENT '发送渠道',
+    `recipient` VARCHAR(256) NOT NULL COMMENT '接收人',
+    `subject` VARCHAR(512) NOT NULL DEFAULT '' COMMENT '通知主题',
+    `content` TEXT NOT NULL COMMENT '渲染后正文',
+    `status` VARCHAR(16) NOT NULL DEFAULT 'pending' COMMENT '发送状态',
+    `retry_count` BIGINT NOT NULL DEFAULT 0 COMMENT '已重试次数',
+    `max_retries` BIGINT NOT NULL DEFAULT 3 COMMENT '最大重试次数',
+    `error_message` TEXT NULL COMMENT '错误信息',
+    `metadata_json` TEXT NULL COMMENT '扩展元数据 JSON',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `sent_at` DATETIME NULL COMMENT '发送时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_event_type` (`event_type`),
+    KEY `idx_channel` (`channel`),
+    KEY `idx_status` (`status`),
+    KEY `idx_status_retry` (`status`, `retry_count`),
+    KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知发送记录表';
+
+-- 用户通知渠道配置表
+DROP TABLE IF EXISTS `user_notification_configs`;
+CREATE TABLE `user_notification_configs` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `channel` VARCHAR(32) NOT NULL COMMENT '通知渠道（email/sms/dingtalk/feishu）',
+    `recipient` VARCHAR(256) NOT NULL COMMENT '渠道接收人标识',
+    `enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    UNIQUE KEY `uk_user_channel` (`user_id`, `channel`),
+    CONSTRAINT `fk_unc_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户通知渠道配置表';
 
 SET FOREIGN_KEY_CHECKS = 1;

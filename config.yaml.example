@@ -100,3 +100,23 @@ password_reset:
   max_attempts_per_hour: 5
   # 前端重置密码页面 URL（邮件中的链接会指向此地址）
   frontend_url: "http://localhost:3000"
+
+# ============================================================
+# 通知渠道配置
+# 支持的渠道：email（复用 SMTP 配置）、dingtalk、feishu、sms
+# ============================================================
+notification:
+  enabled: true
+  # 重试 Worker 轮询间隔（秒）
+  retry_interval_seconds: 60
+  # 钉钉机器人 Webhook（留空则不启用）
+  dingtalk_webhook: ""
+  dingtalk_secret: ""
+  # 飞书机器人 Webhook（留空则不启用）
+  feishu_webhook: ""
+  feishu_secret: ""
+  # 短信（留空则不启用，需接入 SMS SDK）
+  sms_access_key: ""
+  sms_secret_key: ""
+  sms_sign_name: ""
+  sms_template_code: ""

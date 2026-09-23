@@ -219,6 +219,21 @@ class PasswordResetConfig:
     frontend_url: str = "http://localhost:3000"
 
 
+@dataclass
+class NotificationConfig:
+    """通知渠道配置。"""
+    enabled: bool = True
+    retry_interval_seconds: int = 60
+    dingtalk_webhook: str = ""
+    dingtalk_secret: str = ""
+    feishu_webhook: str = ""
+    feishu_secret: str = ""
+    sms_access_key: str = ""
+    sms_secret_key: str = ""
+    sms_sign_name: str = ""
+    sms_template_code: str = ""
+
+
 # ============================================================
 # 环境变量 → YAML 配置段 映射
 # ============================================================
@@ -234,6 +249,12 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "storage": ("STORAGE_", ["provider"]),
     "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
     "password_reset": ("PASSWORD_RESET_", ["token_expire_minutes", "max_attempts_per_hour", "frontend_url"]),
+    "notification": ("NOTIFICATION_", [
+        "enabled", "retry_interval_seconds",
+        "dingtalk_webhook", "dingtalk_secret",
+        "feishu_webhook", "feishu_secret",
+        "sms_access_key", "sms_secret_key", "sms_sign_name", "sms_template_code",
+    ]),
 }
 
 
@@ -370,6 +391,18 @@ class Settings:
                 "token_expire_minutes": 15,
                 "max_attempts_per_hour": 5,
                 "frontend_url": "http://localhost:3000",
+            },
+            "notification": {
+                "enabled": True,
+                "retry_interval_seconds": 60,
+                "dingtalk_webhook": "",
+                "dingtalk_secret": "",
+                "feishu_webhook": "",
+                "feishu_secret": "",
+                "sms_access_key": "",
+                "sms_secret_key": "",
+                "sms_sign_name": "",
+                "sms_template_code": "",
             },
         }
 
@@ -558,6 +591,10 @@ class Settings:
         # 密码重置配置
         password_reset_raw = self._config.get("password_reset", {})
         self.password_reset = PasswordResetConfig(**password_reset_raw)
+
+        # 通知渠道配置
+        notification_raw = self._config.get("notification", {})
+        self.notification = NotificationConfig(**notification_raw)
 
     # ----------------------------------------------------------
     # 环境判断

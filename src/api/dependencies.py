@@ -28,6 +28,7 @@ from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
+from src.services.notification_dispatcher import NotificationDispatcher
 from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
 from src.utils.helpers import get_client_ip
@@ -94,9 +95,11 @@ def get_email_provider() -> EmailProvider:
     return get_cached_email_provider()
 
 
-def get_alert_service() -> AlertService:
+def get_alert_service(
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+) -> AlertService:
     """获取告警服务实例。"""
-    return AlertService()
+    return AlertService(dispatcher=dispatcher)
 
 
 def get_audit_service(
@@ -256,6 +259,18 @@ def get_operator_context(
         "operator_id": current_user.id,
         "operator_name": current_user.username,
     }
+
+
+def get_notification_dispatcher(
+    db_session: Session = Depends(get_db_session),
+) -> NotificationDispatcher:
+    """获取通知调度器实例。"""
+    from src.infras.notification import get_registry
+
+    return NotificationDispatcher(
+        registry=get_registry(),
+        session=db_session,
+    )
 
 
 

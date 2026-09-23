@@ -8,7 +8,7 @@
 
 from fastapi import APIRouter
 
-from src.api.v1 import audit, auth, file, health, role, user
+from src.api.v1 import audit, auth, file, health, notification, role, user
 from src.constants import API_PREFIX
 
 api_router = APIRouter(prefix=API_PREFIX)
@@ -30,3 +30,6 @@ api_router.include_router(audit.router)
 
 # 注册文件管理路由
 api_router.include_router(file.router)
+
+# 注册通知管理路由
+api_router.include_router(notification.router)

@@ -16,19 +16,58 @@ class CommonStatus(Enum):
 
 
 class UserStatus(Enum):
-    """用户状态（对齐 users.status 列）。"""
+    """用户状态"""
 
     ACTIVE = "active"
     INACTIVE = "inactive"
     LOCKED = "locked"
 
 
-class AlertChannel(Enum):
-    """系统告警发送渠道。"""
+class NotificationChannel(BaseEnum):
+    """通知发送渠道"""
 
-    EMAIL = "email"
-    DINGTALK = "dingtalk"
-    FEISHU = "feishu"
+    EMAIL = "email", "邮件"
+    SMS = "sms", "短信"
+    DINGTALK = "dingtalk", "钉钉"
+    FEISHU = "feishu", "飞书"
+
+
+class NotificationEvent(BaseEnum):
+    """通知事件类型。
+
+    按业务域分组，格式：{domain}.{action}
+    所有事件类型必须在 config/notification_templates/ 下有对应模板。
+    """
+
+    # ── 用户域 ──────────────────────────────────
+    USER_REGISTERED = "user.registered", "新用户注册"
+    USER_PASSWORD_RESET = "user.password_reset", "密码重置"
+    USER_PASSWORD_CHANGED = "user.password_changed", "密码修改"
+    USER_PROFILE_UPDATED = "user.profile_updated", "资料变更"
+    USER_STATUS_CHANGED = "user.status_changed", "账号状态变更"
+    USER_LOGIN_FAILED = "user.login_failed", "连续登录失败告警"
+
+    # ── 角色权限域 ──────────────────────────────
+    ROLE_ASSIGNED = "role.assigned", "角色变更"
+    PERMISSION_GRANTED = "permission.granted", "权限授予"
+    PERMISSION_REVOKED = "permission.revoked", "权限回收"
+
+    # ── 文件域 ──────────────────────────────────
+    FILE_UPLOADED = "file.uploaded", "文件上传完成"
+    FILE_SHARED = "file.shared", "文件分享"
+
+    # ── 系统域 ──────────────────────────────────
+    SYSTEM_ALERT = "system.alert", "系统告警"
+    SYSTEM_MAINTENANCE = "system.maintenance", "系统维护通知"
+
+
+class NotificationStatus(BaseEnum):
+    """通知发送状态。"""
+
+    PENDING = "pending", "待发送"
+    SUCCESS = "success", "发送成功"
+    FAILED = "failed", "发送失败"
+    RETRYING = "retrying", "重试中"
 
 
 class HttpStatus(BaseEnum):

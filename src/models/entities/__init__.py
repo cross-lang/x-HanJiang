@@ -2,6 +2,10 @@
 
 from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.log_entity import LoginLogEntity
+from src.models.entities.notification_config_entity import (
+    UserNotificationConfigEntity,
+)
+from src.models.entities.notification_entity import NotificationRecordEntity
 from src.models.entities.user_entity import (
     PermissionEntity,
     RoleEntity,
@@ -16,4 +20,6 @@ __all__ = [
     "RolePermissionEntity",
     "LoginLogEntity",
     "AuditLogEntity",
+    "NotificationRecordEntity",
+    "UserNotificationConfigEntity",
 ]

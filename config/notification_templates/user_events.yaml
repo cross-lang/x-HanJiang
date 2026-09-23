@@ -1,0 +1,133 @@
+# ============================================================
+# 通知模板配置
+# 格式：event_type → channel → subject / content
+# 支持 {变量名} 插值
+# ============================================================
+
+# ── 用户域 ──────────────────────────────────────────────────
+
+user.registered:
+  email:
+    subject: "欢迎注册，{username}！"
+    content: |
+      <h2>欢迎加入 HanJiang 平台</h2>
+      <p>尊敬的 {username}，您的账号已成功注册。</p>
+  dingtalk:
+    subject: "新用户注册"
+    content: "新用户 **{username}** 已注册"
+  feishu:
+    subject: "新用户注册"
+    content: "新用户 {username} 已注册"
+
+user.password_reset:
+  email:
+    subject: "【HanJiang】密码重置请求"
+    content: |
+      <p>您的密码重置请求已受理，新密码将通过安全渠道发送。</p>
+  dingtalk:
+    subject: "密码重置"
+    content: "用户 {username} 请求重置密码"
+
+user.password_changed:
+  email:
+    subject: "【HanJiang】密码修改通知"
+    content: |
+      <p>您的密码已于 {changed_at} 修改。如非本人操作，请立即联系管理员。</p>
+  dingtalk:
+    subject: "密码修改"
+    content: "用户 {username} 已修改密码"
+
+user.profile_updated:
+  email:
+    subject: "【HanJiang】个人资料更新"
+    content: |
+      <p>您的个人资料已更新，变更字段：{updated_fields}</p>
+
+user.status_changed:
+  email:
+    subject: "【HanJiang】账号状态变更"
+    content: |
+      <p>您的账号状态已变更为 {new_status}，原因：{reason}</p>
+  dingtalk:
+    subject: "账号状态变更"
+    content: "用户 {username} 状态变更为 {new_status}"
+
+user.login_failed:
+  email:
+    subject: "【HanJiang】登录异常告警"
+    content: |
+      <p>您的账号在 {attempt_time} 连续登录失败 {fail_count} 次。</p>
+      <p>来源 IP：{ip_address}</p>
+  dingtalk:
+    subject: "登录异常"
+    content: "⚠️ 用户 {username} 连续登录失败 {fail_count} 次，IP: {ip_address}"
+
+# ── 角色权限域 ──────────────────────────────────────────────
+
+role.assigned:
+  email:
+    subject: "【HanJiang】角色变更通知"
+    content: |
+      <p>您的角色已变更为 {role_name}，请重新登录以获取最新权限。</p>
+  dingtalk:
+    subject: "角色变更"
+    content: "用户 {username} 角色变更为 {role_name}"
+
+permission.granted:
+  email:
+    subject: "【HanJiang】权限授予通知"
+    content: |
+      <p>您已被授予新权限：{permission_name}（{permission_code}）</p>
+
+permission.revoked:
+  email:
+    subject: "【HanJiang】权限回收通知"
+    content: |
+      <p>权限 {permission_name}（{permission_code}） 已被回收。</p>
+  dingtalk:
+    subject: "权限回收"
+    content: "用户 {username} 的权限 {permission_name} 已被回收"
+
+# ── 文件域 ──────────────────────────────────────────────────
+
+file.uploaded:
+  email:
+    subject: "【HanJiang】文件上传成功"
+    content: |
+      <p>文件 {file_name}（{file_size}）已上传成功。</p>
+
+file.shared:
+  email:
+    subject: "【HanJiang】文件分享通知"
+    content: |
+      <p>{shared_by} 与您分享了文件 {file_name}。</p>
+      <p>访问链接：{share_link}</p>
+  dingtalk:
+    subject: "文件分享"
+    content: "{shared_by} 与您分享了文件 {file_name}"
+
+# ── 系统域 ──────────────────────────────────────────────────
+
+system.alert:
+  email:
+    subject: "[告警] {alert_title}"
+    content: "<p>{alert_message}</p>"
+  dingtalk:
+    subject: "系统告警"
+    content: "⚠️ {alert_title}\n{alert_message}"
+  feishu:
+    subject: "系统告警"
+    content: "⚠️ {alert_title}\n{alert_message}"
+
+system.maintenance:
+  email:
+    subject: "【HanJiang】系统维护通知"
+    content: |
+      <p>系统将于 {maintenance_time} 进行维护，预计持续 {duration}。</p>
+      <p>维护期间服务可能不可用，请提前做好准备。</p>
+  dingtalk:
+    subject: "系统维护"
+    content: "🔧 系统将于 {maintenance_time} 维护，预计 {duration}"
+  feishu:
+    subject: "系统维护"
+    content: "🔧 系统将于 {maintenance_time} 维护，预计 {duration}"

@@ -52,6 +52,54 @@ except ImportError:
     _has_redis = False
 
 
+def _register_notification_providers() -> None:
+    """注册所有已配置的通知渠道 Provider。"""
+    from src.infras.notification import (
+        DingTalkNotificationProvider,
+        EmailNotificationProvider,
+        FeishuNotificationProvider,
+        SmsNotificationProvider,
+        get_registry,
+    )
+
+    registry = get_registry()
+    cfg = settings.notification
+
+    # 邮件渠道始终注册（复用 SMTP 配置）
+    registry.register(EmailNotificationProvider())
+
+    # 钉钉
+    if cfg.dingtalk_webhook:
+        registry.register(
+            DingTalkNotificationProvider(
+                webhook_url=cfg.dingtalk_webhook,
+                secret=cfg.dingtalk_secret,
+            )
+        )
+
+    # 飞书
+    if cfg.feishu_webhook:
+        registry.register(
+            FeishuNotificationProvider(
+                webhook_url=cfg.feishu_webhook,
+                secret=cfg.feishu_secret,
+            )
+        )
+
+    # 短信
+    if cfg.sms_access_key:
+        registry.register(
+            SmsNotificationProvider(
+                access_key=cfg.sms_access_key,
+                secret_key=cfg.sms_secret_key,
+                sign_name=cfg.sms_sign_name,
+                template_code=cfg.sms_template_code,
+            )
+        )
+
+    logger.info("Notification providers: %s", registry.list_channels())
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理。
@@ -65,7 +113,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"Debug mode: {settings.server.debug}")
     logger.info(f"Storage provider: {settings.storage.provider}")
     logger.info(f"Listening on: {settings.server.host}:{settings.server.port}")
-    
+
 
     if _has_db and settings.database.url:
         try:
@@ -73,7 +121,7 @@ async def lifespan(app: FastAPI):
             from src.infras.database import init_db
             init_db()
             logger.info("Database initialized successfully")
-            
+
             try:
                 from src.core.seed import init_seed_data
 
@@ -85,9 +133,32 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("MySQL connection fields not configured, database features disabled")
 
+    # 注册通知渠道 Provider
+    if settings.notification.enabled:
+        _register_notification_providers()
+
+    # 启动通知重试 Worker
+    retry_task = None
+    if settings.notification.enabled and _has_redis and settings.redis.url:
+        import asyncio
+        from src.services.notification_retry_worker import run_retry_worker
+
+        retry_task = asyncio.create_task(
+            run_retry_worker(settings.notification.retry_interval_seconds)
+        )
+        logger.info("Notification retry worker scheduled")
+
     yield
 
     logger.info(f"{APP_NAME} shutting down...")
+
+    # 停止重试 Worker
+    if retry_task is not None:
+        retry_task.cancel()
+        try:
+            await retry_task
+        except Exception:
+            pass
 
     if _has_db and settings.database.url:
         try:
