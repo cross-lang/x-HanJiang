@@ -27,7 +27,7 @@ from src.api.dependencies import (
 from src.api.response import success_response
 from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedResponse
-from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
+from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest, AdminResetPasswordRequest
 from src.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -175,6 +175,25 @@ async def update_user(
         operator=get_operator_context(current_user),
     )
     return success_response(result.model_dump(), request)
+
+
+@router.post(
+    "/{user_id}/reset-password",
+    summary="重置用户密码",
+    description="管理员重置指定用户的密码",
+)
+async def reset_user_password(
+    user_id: int,
+    body: AdminResetPasswordRequest,
+    request: Request,
+    service: UserService = Depends(get_user_service),
+    current_user: CurrentUserResponse = Depends(get_current_user),
+):
+    """管理员重置用户密码接口。"""
+    service.reset_password(
+        user_id, body.new_password, operator=get_operator_context(current_user)
+    )
+    return success_response({"message": "密码重置成功"}, request)
 
 
 @router.post(

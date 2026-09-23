@@ -92,6 +92,28 @@ class UserUpdateRequest(BaseModel):
         return v
 
 
+class AdminResetPasswordRequest(BaseModel):
+    """管理员重置密码请求模型。
+
+    Attributes:
+        new_password: 新密码
+        confirm_password: 确认密码
+    """
+
+    new_password: str = Field(
+        min_length=8,
+        max_length=64,
+        description="新密码（至少 8 位）",
+    )
+    confirm_password: str = Field(
+        min_length=8,
+        max_length=64,
+        description="确认密码",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserResponse(BaseModel):
     """用户响应模型（不含密码哈希）。
 

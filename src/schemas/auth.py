@@ -23,13 +23,12 @@ class LoginRequest(BaseModel):
 
     Attributes:
         username: 用户名或邮箱
-        password: 密码（明文，仅经 HTTPS 传输，服务端校验 bcrypt 哈希）
-        client_type: 登录端类型（console=后台管理端，client=客户端）
+        password: 密码
+        client_type: 登录端类型（console=后台管理端）
     """
 
     username: str = Field(min_length=3, max_length=100, description="用户名或邮箱")
     password: str = Field(min_length=1, max_length=64, description="密码")
-    client_type: str = Field(default="console", description="登录端类型（console/client）")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -71,12 +70,14 @@ class CurrentUserResponse(BaseModel):
         id: 用户ID
         username: 用户名
         email: 邮箱
+        nickname: 昵称
         name: 姓名
         age: 年龄
         role_id: 主角色ID
-        role_code: 角色编码（解析自角色表，未设置时为 None）
+        role_code: 角色编码
         status: 用户状态
         avatar_url: 头像URL
+        last_login_at: 最后登录时间
     """
 
     id: int = Field(description="用户ID")
@@ -89,96 +90,5 @@ class CurrentUserResponse(BaseModel):
     status: str = Field(description="用户状态")
     avatar_url: str | None = Field(default=None, description="头像URL")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PasswordResetRequest(BaseModel):
-    """密码重置请求模型。
-
-    Attributes:
-        email: 用户邮箱地址
-    """
-
-    email: str = Field(
-        min_length=5,
-        max_length=100,
-        description="用户邮箱地址",
-        examples=["user@example.com"],
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PasswordResetConfirmRequest(BaseModel):
-    """密码重置确认模型。
-
-    Attributes:
-        token: 重置令牌
-        new_password: 新密码
-        confirm_password: 确认密码
-    """
-
-    token: str = Field(
-        min_length=32,
-        max_length=512,
-        description="重置令牌",
-    )
-    new_password: str = Field(
-        min_length=8,
-        max_length=64,
-        description="新密码（至少 8 位，包含大小写字母和数字）",
-    )
-    confirm_password: str = Field(
-        min_length=8,
-        max_length=64,
-        description="确认密码",
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PasswordResetResponse(BaseModel):
-    """密码重置响应模型。
-
-    Attributes:
-        message: 响应消息
-        success: 是否成功
-    """
-
-    message: str = Field(description="响应消息")
-    success: bool = Field(description="是否成功")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class VerifyResetTokenRequest(BaseModel):
-    """验证重置令牌请求模型。
-
-    Attributes:
-        token: 重置令牌
-    """
-
-    token: str = Field(
-        min_length=32,
-        max_length=512,
-        description="重置令牌",
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class VerifyResetTokenResponse(BaseModel):
-    """验证重置令牌响应模型。
-
-    Attributes:
-        valid: 令牌是否有效
-        email: 邮箱（脱敏）
-        expires_at: 过期时间
-    """
-
-    valid: bool = Field(description="令牌是否有效")
-    email: str | None = Field(default=None, description="邮箱（脱敏）")
-    expires_at: datetime | None = Field(default=None, description="过期时间")
 
     model_config = ConfigDict(from_attributes=True)

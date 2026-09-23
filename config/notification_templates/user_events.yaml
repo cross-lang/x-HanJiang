@@ -6,28 +6,6 @@
 
 # ── 用户域 ──────────────────────────────────────────────────
 
-user.registered:
-  email:
-    subject: "欢迎注册，{username}！"
-    content: |
-      <h2>欢迎加入 HanJiang 平台</h2>
-      <p>尊敬的 {username}，您的账号已成功注册。</p>
-  dingtalk:
-    subject: "新用户注册"
-    content: "新用户 **{username}** 已注册"
-  feishu:
-    subject: "新用户注册"
-    content: "新用户 {username} 已注册"
-
-user.password_reset:
-  email:
-    subject: "【HanJiang】密码重置请求"
-    content: |
-      <p>您的密码重置请求已受理，新密码将通过安全渠道发送。</p>
-  dingtalk:
-    subject: "密码重置"
-    content: "用户 {username} 请求重置密码"
-
 user.password_changed:
   email:
     subject: "【HanJiang】密码修改通知"
@@ -60,7 +38,7 @@ user.login_failed:
       <p>来源 IP：{ip_address}</p>
   dingtalk:
     subject: "登录异常"
-    content: "⚠️ 用户 {username} 连续登录失败 {fail_count} 次，IP: {ip_address}"
+    content: "用户 {username} 连续登录失败 {fail_count} 次，IP: {ip_address}"
 
 # ── 角色权限域 ──────────────────────────────────────────────
 
@@ -87,24 +65,6 @@ permission.revoked:
   dingtalk:
     subject: "权限回收"
     content: "用户 {username} 的权限 {permission_name} 已被回收"
-
-# ── 文件域 ──────────────────────────────────────────────────
-
-file.uploaded:
-  email:
-    subject: "【HanJiang】文件上传成功"
-    content: |
-      <p>文件 {file_name}（{file_size}）已上传成功。</p>
-
-file.shared:
-  email:
-    subject: "【HanJiang】文件分享通知"
-    content: |
-      <p>{shared_by} 与您分享了文件 {file_name}。</p>
-      <p>访问链接：{share_link}</p>
-  dingtalk:
-    subject: "文件分享"
-    content: "{shared_by} 与您分享了文件 {file_name}"
 
 # ── 系统域 ──────────────────────────────────────────────────
 

@@ -178,6 +178,28 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             logger.info(f"User deleted: id={id} username={existing.username}")
         return deleted
 
+    def reset_password(
+        self, id: int, new_password: str, operator: dict[str, Any] | None = None
+    ) -> bool:
+        """管理员重置用户密码。"""
+        existing = self._repository.get_by_id(id)
+        if existing is None:
+            raise NotFoundException(message=f"用户 {id} 不存在")
+
+        existing.password_hash = hash_password(new_password)
+        self._commit()
+
+        self._audit(
+            entity_id=id,
+            action="update",
+            operator=operator,
+            before_data={"username": existing.username},
+            after_data={"username": existing.username, "action": "password_reset"},
+            remarks="password reset by admin",
+        )
+        logger.info(f"Password reset by admin: user_id={id}")
+        return True
+
     def verify_credentials(self, account: str, password: str) -> UserEntity | None:
         """校验登录凭据（供 AuthService 调用）。
 

@@ -212,14 +212,6 @@ class SmtpConfig:
 
 
 @dataclass
-class PasswordResetConfig:
-    """密码重置配置。"""
-    token_expire_minutes: int = 15
-    max_attempts_per_hour: int = 5
-    frontend_url: str = "http://localhost:3000"
-
-
-@dataclass
 class NotificationConfig:
     """通知渠道配置。"""
     enabled: bool = True
@@ -248,7 +240,6 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "redis": ("REDIS_", ["enabled", "host", "port", "user", "password", "db", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
     "storage": ("STORAGE_", ["provider"]),
     "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
-    "password_reset": ("PASSWORD_RESET_", ["token_expire_minutes", "max_attempts_per_hour", "frontend_url"]),
     "notification": ("NOTIFICATION_", [
         "enabled", "retry_interval_seconds",
         "dingtalk_webhook", "dingtalk_secret",
@@ -386,11 +377,6 @@ class Settings:
                 "use_tls": True,
                 "from_name": "HanJiang",
                 "from_address": "",
-            },
-            "password_reset": {
-                "token_expire_minutes": 15,
-                "max_attempts_per_hour": 5,
-                "frontend_url": "http://localhost:3000",
             },
             "notification": {
                 "enabled": True,
@@ -549,15 +535,6 @@ class Settings:
         if value := os.environ.get("SMTP_FROM_ADDRESS"):
             smtp["from_address"] = value
 
-        # 密码重置配置的环境变量
-        password_reset = config.setdefault("password_reset", {})
-        if value := os.environ.get("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES"):
-            password_reset["token_expire_minutes"] = _to_int(value, 15)
-        if value := os.environ.get("PASSWORD_RESET_MAX_ATTEMPTS_PER_HOUR"):
-            password_reset["max_attempts_per_hour"] = _to_int(value, 5)
-        if value := os.environ.get("PASSWORD_RESET_FRONTEND_URL"):
-            password_reset["frontend_url"] = value
-
     # ----------------------------------------------------------
     # 解析到 dataclass
     # ----------------------------------------------------------
@@ -587,10 +564,6 @@ class Settings:
         # SMTP 邮件配置
         smtp_raw = self._config.get("smtp", {})
         self.smtp = SmtpConfig(**smtp_raw)
-
-        # 密码重置配置
-        password_reset_raw = self._config.get("password_reset", {})
-        self.password_reset = PasswordResetConfig(**password_reset_raw)
 
         # 通知渠道配置
         notification_raw = self._config.get("notification", {})

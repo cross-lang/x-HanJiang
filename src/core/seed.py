@@ -5,8 +5,8 @@
 应用启动时检测并自动创建系统内置种子数据：
     1. 超级管理员角色（roles 表，role_type=system，role_code=super_admin）
     2. 超级管理员用户（users 表，username=superadmin，绑定上述角色）
-    3. 内置权限（permissions 表，perm_code=user:view）
-    4. 角色权限关联（role_permissions 表，将上述权限绑定到超级管理员角色）
+    3. 内置权限（permissions 表）
+    4. 角色权限关联（role_permissions 表，将全部权限绑定到超级管理员角色）
 
 若数据已存在则跳过，保证幂等。
 
@@ -26,34 +26,63 @@ from src.models.entities.user_entity import (
     UserEntity,
 )
 
-# 种子数据常量（系统内置，禁止随意修改）
+# ── 超级管理员 ──────────────────────────────────────────────
 _SEED_ROLE_CODE = "super_admin"
 _SEED_ROLE_NAME = "超级管理员"
 _SEED_ADMIN_USERNAME = "superadmin"
 _SEED_ADMIN_PASSWORD = "admin@123456"
 _SEED_ADMIN_EMAIL = "superadmin@system.local"
-_SEED_PERM_CODE = "user:view"
-_SEED_PERM_NAME = "查看用户"
-_SEED_PERM_MODULE = "user"
-_SEED_PERM_OPERATION = "view"
+
+# ── 内置权限定义 ──────────────────────────────────────────────
+# (perm_code, perm_name, module, operation, description, sort_order)
+_SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
+    ("user:view", "查看用户", "user", "view", "查看用户列表与详情", 1),
+    ("user:create", "创建用户", "user", "create", "创建新用户", 2),
+    ("user:edit", "编辑用户", "user", "edit", "编辑用户信息", 3),
+    ("user:delete", "删除用户", "user", "delete", "删除用户", 4),
+    ("user:export", "导出用户", "user", "export", "导出用户列表", 5),
+    ("user:import", "导入用户", "user", "import", "导入用户列表", 6),
+    ("role:view", "查看角色", "role", "view", "查看角色列表与详情", 10),
+    ("role:create", "创建角色", "role", "create", "创建新角色", 11),
+    ("role:edit", "编辑角色", "role", "edit", "编辑角色信息", 12),
+    ("role:delete", "删除角色", "role", "delete", "删除角色", 13),
+    ("file:view", "查看文件", "file", "view", "查看文件列表与详情", 20),
+    ("file:create", "上传文件", "file", "create", "上传文件", 21),
+    ("file:delete", "删除文件", "file", "delete", "删除文件", 22),
+    ("audit:view", "查看审计日志", "audit", "view", "查看业务审计日志", 30),
+    ("notification:view", "查看通知", "notification", "view", "查看通知记录", 40),
+    ("notification:create", "创建通知", "notification", "create", "创建通知配置", 41),
+]
 
 
 def init_seed_data() -> None:
-    """初始化系统种子数据（幂等，可重复调用）。
-
-    检测顺序：
-        1. roles 表中是否存在 role_code=super_admin 的角色，无则创建
-        2. users 表中是否存在 username=superadmin 的用户，无则创建（绑定超管角色）
-        3. permissions 表中是否存在 perm_code=user:view 的权限，无则创建
-        4. role_permissions 表中是否存在该角色与权限的关联，无则创建
-    """
+    """初始化系统种子数据（幂等，可重复调用）。"""
     session = get_cached_database_provider().get_session_factory()()
     try:
-        # 1. 超级管理员角色
+        # 1. 权限
+        perm_map: dict[str, PermissionEntity] = {}
+        for code, name, module, op, desc, sort in _SEED_PERMISSIONS:
+            perm = session.execute(
+                select(PermissionEntity).where(PermissionEntity.perm_code == code)
+            ).scalars().first()
+            if perm is None:
+                perm = PermissionEntity(
+                    perm_code=code,
+                    perm_name=name,
+                    module=module,
+                    operation=op,
+                    description=desc,
+                    sort_order=sort,
+                )
+                session.add(perm)
+                session.flush()
+                logger.info(f"Seed permission created: perm_code={code}")
+            perm_map[code] = perm
+
+        # 2. 超级管理员角色
         role = session.execute(
             select(RoleEntity).where(RoleEntity.role_code == _SEED_ROLE_CODE)
         ).scalars().first()
-
         if role is None:
             role = RoleEntity(
                 role_name=_SEED_ROLE_NAME,
@@ -65,14 +94,15 @@ def init_seed_data() -> None:
             session.add(role)
             session.flush()
             logger.info(f"Seed role created: role_code={_SEED_ROLE_CODE}")
-        else:
-            logger.info(f"Seed role already exists: role_code={_SEED_ROLE_CODE}")
 
-        # 2. 超级管理员用户
+        # 3. 超级管理员角色 → 绑定全部权限
+        for perm in perm_map.values():
+            _ensure_role_permission(session, role.id, perm.id)
+
+        # 4. 超级管理员用户
         admin = session.execute(
             select(UserEntity).where(UserEntity.username == _SEED_ADMIN_USERNAME)
         ).scalars().first()
-
         if admin is None:
             admin = UserEntity(
                 username=_SEED_ADMIN_USERNAME,
@@ -86,59 +116,28 @@ def init_seed_data() -> None:
             session.add(admin)
             session.flush()
             logger.info(f"Seed admin user created: username={_SEED_ADMIN_USERNAME}")
-        else:
-            logger.info(
-                f"Seed admin user already exists: username={_SEED_ADMIN_USERNAME}"
-            )
-
-        # 3. 内置权限
-        permission = session.execute(
-            select(PermissionEntity).where(PermissionEntity.perm_code == _SEED_PERM_CODE)
-        ).scalars().first()
-
-        if permission is None:
-            permission = PermissionEntity(
-                perm_code=_SEED_PERM_CODE,
-                perm_name=_SEED_PERM_NAME,
-                module=_SEED_PERM_MODULE,
-                operation=_SEED_PERM_OPERATION,
-                description="查看用户列表与详情",
-                sort_order=1,
-            )
-            session.add(permission)
-            session.flush()
-            logger.info(f"Seed permission created: perm_code={_SEED_PERM_CODE}")
-        else:
-            logger.info(f"Seed permission already exists: perm_code={_SEED_PERM_CODE}")
-
-        # 4. 角色权限关联（将内置权限绑定到超级管理员角色）
-        relation = session.execute(
-            select(RolePermissionEntity).where(
-                RolePermissionEntity.role_id == role.id,
-                RolePermissionEntity.permission_id == permission.id,
-            )
-        ).scalars().first()
-
-        if relation is None:
-            relation = RolePermissionEntity(
-                role_id=role.id,
-                permission_id=permission.id,
-            )
-            session.add(relation)
-            session.flush()
-            logger.info(
-                f"Seed role-permission created: role_id={role.id} permission_id={permission.id}"
-            )
-        else:
-            logger.info(
-                f"Seed role-permission already exists: role_id={role.id} permission_id={permission.id}"
-            )
 
         session.commit()
         logger.info("Seed data initialization completed")
     except Exception as e:  # noqa: BLE001
         session.rollback()
         logger.warning(f"Seed data initialization skipped: {e}")
-        # 种子初始化失败不应阻断应用启动
     finally:
         session.close()
+
+
+def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:
+    """确保角色权限关联存在，不存在则创建。"""
+    relation = session.execute(
+        select(RolePermissionEntity).where(
+            RolePermissionEntity.role_id == role_id,
+            RolePermissionEntity.permission_id == permission_id,
+        )
+    ).scalars().first()
+    if relation is None:
+        relation = RolePermissionEntity(
+            role_id=role_id,
+            permission_id=permission_id,
+        )
+        session.add(relation)
+        session.flush()
