@@ -1,6 +1,6 @@
-"""add nickname column and permissions
+"""add permissions
 
-Revision ID: 0004_add_nickname_and_permissions
+Revision ID: 0004_add_permissions
 Revises: 0003_create_user_notification_configs
 Create Date: 2026-09-23 21:50:00.000000
 
@@ -10,23 +10,14 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "0004_add_nickname_and_permissions"
+revision = "0004_add_permissions"
 down_revision = "0003_create_user_notification_configs"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    # 1. users 表添加 nickname 列
-    op.add_column(
-        "users",
-        sa.Column("nickname", sa.String(length=100), nullable=True, comment="昵称"),
-    )
-
-    # 2. 回填历史数据：nickname 默认取 username
-    op.execute("UPDATE users SET nickname = username WHERE nickname IS NULL")
-
-    # 3. 补充内置权限（如果不存在）
+    # 补充内置权限（如果不存在）
     permissions = [
         ("user:view", "查看用户", "user", "view", "查看用户列表与详情", 1),
         ("user:create", "创建用户", "user", "create", "创建新用户", 2),
@@ -55,7 +46,7 @@ def upgrade() -> None:
             """
         )
 
-    # 4. 超级管理员角色绑定全部权限
+    # 超级管理员角色绑定全部权限
     op.execute(
         """
         INSERT INTO role_permissions (role_id, permission_id)
@@ -71,4 +62,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column("users", "nickname")
+    pass

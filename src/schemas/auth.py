@@ -24,7 +24,6 @@ class LoginRequest(BaseModel):
     Attributes:
         username: 用户名或邮箱
         password: 密码
-        client_type: 登录端类型（console=后台管理端）
     """
 
     username: str = Field(min_length=3, max_length=100, description="用户名或邮箱")
@@ -70,7 +69,6 @@ class CurrentUserResponse(BaseModel):
         id: 用户ID
         username: 用户名
         email: 邮箱
-        nickname: 昵称
         name: 姓名
         age: 年龄
         role_id: 主角色ID
