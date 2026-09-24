@@ -71,6 +71,36 @@ def get_db_session() -> Generator[Session, None, None]:
         session.close()
 
 
+def get_notification_dispatcher(
+    db_session: Session = Depends(get_db_session),
+) -> "NotificationDispatcher":
+    """获取通知调度器实例（供 AlertService 等内部服务使用）。"""
+    from src.infras.notification import get_registry
+    from src.notification.dispatcher import NotificationDispatcher
+
+    return NotificationDispatcher(
+        registry=get_registry(),
+        session=db_session,
+    )
+
+
+def get_notification_service(
+    db_session: Session = Depends(get_db_session),
+) -> NotificationService:
+    """获取通知业务服务实例。"""
+    from src.infras.notification import get_registry
+    from src.notification.dispatcher import NotificationDispatcher
+
+    dispatcher = NotificationDispatcher(
+        registry=get_registry(),
+        session=db_session,
+    )
+    return NotificationService(
+        dispatcher=dispatcher,
+        session=db_session,
+    )
+
+
 def get_user_repository(
     db_session: Session = Depends(get_db_session),
 ):
@@ -78,6 +108,15 @@ def get_user_repository(
     from src.repositories.user_repository import UserRepository
 
     return UserRepository(session=db_session)
+
+
+def get_login_log_repository(
+    db_session: Session = Depends(get_db_session),
+):
+    """获取登录日志仓库实例。"""
+    from src.repositories.login_log_repository import LoginLogRepository
+
+    return LoginLogRepository(session=db_session)
 
 
 def get_user_service(
@@ -153,15 +192,6 @@ def get_role_permission_repository(
     from src.repositories.role_permission_repository import RolePermissionRepository
 
     return RolePermissionRepository(session=db_session)
-
-
-def get_login_log_repository(
-    db_session: Session = Depends(get_db_session),
-):
-    """获取登录日志仓库实例。"""
-    from src.repositories.login_log_repository import LoginLogRepository
-
-    return LoginLogRepository(session=db_session)
 
 
 def get_role_service(
@@ -258,36 +288,6 @@ def get_operator_context(
         "operator_id": current_user.id,
         "operator_name": current_user.username,
     }
-
-
-def get_notification_service(
-    db_session: Session = Depends(get_db_session),
-) -> NotificationService:
-    """获取通知业务服务实例。"""
-    from src.infras.notification import get_registry
-    from src.notification.dispatcher import NotificationDispatcher
-
-    dispatcher = NotificationDispatcher(
-        registry=get_registry(),
-        session=db_session,
-    )
-    return NotificationService(
-        dispatcher=dispatcher,
-        session=db_session,
-    )
-
-
-def get_notification_dispatcher(
-    db_session: Session = Depends(get_db_session),
-) -> "NotificationDispatcher":
-    """获取通知调度器实例（供 AlertService 等内部服务使用）。"""
-    from src.infras.notification import get_registry
-    from src.notification.dispatcher import NotificationDispatcher
-
-    return NotificationDispatcher(
-        registry=get_registry(),
-        session=db_session,
-    )
 
 
 

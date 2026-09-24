@@ -40,8 +40,8 @@ class NotificationSendRequest(BaseModel):
     event_type: NotificationEvent = Field(
         description="事件类型，决定使用哪套模板",
         examples=[
-            NotificationEvent.USER_REGISTERED,
             NotificationEvent.USER_PASSWORD_CHANGED,
+            NotificationEvent.USER_LOGIN_FAILED,
             NotificationEvent.SYSTEM_ALERT,
         ],
     )

@@ -177,7 +177,7 @@ x-HanJiang/
 │   ├── env.py                # Alembic environment configuration
 │   └── versions/             # Migration version scripts
 ├── docs/                     # Project documentation
-│   └── hanjiang.sql          # Database schema definition (6 tables)
+│   └── hanjiang.sql          # Database schema definition (8 tables)
 ├── examples/                 # Usage examples
 ├── logs/                     # Runtime log output directory
 ├── scripts/                  # Engineering scripts
@@ -187,19 +187,22 @@ x-HanJiang/
 │   ├── main.py               # Application entry point (factory function, lifecycle management)
 │   ├── api/                  # API layer
 │   │   ├── v1/               # v1 versioned route modules
-│   │   │   ├── health.py     # Health check and version info
+│   │   │   ├── health.py     # Health check (with auto-alerting)
 │   │   │   ├── user.py       # User management CRUD
 │   │   │   ├── auth.py       # Authentication (login/refresh/me/logout)
-│   │   │   ├── role.py       # Role management and permission query
+│   │   │   ├── role.py       # Role management and permission binding
 │   │   │   ├── audit.py      # Business audit log query
 │   │   │   ├── file.py       # File upload
-│   │   │   └── login_log.py  # Login log query
+│   │   │   ├── notification.py # Notification records query and manual sending
+│   │   │   ├── alert.py      # System alerts (Webhook + broadcast)
+│   │   │   └── maintenance.py # System maintenance notifications
 │   │   ├── dependencies.py   # DI dependency functions (Service/Repository/current_user)
 │   │   ├── response.py       # Unified response wrapper
 │   │   └── router.py         # Route aggregation registration
 │   ├── constants/            # Business constants and enums
 │   │   ├── base.py           # Describable enum base class
-│   │   └── constants.py      # Global constant definitions
+│   │   ├── constants.py      # Global constant definitions
+│   │   └── enums.py          # Business enum definitions
 │   ├── core/                 # Core support modules
 │   │   ├── config.py         # Configuration loading and parsing
 │   │   ├── exceptions.py     # Custom exceptions and global exception handling
@@ -214,9 +217,14 @@ x-HanJiang/
 │   │   ├── cache.py          # Cache provider (Redis)
 │   │   ├── email.py          # Email sending
 │   │   ├── http.py           # HTTP client
+│   │   ├── notification.py   # Notification channel providers (Email/DingTalk/Feishu/SMS)
 │   │   └── storage.py        # Storage abstraction layer (local filesystem / S3-compatible)
+│   ├── notification/         # Notification subsystem
+│   │   ├── dispatcher.py     # Notification dispatcher (event-driven, routing table, persistence, retry)
+│   │   ├── template.py       # Notification template rendering engine
+│   │   └── retry_worker.py   # Failed notification retry worker
 │   ├── models/               # Data models
-│   │   └── entities/         # SQLAlchemy ORM entities (6 tables)
+│   │   └── entities/         # SQLAlchemy ORM entities (8 tables)
 │   ├── repositories/         # Data access layer (Repository pattern)
 │   ├── schemas/              # API request/response DTOs (Pydantic BaseModel)
 │   ├── services/             # Business logic layer (Service pattern)
@@ -239,7 +247,7 @@ flowchart TB
 
   subgraph Application[Application Layer]
     API --> Auth[Auth & Permission Entry<br/>Bearer Token · Current User · RBAC]
-    Auth --> Service[Service Layer<br/>User · Role · Permission · Audit · File]
+    Auth --> Service[Service Layer<br/>User · Role · Permission · Audit · File · Notification]
   end
 
   subgraph Data[Data Access Layer]
@@ -250,7 +258,7 @@ flowchart TB
 
   subgraph Support[Core Support & Infrastructure]
     Core[Core<br/>Config · DI · Middleware · Exceptions · Tokens · Logging]
-    Infra[Infras<br/>Database · Cache · Email · HTTP · Storage]
+    Infra[Infras<br/>Database · Cache · Email · HTTP · Storage · Notification Providers]
   end
 
   Core -.Provides cross-cutting concerns.-> API
@@ -307,7 +315,7 @@ flowchart LR
   Services --> Repositories[repositories]
   Services --> Schemas
   Services --> Core[core<br/>Config · Exceptions · Logging · Tokens]
-  Services --> Infra[infras<br/>Cache · Email · HTTP · Storage]
+  Services --> Infra[infras<br/>Cache · Email · HTTP · Storage · Notification]
 
   Repositories --> Entities[models.entities]
   Repositories --> Database[infras.database]
@@ -339,7 +347,7 @@ flowchart LR
 | **ORM** | SQLAlchemy 2.0 | Python SQL toolkit and object-relational mapping |
 | **DB Driver** | PyMySQL | Pure Python MySQL driver |
 | **DB Migration** | Alembic | SQLAlchemy database migration tool |
-| **Cache** | Redis 7 | Token and login state storage |
+| **Cache** | Redis 7 | Token, login state, and notification retry queue |
 | **Object Storage** | boto3 | S3-compatible object storage (Qiniu Kodo / AWS S3 / MinIO) |
 | **Validation** | Pydantic v2 | Data modeling and validation framework |
 | **Config Management** | pydantic-settings | Pydantic-based configuration management |
@@ -347,7 +355,7 @@ flowchart LR
 | **Rate Limiting** | SlowAPI | Request rate limiting middleware |
 | **Password Hashing** | bcrypt | Secure password hashing |
 | **JWT** | PyJWT | JSON Web Token issuance and verification |
-| **HTTP Client** | httpx | Async HTTP client |
+| **HTTP Client** | httpx | Async HTTP client (notification channel API calls) |
 | **Package Manager** | uv | High-performance Python package manager |
 | **Linting** | Ruff | High-performance Python linter and formatter |
 | **Type Checking** | mypy | Static type checker for Python |
@@ -406,6 +414,8 @@ All business endpoints are prefixed with `/api/v1`.
 | POST | `/api/v1/roles/{id}/update` | Update role |
 | POST | `/api/v1/roles/{id}/delete` | Delete role (soft delete) |
 | GET | `/api/v1/roles/{id}/permissions` | Role permission list (with permission details) |
+| POST | `/api/v1/roles/{id}/permissions` | Bind permissions to role |
+| POST | `/api/v1/roles/{id}/permissions/{pid}/unbind` | Unbind role permission |
 
 **Business Audit Logs (Requires Authentication):**
 
@@ -426,12 +436,94 @@ All business endpoints are prefixed with `/api/v1`.
 | GET | `/api/v1/login-logs` | Login log list (pagination/user/result/type/time-range filter) |
 | GET | `/api/v1/login-logs/{id}` | Login log detail |
 
+**Notification Management (Requires Authentication):**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/notifications/send` | Manually send notification |
+| GET | `/api/v1/notifications` | Notification record list (pagination/event/channel/status filter) |
+| GET | `/api/v1/notifications/stats` | Notification delivery statistics |
+
+**System Alerts:**
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/api/v1/alerts` | Send alert to specified recipients (for external Webhook calls) | Public |
+| POST | `/api/v1/alerts/broadcast` | Broadcast alert to all active users | Required |
+
+**System Maintenance Notifications (Requires Authentication):**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/maintenance/notify` | Send maintenance notification to all users |
+
 ### Access Control
 
 - All business endpoints (except login, refresh, and health check) require the `Authorization: Bearer <token>` header
 - Endpoints can declare access requirements via `require_role("role_code")` or `require_permission("perm_code")`
 - The `super_admin` role bypasses role restrictions by default
 - Permission evaluation results for regular users are cached in Redis by user and permission code
+
+## Notification System Configuration
+
+The project includes a built-in event-driven multi-channel notification subsystem, supporting Email, DingTalk, Feishu, and SMS channels. Notification events are automatically triggered during business operations (password changes, failed logins, permission changes, etc.), and can also be manually sent or broadcast via API.
+
+### Architecture Overview
+
+```
+Business Services (user_service / auth_service / ...)
+    ↓ dispatch_for_user(user_id, event_type, variables)
+Notification Dispatcher (NotificationDispatcher)
+    ↓ Query routing table → Determine channels
+    ↓ Query user_notification_configs → Determine recipients
+    ↓ Render templates → Call Provider to send
+    ↓ Persist records → Write failures to Redis retry queue
+Notification Channel Providers
+    ├─ EmailProvider (reuses SMTP configuration)
+    ├─ DingTalkProvider (Work notification per-user / Webhook group chat)
+    ├─ FeishuProvider (App message per-user / Webhook group chat)
+    └─ SmsProvider (skeleton, pending integration)
+```
+
+### Notification Event Types
+
+| Event | Trigger | Default Channels |
+|-------|---------|-----------------|
+| `user.password_changed` | User changes password | email |
+| `user.profile_updated` | User profile updated | email |
+| `user.status_changed` | User status changed | email, dingtalk |
+| `user.login_failed` | Consecutive login failures ≥3 | email, dingtalk |
+| `role.assigned` | Role assigned | email, dingtalk |
+| `permission.granted` | Permission granted | email |
+| `permission.revoked` | Permission revoked | email, dingtalk |
+| `system.alert` | System alert (health check failure/API call) | email, dingtalk, feishu |
+| `system.maintenance` | System maintenance notification | email, dingtalk, feishu |
+
+### Channel Configuration
+
+**DingTalk/Feishu support dual modes:**
+- **Work Notification/App Message** (recommended): Configure application credentials for per-user precise delivery
+- **Webhook Group Chat** (fallback): Only configure Webhook URL, sends to the group where the bot is located
+
+```yaml
+notification:
+  enabled: true
+  retry_interval_seconds: 60
+  alert_email: "ops@example.com"     # Health check alert email
+  # DingTalk
+  dingtalk_app_key: ""               # Enterprise app AppKey (work notification mode)
+  dingtalk_app_secret: ""
+  dingtalk_agent_id: ""
+  dingtalk_webhook: ""               # Group robot Webhook (group chat mode)
+  dingtalk_secret: ""
+  # Feishu
+  feishu_app_id: ""                  # Custom app AppId (app message mode)
+  feishu_app_secret: ""
+  feishu_webhook: ""                 # Group robot Webhook (group chat mode)
+  feishu_secret: ""
+```
+
+> DingTalk/Feishu per-user delivery requires binding users with channel recipients in the `user_notification_configs` table (DingTalk stores `userid`, Feishu stores `open_id`).
 
 ## Storage Configuration
 

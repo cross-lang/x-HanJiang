@@ -10,6 +10,8 @@ Classes:
     AuthService: 认证业务逻辑实现
 """
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 
 from typing import TYPE_CHECKING
@@ -24,6 +26,7 @@ from src.core.tokens import (
     create_refresh_token,
     decode_token,
 )
+from src.notification.dispatcher import NotificationDispatcher
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.login_log_repository import LoginLogRepository

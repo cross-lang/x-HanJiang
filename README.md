@@ -8,7 +8,7 @@
 
 `汉江（HanJiang）`是一个基于 FastAPI 框架深度封装的 Python Web 应用框架，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。
 
-项目开箱即用，具备标准三层架构（API → Service → Repository）、FastAPI 原生依赖注入、双配置体系、统一鉴权与 RBAC 权限控制、结构化日志、业务审计、S3 兼容对象存储、种子数据自动初始化等能力，支持快速搭建企业级 RESTful API 服务，适配本地开发、测试与多环境生产部署。
+项目开箱即用，具备标准三层架构（API → Service → Repository）、FastAPI 原生依赖注入、双配置体系、统一鉴权与 RBAC 权限控制、事件驱动多渠道通知系统（邮件/钉钉/飞书/短信）、结构化日志、业务审计、S3 兼容对象存储、种子数据自动初始化等能力，支持快速搭建企业级 RESTful API 服务，适配本地开发、测试与多环境生产部署。
 
 ## 快速开始
 
@@ -177,7 +177,7 @@ x-HanJiang/
 │   ├── env.py                # Alembic 环境配置
 │   └── versions/             # 迁移版本脚本
 ├── docs/                     # 项目文档
-│   └── hanjiang.sql          # 数据库表结构定义（6 张表）
+│   └── hanjiang.sql          # 数据库表结构定义（8 张表）
 ├── examples/                 # 使用示例
 ├── logs/                     # 运行日志输出目录
 ├── scripts/                  # 工程脚本
@@ -187,19 +187,22 @@ x-HanJiang/
 │   ├── main.py               # 应用入口（工厂函数、生命周期管理）
 │   ├── api/                  # API 接口层
 │   │   ├── v1/               # v1 版本路由模块
-│   │   │   ├── health.py     # 健康检查与版本信息
+│   │   │   ├── health.py     # 健康检查（含故障自动告警）
 │   │   │   ├── user.py       # 用户管理 CRUD
 │   │   │   ├── auth.py       # 认证（登录/刷新/当前用户/登出）
-│   │   │   ├── role.py       # 角色管理与权限查询
+│   │   │   ├── role.py       # 角色管理与权限绑定
 │   │   │   ├── audit.py      # 业务审计日志查询
 │   │   │   ├── file.py       # 文件上传
-│   │   │   └── login_log.py  # 登录日志查询
+│   │   │   ├── notification.py # 通知记录查询与手动发送
+│   │   │   ├── alert.py      # 系统告警（Webhook + 广播）
+│   │   │   └── maintenance.py # 系统维护通知
 │   │   ├── dependencies.py   # DI 依赖函数（Service/Repository/当前用户）
 │   │   ├── response.py       # 统一响应封装
 │   │   └── router.py         # 路由聚合注册
 │   ├── constants/            # 业务常量与枚举
 │   │   ├── base.py           # 可描述枚举基类
-│   │   └── constants.py      # 全局常量定义
+│   │   ├── constants.py      # 全局常量定义
+│   │   └── enums.py          # 业务枚举定义
 │   ├── core/                 # 核心支撑模块
 │   │   ├── config.py         # 配置加载与解析
 │   │   ├── exceptions.py     # 自定义异常与全局异常处理
@@ -214,9 +217,14 @@ x-HanJiang/
 │   │   ├── cache.py          # 缓存提供者（Redis）
 │   │   ├── email.py          # 邮件发送
 │   │   ├── http.py           # HTTP 客户端
+│   │   ├── notification.py   # 通知渠道 Provider（邮件/钉钉/飞书/短信）
 │   │   └── storage.py        # 存储抽象层（本地文件 / S3 兼容）
+│   ├── notification/         # 通知子系统
+│   │   ├── dispatcher.py     # 通知调度器（事件驱动、路由表、持久化、重试）
+│   │   ├── template.py       # 通知模板渲染引擎
+│   │   └── retry_worker.py   # 失败通知重试 Worker
 │   ├── models/               # 数据模型
-│   │   └── entities/         # SQLAlchemy ORM 实体（6 张表）
+│   │   └── entities/         # SQLAlchemy ORM 实体（8 张表）
 │   ├── repositories/         # 数据访问层（Repository 模式）
 │   ├── schemas/              # API 请求/响应 DTO（Pydantic BaseModel）
 │   ├── services/             # 业务逻辑层（Service 模式）
@@ -239,7 +247,7 @@ flowchart TB
 
   subgraph Application[应用层]
     API --> Auth[认证与权限入口<br/>Bearer Token · 当前用户 · RBAC]
-    Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 文件]
+    Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 文件 · 通知]
   end
 
   subgraph Data[数据访问层]
@@ -250,7 +258,7 @@ flowchart TB
 
   subgraph Support[核心支撑与基础设施]
     Core[Core<br/>配置 · DI · 中间件 · 异常 · 令牌 · 日志]
-    Infra[Infras<br/>数据库 · 缓存 · 邮件 · HTTP · 存储]
+    Infra[Infras<br/>数据库 · 缓存 · 邮件 · HTTP · 存储 · 通知渠道]
   end
 
   Core -.提供横切能力.-> API
@@ -307,7 +315,7 @@ flowchart LR
   Services --> Repositories[repositories]
   Services --> Schemas
   Services --> Core[core<br/>配置 · 异常 · 日志 · 令牌]
-  Services --> Infra[infras<br/>缓存 · 邮件 · HTTP · 存储]
+  Services --> Infra[infras<br/>缓存 · 邮件 · HTTP · 存储 · 通知]
 
   Repositories --> Entities[models.entities]
   Repositories --> Database[infras.database]
@@ -339,7 +347,7 @@ flowchart LR
 | **ORM** | SQLAlchemy 2.0 | Python SQL 工具包与对象关系映射 |
 | **数据库驱动** | PyMySQL | 纯 Python MySQL 驱动 |
 | **数据库迁移** | Alembic | SQLAlchemy 数据库迁移工具 |
-| **缓存** | Redis 7 | 令牌与登录态存储 |
+| **缓存** | Redis 7 | 令牌、登录态与通知重试队列 |
 | **对象存储** | boto3 | S3 兼容对象存储（七牛 Kodo / AWS S3 / MinIO） |
 | **数据校验** | Pydantic v2 | 数据模型与校验框架 |
 | **配置管理** | pydantic-settings | 基于 Pydantic 的配置管理 |
@@ -347,7 +355,7 @@ flowchart LR
 | **限流** | SlowAPI | 请求限流中间件 |
 | **密码哈希** | bcrypt | 安全密码哈希 |
 | **JWT** | PyJWT | JSON Web Token 签发与验证 |
-| **HTTP 客户端** | httpx | 异步 HTTP 客户端 |
+| **HTTP 客户端** | httpx | 异步 HTTP 客户端（通知渠道 API 调用） |
 | **包管理器** | uv | 高性能 Python 包管理器 |
 | **代码检查** | Ruff | 高性能 Python 代码检查与格式化工具 |
 | **类型检查** | mypy | Python 静态类型检查器 |
@@ -406,6 +414,8 @@ flowchart LR
 | POST | `/api/v1/roles/{id}/update` | 更新角色 |
 | POST | `/api/v1/roles/{id}/delete` | 删除角色（软删除） |
 | GET | `/api/v1/roles/{id}/permissions` | 角色权限列表（含权限详情） |
+| POST | `/api/v1/roles/{id}/permissions` | 绑定权限到角色 |
+| POST | `/api/v1/roles/{id}/permissions/{pid}/unbind` | 解绑角色权限 |
 
 **业务审计日志（需鉴权）：**
 
@@ -426,12 +436,94 @@ flowchart LR
 | GET | `/api/v1/login-logs` | 登录日志列表（分页/用户/结果/方式/时间范围过滤） |
 | GET | `/api/v1/login-logs/{id}` | 登录日志详情 |
 
+**通知管理（需鉴权）：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/notifications/send` | 手动发送通知 |
+| GET | `/api/v1/notifications` | 通知记录列表（分页/事件/渠道/状态过滤） |
+| GET | `/api/v1/notifications/stats` | 通知发送统计 |
+
+**系统告警：**
+
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| POST | `/api/v1/alerts` | 发送告警到指定接收人（供外部 Webhook 调用） | 公开 |
+| POST | `/api/v1/alerts/broadcast` | 广播告警给全体活跃用户 | 需鉴权 |
+
+**系统维护通知（需鉴权）：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/maintenance/notify` | 向全体用户发送维护通知 |
+
 ### 权限控制说明
 
 - 所有业务接口（除登录、刷新、健康检查外）均需 `Authorization: Bearer <token>` 请求头
 - 接口可通过 `require_role("role_code")` 或 `require_permission("perm_code")` 声明访问要求
 - `super_admin` 角色默认绕过角色限制
 - 普通用户的权限判断结果按用户和权限编码缓存于 Redis
+
+## 通知系统配置
+
+项目内置事件驱动多渠道通知子系统，支持邮件、钉钉、飞书、短信四种渠道。通知事件在业务流程中自动触发（密码变更、登录失败、权限变更等），也可通过 API 手动发送或广播。
+
+### 架构概览
+
+```
+业务服务 (user_service / auth_service / ...)
+    ↓ dispatch_for_user(user_id, event_type, variables)
+通知调度器 (NotificationDispatcher)
+    ↓ 查路由表 → 确定渠道
+    ↓ 查 user_notification_configs → 确定接收人
+    ↓ 渲染模板 → 调用 Provider 发送
+    ↓ 持久化记录 → 失败写入 Redis 重试队列
+通知渠道 Provider
+    ├─ EmailProvider（复用 SMTP 配置）
+    ├─ DingTalkProvider（工作通知 per-user / Webhook 群聊）
+    ├─ FeishuProvider（应用消息 per-user / Webhook 群聊）
+    └─ SmsProvider（骨架，待接入）
+```
+
+### 通知事件类型
+
+| 事件 | 触发时机 | 默认渠道 |
+|------|---------|----------|
+| `user.password_changed` | 用户修改密码 | email |
+| `user.profile_updated` | 用户资料更新 | email |
+| `user.status_changed` | 用户状态变更 | email, dingtalk |
+| `user.login_failed` | 连续登录失败 ≥3 次 | email, dingtalk |
+| `role.assigned` | 角色分配 | email, dingtalk |
+| `permission.granted` | 权限授予 | email |
+| `permission.revoked` | 权限撤销 | email, dingtalk |
+| `system.alert` | 系统告警（健康检查故障/API 调用） | email, dingtalk, feishu |
+| `system.maintenance` | 系统维护通知 | email, dingtalk, feishu |
+
+### 渠道配置
+
+**钉钉/飞书支持双模式：**
+- **工作通知/应用消息**（推荐）：配置应用凭证，per-user 精准投递
+- **Webhook 群聊**（降级）：仅配置 Webhook URL，发送到群机器人所在群
+
+```yaml
+notification:
+  enabled: true
+  retry_interval_seconds: 60
+  alert_email: "ops@example.com"     # 健康检查告警邮箱
+  # 钉钉
+  dingtalk_app_key: ""               # 企业内部应用 AppKey（工作通知模式）
+  dingtalk_app_secret: ""
+  dingtalk_agent_id: ""
+  dingtalk_webhook: ""               # 群机器人 Webhook（群聊模式）
+  dingtalk_secret: ""
+  # 飞书
+  feishu_app_id: ""                  # 自建应用 AppId（应用消息模式）
+  feishu_app_secret: ""
+  feishu_webhook: ""                 # 群机器人 Webhook（群聊模式）
+  feishu_secret: ""
+```
+
+> 钉钉/飞书 per-user 投递需要在 `user_notification_configs` 表中绑定用户与渠道接收人（钉钉存 `userid`，飞书存 `open_id`）。
 
 ## 存储配置说明
 

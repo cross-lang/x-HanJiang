@@ -8,6 +8,8 @@ Classes:
     PermissionService: 权限业务逻辑实现
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from src.constants.enums import NotificationEvent

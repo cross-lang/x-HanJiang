@@ -8,6 +8,8 @@ Classes:
     UserService: 用户业务逻辑实现
 """
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
