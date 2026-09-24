@@ -12,7 +12,9 @@ Classes:
 
 from datetime import UTC, datetime
 
-from src.constants.enums import UserStatus
+from typing import TYPE_CHECKING
+
+from src.constants.enums import NotificationEvent, UserStatus
 from src.core.exceptions import AuthenticationException
 from src.core.logger import logger
 from src.core.security import verify_password
@@ -24,12 +26,16 @@ from src.core.tokens import (
 )
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import UserEntity
+from src.repositories.login_log_repository import LoginLogRepository
 from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.auth import (
     CurrentUserResponse,
     TokenResponse,
 )
+
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
 
 # Redis 登录态键前缀：login:{user_id} -> 当前生效的 access token jti
 _LOGIN_KEY_PREFIX = "login:"
@@ -44,11 +50,17 @@ class AuthService:
         self,
         user_repository: UserRepository,
         role_repository: RoleRepository | None = None,
+        login_log_repository: LoginLogRepository | None = None,
+        dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         self._user_repository: UserRepository = user_repository
         self._role_repository = role_repository or RoleRepository(
             session=user_repository.session
         )
+        self._login_log_repository = login_log_repository or LoginLogRepository(
+            session=user_repository.session
+        )
+        self._dispatcher = dispatcher
 
     def login(
         self,
@@ -75,6 +87,9 @@ class AuthService:
         )
 
         if not success or user is None:
+            # ── 连续登录失败告警 ──
+            if user is not None:
+                self._check_login_failures(user, ip_address)
             raise AuthenticationException(message="用户名/邮箱或密码错误")
 
         return self._issue_tokens(user, ip_address=ip_address)
@@ -193,6 +208,32 @@ class AuthService:
         if "@" in account:
             return self._user_repository.get_by_email(account)
         return self._user_repository.get_by_username(account)
+
+    def _check_login_failures(
+        self,
+        user: UserEntity,
+        ip_address: str | None,
+    ) -> None:
+        """检查连续登录失败次数，超过阈值则发送告警通知。"""
+        if self._dispatcher is None:
+            return
+        try:
+            fail_count = self._login_log_repository.count_recent_failures(
+                user_id=user.id, minutes=30
+            )
+            if fail_count >= 3:
+                self._dispatcher.dispatch_for_user(
+                    user_id=user.id,
+                    event_type=NotificationEvent.USER_LOGIN_FAILED,
+                    variables={
+                        "username": user.username,
+                        "fail_count": str(fail_count),
+                        "attempt_time": datetime.now(UTC).strftime("%Y-%m-%d %H:%M"),
+                        "ip_address": ip_address or "未知",
+                    },
+                )
+        except Exception as e:
+            logger.warning(f"登录失败告警发送失败: user={user.id} error={e}")
 
     def _write_login_log(
         self,

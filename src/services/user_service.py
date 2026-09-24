@@ -9,9 +9,9 @@ Classes:
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from src.constants.enums import UserStatus
+from src.constants.enums import NotificationEvent, UserStatus
 from src.core.exceptions import ConflictException, NotFoundException, ValidationException
 from src.core.logger import logger
 from src.core.security import hash_password, verify_password
@@ -19,6 +19,9 @@ from src.models.entities.user_entity import UserEntity
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.base_service import BaseService
+
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
 
 
 class UserService(BaseService[UserResponse, int, UserRepository]):
@@ -35,9 +38,14 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
 
     entity_type = "user"
 
-    def __init__(self, user_repository: UserRepository) -> None:
+    def __init__(
+        self,
+        user_repository: UserRepository,
+        dispatcher: NotificationDispatcher | None = None,
+    ) -> None:
         """初始化用户服务。"""
         self._repository: UserRepository = user_repository
+        self._dispatcher = dispatcher
 
     def search(
         self,
@@ -156,6 +164,36 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
 
         result = self._to_response(updated)
         logger.info(f"User updated: id={result.id} username={result.username}")
+
+        # ── 通知：密码变更 ──
+        if "password_hash" in patch_dict:
+            self._dispatch_notification(
+                updated.id,
+                NotificationEvent.USER_PASSWORD_CHANGED,
+                {"username": updated.username, "changed_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M")},
+            )
+        else:
+            # ── 通知：资料变更 ──
+            changed_keys = [k for k in patch_dict if k != "password_hash"]
+            if changed_keys:
+                self._dispatch_notification(
+                    updated.id,
+                    NotificationEvent.USER_PROFILE_UPDATED,
+                    {"username": updated.username, "updated_fields": "、".join(changed_keys)},
+                )
+
+        # ── 通知：状态变更 ──
+        if "status" in patch_dict and patch_dict["status"] != existing.status:
+            self._dispatch_notification(
+                updated.id,
+                NotificationEvent.USER_STATUS_CHANGED,
+                {
+                    "username": updated.username,
+                    "new_status": patch_dict["status"],
+                    "reason": "管理员操作",
+                },
+            )
+
         return result
 
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
@@ -198,6 +236,14 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             remarks="password reset by admin",
         )
         logger.info(f"Password reset by admin: user_id={id}")
+
+        # ── 通知：密码变更 ──
+        self._dispatch_notification(
+            id,
+            NotificationEvent.USER_PASSWORD_CHANGED,
+            {"username": existing.username, "changed_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M")},
+        )
+
         return True
 
     def verify_credentials(self, account: str, password: str) -> UserEntity | None:
@@ -248,3 +294,21 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         if finder is not None:
             return finder(username)
         return next((item for item in self._repository.get_all() if item.username == username), None)
+
+    def _dispatch_notification(
+        self,
+        user_id: int,
+        event_type: NotificationEvent,
+        variables: dict[str, Any],
+    ) -> None:
+        """发送通知（失败不阻断业务主流程）。"""
+        if self._dispatcher is None:
+            return
+        try:
+            self._dispatcher.dispatch_for_user(
+                user_id=user_id,
+                event_type=event_type,
+                variables=variables,
+            )
+        except Exception as e:
+            logger.warning(f"通知发送失败（不影响业务）: event={event_type.value} user={user_id} error={e}")

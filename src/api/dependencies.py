@@ -81,11 +81,12 @@ def get_user_repository(
 
 def get_user_service(
     user_repository=Depends(get_user_repository),
+    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
 ):
     """使用当前请求的 Repository 创建用户服务。"""
     from src.services.user_service import UserService
 
-    return UserService(user_repository=user_repository)
+    return UserService(user_repository=user_repository, dispatcher=dispatcher)
 
 
 def get_alert_service(
@@ -114,10 +115,14 @@ def get_file_service() -> FileStorageService:
 
 def get_auth_service(
     user_repository=Depends(get_user_repository),
+    login_log_repository=Depends(get_login_log_repository),
+    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
 ):
     """获取认证服务。"""
     return AuthService(
         user_repository=user_repository,
+        login_log_repository=login_log_repository,
+        dispatcher=dispatcher,
     )
 
 
@@ -176,6 +181,7 @@ def get_permission_service(
     permission_repository=Depends(get_permission_repository),
     role_permission_repository=Depends(get_role_permission_repository),
     role_repository=Depends(get_role_repository),
+    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
 ):
     """使用当前请求的 Repository 创建权限服务。"""
     from src.services.permission_service import PermissionService
@@ -184,6 +190,7 @@ def get_permission_service(
         permission_repository=permission_repository,
         role_permission_repository=role_permission_repository,
         role_repository=role_repository,
+        dispatcher=dispatcher,
     )
 
 

@@ -8,8 +8,9 @@ Classes:
     PermissionService: 权限业务逻辑实现
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from src.constants.enums import NotificationEvent
 from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import (
@@ -25,6 +26,9 @@ from src.schemas.role import (
     RolePermissionResponse,
 )
 from src.services.base_service import BaseService
+
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
 
 
 class PermissionService(BaseService[PermissionResponse, int, PermissionRepository]):
@@ -46,6 +50,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         permission_repository: PermissionRepository,
         role_permission_repository: RolePermissionRepository | None = None,
         role_repository: RoleRepository | None = None,
+        dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         """初始化权限服务。"""
         self._repository: PermissionRepository = permission_repository
@@ -55,6 +60,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         self._role_repository = role_repository or RoleRepository(
             session=permission_repository.session
         )
+        self._dispatcher = dispatcher
 
     def search(
         self,
@@ -239,12 +245,19 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             after_data={"role_id": role_id, "permission_id": permission_id},
             remarks="role permission bound",
         )
+        # ── 通知：权限授予 ──
+        self._dispatch_permission_event(
+            role_id=role_id,
+            perm=perm,
+            event_type=NotificationEvent.PERMISSION_GRANTED,
+        )
         return RolePermissionResponse(
             role_id=role_id, permission=self._to_response(perm)
         )
 
     def unbind_permission(self, role_id: int, permission_id: int, operator: dict[str, Any] | None = None) -> bool:
         """解除角色与权限的绑定。"""
+        perm = self._repository.get_by_id(permission_id)
         result = self._rp_repository.remove_permission(role_id, permission_id)
         if result:
             self._commit()
@@ -256,6 +269,13 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
                 after_data=None,
                 remarks="role permission unbound",
             )
+            # ── 通知：权限回收 ──
+            if perm:
+                self._dispatch_permission_event(
+                    role_id=role_id,
+                    perm=perm,
+                    event_type=NotificationEvent.PERMISSION_REVOKED,
+                )
         return result
 
     def _to_response(self, entity: PermissionEntity) -> PermissionResponse:
@@ -269,3 +289,33 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             description=entity.description,
             sort_order=entity.sort_order,
         )
+
+    def _dispatch_permission_event(
+        self,
+        role_id: int,
+        perm: PermissionEntity,
+        event_type: NotificationEvent,
+    ) -> None:
+        """为角色下的所有用户发送权限变更通知（失败不阻断业务）。"""
+        if self._dispatcher is None:
+            return
+
+        try:
+            from src.repositories.user_repository import UserRepository
+
+            users = UserRepository(session=self._repository.session).get_by_role_id(role_id)
+            for user in users:
+                try:
+                    self._dispatcher.dispatch_for_user(
+                        user_id=user.id,
+                        event_type=event_type,
+                        variables={
+                            "username": user.username,
+                            "permission_name": perm.perm_name,
+                            "permission_code": perm.perm_code,
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"权限变更通知发送失败: user={user.id} perm={perm.perm_code} error={e}")
+        except Exception as e:
+            logger.warning(f"权限变更通知批量发送失败: role={role_id} error={e}")

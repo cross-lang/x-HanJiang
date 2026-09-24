@@ -75,3 +75,9 @@ class RoleUpdateRequest(BaseModel):
     status: str | None = Field(default=None, description="状态（enabled/disabled）")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BindPermissionRequest(BaseModel):
+    """角色绑定权限请求模型。"""
+
+    permission_id: int = Field(description="要绑定的权限 ID")

@@ -15,7 +15,7 @@ Classes:
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.core.exceptions import DatabaseException
 from src.models.entities.log_entity import LoginLogEntity
@@ -56,6 +56,26 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
         if end_time is not None:
             conditions.append(LoginLogEntity.created_at <= end_time)
         return self._paginate(conditions, skip, limit)
+
+    def count_recent_failures(
+        self,
+        user_id: int,
+        minutes: int = 30,
+    ) -> int:
+        """统计指定用户最近 N 分钟内的连续登录失败次数。"""
+        from datetime import UTC, timedelta
+
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=minutes)
+        stmt = (
+            select(func.count())
+            .select_from(LoginLogEntity)
+            .where(
+                LoginLogEntity.user_id == user_id,
+                LoginLogEntity.status == "failed",
+                LoginLogEntity.created_at >= cutoff,
+            )
+        )
+        return int(self.session.execute(stmt).scalar() or 0)
 
     def update(self, id: int, entity: LoginLogEntity) -> LoginLogEntity | None:
         """登录日志不可变更，仅回读。"""

@@ -54,6 +54,11 @@ class UserRepository(BaseRepository[UserEntity, int]):
         stmt = select(UserEntity).where(UserEntity.email == email)
         return self.session.execute(stmt).scalars().first()
 
+    def get_by_role_id(self, role_id: int) -> list[UserEntity]:
+        """根据角色 ID 查询所有未删除用户。"""
+        stmt = self._base_query().where(UserEntity.role_id == role_id)
+        return list(self.session.execute(stmt).scalars().all())
+
     def search(
         self,
         keyword: str | None = None,

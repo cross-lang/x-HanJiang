@@ -5,12 +5,14 @@
 提供角色管理与角色权限查询的 RESTful API 端点。
 
 Endpoints:
-    GET    /roles:                 角色列表（分页/过滤）
-    POST   /roles:                 创建角色
-    GET    /roles/{id}:            角色详情
-    POST   /roles/{id}/update:     更新角色
-    POST   /roles/{id}/delete:     删除角色（软删除）
-    GET    /roles/{id}/permissions: 角色权限列表（含权限详情）
+    GET    /roles:                             角色列表（分页/过滤）
+    POST   /roles:                             创建角色
+    GET    /roles/{id}:                        角色详情
+    POST   /roles/{id}/update:                 更新角色
+    POST   /roles/{id}/delete:                 删除角色（软删除）
+    GET    /roles/{id}/permissions:            角色权限列表（含权限详情）
+    POST   /roles/{id}/permissions:            为角色绑定权限
+    POST   /roles/{id}/permissions/{pid}/unbind: 解除角色权限绑定
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -25,6 +27,7 @@ from src.api.response import success_response
 from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedResponse
 from src.schemas.role import (
+    BindPermissionRequest,
     PermissionResponse,
     RoleCreateRequest,
     RoleResponse,
@@ -161,3 +164,46 @@ async def get_role_permissions(
     """查询角色权限列表接口。"""
     result = service.get_role_permissions(role_id)
     return success_response([r.model_dump() for r in result], request)
+
+
+@router.post(
+    "/{role_id}/permissions",
+    summary="绑定权限",
+    description="为角色绑定一个权限",
+    status_code=201,
+)
+async def bind_permission(
+    role_id: int,
+    body: BindPermissionRequest,
+    request: Request,
+    service: PermissionService = Depends(get_permission_service),
+    current_user: CurrentUserResponse = Depends(get_current_user),
+):
+    """为角色绑定权限接口。"""
+    result = service.bind_permission(
+        role_id,
+        body.permission_id,
+        operator=get_operator_context(current_user),
+    )
+    return success_response(result.model_dump(), request, code=201)
+
+
+@router.post(
+    "/{role_id}/permissions/{permission_id}/unbind",
+    summary="解绑权限",
+    description="解除角色与指定权限的绑定",
+)
+async def unbind_permission(
+    role_id: int,
+    permission_id: int,
+    request: Request,
+    service: PermissionService = Depends(get_permission_service),
+    current_user: CurrentUserResponse = Depends(get_current_user),
+):
+    """解除角色权限绑定接口。"""
+    service.unbind_permission(
+        role_id,
+        permission_id,
+        operator=get_operator_context(current_user),
+    )
+    return success_response({"message": "权限解绑成功"}, request)
