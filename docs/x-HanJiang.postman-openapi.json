@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "汉江（HanJiang）",
-    "description": "一个基于 FastAPI 框架深度封装的生产级 Python Web 项目",
+    "description": "一个基于 FastAPI 框架深度封装的生产级 Python Web 应用框架",
     "version": "0.1.0"
   },
   "paths": {
@@ -349,6 +349,62 @@
         }
       }
     },
+    "/api/v1/users/{user_id}/reset-password": {
+      "post": {
+        "tags": [
+          "用户管理"
+        ],
+        "summary": "重置用户密码",
+        "description": "管理员重置指定用户的密码",
+        "operationId": "reset_user_password_api_v1_users__user_id__reset_password_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{user_id}/delete": {
       "post": {
         "tags": [
@@ -568,132 +624,6 @@
             "HTTPBearer": []
           }
         ]
-      }
-    },
-    "/api/v1/auth/password-reset": {
-      "post": {
-        "tags": [
-          "身份认证"
-        ],
-        "summary": "请求密码重置",
-        "description": "发送密码重置邮件到用户邮箱（无需登录）",
-        "operationId": "request_password_reset_api_v1_auth_password_reset_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordResetRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PasswordResetResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/auth/password-reset/verify": {
-      "post": {
-        "tags": [
-          "身份认证"
-        ],
-        "summary": "验证重置令牌",
-        "description": "验证密码重置令牌是否有效（无需登录）",
-        "operationId": "verify_reset_token_api_v1_auth_password_reset_verify_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyResetTokenRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VerifyResetTokenResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/auth/password-reset/confirm": {
-      "post": {
-        "tags": [
-          "身份认证"
-        ],
-        "summary": "确认密码重置",
-        "description": "使用重置令牌设置新密码（无需登录）",
-        "operationId": "confirm_password_reset_api_v1_auth_password_reset_confirm_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordResetConfirmRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PasswordResetResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/v1/roles": {
@@ -1013,6 +943,115 @@
             "schema": {
               "type": "integer",
               "title": "Role Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "角色管理"
+        ],
+        "summary": "绑定权限",
+        "description": "为角色绑定一个权限",
+        "operationId": "bind_permission_api_v1_roles__role_id__permissions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Role Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindPermissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{role_id}/permissions/{permission_id}/unbind": {
+      "post": {
+        "tags": [
+          "角色管理"
+        ],
+        "summary": "解绑权限",
+        "description": "解除角色与指定权限的绑定",
+        "operationId": "unbind_permission_api_v1_roles__role_id__permissions__permission_id__unbind_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Role Id"
+            }
+          },
+          {
+            "name": "permission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Permission Id"
             }
           }
         ],
@@ -1439,10 +1478,479 @@
           }
         }
       }
+    },
+    "/api/v1/notifications/send": {
+      "post": {
+        "tags": [
+          "通知管理"
+        ],
+        "summary": "手动发送通知",
+        "description": "手动触发一次通知发送（仅限管理员或调试使用）",
+        "operationId": "send_notification_api_v1_notifications_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "通知管理"
+        ],
+        "summary": "通知列表",
+        "description": "分页查询当前用户的通知发送记录",
+        "operationId": "list_notifications_api_v1_notifications_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "页码",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "页码"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "每页数量",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "每页数量"
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按事件类型过滤",
+              "title": "Event Type"
+            },
+            "description": "按事件类型过滤"
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按渠道过滤",
+              "title": "Channel"
+            },
+            "description": "按渠道过滤"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按状态过滤",
+              "title": "Status"
+            },
+            "description": "按状态过滤"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/stats": {
+      "get": {
+        "tags": [
+          "通知管理"
+        ],
+        "summary": "通知统计",
+        "description": "查询通知发送的成功/失败/待发送统计",
+        "operationId": "get_notification_stats_api_v1_notifications_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/notifications/{notification_id}": {
+      "get": {
+        "tags": [
+          "通知管理"
+        ],
+        "summary": "通知详情",
+        "description": "查询单条通知记录详情",
+        "operationId": "get_notification_api_v1_notifications__notification_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Notification Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts": {
+      "post": {
+        "tags": [
+          "系统告警"
+        ],
+        "summary": "发送系统告警",
+        "description": "发送系统告警到指定接收人（供外部监控 Webhook 调用）",
+        "operationId": "send_alert_api_v1_alerts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts/broadcast": {
+      "post": {
+        "tags": [
+          "系统告警"
+        ],
+        "summary": "广播系统告警",
+        "description": "广播系统告警给全体活跃用户（管理员操作）",
+        "operationId": "broadcast_alert_api_v1_alerts_broadcast_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/maintenance/notify": {
+      "post": {
+        "tags": [
+          "系统维护"
+        ],
+        "summary": "发送系统维护通知",
+        "description": "向全体活跃用户发送系统维护通知（管理员操作）",
+        "operationId": "notify_maintenance_api_v1_maintenance_notify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceNotifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "AdminResetPasswordRequest": {
+        "properties": {
+          "new_password": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "New Password",
+            "description": "新密码（至少 8 位）"
+          },
+          "confirm_password": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Confirm Password",
+            "description": "确认密码"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_password",
+          "confirm_password"
+        ],
+        "title": "AdminResetPasswordRequest",
+        "description": "管理员重置密码请求模型。\n\nAttributes:\n    new_password: 新密码\n    confirm_password: 确认密码"
+      },
+      "AlertSendRequest": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Subject",
+            "description": "告警标题",
+            "examples": [
+              "CPU 使用率超过 90%"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "description": "告警内容",
+            "examples": [
+              "服务器 node-1 CPU 使用率达到 95%，请及时处理。"
+            ]
+          },
+          "recipients": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Recipients",
+            "description": "渠道→接收人映射",
+            "examples": [
+              {
+                "dingtalk": "admin",
+                "email": "admin@example.com"
+              }
+            ]
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "扩展元数据（如来源系统、告警级别等）",
+            "examples": [
+              {
+                "severity": "critical",
+                "source": "prometheus"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "message",
+          "recipients"
+        ],
+        "title": "AlertSendRequest",
+        "description": "系统告警发送请求。\n\n供外部监控系统（Prometheus Alertmanager、Sentry 等）通过 Webhook 调用。\n必须提供 recipients 指定接收人。\n\n示例::\n\n    {\n        \"subject\": \"CPU 使用率超过 90%\",\n        \"message\": \"服务器 node-1 CPU 使用率达到 95%，请及时处理。\",\n        \"recipients\": { \"email\": \"admin@example.com\", \"dingtalk\": \"admin\" }\n    }"
+      },
+      "BindPermissionRequest": {
+        "properties": {
+          "permission_id": {
+            "type": "integer",
+            "title": "Permission Id",
+            "description": "要绑定的权限 ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "permission_id"
+        ],
+        "title": "BindPermissionRequest",
+        "description": "角色绑定权限请求模型。"
+      },
       "Body_import_users_api_v1_users_import_post": {
         "properties": {
           "file": {
@@ -1500,12 +2008,6 @@
             "minLength": 1,
             "title": "Password",
             "description": "密码"
-          },
-          "client_type": {
-            "type": "string",
-            "title": "Client Type",
-            "description": "登录端类型（console/client）",
-            "default": "console"
           }
         },
         "type": "object",
@@ -1514,81 +2016,165 @@
           "password"
         ],
         "title": "LoginRequest",
-        "description": "登录请求模型。\n\n支持用户名或邮箱 + 密码登录。\n\nAttributes:\n    username: 用户名或邮箱\n    password: 密码（明文，仅经 HTTPS 传输，服务端校验 bcrypt 哈希）\n    client_type: 登录端类型（console=后台管理端，client=客户端）"
+        "description": "登录请求模型。\n\n支持用户名或邮箱 + 密码登录。\n\nAttributes:\n    username: 用户名或邮箱\n    password: 密码"
       },
-      "PasswordResetConfirmRequest": {
+      "MaintenanceNotifyRequest": {
         "properties": {
-          "token": {
+          "maintenance_time": {
             "type": "string",
-            "maxLength": 512,
-            "minLength": 32,
-            "title": "Token",
-            "description": "重置令牌"
-          },
-          "new_password": {
-            "type": "string",
-            "maxLength": 64,
-            "minLength": 8,
-            "title": "New Password",
-            "description": "新密码（至少 8 位，包含大小写字母和数字）"
-          },
-          "confirm_password": {
-            "type": "string",
-            "maxLength": 64,
-            "minLength": 8,
-            "title": "Confirm Password",
-            "description": "确认密码"
-          }
-        },
-        "type": "object",
-        "required": [
-          "token",
-          "new_password",
-          "confirm_password"
-        ],
-        "title": "PasswordResetConfirmRequest",
-        "description": "密码重置确认模型。\n\nAttributes:\n    token: 重置令牌\n    new_password: 新密码\n    confirm_password: 确认密码"
-      },
-      "PasswordResetRequest": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 5,
-            "title": "Email",
-            "description": "用户邮箱地址",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Maintenance Time",
+            "description": "维护开始时间",
             "examples": [
-              "user@example.com"
+              "2026-09-25 02:00"
+            ]
+          },
+          "duration": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Duration",
+            "description": "预计持续时长",
+            "examples": [
+              "约 2 小时"
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "维护原因",
+            "examples": [
+              "数据库升级"
             ]
           }
         },
         "type": "object",
         "required": [
-          "email"
+          "maintenance_time",
+          "duration"
         ],
-        "title": "PasswordResetRequest",
-        "description": "密码重置请求模型。\n\nAttributes:\n    email: 用户邮箱地址"
+        "title": "MaintenanceNotifyRequest",
+        "description": "系统维护通知请求。\n\n管理员手动触发，通知全体用户即将进行的系统维护。\n\n示例::\n\n    {\n        \"maintenance_time\": \"2026-09-25 02:00\",\n        \"duration\": \"约 2 小时\",\n        \"reason\": \"数据库升级\"\n    }"
       },
-      "PasswordResetResponse": {
+      "NotificationEvent": {
+        "type": "string",
+        "enum": [
+          "user.password_changed",
+          "user.profile_updated",
+          "user.status_changed",
+          "user.login_failed",
+          "role.assigned",
+          "permission.granted",
+          "permission.revoked",
+          "system.alert",
+          "system.maintenance"
+        ],
+        "title": "NotificationEvent",
+        "description": "通知事件类型。\n\n按业务域分组，格式：{domain}.{action}\n所有事件类型必须在 config/notification_templates/ 下有对应模板。"
+      },
+      "NotificationSendRequest": {
         "properties": {
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "description": "响应消息"
+          "event_type": {
+            "$ref": "#/components/schemas/NotificationEvent",
+            "description": "事件类型，决定使用哪套模板",
+            "examples": [
+              "user.password_changed",
+              "user.login_failed",
+              "system.alert"
+            ]
           },
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "description": "是否成功"
+          "variables": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Variables",
+            "description": "模板变量，注入到模板的 `{变量名}` 占位符中",
+            "examples": [
+              {
+                "username": "张三"
+              },
+              {
+                "amount": "99.00",
+                "order_no": "ORD001"
+              }
+            ]
+          },
+          "channels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channels",
+            "description": "指定实际发送的渠道（覆盖事件默认路由表），省略则使用默认路由",
+            "examples": [
+              [
+                "email",
+                "dingtalk"
+              ]
+            ]
+          },
+          "recipients": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipients",
+            "description": "手动指定渠道→接收人映射（调试用），省略则从当前用户配置自动获取",
+            "examples": [
+              {
+                "dingtalk": "zhangsan",
+                "email": "zhangsan@example.com"
+              }
+            ]
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "扩展元数据，写入通知记录，可用于追溯来源",
+            "examples": [
+              {
+                "operator_id": 42,
+                "source": "admin_panel"
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
-          "message",
-          "success"
+          "event_type"
         ],
-        "title": "PasswordResetResponse",
-        "description": "密码重置响应模型。\n\nAttributes:\n    message: 响应消息\n    success: 是否成功"
+        "title": "NotificationSendRequest",
+        "description": "通知发送请求。\n\n默认根据当前登录用户的通知渠道配置自动发送。\n也可通过 recipients 手动指定接收人（调试用）。\n\n示例（自动发送，从用户配置获取渠道）::\n\n    {\n        \"event_type\": \"user.password_changed\",\n        \"variables\": { \"username\": \"张三\" }\n    }\n\n示例（手动指定接收人，调试用）::\n\n    {\n        \"event_type\": \"user.password_changed\",\n        \"recipients\": {\n            \"email\": \"zhangsan@example.com\",\n            \"dingtalk\": \"zhangsan\"\n        },\n        \"variables\": { \"username\": \"张三\", \"changed_at\": \"2026-09-23 10:00\" },\n        \"channels\": [\"email\", \"dingtalk\"],\n        \"metadata\": { \"source\": \"admin_panel\" }\n    }"
       },
       "RefreshTokenRequest": {
         "properties": {
@@ -1812,7 +2398,7 @@
           "locked"
         ],
         "title": "UserStatus",
-        "description": "用户状态（对齐 users.status 列）。"
+        "description": "用户状态"
       },
       "UserUpdateRequest": {
         "properties": {
@@ -1977,63 +2563,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "VerifyResetTokenRequest": {
-        "properties": {
-          "token": {
-            "type": "string",
-            "maxLength": 512,
-            "minLength": 32,
-            "title": "Token",
-            "description": "重置令牌"
-          }
-        },
-        "type": "object",
-        "required": [
-          "token"
-        ],
-        "title": "VerifyResetTokenRequest",
-        "description": "验证重置令牌请求模型。\n\nAttributes:\n    token: 重置令牌"
-      },
-      "VerifyResetTokenResponse": {
-        "properties": {
-          "valid": {
-            "type": "boolean",
-            "title": "Valid",
-            "description": "令牌是否有效"
-          },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email",
-            "description": "邮箱（脱敏）"
-          },
-          "expires_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expires At",
-            "description": "过期时间"
-          }
-        },
-        "type": "object",
-        "required": [
-          "valid"
-        ],
-        "title": "VerifyResetTokenResponse",
-        "description": "验证重置令牌响应模型。\n\nAttributes:\n    valid: 令牌是否有效\n    email: 邮箱（脱敏）\n    expires_at: 过期时间"
       }
     },
     "securitySchemes": {
@@ -2067,6 +2596,18 @@
     {
       "name": "文件管理",
       "description": "文件管理"
+    },
+    {
+      "name": "通知管理",
+      "description": "通知管理"
+    },
+    {
+      "name": "系统告警",
+      "description": "系统告警"
+    },
+    {
+      "name": "系统维护",
+      "description": "系统维护"
     }
   ],
   "servers": [
