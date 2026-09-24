@@ -20,7 +20,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from src.core.exceptions import AuthorizationException
-from src.infras.email import EmailProvider, get_cached_email_provider
 from src.infras.database import get_cached_database_provider
 from src.schemas.auth import CurrentUserResponse
 from src.schemas.common import PaginatedRequest
@@ -87,11 +86,6 @@ def get_user_service(
     from src.services.user_service import UserService
 
     return UserService(user_repository=user_repository)
-
-
-def get_email_provider() -> EmailProvider:
-    """获取邮件发送基础设施实例。"""
-    return get_cached_email_provider()
 
 
 def get_alert_service(

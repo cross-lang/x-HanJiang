@@ -22,7 +22,6 @@ from src.core.tokens import (
     create_refresh_token,
     decode_token,
 )
-from src.infras.email import EmailProvider
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.role_repository import RoleRepository
