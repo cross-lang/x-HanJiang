@@ -16,6 +16,8 @@ CREATE TABLE `users` (
     `id`  BIGINT  NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `username`  VARCHAR(50)  NOT NULL  COMMENT '用户名',
     `email`  VARCHAR(100)  NOT NULL  COMMENT '邮箱',
+    `name`  VARCHAR(100)  COMMENT '姓名',
+    `age`  INT  COMMENT '年龄',
     `password_hash`  VARCHAR(255)  COMMENT '密码哈希',
     `phone`  VARCHAR(20)  COMMENT '手机号',
     `avatar_url`  VARCHAR(500)  COMMENT '头像URL',

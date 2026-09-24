@@ -100,10 +100,19 @@ notification:
   retry_interval_seconds: 60
   # 健康检查告警接收邮箱（留空则不触发告警）
   alert_email: ""
-  # 钉钉机器人 Webhook（留空则不启用）
+  # 钉钉
+  # 方式一：工作通知（推荐，per-user 投递）
+  dingtalk_app_key: ""
+  dingtalk_app_secret: ""
+  dingtalk_agent_id: ""
+  # 方式二：群机器人 Webhook（群广播，不区分接收人）
   dingtalk_webhook: ""
   dingtalk_secret: ""
-  # 飞书机器人 Webhook（留空则不启用）
+  # 飞书
+  # 方式一：应用消息（推荐，per-user 投递，receive_id 填 open_id）
+  feishu_app_id: ""
+  feishu_app_secret: ""
+  # 方式二：群机器人 Webhook（群广播，不区分接收人）
   feishu_webhook: ""
   feishu_secret: ""
   # 短信（留空则不启用，需接入 SMS SDK）

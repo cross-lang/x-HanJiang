@@ -217,10 +217,18 @@ class NotificationConfig:
     enabled: bool = True
     retry_interval_seconds: int = 60
     alert_email: str = ""
-    dingtalk_webhook: str = ""
-    dingtalk_secret: str = ""
-    feishu_webhook: str = ""
-    feishu_secret: str = ""
+    # 钉钉
+    dingtalk_webhook: str = ""       # 群机器人 Webhook（降级模式）
+    dingtalk_secret: str = ""        # 群机器人加签密钥
+    dingtalk_app_key: str = ""       # 企业内部应用 AppKey（工作通知模式）
+    dingtalk_app_secret: str = ""    # 企业内部应用 AppSecret
+    dingtalk_agent_id: str = ""      # 应用 AgentId
+    # 飞书
+    feishu_webhook: str = ""         # 群机器人 Webhook（降级模式）
+    feishu_secret: str = ""          # 群机器人加签密钥
+    feishu_app_id: str = ""          # 自建应用 AppId（应用消息模式）
+    feishu_app_secret: str = ""      # 自建应用 AppSecret
+    # 短信
     sms_access_key: str = ""
     sms_secret_key: str = ""
     sms_sign_name: str = ""
@@ -244,7 +252,9 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "notification": ("NOTIFICATION_", [
         "enabled", "retry_interval_seconds", "alert_email",
         "dingtalk_webhook", "dingtalk_secret",
+        "dingtalk_app_key", "dingtalk_app_secret", "dingtalk_agent_id",
         "feishu_webhook", "feishu_secret",
+        "feishu_app_id", "feishu_app_secret",
         "sms_access_key", "sms_secret_key", "sms_sign_name", "sms_template_code",
     ]),
 }
@@ -382,10 +392,16 @@ class Settings:
             "notification": {
                 "enabled": True,
                 "retry_interval_seconds": 60,
+                "alert_email": "",
                 "dingtalk_webhook": "",
                 "dingtalk_secret": "",
+                "dingtalk_app_key": "",
+                "dingtalk_app_secret": "",
+                "dingtalk_agent_id": "",
                 "feishu_webhook": "",
                 "feishu_secret": "",
+                "feishu_app_id": "",
+                "feishu_app_secret": "",
                 "sms_access_key": "",
                 "sms_secret_key": "",
                 "sms_sign_name": "",

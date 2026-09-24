@@ -69,21 +69,26 @@ def _register_notification_providers() -> None:
     # 邮件渠道始终注册（复用 SMTP 配置）
     registry.register(EmailNotificationProvider())
 
-    # 钉钉
-    if cfg.dingtalk_webhook:
+    # 钉钉（webhook 或 应用凭证，任一配置即启用）
+    if cfg.dingtalk_webhook or cfg.dingtalk_app_key:
         registry.register(
             DingTalkNotificationProvider(
                 webhook_url=cfg.dingtalk_webhook,
                 secret=cfg.dingtalk_secret,
+                app_key=cfg.dingtalk_app_key,
+                app_secret=cfg.dingtalk_app_secret,
+                agent_id=cfg.dingtalk_agent_id,
             )
         )
 
-    # 飞书
-    if cfg.feishu_webhook:
+    # 飞书（webhook 或 应用凭证，任一配置即启用）
+    if cfg.feishu_webhook or cfg.feishu_app_id:
         registry.register(
             FeishuNotificationProvider(
                 webhook_url=cfg.feishu_webhook,
                 secret=cfg.feishu_secret,
+                app_id=cfg.feishu_app_id,
+                app_secret=cfg.feishu_app_secret,
             )
         )
 
