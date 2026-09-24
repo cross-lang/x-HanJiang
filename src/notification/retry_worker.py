@@ -61,24 +61,24 @@ async def run_retry_worker(interval_seconds: int = 60) -> None:
                     if success:
                         redis.zrem(_RETRY_QUEUE_KEY, raw)
                         logger.info(
-                            "Notification retry success: channel=%s recipient=%s",
+                            "Notification retry success: channel={} recipient={}",
                             channel,
                             data["recipient"],
                         )
                     elif data.get("retry_count", 0) >= 3:
                         redis.zrem(_RETRY_QUEUE_KEY, raw)
                         logger.warning(
-                            "Notification retry exhausted: channel=%s recipient=%s",
+                            "Notification retry exhausted: channel={} recipient={}",
                             channel,
                             data["recipient"],
                         )
                 except Exception as exc:
-                    logger.error("Notification retry attempt failed: %s", exc)
+                    logger.error("Notification retry attempt failed: {}", exc)
 
         except asyncio.CancelledError:
             logger.info("Notification retry worker cancelled")
             raise
         except Exception as exc:
-            logger.error("Notification retry worker error: %s", exc)
+            logger.error("Notification retry worker error: {}", exc)
 
         await asyncio.sleep(interval_seconds)

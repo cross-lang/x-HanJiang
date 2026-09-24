@@ -35,7 +35,7 @@ def _load_templates() -> dict[str, Any]:
 
     _templates = {}
     if not _TEMPLATE_DIR.exists():
-        logger.warning("Notification template dir not found: %s", _TEMPLATE_DIR)
+        logger.warning("Notification template dir not found: {}", _TEMPLATE_DIR)
         return _templates
 
     for f in _TEMPLATE_DIR.glob("*.yaml"):
@@ -45,7 +45,7 @@ def _load_templates() -> dict[str, Any]:
             if isinstance(data, dict):
                 _templates.update(data)
         except Exception as exc:
-            logger.warning("Failed to load template %s: %s", f, exc)
+            logger.warning("Failed to load template {}: {}", f, exc)
 
     return _templates
 
@@ -78,7 +78,7 @@ def render_template(
 
     if not channel_template:
         logger.warning(
-            "No template found for event=%s channel=%s", event_type, channel
+            "No template found for event={} channel={}", event_type, channel
         )
         return "", ""
 
@@ -90,7 +90,7 @@ def render_template(
         content = content.format(**variables)
     except KeyError as exc:
         logger.warning(
-            "Template variable missing: %s for event=%s channel=%s",
+            "Template variable missing: {} for event={} channel={}",
             exc,
             event_type,
             channel,

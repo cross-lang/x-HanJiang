@@ -177,7 +177,7 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         resp.raise_for_status()
         result = resp.json()
         if "errorCode" in result:
-            logger.error("DingTalk work notification failed: %s", result)
+            logger.error("DingTalk work notification failed: {}", result)
             return False
         return True
 
@@ -210,7 +210,7 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         resp.raise_for_status()
         result = resp.json()
         if result.get("errcode") != 0:
-            logger.error("DingTalk webhook failed: %s", result)
+            logger.error("DingTalk webhook failed: {}", result)
             return False
         return True
 
@@ -310,7 +310,7 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         resp.raise_for_status()
         result = resp.json()
         if result.get("code", 0) != 0:
-            logger.error("Feishu app message failed: %s", result)
+            logger.error("Feishu app message failed: {}", result)
             return False
         return True
 
@@ -342,7 +342,7 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         resp.raise_for_status()
         result = resp.json()
         if result.get("code", 0) != 0 and result.get("StatusCode", 0) != 0:
-            logger.error("Feishu webhook failed: %s", result)
+            logger.error("Feishu webhook failed: {}", result)
             return False
         return True
 
@@ -393,7 +393,7 @@ class NotificationProviderRegistry:
     def register(self, provider: BaseNotificationProvider) -> None:
         """注册一个渠道 Provider。"""
         self._providers[provider.channel_name] = provider
-        logger.info("Notification provider registered: %s", provider.channel_name)
+        logger.info("Notification provider registered: {}", provider.channel_name)
 
     def get(self, channel: str) -> BaseNotificationProvider | None:
         """获取指定渠道的 Provider。"""
@@ -411,7 +411,7 @@ class NotificationProviderRegistry:
         """通过指定渠道发送通知。"""
         provider = self._providers.get(channel)
         if provider is None:
-            logger.warning("No provider registered for channel: %s", channel)
+            logger.warning("No provider registered for channel: {}", channel)
             return False
         return provider.send(message)
 

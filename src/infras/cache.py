@@ -75,6 +75,22 @@ class CacheProvider(ABC):
     def close(self) -> None:
         """关闭连接，释放资源。"""
 
+    # ── Sorted Set 操作（用于重试队列等场景）─────────────────
+
+    @abstractmethod
+    def zadd(self, key: str, mapping: dict[str, float]) -> int:
+        """向有序集合添加成员，返回新增成员数。"""
+
+    @abstractmethod
+    def zrem(self, key: str, *members: str) -> int:
+        """从有序集合移除成员，返回移除数量。"""
+
+    @abstractmethod
+    def zrangebyscore(
+        self, key: str, min_score: float, max_score: float, start: int = 0, num: int = 0
+    ) -> list[str]:
+        """按分数范围获取有序集合成员。"""
+
 
 # ============================================================
 # Redis 实现
@@ -160,6 +176,31 @@ class RedisCacheProvider(CacheProvider):
         if self._client:
             self._client.close()
             logger.info("Redis connection closed")
+
+    # ── Sorted Set 操作 ──────────────────────────────────
+
+    def zadd(self, key: str, mapping: dict[str, float]) -> int:
+        try:
+            return self._client.zadd(key, mapping)
+        except Exception as e:
+            logger.warning(f"Cache zadd failed for key '{key}': {e}")
+            return 0
+
+    def zrem(self, key: str, *members: str) -> int:
+        try:
+            return self._client.zrem(key, *members)
+        except Exception as e:
+            logger.warning(f"Cache zrem failed for key '{key}': {e}")
+            return 0
+
+    def zrangebyscore(
+        self, key: str, min_score: float, max_score: float, start: int = 0, num: int = 0
+    ) -> list[str]:
+        try:
+            return self._client.zrangebyscore(key, min_score, max_score, start=start, num=num)
+        except Exception as e:
+            logger.warning(f"Cache zrangebyscore failed for key '{key}': {e}")
+            return []
 
     @property
     def client(self) -> Redis:

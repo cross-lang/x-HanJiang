@@ -117,7 +117,7 @@ class NotificationDispatcher:
             recipient = recipients.get(channel_str)
             if not recipient:
                 logger.debug(
-                    "No recipient for channel=%s event=%s, skipping",
+                    "No recipient for channel={} event={}, skipping",
                     channel_str,
                     event_type_str,
                 )
@@ -126,7 +126,7 @@ class NotificationDispatcher:
             provider = self._registry.get(channel_str)
             if provider is None:
                 logger.warning(
-                    "No provider registered for channel=%s, skipping", channel_str
+                    "No provider registered for channel={}, skipping", channel_str
                 )
                 continue
 
@@ -165,7 +165,7 @@ class NotificationDispatcher:
                 record.status = "failed"
                 record.error_message = str(exc)[:1000]
                 logger.error(
-                    "Notification send failed: event=%s channel=%s error=%s",
+                    "Notification send failed: event={} channel={} error={}",
                     event_type_str,
                     channel_str,
                     exc,
@@ -217,7 +217,7 @@ class NotificationDispatcher:
                 else str(event_type)
             )
             logger.warning(
-                "No notification config found for user_id=%s, event=%s",
+                "No notification config found for user_id={}, event={}",
                 user_id,
                 event_type_str,
             )
@@ -239,7 +239,7 @@ class NotificationDispatcher:
             self._session.commit()  # type: ignore[union-attr]
         except Exception as exc:
             self._session.rollback()  # type: ignore[union-attr]
-            logger.error("Failed to persist notification records: %s", exc)
+            logger.error("Failed to persist notification records: {}", exc)
 
     def _enqueue_retry(self, records: list[NotificationRecordEntity]) -> None:
         """将失败记录写入 Redis 重试队列（ZSET，score 为下次重试时间戳）。"""
@@ -264,4 +264,4 @@ class NotificationDispatcher:
                 score = time.time() + delay
                 redis.zadd("notification:retry_queue", {retry_data: score})
         except Exception as exc:
-            logger.error("Failed to enqueue notification retry: %s", exc)
+            logger.error("Failed to enqueue notification retry: {}", exc)
