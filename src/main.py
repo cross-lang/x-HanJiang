@@ -103,7 +103,7 @@ def _register_notification_providers() -> None:
             )
         )
 
-    logger.info("Notification providers: %s", registry.list_channels())
+    logger.info("Notification providers: {}", registry.list_channels())
 
 
 def _setup_notification() -> asyncio.Task | None:

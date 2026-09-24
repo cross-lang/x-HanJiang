@@ -24,7 +24,7 @@ async def run_retry_worker(interval_seconds: int = 60) -> None:
     Args:
         interval_seconds: 轮询间隔（秒）
     """
-    logger.info("Notification retry worker started, interval=%ds", interval_seconds)
+    logger.info("Notification retry worker started, interval={}s", interval_seconds)
     registry = get_registry()
 
     while True:
