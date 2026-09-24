@@ -95,7 +95,7 @@ class NotificationDispatcher:
             event_type: 事件类型（字符串或枚举），如 "user.password_changed"
             recipients: 渠道→接收人映射，如 {"email": "a@b.com"}
             variables: 模板变量，如 {"username": "张三"}
-            channels: 指定渠道（覆盖路由表），None 则用路由表
+            channels: 指定通知渠道（覆盖默认路由表），为None 则用路由表
             metadata: 扩展元数据
 
         Returns:
@@ -132,6 +132,7 @@ class NotificationDispatcher:
 
             subject, content = render_template(event_type_str, channel_str, variables)
 
+            # 拼接通知发送记录
             record = NotificationRecordEntity(
                 event_type=event_type_str,
                 channel=channel_str,
@@ -144,6 +145,7 @@ class NotificationDispatcher:
                 else None,
             )
 
+            # 发送消息
             message = NotificationMessage(
                 recipient=recipient,
                 subject=subject,
@@ -151,7 +153,6 @@ class NotificationDispatcher:
                 content_type="html" if channel_str == NotificationChannel.EMAIL.value else "text",
                 metadata=metadata or {},
             )
-
             try:
                 success = provider.send(message)
                 if success:
@@ -172,7 +173,7 @@ class NotificationDispatcher:
 
             records.append(record)
 
-        # 持久化
+        # 持久化通知发送记录
         if self._repository and records:
             self._persist_records(records)
 

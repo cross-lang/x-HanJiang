@@ -21,6 +21,7 @@ Usage:
     from src.main import app
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -100,6 +101,29 @@ def _register_notification_providers() -> None:
     logger.info("Notification providers: %s", registry.list_channels())
 
 
+def _setup_notification() -> asyncio.Task | None:
+    """初始化通知子系统，返回重试 Worker 的 Task（未启动则返回 None）。"""
+    if not settings.notification.enabled:
+        logger.info("Notification system disabled, skipping")
+        return None
+
+    # 1. 注册已配置的渠道 Provider
+    _register_notification_providers()
+
+    # 2. 启动失败重试 Worker（依赖 Redis）
+    if not (_has_redis and settings.redis.url):
+        logger.info("Redis unavailable, notification retry worker skipped")
+        return None
+
+    from src.notification.retry_worker import run_retry_worker
+
+    task = asyncio.create_task(
+        run_retry_worker(settings.notification.retry_interval_seconds)
+    )
+    logger.info("Notification retry worker scheduled")
+    return task
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理。
@@ -133,26 +157,12 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("MySQL connection fields not configured, database features disabled")
 
-    # 注册通知渠道 Provider
-    if settings.notification.enabled:
-        _register_notification_providers()
-
-    # 启动通知重试 Worker
-    retry_task = None
-    if settings.notification.enabled and _has_redis and settings.redis.url:
-        import asyncio
-        from src.notification.retry_worker import run_retry_worker
-
-        retry_task = asyncio.create_task(
-            run_retry_worker(settings.notification.retry_interval_seconds)
-        )
-        logger.info("Notification retry worker scheduled")
+    retry_task = _setup_notification()
 
     yield
 
     logger.info(f"{APP_NAME} shutting down...")
 
-    # 停止重试 Worker
     if retry_task is not None:
         retry_task.cancel()
         try:

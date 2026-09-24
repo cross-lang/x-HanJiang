@@ -27,6 +27,7 @@ from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
+from src.services.maintenance_service import MaintenanceService
 from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
 from src.utils.helpers import get_client_ip
@@ -91,9 +92,10 @@ def get_user_service(
 
 def get_alert_service(
     dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
+    db_session: Session = Depends(get_db_session),
 ) -> AlertService:
     """获取告警服务实例。"""
-    return AlertService(dispatcher=dispatcher)
+    return AlertService(dispatcher=dispatcher, session=db_session)
 
 
 def get_audit_service(

@@ -216,6 +216,7 @@ class NotificationConfig:
     """通知渠道配置。"""
     enabled: bool = True
     retry_interval_seconds: int = 60
+    alert_email: str = ""
     dingtalk_webhook: str = ""
     dingtalk_secret: str = ""
     feishu_webhook: str = ""
@@ -241,7 +242,7 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "storage": ("STORAGE_", ["provider"]),
     "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
     "notification": ("NOTIFICATION_", [
-        "enabled", "retry_interval_seconds",
+        "enabled", "retry_interval_seconds", "alert_email",
         "dingtalk_webhook", "dingtalk_secret",
         "feishu_webhook", "feishu_secret",
         "sms_access_key", "sms_secret_key", "sms_sign_name", "sms_template_code",

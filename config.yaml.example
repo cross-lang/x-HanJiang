@@ -98,6 +98,8 @@ notification:
   enabled: true
   # 重试 Worker 轮询间隔（秒）
   retry_interval_seconds: 60
+  # 健康检查告警接收邮箱（留空则不触发告警）
+  alert_email: ""
   # 钉钉机器人 Webhook（留空则不启用）
   dingtalk_webhook: ""
   dingtalk_secret: ""
