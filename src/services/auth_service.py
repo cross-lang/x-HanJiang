@@ -25,7 +25,6 @@ from src.core.tokens import (
 from src.infras.email import EmailProvider
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import UserEntity
-from src.services.notification_service import NotificationService
 from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.auth import (
@@ -46,14 +45,10 @@ class AuthService:
         self,
         user_repository: UserRepository,
         role_repository: RoleRepository | None = None,
-        notification_service: NotificationService | None = None,
     ) -> None:
         self._user_repository: UserRepository = user_repository
         self._role_repository = role_repository or RoleRepository(
             session=user_repository.session
-        )
-        self._notification_service = notification_service or NotificationService(
-            email_provider=EmailProvider()
         )
 
     def login(

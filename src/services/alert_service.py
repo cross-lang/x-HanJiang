@@ -14,7 +14,7 @@ from typing import Any
 
 from src.constants.enums import NotificationChannel, NotificationEvent
 from src.core.logger import logger
-from src.services.notification_dispatcher import NotificationDispatcher
+from src.notification.dispatcher import NotificationDispatcher
 
 
 class AlertService:

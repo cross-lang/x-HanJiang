@@ -4,22 +4,19 @@
 """
 
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy.orm import Session
 
 from src.api.dependencies import (
     get_current_user,
-    get_db_session,
-    get_notification_dispatcher,
+    get_notification_service,
 )
 from src.api.response import success_response
 from src.schemas.auth import CurrentUserResponse
-from src.schemas.common import PaginatedResponse
 from src.schemas.notification import (
     NotificationRecordResponse,
     NotificationSendRequest,
     NotificationStatsResponse,
 )
-from src.services.notification_dispatcher import NotificationDispatcher
+from src.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["通知管理"])
 
@@ -27,12 +24,12 @@ router = APIRouter(prefix="/notifications", tags=["通知管理"])
 @router.post(
     "/send",
     summary="手动发送通知",
-    description="手动触发一次通知发送，用于调试和测试",
+    description="手动触发一次通知发送（仅限管理员或调试使用）",
 )
 def send_notification(
     request: Request,
     body: NotificationSendRequest,
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+    notification_service: NotificationService = Depends(get_notification_service),
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """手动发送通知。
@@ -40,9 +37,10 @@ def send_notification(
     请求体示例（使用用户配置自动发送）：
     ```json
     {
-        "event_type": "user.registered",
+        "event_type": "user.password_changed",
         "variables": {
-            "username": "张三"
+            "username": "张三",
+            "changed_at": "2026-09-24 10:00"
         }
     }
     ```
@@ -68,11 +66,9 @@ def send_notification(
 
     各字段说明：
     - event_type: 事件类型，决定使用哪套模板。可选值：
-        `user.registered` / `user.password_reset` /
         `user.password_changed` / `user.profile_updated` /
         `user.status_changed` / `user.login_failed` /
         `role.assigned` / `permission.granted` / `permission.revoked` /
-        `file.uploaded` / `file.shared` /
         `system.alert` / `system.maintenance`
     - variables: 模板变量，会注入到对应模板的 `{变量名}` 占位符中。
     - recipients: （可选）手动指定渠道→接收人映射，用于调试。
@@ -82,7 +78,7 @@ def send_notification(
     """
     if body.recipients:
         # 手动指定接收人（调试模式）
-        records = dispatcher.dispatch(
+        records = notification_service.send_manual(
             event_type=body.event_type,
             recipients=body.recipients,
             variables=body.variables,
@@ -91,7 +87,7 @@ def send_notification(
         )
     else:
         # 根据当前用户配置自动发送
-        records = dispatcher.dispatch_for_user(
+        records = notification_service.send_for_user(
             user_id=current_user.id,
             event_type=body.event_type,
             variables=body.variables,
@@ -113,37 +109,16 @@ def list_notifications(
     event_type: str | None = Query(None, description="按事件类型过滤"),
     channel: str | None = Query(None, description="按渠道过滤"),
     status: str | None = Query(None, description="按状态过滤"),
-    db_session: Session = Depends(get_db_session),
+    notification_service: NotificationService = Depends(get_notification_service),
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """查询通知记录列表（分页）。"""
-    from src.models.entities.notification_entity import NotificationRecordEntity
-
-    query = db_session.query(NotificationRecordEntity)
-
-    if event_type:
-        query = query.filter(
-            NotificationRecordEntity.event_type == event_type
-        )
-    if channel:
-        query = query.filter(NotificationRecordEntity.channel == channel)
-    if status:
-        query = query.filter(NotificationRecordEntity.status == status)
-
-    total = query.count()
-    items = (
-        query.order_by(NotificationRecordEntity.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
-
-    result = PaginatedResponse[NotificationRecordResponse](
-        items=[NotificationRecordResponse.model_validate(r) for r in items],
-        total=total,
+    result = notification_service.list_records(
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size,
+        event_type=event_type,
+        channel=channel,
+        status=status,
     )
     return success_response(result.model_dump(), request)
 
@@ -155,19 +130,11 @@ def list_notifications(
 )
 def get_notification_stats(
     request: Request,
-    db_session: Session = Depends(get_db_session),
+    notification_service: NotificationService = Depends(get_notification_service),
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """通知统计接口。"""
-    from src.repositories.notification_repository import NotificationRepository
-
-    repo = NotificationRepository(session=db_session)
-    stats = NotificationStatsResponse(
-        total=repo.count(),
-        success=repo.count_by_status("success"),
-        failed=repo.count_by_status("failed"),
-        pending=repo.count_by_status("pending"),
-    )
+    stats = NotificationStatsResponse(**notification_service.get_stats())
     return success_response(stats.model_dump(), request)
 
 
@@ -179,18 +146,9 @@ def get_notification_stats(
 def get_notification(
     request: Request,
     notification_id: int,
-    db_session: Session = Depends(get_db_session),
+    notification_service: NotificationService = Depends(get_notification_service),
     current_user: CurrentUserResponse = Depends(get_current_user),
 ):
     """查询单条通知记录。"""
-    from src.repositories.notification_repository import NotificationRepository
-
-    repo = NotificationRepository(session=db_session)
-    record = repo.get_by_id(notification_id)
-    if record is None:
-        from src.core.exceptions import NotFoundException
-
-        raise NotFoundException(message="通知记录不存在")
-
-    result = NotificationRecordResponse.model_validate(record)
+    result = notification_service.get_record(notification_id)
     return success_response(result.model_dump(), request)

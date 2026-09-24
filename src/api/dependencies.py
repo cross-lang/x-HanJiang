@@ -28,7 +28,6 @@ from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
-from src.services.notification_dispatcher import NotificationDispatcher
 from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
 from src.utils.helpers import get_client_ip
@@ -96,7 +95,7 @@ def get_email_provider() -> EmailProvider:
 
 
 def get_alert_service(
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
 ) -> AlertService:
     """获取告警服务实例。"""
     return AlertService(dispatcher=dispatcher)
@@ -121,13 +120,10 @@ def get_file_service() -> FileStorageService:
 
 def get_auth_service(
     user_repository=Depends(get_user_repository),
-    email_provider: EmailProvider = Depends(get_email_provider),
 ):
     """获取认证服务。"""
-    notification_service = NotificationService(email_provider=email_provider)
     return AuthService(
         user_repository=user_repository,
-        notification_service=notification_service,
     )
 
 
@@ -261,11 +257,29 @@ def get_operator_context(
     }
 
 
+def get_notification_service(
+    db_session: Session = Depends(get_db_session),
+) -> NotificationService:
+    """获取通知业务服务实例。"""
+    from src.infras.notification import get_registry
+    from src.notification.dispatcher import NotificationDispatcher
+
+    dispatcher = NotificationDispatcher(
+        registry=get_registry(),
+        session=db_session,
+    )
+    return NotificationService(
+        dispatcher=dispatcher,
+        session=db_session,
+    )
+
+
 def get_notification_dispatcher(
     db_session: Session = Depends(get_db_session),
-) -> NotificationDispatcher:
-    """获取通知调度器实例。"""
+) -> "NotificationDispatcher":
+    """获取通知调度器实例（供 AlertService 等内部服务使用）。"""
     from src.infras.notification import get_registry
+    from src.notification.dispatcher import NotificationDispatcher
 
     return NotificationDispatcher(
         registry=get_registry(),

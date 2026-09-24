@@ -19,7 +19,7 @@ class NotificationSendRequest(BaseModel):
     示例（自动发送，从用户配置获取渠道）::
 
         {
-            "event_type": "user.registered",
+            "event_type": "user.password_changed",
             "variables": { "username": "张三" }
         }
 

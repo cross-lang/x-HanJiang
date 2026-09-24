@@ -141,7 +141,7 @@ async def lifespan(app: FastAPI):
     retry_task = None
     if settings.notification.enabled and _has_redis and settings.redis.url:
         import asyncio
-        from src.services.notification_retry_worker import run_retry_worker
+        from src.notification.retry_worker import run_retry_worker
 
         retry_task = asyncio.create_task(
             run_retry_worker(settings.notification.retry_interval_seconds)

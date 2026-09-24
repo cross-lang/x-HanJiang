@@ -40,8 +40,6 @@ class NotificationEvent(BaseEnum):
     """
 
     # ── 用户域 ──────────────────────────────────
-    USER_REGISTERED = "user.registered", "新用户注册"
-    USER_PASSWORD_RESET = "user.password_reset", "密码重置"
     USER_PASSWORD_CHANGED = "user.password_changed", "密码修改"
     USER_PROFILE_UPDATED = "user.profile_updated", "资料变更"
     USER_STATUS_CHANGED = "user.status_changed", "账号状态变更"
@@ -51,10 +49,6 @@ class NotificationEvent(BaseEnum):
     ROLE_ASSIGNED = "role.assigned", "角色变更"
     PERMISSION_GRANTED = "permission.granted", "权限授予"
     PERMISSION_REVOKED = "permission.revoked", "权限回收"
-
-    # ── 文件域 ──────────────────────────────────
-    FILE_UPLOADED = "file.uploaded", "文件上传完成"
-    FILE_SHARED = "file.shared", "文件分享"
 
     # ── 系统域 ──────────────────────────────────
     SYSTEM_ALERT = "system.alert", "系统告警"
