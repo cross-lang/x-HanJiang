@@ -165,6 +165,21 @@ curl http://localhost:8000/api/v1/roles/1/permissions \
   -H "Authorization: Bearer <access_token>"
 ```
 
+**Create an open platform app:**
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/apps \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "MyService", "scopes": ["ping:read"], "rate_limit_per_minute": 60, "auth_mode": "plain"}'
+```
+
+**Call an open platform endpoint:**
+```bash
+curl http://localhost:8000/api/open/v1/me \
+  -H "X-App-Id: hj_test_xxx" \
+  -H "X-App-Key: <app_key>"
+```
+
 > After first deployment, you can log in with the default superadmin account: `superadmin` / `admin@123456`. Be sure to change this password in production.
 
 ## Project Structure
@@ -252,8 +267,10 @@ flowchart TB
   Client[Client / Admin Panel] -->|HTTP / JSON| API[API Layer<br/>Route Aggregation · Param Validation · Unified Response]
 
   subgraph Application[Application Layer]
-    API --> Auth[Auth & Permission Entry<br/>Bearer Token · Current User · RBAC]
+    API --> Auth[User Auth<br/>Bearer JWT · Current User · RBAC]
+    API --> OpenAuth[Open Platform Auth<br/>AppId/AppKey · Scope · HMAC-ready]
     Auth --> Service[Service Layer<br/>User · Role · Permission · Audit · File · Notification]
+    OpenAuth --> OpenService[Open Platform Service<br/>App Management · Auth · Signature]
   end
 
   subgraph Data[Data Access Layer]
@@ -281,7 +298,13 @@ flowchart TB
 
 ```mermaid
 flowchart TD
-  Start([Client sends request]) --> Public{Public endpoint?}
+  Start([Client sends request]) --> Open{Open platform endpoint?}
+  Open -->|Yes| AppKey{AppId/AppKey valid?}
+  AppKey -->|No| Unauthorized[Return 401 Unauthorized]
+  AppKey -->|Yes| Scope{Has required scope?}
+  Scope -->|No| Forbidden[Return 403 Forbidden]
+  Scope -->|Yes| Route[API routing & param validation]
+  Open -->|No| Public{Public endpoint?}
   Public -->|Yes: login / refresh / health check| Route[API routing & param validation]
   Public -->|No| Token{Bearer Token valid?}
   Token -->|No| Unauthorized[Return 401 Unauthorized]
@@ -312,7 +335,8 @@ flowchart TD
 ```mermaid
 flowchart LR
   Main[main.py] --> Router[api.router]
-  Router --> API[api.v1 routes]
+  Router --> API[api.v1 user-facing routes]
+  Router --> OpenAPI[api.open open platform routes]
   API --> Dependencies[api.dependencies]
   API --> Schemas[schemas]
   API --> Services[services]
@@ -360,6 +384,7 @@ flowchart LR
 | **Logging** | Loguru | Modern Python logging library |
 | **Rate Limiting** | SlowAPI | Request rate limiting middleware |
 | **Password Hashing** | bcrypt | Secure password hashing |
+| **Symmetric Encryption** | cryptography (Fernet) | AppKey encryption, HMAC signature support |
 | **JWT** | PyJWT | JSON Web Token issuance and verification |
 | **HTTP Client** | httpx | Async HTTP client (notification channel API calls) |
 | **Package Manager** | uv | High-performance Python package manager |
@@ -381,7 +406,7 @@ The project leverages FastAPI's automatic OpenAPI specification generation, prov
 
 ### API Endpoint List
 
-All business endpoints are prefixed with `/api/v1`.
+User-facing endpoints are prefixed with `/api/v1` (JWT auth). Open platform endpoints are prefixed with `/api/open/v1` (AppId/AppKey auth).
 
 **Health Check (Public):**
 
@@ -494,10 +519,16 @@ Open Platform APIs are designed for external service-to-service integration, ful
 
 ### Access Control
 
-- All business endpoints (except login, refresh, and health check) require the `Authorization: Bearer <token>` header
-- Endpoints can declare access requirements via `require_user_role("role_code")` or `require_user_permission("perm_code")`
+**User-facing (`/api/v1/...`):**
+- All endpoints (except login, refresh, health check) require `Authorization: Bearer <token>`
+- Endpoints declare requirements via `require_user_role("role_code")` or `require_user_permission("perm_code")`
 - The `super_admin` role bypasses role restrictions by default
-- Permission evaluation results for regular users are cached in Redis by user and permission code
+- Permission evaluation results are cached in Redis by user and permission code
+
+**Open Platform (`/api/open/v1/...`):**
+- Requires `X-App-Id` and `X-App-Key` headers (plaintext mode)
+- Endpoints declare required scopes via `require_app_scope("scope:name")`
+- HMAC signature mode can be enabled per-app (`auth_mode=hmac`), requiring additional Timestamp / Nonce / Signature headers
 
 ## Notification System Configuration
 

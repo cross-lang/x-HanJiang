@@ -165,6 +165,21 @@ curl http://localhost:8000/api/v1/roles/1/permissions \
   -H "Authorization: Bearer <access_token>"
 ```
 
+**创建开放平台应用：**
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/apps \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "MyService", "scopes": ["ping:read"], "rate_limit_per_minute": 60, "auth_mode": "plain"}'
+```
+
+**调用开放平台接口：**
+```bash
+curl http://localhost:8000/api/open/v1/me \
+  -H "X-App-Id: hj_test_xxx" \
+  -H "X-App-Key: <app_key>"
+```
+
 > 首次部署后可使用默认超级管理员账号登录：`superadmin` / `admin@123456`，生产环境请务必修改该密码。
 
 ## 项目结构
@@ -252,8 +267,10 @@ flowchart TB
   Client[客户端 / 管理端] -->|HTTP / JSON| API[API 接口层<br/>路由聚合 · 参数校验 · 统一响应]
 
   subgraph Application[应用层]
-    API --> Auth[认证与权限入口<br/>Bearer Token · 当前用户 · RBAC]
+    API --> Auth[用户态认证<br/>Bearer JWT · 当前用户 · RBAC]
+    API --> OpenAuth[开放平台认证<br/>AppId/AppKey · Scope · HMAC预留]
     Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 文件 · 通知]
+    OpenAuth --> OpenService[开放平台服务<br/>应用管理 · 鉴权 · 签名校验]
   end
 
   subgraph Data[数据访问层]
@@ -281,7 +298,13 @@ flowchart TB
 
 ```mermaid
 flowchart TD
-  Start([客户端发起请求]) --> Public{公开接口?}
+  Start([客户端发起请求]) --> Open{开放平台接口?}
+  Open -->|是| AppKey{AppId/AppKey 有效?}
+  AppKey -->|否| Unauthorized[返回 401 未授权]
+  AppKey -->|是| Scope{具备所需 scope?}
+  Scope -->|否| Forbidden[返回 403 无权限]
+  Scope -->|是| Route[API 路由与参数校验]
+  Open -->|否| Public{公开接口?}
   Public -->|是：登录 / 刷新 / 健康检查| Route[API 路由与参数校验]
   Public -->|否| Token{Bearer Token 有效?}
   Token -->|否| Unauthorized[返回 401 未授权]
@@ -312,7 +335,8 @@ flowchart TD
 ```mermaid
 flowchart LR
   Main[main.py] --> Router[api.router]
-  Router --> API[api.v1 路由]
+  Router --> API[api.v1 用户态路由]
+  Router --> OpenAPI[api.open 开放平台路由]
   API --> Dependencies[api.dependencies]
   API --> Schemas[schemas]
   API --> Services[services]
@@ -360,6 +384,7 @@ flowchart LR
 | **日志** | Loguru | 现代化 Python 日志库 |
 | **限流** | SlowAPI | 请求限流中间件 |
 | **密码哈希** | bcrypt | 安全密码哈希 |
+| **对称加密** | cryptography (Fernet) | AppKey 加密存储、HMAC 签名预留 |
 | **JWT** | PyJWT | JSON Web Token 签发与验证 |
 | **HTTP 客户端** | httpx | 异步 HTTP 客户端（通知渠道 API 调用） |
 | **包管理器** | uv | 高性能 Python 包管理器 |
@@ -381,7 +406,7 @@ flowchart LR
 
 ### API 接口清单
 
-所有业务接口前缀为 `/api/v1`。
+用户态接口前缀为 `/api/v1`（JWT 鉴权），开放平台接口前缀为 `/api/open/v1`（AppId/AppKey 鉴权）。
 
 **健康检查（公开）：**
 
@@ -494,10 +519,16 @@ flowchart LR
 
 ### 权限控制说明
 
-- 所有业务接口（除登录、刷新、健康检查外）均需 `Authorization: Bearer <token>` 请求头
-- 接口可通过 `require_user_role("role_code")` 或 `require_user_permission("perm_code")` 声明访问要求
+**用户态（`/api/v1/...`）：**
+- 除登录、刷新、健康检查外，均需 `Authorization: Bearer <token>` 请求头
+- 接口通过 `require_user_role("role_code")` 或 `require_user_permission("perm_code")` 声明访问要求
 - `super_admin` 角色默认绕过角色限制
 - 普通用户的权限判断结果按用户和权限编码缓存于 Redis
+
+**开放平台（`/api/open/v1/...`）：**
+- 需 `X-App-Id` 和 `X-App-Key` 请求头（明文模式）
+- 接口通过 `require_app_scope("scope:name")` 声明所需 scope
+- 未来可切换 HMAC 签名模式（`auth_mode=hmac`），需额外携带 Timestamp / Nonce / Signature 头
 
 ## 通知系统配置
 
