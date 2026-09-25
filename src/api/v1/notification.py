@@ -10,7 +10,7 @@ from src.api.dependencies import (
     get_notification_service,
 )
 from src.api.response import success_response
-from src.schemas.auth import CurrentUserResponse
+from src.schemas.auth import CurrentUser
 from src.schemas.notification import (
     NotificationRecordResponse,
     NotificationSendRequest,
@@ -30,7 +30,7 @@ def send_notification(
     request: Request,
     body: NotificationSendRequest,
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """手动发送通知。
 
@@ -110,7 +110,7 @@ def list_notifications(
     channel: str | None = Query(None, description="按渠道过滤"),
     status: str | None = Query(None, description="按状态过滤"),
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """查询通知记录列表（分页）。"""
     result = notification_service.list_records(
@@ -131,7 +131,7 @@ def list_notifications(
 def get_notification_stats(
     request: Request,
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """通知统计接口。"""
     stats = NotificationStatsResponse(**notification_service.get_stats())
@@ -147,7 +147,7 @@ def get_notification(
     request: Request,
     notification_id: int,
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """查询单条通知记录。"""
     result = notification_service.get_record(notification_id)

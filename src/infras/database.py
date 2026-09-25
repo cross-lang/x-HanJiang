@@ -178,12 +178,30 @@ def drop_db() -> None:
     logger.warning("All MySQL tables dropped")
 
 
+def get_db_session():
+    """FastAPI 依赖：每个请求一个数据库会话，请求结束自动 commit/rollback/close。"""
+    from collections.abc import Generator
+
+    from sqlalchemy.orm import Session
+
+    session = get_cached_database_provider().get_session_factory()()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 __all__ = [
     "DatabaseProvider",
     "MySqlProvider",
     "Base",
     "get_database_provider",
     "get_cached_database_provider",
+    "get_db_session",
     "init_db",
     "drop_db",
 ]

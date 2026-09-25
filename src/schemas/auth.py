@@ -8,7 +8,7 @@ Classes:
     LoginRequest: 登录请求模型
     TokenResponse: 令牌响应模型
     RefreshTokenRequest: 刷新令牌请求模型
-    CurrentUserResponse: 当前用户信息响应模型
+    CurrentUser: 当前用户信息响应模型
 """
 
 from datetime import datetime
@@ -62,7 +62,7 @@ class RefreshTokenRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CurrentUserResponse(BaseModel):
+class CurrentUser(BaseModel):
     """当前用户信息响应模型。
 
     Attributes:

@@ -46,3 +46,13 @@ class OpenApiAppCreatedResponse(OpenApiAppResponse):
     """创建应用成功响应——唯一一次返回明文 AppKey。"""
 
     app_key: str = Field(description="明文 AppKey，仅本次返回，后续无法再查看")
+
+
+class CurrentApp(BaseModel):
+    """当前调用方应用（机器身份，无终端用户上下文）。"""
+
+    app_id: str
+    name: str
+    scopes: list[str]
+    auth_mode: str
+    rate_limit_per_minute: int

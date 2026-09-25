@@ -22,7 +22,7 @@ from src.api.response import success_response
 from src.core.exceptions import ValidationException
 from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import AlertSendRequest
-from src.schemas.auth import CurrentUserResponse
+from src.schemas.auth import CurrentUser
 from src.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["系统告警"])
@@ -79,7 +79,7 @@ async def broadcast_alert(
     body: AlertSendRequest,
     request: Request,
     service: AlertService = Depends(_get_alert_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """广播系统告警接口。
 

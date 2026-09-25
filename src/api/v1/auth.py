@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Request
 from src.api.dependencies import get_auth_service, get_current_user
 from src.api.response import success_response
 from src.schemas.auth import (
-    CurrentUserResponse,
+    CurrentUser,
     LoginRequest,
     RefreshTokenRequest,
 )
@@ -71,7 +71,7 @@ async def refresh(
 )
 async def me(
     request: Request,
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """当前用户信息接口。"""
     return success_response(current_user.model_dump(), request)
@@ -84,7 +84,7 @@ async def me(
 )
 async def logout(
     request: Request,
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     service: AuthService = Depends(get_auth_service),
 ):
     """退出登录接口。

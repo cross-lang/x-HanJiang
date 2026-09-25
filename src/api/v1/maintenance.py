@@ -19,7 +19,7 @@ from src.api.dependencies import (
 from src.api.response import success_response
 from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import MaintenanceNotifyRequest
-from src.schemas.auth import CurrentUserResponse
+from src.schemas.auth import CurrentUser
 from src.services.maintenance_service import MaintenanceService
 
 router = APIRouter(prefix="/maintenance", tags=["系统维护"])
@@ -42,7 +42,7 @@ async def notify_maintenance(
     body: MaintenanceNotifyRequest,
     request: Request,
     service: MaintenanceService = Depends(_get_maintenance_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """发送系统维护通知接口。
 

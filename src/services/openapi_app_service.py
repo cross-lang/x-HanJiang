@@ -11,16 +11,27 @@
 from __future__ import annotations
 
 import secrets
+from time import time
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
+from fastapi import Request
+
 from src.core.config import settings
-from src.core.exceptions import NotFoundException
+from src.core.exceptions import AuthenticationException, NotFoundException
 from src.core.logger import logger
+from src.constants.constants import (
+    OPENAPI_HEADER_APP_ID,
+    OPENAPI_HEADER_APP_KEY,
+    OPENAPI_HEADER_NONCE,
+    OPENAPI_HEADER_SIGNATURE,
+    OPENAPI_HEADER_TIMESTAMP,
+)
+from src.constants.enums import AppAuthMode
 from src.utils.security import generate_secret_key
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.repositories.openapi_app_repository import OpenApiAppRepository
-from src.schemas.openapi_app import OpenApiAppResponse
+from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
 from src.utils import security
 
 # ── 开放平台鉴权协议常量 ─────────────────────────────────
@@ -119,6 +130,116 @@ class OpenApiAppService:
 
     def __init__(self, repo: OpenApiAppRepository) -> None:
         self._repo = repo
+
+    # ── 鉴权（每请求调用）──────────────────────────────
+    async def authenticate(self, request: Request) -> CurrentApp:
+        """解析开放平台应用身份（X-App-Id / X-App-Key 或 HMAC 签名头）。
+
+        鉴权逻辑按 app.auth_mode 分流：
+            - plain：仅接受 X-App-Key 明文比对 SHA256；
+            - hmac：  仅接受 HMAC 签名（时间窗 + nonce 去重 + 重算签名）；
+            - both：  两种都接受（灰度期）。
+        """
+        app_id = request.headers.get(OPENAPI_HEADER_APP_ID)
+        if not app_id:
+            raise AuthenticationException(message="缺少请求头 X-App-Id")
+
+        app = self._repo.get_by_app_id(app_id)
+        if app is None or app.status != "active":
+            raise AuthenticationException(message="App 无效或已停用")
+
+        try:
+            mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)
+        except ValueError:
+            mode = AppAuthMode.PLAIN
+
+        plain_key = request.headers.get(OPENAPI_HEADER_APP_KEY)
+        signature = request.headers.get(OPENAPI_HEADER_SIGNATURE)
+        timestamp = request.headers.get(OPENAPI_HEADER_TIMESTAMP, "")
+        nonce = request.headers.get(OPENAPI_HEADER_NONCE, "")
+
+        authenticated = False
+
+        # 分支 1：明文 AppKey 校验
+        if mode in (AppAuthMode.PLAIN, AppAuthMode.BOTH) and plain_key:
+            authenticated = security.constant_time_equals(
+                security.sha256_hex(plain_key), app.app_key_hash
+            )
+
+        # 分支 2：HMAC 签名校验
+        if (
+            not authenticated
+            and mode in (AppAuthMode.HMAC, AppAuthMode.BOTH)
+            and signature
+        ):
+            authenticated = await self._verify_hmac_signature(
+                request=request,
+                app_encrypted=app.app_key_encrypted,
+                timestamp=timestamp,
+                nonce=nonce,
+                signature=signature,
+            )
+
+        if not authenticated:
+            raise AuthenticationException(message="应用鉴权失败")
+
+        # 更新 last_used_at（失败不阻断主流程）
+        try:
+            self._repo.touch_last_used(app_id)
+        except Exception:
+            self._repo.session.rollback()
+
+        return CurrentApp(
+            app_id=app.app_id,
+            name=app.name,
+            scopes=parse_scopes(app.scopes),
+            auth_mode=mode.value,
+            rate_limit_per_minute=app.rate_limit_per_minute,
+        )
+
+    async def _verify_hmac_signature(
+        self,
+        *,
+        request: Request,
+        app_encrypted: str | None,
+        timestamp: str,
+        nonce: str,
+        signature: str,
+    ) -> bool:
+        """HMAC 签名校验：时间窗 + 解密 secret + 重算签名 + nonce 去重。"""
+        # 1. 时间窗
+        try:
+            ts = int(timestamp)
+        except (TypeError, ValueError):
+            return False
+        if abs(time() - ts) > HMAC_TIMESTAMP_WINDOW_SECONDS:
+            return False
+
+        # 2. 解密取回明文 secret
+        secret = security.decrypt_text(app_encrypted)
+        if not secret:
+            return False
+
+        # 3. 重算签名
+        body = b""
+        try:
+            body = await request.body()
+        except Exception:
+            body = b""
+
+        if not verify_request_signature(
+            app_key_plain=secret,
+            method=request.method,
+            url=str(request.url),
+            body=body,
+            timestamp=timestamp,
+            nonce=nonce,
+            signature=signature,
+        ):
+            return False
+
+        # 4. nonce 去重（TODO: 接 Redis SETNX）
+        return True
 
     # ── 创建 ────────────────────────────────────────────
     def create_app(

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 
 from src.api.dependencies import get_current_user, get_file_service, get_operator_context
 from src.api.response import success_response
-from src.schemas.auth import CurrentUserResponse
+from src.schemas.auth import CurrentUser
 from src.services.file_service import FileStorageService
 
 router = APIRouter(prefix="/files", tags=["文件管理"])
@@ -34,7 +34,7 @@ async def upload_file(
         examples=["avatars"],
     ),
     service: FileStorageService = Depends(get_file_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     result = service.save_upload(file, folder=folder, operator=get_operator_context(current_user))
     return success_response(result, request)
@@ -58,6 +58,6 @@ async def download_file(
         examples=["documents/report.pdf"],
     ),
     service: FileStorageService = Depends(get_file_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     return service.download_file(file_path)

@@ -5,7 +5,7 @@
 用于联调、连通性验证和文档示例。
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from src.api.dependencies import CurrentApp, require_app_scope
 from src.api.response import success_response
@@ -13,10 +13,10 @@ from src.api.response import success_response
 router = APIRouter(tags=["开放平台：示例"])
 
 
-@router.get("/ping", summary="开放接口 ping")
+@router.get("/ping", summary="开放接口 Ping")
 async def ping(
     request: Request,
-    app: CurrentApp = require_app_scope("ping:read"),
+    app: CurrentApp = Depends(require_app_scope("ping:read")),
 ):
     """返回当前调用方应用身份，用于联调验证。"""
     return success_response(

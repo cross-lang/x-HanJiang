@@ -9,7 +9,7 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import get_openapi_app_service, require_role
+from src.api.dependencies import get_openapi_app_service, require_user_role
 from src.api.response import success_response
 from src.schemas.openapi_app import (
     OpenApiAppCreateRequest,
@@ -21,28 +21,25 @@ from src.services.openapi_app_service import OpenApiAppService
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
 
 # 仅超管可访问
-_admin = require_role("super_admin")
+_admin = require_user_role("super_admin")
 
 
 @router.post("", summary="创建开放应用")
 async def create_app(
     body: OpenApiAppCreateRequest,
     request: Request,
-    _=Depends(_admin),
+    current_user=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     """创建开放应用。
     响应里的 app_key 仅本次返回，之后无法再查看。
     """
-    current = getattr(request.state, "current_user", None)
-    owner_id = getattr(current, "id", None) if current else None
-
     resp, app_key = service.create_app(
         name=body.name,
         scopes=body.scopes,
         rate_limit_per_minute=body.rate_limit_per_minute,
         auth_mode=body.auth_mode,
-        owner_user_id=owner_id,
+        owner_user_id=current_user.id,
     )
     data = OpenApiAppCreatedResponse(**resp.model_dump(), app_key=app_key).model_dump()
     return success_response(data, request)

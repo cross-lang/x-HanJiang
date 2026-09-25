@@ -162,6 +162,7 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("MySQL connection fields not configured, database features disabled")
 
+    # 初始化通知子系统
     retry_task = _setup_notification()
 
     yield

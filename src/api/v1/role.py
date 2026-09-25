@@ -24,7 +24,7 @@ from src.api.dependencies import (
     get_role_service,
 )
 from src.api.response import success_response
-from src.schemas.auth import CurrentUserResponse
+from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.schemas.role import (
     BindPermissionRequest,
@@ -52,7 +52,7 @@ async def list_roles(
     role_type: str | None = None,
     status: str | None = None,
     service: RoleService = Depends(get_role_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """角色列表接口。"""
     result = service.search(
@@ -86,7 +86,7 @@ async def create_role(
     body: RoleCreateRequest,
     request: Request,
     service: RoleService = Depends(get_role_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """创建角色接口。"""
     result = service.create(body.model_dump(), operator=get_operator_context(current_user))
@@ -102,7 +102,7 @@ async def get_role(
     role_id: int,
     request: Request,
     service: RoleService = Depends(get_role_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """查询单个角色接口。"""
     from src.core.exceptions import NotFoundException
@@ -123,7 +123,7 @@ async def update_role(
     body: RoleUpdateRequest,
     request: Request,
     service: RoleService = Depends(get_role_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """更新角色接口。"""
     result = service.update(
@@ -143,7 +143,7 @@ async def delete_role(
     role_id: int,
     request: Request,
     service: RoleService = Depends(get_role_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """删除角色接口。"""
     service.delete(role_id, operator=get_operator_context(current_user))
@@ -159,7 +159,7 @@ async def get_role_permissions(
     role_id: int,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """查询角色权限列表接口。"""
     result = service.get_role_permissions(role_id)
@@ -177,7 +177,7 @@ async def bind_permission(
     body: BindPermissionRequest,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """为角色绑定权限接口。"""
     result = service.bind_permission(
@@ -198,7 +198,7 @@ async def unbind_permission(
     permission_id: int,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """解除角色权限绑定接口。"""
     service.unbind_permission(

@@ -33,7 +33,7 @@ from src.repositories.login_log_repository import LoginLogRepository
 from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.auth import (
-    CurrentUserResponse,
+    CurrentUser,
     TokenResponse,
 )
 
@@ -138,7 +138,7 @@ class AuthService:
             expires_in=60 * 60 * 24 * 7,
         )
 
-    def get_current_user(self, authorization: str | None) -> CurrentUserResponse:
+    def get_current_user(self, authorization: str | None) -> CurrentUser:
         """解析 Bearer 令牌，返回当前登录用户（校验 Redis 登录态）。"""
         from src.infras.cache import get_cached_cache_provider
 
@@ -183,7 +183,7 @@ class AuthService:
             if role is not None:
                 role_code = role.role_code
 
-        return CurrentUserResponse(
+        return CurrentUser(
             id=user.id,
             username=user.username,
             email=user.email,

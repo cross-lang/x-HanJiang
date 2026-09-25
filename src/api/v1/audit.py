@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from src.api.dependencies import get_audit_service, get_current_user, get_login_log_service
 from src.api.response import success_response
 from src.core.exceptions import NotFoundException
-from src.schemas.auth import CurrentUserResponse
+from src.schemas.auth import CurrentUser
 from src.schemas.audit import AuditLogResponse
 from src.schemas.common import PaginatedResponse
 from src.schemas.login_log import LoginLogResponse
@@ -63,7 +63,7 @@ async def list_audit_logs(
     ),
     audit_service: AuditService = Depends(get_audit_service),
     login_service: LoginLogService = Depends(get_login_log_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     fetch_page_size = page * page_size if log_type == "all" else page_size
     audit_result = audit_service.search(
@@ -127,7 +127,7 @@ async def get_audit_log(
     ),
     audit_service: AuditService = Depends(get_audit_service),
     login_service: LoginLogService = Depends(get_login_log_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     result = (
         audit_service.get_by_id(log_id)

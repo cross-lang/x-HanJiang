@@ -25,7 +25,7 @@ from src.api.dependencies import (
     get_user_service,
 )
 from src.api.response import success_response
-from src.schemas.auth import CurrentUserResponse
+from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest, AdminResetPasswordRequest
 from src.services.user_service import UserService
@@ -43,7 +43,7 @@ async def create_user(
     body: UserCreateRequest,
     request: Request,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """创建用户接口。"""
     result = service.create(body.model_dump(), operator=get_operator_context(current_user))
@@ -62,7 +62,7 @@ async def list_users(
     keyword: str | None = None,
     status: str | None = None,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """用户列表接口。"""
     result = service.search(
@@ -94,7 +94,7 @@ async def export_users(
     keyword: str | None = None,
     status: str | None = None,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """导出用户列表接口（CSV 文件下载）。"""
     rows = service.search(keyword=keyword, status=status, page=1, page_size=100000)[
@@ -145,7 +145,7 @@ async def get_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """查询单个用户接口。"""
     from src.core.exceptions import NotFoundException
@@ -166,7 +166,7 @@ async def update_user(
     body: UserUpdateRequest,
     request: Request,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """更新用户接口。"""
     result = service.update(
@@ -187,7 +187,7 @@ async def reset_user_password(
     body: AdminResetPasswordRequest,
     request: Request,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """管理员重置用户密码接口。"""
     service.reset_password(
@@ -205,7 +205,7 @@ async def delete_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """删除用户接口。"""
     service.delete(user_id, operator=get_operator_context(current_user))
@@ -221,7 +221,7 @@ async def import_users(
     request: Request,
     file: UploadFile = File(...),
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUserResponse = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """导入用户列表接口（CSV）。"""
     if not file.filename or not file.filename.lower().endswith(".csv"):
