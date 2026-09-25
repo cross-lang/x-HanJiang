@@ -32,6 +32,7 @@ from src.utils.security import generate_secret_key
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
+from src.services.base_service import BaseService
 from src.utils import security
 
 # ── 开放平台鉴权协议常量 ─────────────────────────────────
@@ -125,11 +126,14 @@ def parse_scopes(scopes: str | None) -> list[str]:
 # 管理员侧 CRUD
 # ============================================================
 
-class OpenApiAppService:
-    """开放应用管理。"""
+class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepository]):
+    """开放应用管理。
+    """
+
+    entity_type = "openapi_app"
 
     def __init__(self, repo: OpenApiAppRepository) -> None:
-        self._repo = repo
+        self._repository = repo
 
     # ── 鉴权（每请求调用）──────────────────────────────
     async def authenticate(self, request: Request) -> CurrentApp:
@@ -144,7 +148,7 @@ class OpenApiAppService:
         if not app_id:
             raise AuthenticationException(message="缺少请求头 X-App-Id")
 
-        app = self._repo.get_by_app_id(app_id)
+        app = self._repository.get_by_app_id(app_id)
         if app is None or app.status != "active":
             raise AuthenticationException(message="App 无效或已停用")
 
@@ -185,9 +189,9 @@ class OpenApiAppService:
 
         # 更新 last_used_at（失败不阻断主流程）
         try:
-            self._repo.touch_last_used(app_id)
+            self._repository.touch_last_used(app_id)
         except Exception:
-            self._repo.session.rollback()
+            self._repository.session.rollback()
 
         return CurrentApp(
             app_id=app.app_id,
@@ -254,7 +258,7 @@ class OpenApiAppService:
         """新建应用，返回 (DTO, 明文 AppKey)。明文 AppKey 仅此次返回。"""
         app_id = generate_app_id()
         # 极小概率碰撞，重生成一次
-        while self._repo.get_by_app_id(app_id) is not None:
+        while self._repository.get_by_app_id(app_id) is not None:
             app_id = generate_app_id()
 
         app_key_plain = generate_secret_key()
@@ -269,27 +273,29 @@ class OpenApiAppService:
             owner_user_id=owner_user_id,
             status="active",
         )
-        created = self._repo.create(entity)
-        logger.info(f"OpenAPI app created: app_id={app_id} name={name} owner={owner_user_id}")
+        created = self._repository.create(entity)
+        self._commit()
+        self._log_action("created", created.id, app_id=app_id, name=name)
         return self._to_response(created), app_key_plain
 
     # ── 查询 ────────────────────────────────────────────
     def list_apps(self, keyword: str | None = None, limit: int = 100) -> list[OpenApiAppResponse]:
-        stmt = self._repo._base_query()
+        stmt = self._repository._base_query()
         if keyword:
             stmt = stmt.where(OpenApiAppEntity.name.like(f"%{keyword}%"))
-        rows = list(self._repo.session.execute(stmt.limit(limit)).scalars().all())
+        rows = list(self._repository.session.execute(stmt.limit(limit)).scalars().all())
         return [self._to_response(r) for r in rows]
 
-    def get_app(self, id: int) -> OpenApiAppResponse:
-        e = self._repo.get_by_id(id)
+    def get_by_id(self, id: int) -> OpenApiAppResponse:
+        """根据 ID 查询应用详情，不存在抛 NotFound。"""
+        e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
         return self._to_response(e)
 
     # ── 更新 ────────────────────────────────────────────
-    def update_app(self, id: int, patch: dict[str, Any]) -> OpenApiAppResponse:
-        e = self._repo.get_by_id(id)
+    def update(self, id: int, patch: dict[str, Any]) -> OpenApiAppResponse:
+        e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
         if "scopes" in patch and patch["scopes"] is not None:
@@ -298,29 +304,34 @@ class OpenApiAppService:
         for k, v in patch.items():
             if v is not None and hasattr(e, k):
                 setattr(e, k, v)
-        self._repo.session.flush()
+        self._repository.session.flush()
+        self._commit()
+        self._log_action("updated", id)
         return self._to_response(e)
 
     # ── 重置 AppKey（轮换）────────────────────────────
     def rotate_key(self, id: int) -> tuple[OpenApiAppResponse, str]:
         """重置 AppKey：旧 key 立即失效，返回新明文（仅一次）。"""
-        e = self._repo.get_by_id(id)
+        e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
         new_plain = generate_secret_key()
         e.app_key_hash = security.sha256_hex(new_plain)
         e.app_key_encrypted = security.encrypt_text(new_plain)
-        self._repo.session.flush()
-        logger.info(f"OpenAPI app key rotated: app_id={e.app_id}")
+        self._repository.session.flush()
+        self._commit()
+        self._log_action("key rotated", id, app_id=e.app_id)
         return self._to_response(e), new_plain
 
     # ── 删除 ────────────────────────────────────────────
-    def delete_app(self, id: int) -> bool:
-        return self._repo.soft_delete(id)
+    def delete(self, id: int) -> bool:
+        ok = self._repository.soft_delete(id)
+        self._commit()
+        self._log_action("deleted", id)
+        return ok
 
-    # ── 内部用：entity → DTO ───────────────────────────
-    @staticmethod
-    def _to_response(e: OpenApiAppEntity) -> OpenApiAppResponse:
+    # ── Entity → DTO ────────────────────────────────────
+    def _to_response(self, e: OpenApiAppEntity) -> OpenApiAppResponse:
         return OpenApiAppResponse(
             id=e.id,
             app_id=e.app_id,

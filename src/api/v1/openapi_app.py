@@ -64,7 +64,7 @@ async def get_app(
     _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
-    return success_response(service.get_app(app_id).model_dump(), request)
+    return success_response(service.get_by_id(app_id).model_dump(), request)
 
 
 @router.patch("/{app_id}", summary="更新应用")
@@ -76,7 +76,7 @@ async def update_app(
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     return success_response(
-        service.update_app(app_id, body.model_dump(exclude_unset=True)).model_dump(),
+        service.update(app_id, body.model_dump(exclude_unset=True)).model_dump(),
         request,
     )
 
@@ -91,7 +91,7 @@ async def update_app_scopes(
 ):
     """覆盖更新应用的 scope 列表。传入的 scopes 会完全覆盖原有值。"""
     return success_response(
-        service.update_app(app_id, {"scopes": body.scopes}).model_dump(),
+        service.update(app_id, {"scopes": body.scopes}).model_dump(),
         request,
     )
 
@@ -117,5 +117,5 @@ async def delete_app(
     _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
-    ok = service.delete_app(app_id)
+    ok = service.delete(app_id)
     return success_response({"deleted": ok}, request)
