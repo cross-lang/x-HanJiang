@@ -12,7 +12,9 @@ APP_DESCRIPTION: str = "一个基于 FastAPI 框架深度封装的生产级 Pyth
 APP_VERSION: str = "0.1.0"
 
 # -- API ----------------------------------------------------------------
-API_PREFIX: str = "/api/v1"
+# 基础前缀；具体版本号（/v1）由各路由组在自己的 router 上声明，
+# 例如：用户态 /api/v1，开放平台 /api/open/v1。
+API_PREFIX: str = "/api"
 
 # -- 环境标识 -----------------------------------------------------------
 ENV_DEVELOPMENT: str = "development"
@@ -27,6 +29,13 @@ DEFAULT_CONFIG_FILE: str = "config.yaml"
 REQUEST_ID_HEADER: str = "X-Request-ID"        # 请求头中的 Request ID 字段名
 CONTEXT_REQUEST_ID: str = "request_id"          # request.state 中的键
 CONTEXT_REAL_IP: str = "real_ip"                # request.state 中的键
+
+# -- 开放平台鉴权请求头（面向外部服务，AppId/AppKey 或 HMAC 签名）--------
+OPENAPI_HEADER_APP_ID: str = "X-App-Id"
+OPENAPI_HEADER_APP_KEY: str = "X-App-Key"
+OPENAPI_HEADER_TIMESTAMP: str = "X-App-Timestamp"
+OPENAPI_HEADER_NONCE: str = "X-App-Nonce"
+OPENAPI_HEADER_SIGNATURE: str = "X-App-Signature"
 
 # -- 用户字段约束 -------------------------------------------------------
 USERNAME_MIN_LENGTH: int = 3

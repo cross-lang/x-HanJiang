@@ -637,7 +637,7 @@ class Settings:
             ):
                 raise ValueError(
                     "AUTH_SECRET_KEY 在生产环境必须配置为至少 32 字符的随机字符串，"
-                    "可通过 `python -c \"from src.core.security import "
+                    "可通过 `python -c \"from src.utils.security import "
                     "generate_secret_key; print(generate_secret_key())\"` 生成"
                 )
 

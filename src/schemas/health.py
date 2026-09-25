@@ -46,12 +46,11 @@ class VersionResponse(BaseModel):
 
     @classmethod
     def current(cls) -> "VersionResponse":
-        """构造当前版本响应，api_version 从常量 API_PREFIX 自动推导。
+        """构造当前版本响应。
 
-        Returns:
-            VersionResponse: 含最新版本号的响应模型
+        health 接口挂在用户态 v1 路由下，api_version 固定为 v1；
+        开放平台有自己的版本号，不在此响应范围内。
         """
-        from src.constants import API_PREFIX, APP_VERSION
+        from src.constants import APP_VERSION
 
-        api_version = API_PREFIX.rstrip("/").rsplit("/", 1)[-1] or "v1"
-        return cls(version=APP_VERSION, api_version=api_version)
+        return cls(version=APP_VERSION, api_version="v1")

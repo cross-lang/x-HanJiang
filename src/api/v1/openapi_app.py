@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""开放平台应用管理接口（内部管理员用，走用户态 JWT）。
+
+路由前缀：/api/v1/admin/apps
+权限：super_admin
+
+注意：AppKey 明文只在创建 / 重置时返回一次，之后无法再查看。
+"""
+
+from fastapi import APIRouter, Depends, Request
+
+from src.api.dependencies import get_openapi_app_service, require_role
+from src.api.response import success_response
+from src.schemas.openapi_app import (
+    OpenApiAppCreateRequest,
+    OpenApiAppCreatedResponse,
+    OpenApiAppUpdateRequest,
+)
+from src.services.openapi_app_service import OpenApiAppService
+
+router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
+
+# 仅超管可访问
+_admin = require_role("super_admin")
+
+
+@router.post("", summary="创建开放应用")
+async def create_app(
+    body: OpenApiAppCreateRequest,
+    request: Request,
+    _=Depends(_admin),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    """创建开放应用。
+    响应里的 app_key 仅本次返回，之后无法再查看。
+    """
+    current = getattr(request.state, "current_user", None)
+    owner_id = getattr(current, "id", None) if current else None
+
+    resp, app_key = service.create_app(
+        name=body.name,
+        scopes=body.scopes,
+        rate_limit_per_minute=body.rate_limit_per_minute,
+        auth_mode=body.auth_mode,
+        owner_user_id=owner_id,
+    )
+    data = OpenApiAppCreatedResponse(**resp.model_dump(), app_key=app_key).model_dump()
+    return success_response(data, request)
+
+
+@router.get("", summary="应用列表")
+async def list_apps(
+    request: Request,
+    keyword: str | None = None,
+    _=Depends(_admin),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    items = service.list_apps(keyword=keyword)
+    return success_response([i.model_dump() for i in items], request)
+
+
+@router.get("/{app_id}", summary="应用详情")
+async def get_app(
+    app_id: int,
+    request: Request,
+    _=Depends(_admin),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    return success_response(service.get_app(app_id).model_dump(), request)
+
+
+@router.patch("/{app_id}", summary="更新应用")
+async def update_app(
+    app_id: int,
+    body: OpenApiAppUpdateRequest,
+    request: Request,
+    _=Depends(_admin),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    return success_response(
+        service.update_app(app_id, body.model_dump(exclude_unset=True)).model_dump(),
+        request,
+    )
+
+
+@router.post("/{app_id}/rotate-key", summary="重置 AppKey")
+async def rotate_key(
+    app_id: int,
+    request: Request,
+    _=Depends(_admin),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    resp, new_key = service.rotate_key(app_id)
+    return success_response(
+        {**resp.model_dump(), "app_key": new_key, "warning": "新 AppKey 仅本次返回"},
+        request,
+    )
+
+
+@router.delete("/{app_id}", summary="删除应用")
+async def delete_app(
+    app_id: int,
+    request: Request,
+    _=Depends(_admin),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    ok = service.delete_app(app_id)
+    return success_response({"deleted": ok}, request)

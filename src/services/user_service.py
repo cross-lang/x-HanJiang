@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from src.constants.enums import NotificationEvent, UserStatus
 from src.core.exceptions import ConflictException, NotFoundException, ValidationException
 from src.core.logger import logger
-from src.core.security import hash_password, verify_password
+from src.utils.security import hash_password, verify_password
 from src.models.entities.user_entity import UserEntity
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest

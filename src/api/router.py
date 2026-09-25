@@ -2,40 +2,24 @@
 """
 中央路由注册模块
 
-本模块负责将所有 API 路由模块统一注册到主路由器上。
+本模块只负责顶层路由分组，不关心具体版本号：
+- /api/v1/...       → 用户态业务接口（JWT 鉴权），版本聚合在 src/api/v1/__init__.py
+- /api/open/v1/...  → 开放平台接口（AppId/AppKey 鉴权），版本聚合在 src/api/open/v1/__init__.py
 
+未来加 v2 时，只需新建 src/api/v2/ 或 src/api/open/v2/，在对应 __init__.py
+里建一个带 prefix="/v2" 的聚合 router，再在本文件 include 即可。
 """
 
 from fastapi import APIRouter
 
-from src.api.v1 import alert, audit, auth, file, health, maintenance, notification, role, user
+from src.api.open.v1 import v1_router as open_v1_router
+from src.api.v1 import v1_router
 from src.constants import API_PREFIX
 
+# 1. 用户态业务路由（面向用户，JWT Token 鉴权）
 api_router = APIRouter(prefix=API_PREFIX)
+api_router.include_router(v1_router)
 
-# 注册健康检查路由
-api_router.include_router(health.router)
-
-# 注册用户管理路由
-api_router.include_router(user.router)
-
-# 注册身份认证路由
-api_router.include_router(auth.router)
-
-# 注册角色管理路由
-api_router.include_router(role.router)
-
-# 注册审计日志路由
-api_router.include_router(audit.router)
-
-# 注册文件管理路由
-api_router.include_router(file.router)
-
-# 注册通知管理路由
-api_router.include_router(notification.router)
-
-# 注册告警路由
-api_router.include_router(alert.router)
-
-# 注册系统维护路由
-api_router.include_router(maintenance.router)
+# 2. 开放平台路由（面向外部服务，AppId/AppKey 鉴权）
+open_router = APIRouter(prefix=f"{API_PREFIX}/open")
+open_router.include_router(open_v1_router)

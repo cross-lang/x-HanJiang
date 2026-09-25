@@ -17,7 +17,7 @@ Functions:
 from sqlalchemy import select
 
 from src.core.logger import logger
-from src.core.security import hash_password
+from src.utils.security import hash_password
 from src.infras.database import get_cached_database_provider
 from src.models.entities.user_entity import (
     PermissionEntity,

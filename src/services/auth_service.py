@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from src.constants.enums import NotificationEvent, UserStatus
 from src.core.exceptions import AuthenticationException
 from src.core.logger import logger
-from src.core.security import verify_password
+from src.utils.security import verify_password
 from src.core.tokens import (
     REFRESH_TOKEN_TYPE,
     create_access_token,

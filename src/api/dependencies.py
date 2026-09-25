@@ -14,9 +14,11 @@ Functions:
 
 from collections.abc import Generator
 from functools import lru_cache
+from time import time
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.core.exceptions import AuthorizationException
@@ -235,6 +237,16 @@ def get_login_log_service(
     return LoginLogService(login_log_repository=login_log_repository)
 
 
+def get_openapi_app_service(
+    db_session: Session = Depends(get_db_session),
+):
+    """创建开放平台应用管理服务。"""
+    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.services.openapi_app_service import OpenApiAppService
+
+    return OpenApiAppService(repo=OpenApiAppRepository(session=db_session))
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     auth_service: AuthService = Depends(get_auth_service),
@@ -288,6 +300,166 @@ def get_operator_context(
         "operator_id": current_user.id,
         "operator_name": current_user.username,
     }
+
+
+# ============================================================
+# 面向应用（开放平台）鉴权
+# ============================================================
+
+
+class CurrentApp(BaseModel):
+    """当前调用方应用（机器身份，无终端用户上下文）。"""
+
+    app_id: str
+    name: str
+    scopes: list[str]
+    auth_mode: str
+    rate_limit_per_minute: int
+
+
+async def get_current_app(
+    request: Request,
+    db_session: Session = Depends(get_db_session),
+) -> CurrentApp:
+    """解析开放平台应用身份（X-App-Id / X-App-Key 或 HMAC 签名头）。
+
+    与 get_current_user 平行，互不影响。鉴权逻辑按 app.auth_mode 分流：
+        - plain：仅接受 X-App-Key 明文比对 SHA256；
+        - hmac：  仅接受 HMAC 签名（时间窗 + nonce 去重 + 重算签名）；
+        - both：  两种都接受（灰度期）。
+    """
+    from src.core.exceptions import AuthenticationException
+    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.utils import app_auth
+
+    app_id = request.headers.get(OPENAPI_HEADER_APP_ID)
+    if not app_id:
+        raise AuthenticationException(message="缺少请求头 X-App-Id")
+
+    repo = OpenApiAppRepository(session=db_session)
+    app = repo.get_by_app_id(app_id)
+    if app is None or app.status != "active":
+        raise AuthenticationException(message="App 无效或已停用")
+
+    try:
+        mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)
+    except ValueError:
+        mode = AppAuthMode.PLAIN
+    plain_key = request.headers.get(OPENAPI_HEADER_APP_KEY)
+    signature = request.headers.get(OPENAPI_HEADER_SIGNATURE)
+    timestamp = request.headers.get(OPENAPI_HEADER_TIMESTAMP, "")
+    nonce = request.headers.get(OPENAPI_HEADER_NONCE, "")
+
+    authenticated = False
+
+    # ── 分支 1：明文 AppKey 校验 ──
+    if mode in (AppAuthMode.PLAIN, AppAuthMode.BOTH) and plain_key:
+        authenticated = security.constant_time_equals(security.sha256_hex(plain_key), app.app_key_hash)
+
+    # ── 分支 2：HMAC 签名校验（预留分支，未来切 auth_mode=hmac 时即生效）──
+    if (
+        not authenticated
+        and mode in (AppAuthMode.HMAC, AppAuthMode.BOTH)
+        and signature
+    ):
+        authenticated = await _verify_hmac_signature(
+            request=request,
+            app_encrypted=app.app_key_encrypted,
+            timestamp=timestamp,
+            nonce=nonce,
+            signature=signature,
+        )
+
+    if not authenticated:
+        raise AuthenticationException(message="应用鉴权失败")
+
+    # 异步更新 last_used_at（失败不阻断）
+    try:
+        repo.touch_last_used(app_id)
+    except Exception:
+        db_session.rollback()
+
+    current = CurrentApp(
+        app_id=app.app_id,
+        name=app.name,
+        scopes=parse_scopes(app.scopes),
+        auth_mode=mode,
+        rate_limit_per_minute=app.rate_limit_per_minute,
+    )
+    request.state.current_app = current
+    return current
+
+
+async def _verify_hmac_signature(
+    *,
+    request: Request,
+    app_encrypted: str | None,
+    timestamp: str,
+    nonce: str,
+    signature: str,
+) -> bool:
+    """HMAC 签名校验：时间窗 + 解密 secret + 重算签名 + Redis nonce 去重。
+
+    当前默认 auth_mode=plain，此分支不会被走到；代码已就绪，未来切 hmac 即可。
+    """
+    from src.utils import app_auth
+
+    # 1. 时间窗
+    try:
+        ts = int(timestamp)
+    except (TypeError, ValueError):
+        return False
+    if abs(time() - ts) > HMAC_TIMESTAMP_WINDOW_SECONDS:
+        return False
+
+    # 2. 解密取回明文 secret
+    secret = security.decrypt_text(app_encrypted)
+    if not secret:
+        return False
+
+    # 3. 重算签名（FastAPI 缓存 body，可重复读）
+    body = b""
+    try:
+        body = await request.body()  # type: ignore[assignment]
+    except Exception:
+        body = b""
+
+    if not verify_request_signature(
+        app_key_plain=secret,
+        method=request.method,
+        url=str(request.url),
+        body=body,
+        timestamp=timestamp,
+        nonce=nonce,
+        signature=signature,
+    ):
+        return False
+
+    # 4. nonce 去重（Redis，失败降级为不拦截，避免开发环境无 Redis 时阻断）
+    _try_nonce_dedup(OPENAPI_HEADER_NONCE, app_id=request.headers.get(OPENAPI_HEADER_APP_ID, ""), nonce=nonce)
+    return True
+
+
+def _try_nonce_dedup(header_name: str, *, app_id: str, nonce: str) -> None:
+    """在 Redis 里 SETNX nonce，TTL = 时间窗。已存在说明重放，调用方应视为失败。
+
+    当前 HMAC 未启用，本函数实际不会被调用；这里只做最小骨架，未来接 Redis provider 时完善。
+    """
+    # TODO: 接入 src/infras/cache.py，SETNX f"openapi:nonce:{app_id}:{nonce}" EX 300
+    return None
+
+
+def require_app_scope(scope: str):
+    """要求当前应用必须拥有指定 scope。"""
+
+    def dependency(app: CurrentApp = Depends(get_current_app)) -> CurrentApp:
+        if scope not in app.scopes:
+            from src.core.exceptions import AuthorizationException
+
+            raise AuthorizationException(message=f"应用缺少 scope: {scope}")
+        return app
+
+    return dependency
 
 
 

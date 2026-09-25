@@ -23,6 +23,19 @@ class UserStatus(Enum):
     LOCKED = "locked"
 
 
+class AppAuthMode(Enum):
+    """开放平台应用鉴权模式（对齐 api_apps.auth_mode 列）。
+
+    PLAIN：仅接受 X-App-Key 明文比对；
+    HMAC：  仅接受 HMAC 签名（timestamp + nonce + signature）；
+    BOTH：  两种都接受（灰度迁移期用）。
+    """
+
+    PLAIN = "plain"
+    HMAC = "hmac"
+    BOTH = "both"
+
+
 class NotificationChannel(BaseEnum):
     """通知发送渠道"""
 
