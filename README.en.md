@@ -8,7 +8,7 @@
 
 HanJiang (汉江) is a production-grade Python Web application framework built on top of FastAPI, following industry best engineering practices. It provides a standardized, modular, highly extensible, and maintainable backend service infrastructure.
 
-The project is ready to use out of the box, featuring a standard three-layer architecture (API → Service → Repository), FastAPI native dependency injection, dual configuration system, unified authentication with RBAC access control, structured logging, business audit, S3-compatible object storage, and idempotent seed data initialization. It enables rapid development of enterprise-grade RESTful APIs suitable for local development, testing, and multi-environment production deployment.
+The project is ready to use out of the box, featuring a standard three-layer architecture (API → Service → Repository), FastAPI native dependency injection, dual configuration system, unified authentication with RBAC access control, **Open Platform API for external service integration (AppId+AppKey auth, with HMAC upgrade path)**, structured logging, business audit, S3-compatible object storage, and idempotent seed data initialization. It enables rapid development of enterprise-grade RESTful APIs suitable for local development, testing, and multi-environment production deployment.
 
 ## Quick Start
 
@@ -89,7 +89,7 @@ cp config.yaml.example config.yaml
 
 > **Secret key generation**:
 > ```bash
-> python -c "from src.core.security import generate_secret_key; print(generate_secret_key())"
+> python -c "from src.utils.security import generate_secret_key; print(generate_secret_key())"
 > ```
 
 ### 5. Start the Service
@@ -177,7 +177,7 @@ x-HanJiang/
 │   ├── env.py                # Alembic environment configuration
 │   └── versions/             # Migration version scripts
 ├── docs/                     # Project documentation
-│   └── hanjiang.sql          # Database schema definition (8 tables)
+│   └── hanjiang.sql          # Database schema definition (9 tables)
 ├── examples/                 # Usage examples
 ├── logs/                     # Runtime log output directory
 ├── scripts/                  # Engineering scripts
@@ -186,7 +186,7 @@ x-HanJiang/
 ├── src/                      # Core business code
 │   ├── main.py               # Application entry point (factory function, lifecycle management)
 │   ├── api/                  # API layer
-│   │   ├── v1/               # v1 versioned route modules
+│   │   ├── v1/               # User-facing v1 routes (JWT auth)
 │   │   │   ├── health.py     # Health check (with auto-alerting)
 │   │   │   ├── user.py       # User management CRUD
 │   │   │   ├── auth.py       # Authentication (login/refresh/me/logout)
@@ -195,8 +195,14 @@ x-HanJiang/
 │   │   │   ├── file.py       # File upload
 │   │   │   ├── notification.py # Notification records query and manual sending
 │   │   │   ├── alert.py      # System alerts (Webhook + broadcast)
-│   │   │   └── maintenance.py # System maintenance notifications
-│   │   ├── dependencies.py   # DI dependency functions (Service/Repository/current_user)
+│   │   │   ├── maintenance.py # System maintenance notifications
+│   │   │   └── openapi_app.py # Open platform app management (super admin CRUD)
+│   │   ├── open/             # Open platform v1 routes (AppId/AppKey auth)
+│   │   │   └── v1/
+│   │   │       ├── health.py  # Open platform health & version
+│   │   │       ├── ping.py    # Connectivity test (requires ping:read scope)
+│   │   │       └── app.py     # Current app info
+│   │   ├── dependencies.py   # DI dependency functions (Service/Repository/current_user/current_app)
 │   │   ├── response.py       # Unified response wrapper
 │   │   └── router.py         # Route aggregation registration
 │   ├── constants/            # Business constants and enums
@@ -208,7 +214,6 @@ x-HanJiang/
 │   │   ├── exceptions.py     # Custom exceptions and global exception handling
 │   │   ├── logger.py         # Logger initialization (loguru)
 │   │   ├── middleware.py     # Middleware (request ID, logging, CORS, rate limiting)
-│   │   ├── security.py       # Password hashing and secret key generation
 │   │   ├── seed.py           # Idempotent seed data initialization
 │   │   ├── session.py        # Database session management
 │   │   └── tokens.py         # JWT token issuance and verification
@@ -229,6 +234,7 @@ x-HanJiang/
 │   ├── schemas/              # API request/response DTOs (Pydantic BaseModel)
 │   ├── services/             # Business logic layer (Service pattern)
 │   └── utils/                # Utility functions
+│       └── security.py       # Security utils (password hashing / Fernet / HMAC / key generation)
 ├── tests/                    # Test code
 ├── Dockerfile                # Docker image build (multi-stage)
 ├── docker-compose.yml        # Docker orchestration (App + MySQL + Redis)
@@ -457,10 +463,39 @@ All business endpoints are prefixed with `/api/v1`.
 |--------|------|-------------|
 | POST | `/api/v1/maintenance/notify` | Send maintenance notification to all users |
 
+**Open Platform App Management (Requires super_admin):**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/admin/apps` | Create open platform app (returns AppId + AppKey, Key shown once) |
+| GET | `/api/v1/admin/apps` | App list |
+| GET | `/api/v1/admin/apps/{id}` | App detail |
+| PATCH | `/api/v1/admin/apps/{id}` | Update app (scopes/rate limit/auth mode/status) |
+| POST | `/api/v1/admin/apps/{id}/rotate-key` | Rotate AppKey (old key invalidated immediately) |
+| DELETE | `/api/v1/admin/apps/{id}` | Delete app (soft delete) |
+
+**Open Platform Endpoints (AppId/AppKey Auth):**
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/api/open/v1/health` | Open platform health check | Public |
+| GET | `/api/open/v1/version` | Open platform version info | Public |
+| GET | `/api/open/v1/me` | Current calling app info | AppId/AppKey required |
+| GET | `/api/open/v1/ping` | Connectivity test | AppId/AppKey + `ping:read` scope |
+
+### Open Platform Authentication
+
+Open Platform APIs are designed for external service-to-service integration, fully independent from user-facing JWT auth:
+
+- **Auth method**: Send `X-App-Id` and `X-App-Key` headers (plaintext mode to start)
+- **Upgrade path**: Each AppKey is stored as both SHA256 hash (fast lookup) and Fernet-encrypted plaintext (for future HMAC mode). The `auth_mode` column (plain/hmac/both) allows switching without key rotation
+- **Scope-based authorization**: Each app has a scope list (e.g. `ping:read`); endpoints declare requirements via `require_app_scope("ping:read")`
+- **Swagger testing**: Enter `OpenAppId` and `OpenAppKey` in the Authorize dialog to test open platform endpoints
+
 ### Access Control
 
 - All business endpoints (except login, refresh, and health check) require the `Authorization: Bearer <token>` header
-- Endpoints can declare access requirements via `require_role("role_code")` or `require_permission("perm_code")`
+- Endpoints can declare access requirements via `require_user_role("role_code")` or `require_user_permission("perm_code")`
 - The `super_admin` role bypasses role restrictions by default
 - Permission evaluation results for regular users are cached in Redis by user and permission code
 

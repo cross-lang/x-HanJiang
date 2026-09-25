@@ -8,7 +8,7 @@
 
 `汉江（HanJiang）`是一个基于 FastAPI 框架深度封装的 Python Web 应用框架，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。
 
-项目开箱即用，具备标准三层架构（API → Service → Repository）、FastAPI 原生依赖注入、双配置体系、统一鉴权与 RBAC 权限控制、事件驱动多渠道通知系统（邮件/钉钉/飞书/短信）、结构化日志、业务审计、S3 兼容对象存储、种子数据自动初始化等能力，支持快速搭建企业级 RESTful API 服务，适配本地开发、测试与多环境生产部署。
+项目开箱即用，具备标准三层架构（API → Service → Repository）、FastAPI 原生依赖注入、双配置体系、统一鉴权与 RBAC 权限控制、**面向外部服务的开放平台 API（AppId+AppKey 鉴权，可平滑升级 HMAC 签名）**、事件驱动多渠道通知系统（邮件/钉钉/飞书/短信）、结构化日志、业务审计、S3 兼容对象存储、种子数据自动初始化等能力，支持快速搭建企业级 RESTful API 服务，适配本地开发、测试与多环境生产部署。
 
 ## 快速开始
 
@@ -89,7 +89,7 @@ cp config.yaml.example config.yaml
 
 > **密钥生成**：
 > ```bash
-> python -c "from src.core.security import generate_secret_key; print(generate_secret_key())"
+> python -c "from src.utils.security import generate_secret_key; print(generate_secret_key())"
 > ```
 
 ### 5. 服务启动
@@ -177,7 +177,7 @@ x-HanJiang/
 │   ├── env.py                # Alembic 环境配置
 │   └── versions/             # 迁移版本脚本
 ├── docs/                     # 项目文档
-│   └── hanjiang.sql          # 数据库表结构定义（8 张表）
+│   └── hanjiang.sql          # 数据库表结构定义（9 张表）
 ├── examples/                 # 使用示例
 ├── logs/                     # 运行日志输出目录
 ├── scripts/                  # 工程脚本
@@ -186,7 +186,7 @@ x-HanJiang/
 ├── src/                      # 核心业务代码
 │   ├── main.py               # 应用入口（工厂函数、生命周期管理）
 │   ├── api/                  # API 接口层
-│   │   ├── v1/               # v1 版本路由模块
+│   │   ├── v1/               # 用户态 v1 路由（JWT 鉴权）
 │   │   │   ├── health.py     # 健康检查（含故障自动告警）
 │   │   │   ├── user.py       # 用户管理 CRUD
 │   │   │   ├── auth.py       # 认证（登录/刷新/当前用户/登出）
@@ -195,8 +195,14 @@ x-HanJiang/
 │   │   │   ├── file.py       # 文件上传
 │   │   │   ├── notification.py # 通知记录查询与手动发送
 │   │   │   ├── alert.py      # 系统告警（Webhook + 广播）
-│   │   │   └── maintenance.py # 系统维护通知
-│   │   ├── dependencies.py   # DI 依赖函数（Service/Repository/当前用户）
+│   │   │   ├── maintenance.py # 系统维护通知
+│   │   │   └── openapi_app.py # 开放平台应用管理（超管 CRUD）
+│   │   ├── open/             # 开放平台 v1 路由（AppId/AppKey 鉴权）
+│   │   │   └── v1/
+│   │   │       ├── health.py  # 开放平台健康检查与版本
+│   │   │       ├── ping.py    # 连通性测试（需 ping:read scope）
+│   │   │       └── app.py     # 当前应用信息
+│   │   ├── dependencies.py   # DI 依赖函数（Service/Repository/当前用户/当前应用）
 │   │   ├── response.py       # 统一响应封装
 │   │   └── router.py         # 路由聚合注册
 │   ├── constants/            # 业务常量与枚举
@@ -208,7 +214,6 @@ x-HanJiang/
 │   │   ├── exceptions.py     # 自定义异常与全局异常处理
 │   │   ├── logger.py         # 日志初始化（loguru）
 │   │   ├── middleware.py     # 中间件（请求ID、日志、CORS、限流）
-│   │   ├── security.py       # 密码哈希与密钥生成
 │   │   ├── seed.py           # 种子数据自动初始化
 │   │   ├── session.py        # 数据库会话管理
 │   │   └── tokens.py         # JWT 令牌签发与验证
@@ -224,11 +229,12 @@ x-HanJiang/
 │   │   ├── template.py       # 通知模板渲染引擎
 │   │   └── retry_worker.py   # 失败通知重试 Worker
 │   ├── models/               # 数据模型
-│   │   └── entities/         # SQLAlchemy ORM 实体（8 张表）
+│   │   └── entities/         # SQLAlchemy ORM 实体（9 张表）
 │   ├── repositories/         # 数据访问层（Repository 模式）
 │   ├── schemas/              # API 请求/响应 DTO（Pydantic BaseModel）
 │   ├── services/             # 业务逻辑层（Service 模式）
 │   └── utils/                # 工具函数
+│       └── security.py       # 安全工具（密码哈希/Fernet加解密/HMAC/密钥生成）
 ├── tests/                    # 测试代码
 ├── Dockerfile                # Docker 镜像构建（多阶段构建）
 ├── docker-compose.yml        # Docker 编排（App + MySQL + Redis）
@@ -457,10 +463,39 @@ flowchart LR
 |------|------|------|
 | POST | `/api/v1/maintenance/notify` | 向全体用户发送维护通知 |
 
+**开放平台应用管理（需 super_admin）：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/admin/apps` | 创建开放应用（返回 AppId + AppKey，Key 仅本次返回） |
+| GET | `/api/v1/admin/apps` | 应用列表 |
+| GET | `/api/v1/admin/apps/{id}` | 应用详情 |
+| PATCH | `/api/v1/admin/apps/{id}` | 更新应用（scope/限流/鉴权模式/状态） |
+| POST | `/api/v1/admin/apps/{id}/rotate-key` | 重置 AppKey（旧 Key 立即失效） |
+| DELETE | `/api/v1/admin/apps/{id}` | 删除应用（软删除） |
+
+**开放平台接口（AppId/AppKey 鉴权）：**
+
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| GET | `/api/open/v1/health` | 开放平台健康检查 | 公开 |
+| GET | `/api/open/v1/version` | 开放平台版本信息 | 公开 |
+| GET | `/api/open/v1/me` | 当前调用方应用信息 | 需 AppId/AppKey |
+| GET | `/api/open/v1/ping` | 连通性测试 | 需 AppId/AppKey + `ping:read` scope |
+
+### 开放平台鉴权说明
+
+开放平台 API 面向外部服务调用，与用户态 JWT 完全独立：
+
+- **认证方式**：请求头携带 `X-App-Id` 和 `X-App-Key`（明文模式起步）
+- **升级路径**：同一 AppKey 同时落库 SHA256 哈希（快查）和 Fernet 加密明文（HMAC 用），表上加 `auth_mode` 字段（plain/hmac/both），未来切 HMAC 签名只需改字段、不轮换密钥
+- **Scope 授权**：每个应用绑定 scope 列表（如 `ping:read`），接口通过 `require_app_scope("ping:read")` 声明
+- **Swagger 调试**：右上角 Authorize 里填 `OpenAppId` 和 `OpenAppKey` 即可调试开放平台接口
+
 ### 权限控制说明
 
 - 所有业务接口（除登录、刷新、健康检查外）均需 `Authorization: Bearer <token>` 请求头
-- 接口可通过 `require_role("role_code")` 或 `require_permission("perm_code")` 声明访问要求
+- 接口可通过 `require_user_role("role_code")` 或 `require_user_permission("perm_code")` 声明访问要求
 - `super_admin` 角色默认绕过角色限制
 - 普通用户的权限判断结果按用户和权限编码缓存于 Redis
 
