@@ -14,6 +14,7 @@ from src.api.response import success_response
 from src.schemas.openapi_app import (
     OpenApiAppCreateRequest,
     OpenApiAppCreatedResponse,
+    OpenApiAppScopesUpdateRequest,
     OpenApiAppUpdateRequest,
 )
 from src.services.openapi_app_service import OpenApiAppService
@@ -76,6 +77,21 @@ async def update_app(
 ):
     return success_response(
         service.update_app(app_id, body.model_dump(exclude_unset=True)).model_dump(),
+        request,
+    )
+
+
+@router.put("/{app_id}/scopes", summary="更新应用 scope")
+async def update_app_scopes(
+    app_id: int,
+    body: OpenApiAppScopesUpdateRequest,
+    request: Request,
+    _=Depends(_admin),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    """覆盖更新应用的 scope 列表。传入的 scopes 会完全覆盖原有值。"""
+    return success_response(
+        service.update_app(app_id, {"scopes": body.scopes}).model_dump(),
         request,
     )
 

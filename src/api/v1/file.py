@@ -3,9 +3,8 @@
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 
-from src.api.dependencies import get_current_user, get_file_service, get_operator_context
+from src.api.dependencies import get_file_service, require_user_permission
 from src.api.response import success_response
-from src.schemas.auth import CurrentUser
 from src.services.file_service import FileStorageService
 
 router = APIRouter(prefix="/files", tags=["文件管理"])
@@ -34,30 +33,19 @@ async def upload_file(
         examples=["avatars"],
     ),
     service: FileStorageService = Depends(get_file_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("file:create")),
 ):
-    result = service.save_upload(file, folder=folder, operator=get_operator_context(current_user))
-    return success_response(result, request)
+    return service.upload_file(file, folder)
 
 
 @router.get(
     "/{file_path:path}",
-    summary="下载文件",
-    description=(
-        "根据上传接口返回的 path 或 key 下载文件。file_path 可以包含多级目录，"
-        "例如 avatars/user-1.png。不要传完整 URL，也不要传以 /files/ 开头的 URL 路径。"
-    ),
+    summary="获取文件",
+    description="根据文件路径下载或访问文件。",
 )
-async def download_file(
-    file_path: str = Path(
-        ...,
-        description=(
-            "文件相对路径，通常使用上传接口返回结果中的 path 或 key。"
-            "支持多级目录，例如 documents/report.pdf。"
-        ),
-        examples=["documents/report.pdf"],
-    ),
+async def get_file(
+    file_path: str = Path(..., description="文件路径"),
     service: FileStorageService = Depends(get_file_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("file:view")),
 ):
     return service.download_file(file_path)

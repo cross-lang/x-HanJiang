@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from src.api.dependencies import (
     get_current_user,
+    require_user_permission,
     get_db_session,
     get_notification_dispatcher,
 )
@@ -42,7 +43,7 @@ async def notify_maintenance(
     body: MaintenanceNotifyRequest,
     request: Request,
     service: MaintenanceService = Depends(_get_maintenance_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("maintenance:notify")),
 ):
     """发送系统维护通知接口。
 

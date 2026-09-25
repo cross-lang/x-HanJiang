@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from src.api.dependencies import (
     get_current_user,
+    require_user_permission,
     get_notification_service,
 )
 from src.api.response import success_response
@@ -30,7 +31,7 @@ def send_notification(
     request: Request,
     body: NotificationSendRequest,
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("notification:create")),
 ):
     """手动发送通知。
 
@@ -110,7 +111,7 @@ def list_notifications(
     channel: str | None = Query(None, description="按渠道过滤"),
     status: str | None = Query(None, description="按状态过滤"),
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("notification:view")),
 ):
     """查询通知记录列表（分页）。"""
     result = notification_service.list_records(
@@ -131,7 +132,7 @@ def list_notifications(
 def get_notification_stats(
     request: Request,
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("notification:view")),
 ):
     """通知统计接口。"""
     stats = NotificationStatsResponse(**notification_service.get_stats())
@@ -147,7 +148,7 @@ def get_notification(
     request: Request,
     notification_id: int,
     notification_service: NotificationService = Depends(get_notification_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("notification:view")),
 ):
     """查询单条通知记录。"""
     result = notification_service.get_record(notification_id)

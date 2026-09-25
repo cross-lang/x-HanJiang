@@ -10,7 +10,9 @@ Endpoints:
     GET    /users/export:   导出用户列表（CSV 文件下载，支持筛选）
     GET    /users/{id}:     查询单个用户
     POST   /users/{id}/update: 更新用户信息
+    POST   /users/{id}/reset-password: 重置用户密码
     POST   /users/{id}/delete: 删除用户（软删除）
+    POST   /users/import:   批量导入用户
 """
 
 import csv
@@ -21,13 +23,19 @@ from fastapi.responses import StreamingResponse
 
 from src.api.dependencies import (
     get_current_user,
-    get_operator_context,
+    get_user_operator_context,
     get_user_service,
+    require_user_permission,
 )
 from src.api.response import success_response
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
-from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest, AdminResetPasswordRequest
+from src.schemas.user import (
+    AdminResetPasswordRequest,
+    UserCreateRequest,
+    UserResponse,
+    UserUpdateRequest,
+)
 from src.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -44,9 +52,9 @@ async def create_user(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:create")),
 ):
-    """创建用户接口。"""
-    result = service.create(body.model_dump(), operator=get_operator_context(current_user))
+    result = service.create(body.model_dump(), operator=get_user_operator_context(current_user))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -63,14 +71,9 @@ async def list_users(
     status: str | None = None,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:view")),
 ):
-    """用户列表接口。"""
-    result = service.search(
-        keyword=keyword,
-        status=status,
-        page=page,
-        page_size=page_size,
-    )
+    result = service.search(keyword=keyword, status=status, page=page, page_size=page_size)
     page_result = PaginatedResponse[UserResponse](
         items=result["items"],
         total=result["total"],
@@ -94,30 +97,16 @@ async def export_users(
     keyword: str | None = None,
     status: str | None = None,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:export")),
 ):
-    """导出用户列表接口（CSV 文件下载）。"""
-    rows = service.search(keyword=keyword, status=status, page=1, page_size=100000)[
-        "items"
-    ]
+    rows = service.search(keyword=keyword, status=status, page=1, page_size=100000)["items"]
 
     fieldnames = [
-        "id",
-        "username",
-        "email",
-        "phone",
-        "status",
-        "last_login_at",
-        "created_at",
+        "id", "username", "email", "phone", "status", "last_login_at", "created_at",
     ]
     headers_cn = {
-        "id": "ID",
-        "username": "用户名",
-        "email": "邮箱",
-        "phone": "手机号",
-        "status": "状态",
-        "last_login_at": "最后登录",
-        "created_at": "创建时间",
+        "id": "ID", "username": "用户名", "email": "邮箱", "phone": "手机号",
+        "status": "状态", "last_login_at": "最后登录", "created_at": "创建时间",
     }
 
     buf = io.StringIO()
@@ -127,7 +116,6 @@ async def export_users(
         data = row.model_dump()
         writer.writerow({k: data.get(k, "") for k in fieldnames})
 
-    # utf-8-sig 保证 Excel 正确识别中文
     content = buf.getvalue().encode("utf-8-sig")
     return StreamingResponse(
         iter([content]),
@@ -145,9 +133,8 @@ async def get_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:view")),
 ):
-    """查询单个用户接口。"""
     from src.core.exceptions import NotFoundException
 
     result = service.get_by_id(user_id)
@@ -167,12 +154,10 @@ async def update_user(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:edit")),
 ):
-    """更新用户接口。"""
     result = service.update(
-        user_id,
-        body.model_dump(exclude_unset=True),
-        operator=get_operator_context(current_user),
+        user_id, body.model_dump(exclude_unset=True), operator=get_user_operator_context(current_user)
     )
     return success_response(result.model_dump(), request)
 
@@ -188,11 +173,9 @@ async def reset_user_password(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:edit")),
 ):
-    """管理员重置用户密码接口。"""
-    service.reset_password(
-        user_id, body.new_password, operator=get_operator_context(current_user)
-    )
+    service.reset_password(user_id, body.new_password, operator=get_user_operator_context(current_user))
     return success_response({"message": "密码重置成功"}, request)
 
 
@@ -206,9 +189,9 @@ async def delete_user(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:delete")),
 ):
-    """删除用户接口。"""
-    service.delete(user_id, operator=get_operator_context(current_user))
+    service.delete(user_id, operator=get_user_operator_context(current_user))
     return success_response({"message": "用户删除成功"}, request)
 
 
@@ -222,8 +205,8 @@ async def import_users(
     file: UploadFile = File(...),
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("user:import")),
 ):
-    """导入用户列表接口（CSV）。"""
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise ValueError("仅支持 CSV 文件导入")
 
@@ -231,7 +214,7 @@ async def import_users(
     rows = list(csv.DictReader(csv_content.splitlines()))
 
     imported = 0
-    operator_ctx = get_operator_context(current_user)
+    operator_ctx = get_user_operator_context(current_user)
     for row in rows:
         if not row.get("username") or not row.get("email"):
             continue

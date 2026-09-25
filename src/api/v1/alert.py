@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from src.api.dependencies import (
     get_current_user,
+    require_user_permission,
     get_db_session,
     get_notification_dispatcher,
 )
@@ -79,7 +80,7 @@ async def broadcast_alert(
     body: AlertSendRequest,
     request: Request,
     service: AlertService = Depends(_get_alert_service),
-    current_user: CurrentUser = Depends(get_current_user),
+    _=Depends(require_user_permission("alert:broadcast")),
 ):
     """广播系统告警接口。
 

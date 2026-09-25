@@ -16,7 +16,7 @@ from src.api.open.v1 import v1_router as open_v1_router
 from src.api.v1 import v1_router
 from src.constants import API_PREFIX
 
-# 1. 用户态业务路由（面向用户，JWT Token 鉴权）
+# 1. 用户态业务路由（面向用户，JWT 鉴权）
 api_router = APIRouter(prefix=API_PREFIX)
 api_router.include_router(v1_router)
 

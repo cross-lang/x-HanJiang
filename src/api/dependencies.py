@@ -271,8 +271,8 @@ def require_user_permission(permission_code: str):
     return dependency
 
 
-def get_operator_context(current_user: CurrentUser) -> dict[str, object]:
-    """构造操作人上下文（供写操作审计/日志使用）。"""
+def get_user_operator_context(current_user: CurrentUser) -> dict[str, object]:
+    """构造用户态操作人上下文（供写操作审计/日志使用）。"""
     return {
         "operator_id": current_user.id,
         "operator_name": current_user.username,
@@ -282,6 +282,14 @@ def get_operator_context(current_user: CurrentUser) -> dict[str, object]:
 # ============================================================
 # 面向应用（开放平台）鉴权
 # ============================================================
+
+
+def get_app_operator_context(app: CurrentApp) -> dict[str, object]:
+    """构造应用态操作人上下文（供写操作审计/日志使用）。"""
+    return {
+        "operator_id": app.app_id,
+        "operator_name": app.name,
+    }
 
 
 async def get_current_app(

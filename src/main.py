@@ -251,7 +251,7 @@ def create_app() -> FastAPI:
     except Exception as e:
         logger.warning(f"Rate limiter setup failed (slowapi not installed?): {e}")
 
-    # 认证用户路由（面向用户，JWT Token 鉴权）
+    # 认证用户路由（面向用户，JWT 鉴权）
     app.include_router(api_router)
     # 开放平台路由（面向应用，AppId/AppKey 鉴权）
     app.include_router(open_router)

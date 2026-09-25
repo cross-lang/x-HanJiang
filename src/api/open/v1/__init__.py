@@ -6,12 +6,13 @@
 
 from fastapi import APIRouter
 
-from src.api.open.v1 import app, health, ping
+from src.api.open.v1 import app, health, ping, user
 
 v1_router = APIRouter(prefix="/v1")
 
 v1_router.include_router(health.router)
 v1_router.include_router(ping.router)
 v1_router.include_router(app.router)
+v1_router.include_router(user.router)
 
 __all__ = ["v1_router"]

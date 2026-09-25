@@ -51,7 +51,9 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("file:delete", "删除文件", "file", "delete", "删除文件", 22),
     ("audit:view", "查看审计日志", "audit", "view", "查看业务审计日志", 30),
     ("notification:view", "查看通知", "notification", "view", "查看通知记录", 40),
-    ("notification:create", "创建通知", "notification", "create", "创建通知配置", 41),
+    ("notification:create", "创建通知", "notification", "create", "手动发送通知", 41),
+    ("alert:broadcast", "广播告警", "alert", "broadcast", "向全体用户广播告警", 50),
+    ("maintenance:notify", "发送维护通知", "maintenance", "notify", "向全体用户发送维护通知", 51),
 ]
 
 

@@ -25,6 +25,12 @@ class OpenApiAppUpdateRequest(BaseModel):
     status: str | None = Field(default=None, pattern="^(active|disabled)$")
 
 
+class OpenApiAppScopesUpdateRequest(BaseModel):
+    """覆盖更新应用 scope 列表。"""
+
+    scopes: list[str] = Field(description="最新 scope 列表，会完全覆盖原有值")
+
+
 class OpenApiAppResponse(BaseModel):
     """应用列表/详情响应（绝不返回 AppKey 明文）。"""
 
