@@ -41,6 +41,7 @@ class UserCreateRequest(BaseModel):
     role_id: int | None = Field(default=None, description="主角色ID")
     role_ids: list[int] = Field(default_factory=list, description="角色ID列表")
     role_name: str | None = Field(default=None, description="角色名称")
+    roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="状态")
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
@@ -82,6 +83,7 @@ class UserUpdateRequest(BaseModel):
     role_id: int | None = Field(default=None, description="主角色ID")
     role_ids: list[int] | None = Field(default=None, description="角色ID列表")
     role_name: str | None = Field(default=None, description="角色名称")
+    roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: UserStatus | None = Field(default=None, description="状态")
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
@@ -146,6 +148,7 @@ class UserResponse(BaseModel):
     avatar_url: str | None = Field(default=None, description="头像URL")
     role_id: int | None = Field(default=None, description="主角色ID")
     role_name: str | None = Field(default=None, description="角色名称")
+    roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: str = Field(description="状态")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
     last_login_ip: str | None = Field(default=None, description="最后登录IP")

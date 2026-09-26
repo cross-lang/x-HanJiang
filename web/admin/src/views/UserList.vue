@@ -215,7 +215,7 @@ async function handleSubmit() {
   try {
     if (isEdit.value) {
       const { name, email, phone, birthday, gender, role_ids, status } = form.value
-      await request.patch(`/users/${editId.value}`, { name, email, phone, birthday, gender, role_ids, status })
+      await request.post(`/users/${editId.value}/update`, { name, email, phone, birthday, gender, role_ids, status })
       ElMessage.success('更新成功')
     } else {
       await request.post('/users', { ...form.value, role_id: form.value.role_ids[0] })
@@ -232,7 +232,7 @@ async function handleToggleStatus(row: any, status: string) {
   const action = status === 'active' ? '启用' : '禁用'
   try {
     await ElMessageBox.confirm(`确定要${action}用户 ${row.username} 吗？`, '提示', { type: 'warning' })
-    await request.patch(`/users/${row.id}`, { status })
+    await request.post(`/users/${row.id}/update`, { status })
     ElMessage.success(`${action}成功`)
     fetchList()
   } catch (e) {

@@ -94,7 +94,7 @@ async def create_role(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """创建角色接口。"""
-    result = service.create(body.model_dump(), operator=get_user_operator_context(current_user))
+    result = service.create(body.model_dump(), operator=get_user_operator_context(current_user, request))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -137,7 +137,7 @@ async def update_role(
     result = service.update(
         role_id,
         body.model_dump(exclude_unset=True),
-        operator=get_user_operator_context(current_user),
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(result.model_dump(), request)
 
@@ -156,7 +156,7 @@ async def delete_role(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """删除角色接口。"""
-    service.delete(role_id, operator=get_user_operator_context(current_user))
+    service.delete(role_id, operator=get_user_operator_context(current_user, request))
     return success_response({"message": "角色删除成功"}, request)
 
 
@@ -196,7 +196,7 @@ async def bind_permission(
     result = service.bind_permission(
         role_id,
         body.permission_id,
-        operator=get_user_operator_context(current_user),
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(result.model_dump(), request, code=201)
 
@@ -219,6 +219,6 @@ async def unbind_permission(
     service.unbind_permission(
         role_id,
         permission_id,
-        operator=get_user_operator_context(current_user),
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response({"message": "权限解绑成功"}, request)

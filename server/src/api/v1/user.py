@@ -56,7 +56,7 @@ async def create_user(
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    result = service.create(body.model_dump(), operator=get_user_operator_context(current_user))
+    result = service.create(body.model_dump(), operator=get_user_operator_context(current_user, request))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -163,7 +163,7 @@ async def update_user(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     result = service.update(
-        user_id, body.model_dump(exclude_unset=True), operator=get_user_operator_context(current_user)
+        user_id, body.model_dump(exclude_unset=True), operator=get_user_operator_context(current_user, request)
     )
     return success_response(result.model_dump(), request)
 
@@ -182,7 +182,7 @@ async def reset_user_password(
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    service.reset_password(user_id, body.new_password, operator=get_user_operator_context(current_user))
+    service.reset_password(user_id, body.new_password, operator=get_user_operator_context(current_user, request))
     return success_response({"message": "密码重置成功"}, request)
 
 
@@ -199,7 +199,7 @@ async def delete_user(
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    service.delete(user_id, operator=get_user_operator_context(current_user))
+    service.delete(user_id, operator=get_user_operator_context(current_user, request))
     return success_response({"message": "用户删除成功"}, request)
 
 
@@ -223,7 +223,7 @@ async def import_users(
     rows = list(csv.DictReader(csv_content.splitlines()))
 
     imported = 0
-    operator_ctx = get_user_operator_context(current_user)
+    operator_ctx = get_user_operator_context(current_user, request)
     for row in rows:
         if not row.get("username") or not row.get("email"):
             continue

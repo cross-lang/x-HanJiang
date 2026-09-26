@@ -285,11 +285,18 @@ def require_user_permission(permission_code: str):
     return dependency
 
 
-def get_user_operator_context(current_user: CurrentUser) -> dict[str, object]:
+def get_user_operator_context(current_user: CurrentUser, request: Request | None = None) -> dict[str, object]:
     """构造用户态操作人上下文（供写操作审计/日志使用）。"""
+    client_ip = None
+    if request:
+        client_ip = request.client.host if request.client else None
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
     return {
         "operator_id": current_user.id,
         "operator_name": current_user.username,
+        "ip_address": client_ip,
     }
 
 

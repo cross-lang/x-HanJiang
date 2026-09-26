@@ -150,6 +150,11 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             avatar_url=existing.avatar_url,
             status=existing.status,
         )
+        # 空字符串转 None（datetime/int 字段不接受空串）
+        for k in ("birthday", "phone", "email", "name"):
+            if patch_dict.get(k) == "":
+                patch_dict[k] = None
+
         for key, value in patch_dict.items():
             if hasattr(patch, key):
                 setattr(patch, key, value)
@@ -304,9 +309,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             role = self._repository.session.query(RoleEntity).get(ur.role_id)
             if role:
                 roles.append({"id": role.id, "role_name": role.role_name, "role_code": role.role_code})
-                if ur.role_id == entity.role_id:
-                    role_name = role.role_name
-        if not role_name and roles:
+        if roles:
             role_name = roles[0]["role_name"]
         return UserResponse(
             id=entity.id,

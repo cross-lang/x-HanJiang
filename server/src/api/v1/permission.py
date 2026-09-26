@@ -100,7 +100,7 @@ async def create_permission(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """创建权限接口。"""
-    result = service.create(body, operator=get_user_operator_context(current_user))
+    result = service.create(body, operator=get_user_operator_context(current_user, request))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -143,7 +143,7 @@ async def update_permission(
     result = service.update(
         perm_id,
         body,
-        operator=get_user_operator_context(current_user),
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(result.model_dump(), request)
 
@@ -162,5 +162,5 @@ async def delete_permission(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """删除权限接口。"""
-    service.delete(perm_id, operator=get_user_operator_context(current_user))
+    service.delete(perm_id, operator=get_user_operator_context(current_user, request))
     return success_response({"message": "权限删除成功"}, request)
