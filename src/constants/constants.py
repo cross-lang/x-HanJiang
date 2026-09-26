@@ -30,12 +30,15 @@ REQUEST_ID_HEADER: str = "X-Request-ID"        # 请求头中的 Request ID 字�
 CONTEXT_REQUEST_ID: str = "request_id"          # request.state 中的键
 CONTEXT_REAL_IP: str = "real_ip"                # request.state 中的键
 
-# -- 开放平台鉴权请求头（面向外部服务，AppId/AppKey 或 HMAC 签名）--------
+# -- 开放平台鉴权请求头（面向外部服务）--------
+# plain 模式：X-App-Id + X-App-Key
+# hmac 模式：X-App-Id + X-App-Date + X-App-Authorization
 OPENAPI_HEADER_APP_ID: str = "X-App-Id"
 OPENAPI_HEADER_APP_KEY: str = "X-App-Key"
-OPENAPI_HEADER_TIMESTAMP: str = "X-App-Timestamp"
-OPENAPI_HEADER_NONCE: str = "X-App-Nonce"
-OPENAPI_HEADER_SIGNATURE: str = "X-App-Signature"
+OPENAPI_HEADER_DATE: str = "X-App-Date"
+OPENAPI_HEADER_AUTHORIZATION: str = "X-App-Authorization"
+OPENAPI_ALGORITHM: str = "HanJiang-1"
+OPENAPI_SIGNATURE_WINDOW_SECONDS: int = 300
 
 # -- 用户字段约束 -------------------------------------------------------
 USERNAME_MIN_LENGTH: int = 3

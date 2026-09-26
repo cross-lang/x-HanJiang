@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""常量定义模块。
-
-统一导出全局常量与业务枚举，业务代码应从本包导入，
-禁止直接引用子模块或在代码中硬编码常量值。
-
-子模块：
-    constants.py  — 全局常量（应用信息、环境标识、响应消息等）
-    enums.py      — 业务枚举（CommonStatus、UserStatus、NotificationChannel、HttpStatus、HttpMediaType）
-    base.py       — 可描述枚举基类（BaseEnum）
-"""
+"""常量定义模块。"""
 
 from src.constants.constants import (
     API_PREFIX,
@@ -29,11 +20,12 @@ from src.constants.constants import (
     MSG_NOT_FOUND,
     MSG_SUCCESS,
     MSG_VALIDATION_ERROR,
+    OPENAPI_ALGORITHM,
     OPENAPI_HEADER_APP_ID,
     OPENAPI_HEADER_APP_KEY,
-    OPENAPI_HEADER_NONCE,
-    OPENAPI_HEADER_SIGNATURE,
-    OPENAPI_HEADER_TIMESTAMP,
+    OPENAPI_HEADER_AUTHORIZATION,
+    OPENAPI_HEADER_DATE,
+    OPENAPI_SIGNATURE_WINDOW_SECONDS,
     REQUEST_ID_HEADER,
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
@@ -63,9 +55,10 @@ __all__ = [
     "CONTEXT_REAL_IP",
     "OPENAPI_HEADER_APP_ID",
     "OPENAPI_HEADER_APP_KEY",
-    "OPENAPI_HEADER_TIMESTAMP",
-    "OPENAPI_HEADER_NONCE",
-    "OPENAPI_HEADER_SIGNATURE",
+    "OPENAPI_HEADER_DATE",
+    "OPENAPI_HEADER_AUTHORIZATION",
+    "OPENAPI_ALGORITHM",
+    "OPENAPI_SIGNATURE_WINDOW_SECONDS",
     "MSG_SUCCESS",
     "MSG_INTERNAL_ERROR",
     "MSG_NOT_FOUND",

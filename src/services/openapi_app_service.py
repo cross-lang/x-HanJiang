@@ -11,9 +11,9 @@
 from __future__ import annotations
 
 import secrets
-from time import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
-from urllib.parse import urlencode, urlparse
 
 from fastapi import Request
 
@@ -21,11 +21,12 @@ from src.core.config import settings
 from src.core.exceptions import AuthenticationException, NotFoundException
 from src.core.logger import logger
 from src.constants.constants import (
+    OPENAPI_ALGORITHM,
     OPENAPI_HEADER_APP_ID,
     OPENAPI_HEADER_APP_KEY,
-    OPENAPI_HEADER_NONCE,
-    OPENAPI_HEADER_SIGNATURE,
-    OPENAPI_HEADER_TIMESTAMP,
+    OPENAPI_HEADER_AUTHORIZATION,
+    OPENAPI_HEADER_DATE,
+    OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
 from src.constants.enums import AppAuthMode
 from src.utils.security import generate_secret_key
@@ -36,7 +37,6 @@ from src.services.base_service import BaseService
 from src.utils import security
 
 # ── 开放平台鉴权协议常量 ─────────────────────────────────
-HMAC_TIMESTAMP_WINDOW_SECONDS = 300
 
 
 # ============================================================
@@ -56,40 +56,30 @@ def generate_app_id() -> str:
 
 
 # ============================================================
-# 开放平台协议：签名串拼装
+# 开放平台协议：HanJiang-1 签名串拼装（参考 WPS-4 风格）
 # ============================================================
 
-def _sorted_query(query_string: str) -> str:
-    """把 query string 按 key 字典序规范化回 k=v&k=v。"""
-    if not query_string:
-        return ""
-    pairs: list[tuple[str, str]] = []
-    for kv in query_string.split("&"):
-        if not kv:
-            continue
-        if "=" in kv:
-            k, v = kv.split("=", 1)
-        else:
-            k, v = kv, ""
-        pairs.append((k, v))
-    pairs.sort(key=lambda x: x[0])
-    return urlencode(pairs, doseq=True)
+def build_signing_string(
+    *,
+    method: str,
+    uri: str,
+    content_type: str,
+    date: str,
+    body: bytes,
+) -> str:
+    """构造 HanJiang-1 待签名串（与外部调用方的协议约定，勿随意改）。
 
-
-def build_signing_string(method: str, url: str, body: bytes, timestamp: str, nonce: str) -> str:
-    """构造 HMAC 待签名串（与外部调用方的协议约定，勿随意改）。
-
-    格式：METHOD\\nPATH\\nSortedQuery\\nSHA256(body)\\nTimestamp\\nNonce
+    格式：Ver + METHOD + URI + Content-Type + Date + SHA256(body)
+    直接拼接，无分隔符（参考 WPS-4）。
     """
-    parsed = urlparse(url)
     body_hash = security.sha256_hex(body.decode("utf-8")) if body else ""
-    return "\n".join([
+    return "".join([
+        OPENAPI_ALGORITHM,
         method.upper(),
-        parsed.path or "/",
-        _sorted_query(parsed.query),
+        uri,
+        content_type,
+        date,
         body_hash,
-        timestamp,
-        nonce,
     ])
 
 
@@ -97,18 +87,39 @@ def verify_request_signature(
     *,
     app_key_plain: str,
     method: str,
-    url: str,
+    uri: str,
+    content_type: str,
+    date: str,
     body: bytes,
-    timestamp: str,
-    nonce: str,
     signature: str,
 ) -> bool:
-    """校验请求 HMAC 签名。"""
+    """校验请求签名。"""
     expected = security.hmac_sha256_hex(
         app_key_plain,
-        build_signing_string(method, url, body, timestamp, nonce),
+        build_signing_string(
+            method=method, uri=uri, content_type=content_type, date=date, body=body
+        ),
     )
-    return security.constant_time_equals(expected, signature or "")
+    return security.constant_time_equals(expected, signature)
+
+
+def _extract_uri(request: Request) -> str:
+    """从请求中提取 URI（path + raw query，不含域名）。"""
+    uri = request.url.path
+    if request.url.query:
+        uri += f"?{request.url.query}"
+    return uri
+
+
+def _parse_http_date(date_str: str) -> datetime | None:
+    """解析 HTTP 标准格式日期，如 'Wed, 23 Jan 2013 06:43:08 GMT'。"""
+    try:
+        dt = parsedate_to_datetime(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (TypeError, ValueError):
+        return None
 
 
 # ============================================================
@@ -127,8 +138,7 @@ def parse_scopes(scopes: str | None) -> list[str]:
 # ============================================================
 
 class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepository]):
-    """开放应用管理。
-    """
+    """开放应用管理。"""
 
     entity_type = "openapi_app"
 
@@ -137,11 +147,11 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     # ── 鉴权（每请求调用）──────────────────────────────
     async def authenticate(self, request: Request) -> CurrentApp:
-        """解析开放平台应用身份（X-App-Id / X-App-Key 或 HMAC 签名头）。
+        """解析开放平台应用身份。
 
         鉴权逻辑按 app.auth_mode 分流：
             - plain：仅接受 X-App-Key 明文比对 SHA256；
-            - hmac：  仅接受 HMAC 签名（时间窗 + nonce 去重 + 重算签名）；
+            - hmac：  仅接受 HanJiang-1 签名（时间窗 + 重算签名）；
             - both：  两种都接受（灰度期）。
         """
         app_id = request.headers.get(OPENAPI_HEADER_APP_ID)
@@ -158,9 +168,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             mode = AppAuthMode.PLAIN
 
         plain_key = request.headers.get(OPENAPI_HEADER_APP_KEY)
-        signature = request.headers.get(OPENAPI_HEADER_SIGNATURE)
-        timestamp = request.headers.get(OPENAPI_HEADER_TIMESTAMP, "")
-        nonce = request.headers.get(OPENAPI_HEADER_NONCE, "")
+        authorization = request.headers.get(OPENAPI_HEADER_AUTHORIZATION, "")
+        date = request.headers.get(OPENAPI_HEADER_DATE, "")
 
         authenticated = False
 
@@ -170,18 +179,17 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
                 security.sha256_hex(plain_key), app.app_key_hash
             )
 
-        # 分支 2：HMAC 签名校验
+        # 分支 2：HanJiang-1 签名校验
         if (
             not authenticated
             and mode in (AppAuthMode.HMAC, AppAuthMode.BOTH)
-            and signature
+            and authorization
         ):
             authenticated = await self._verify_hmac_signature(
                 request=request,
                 app_encrypted=app.app_key_encrypted,
-                timestamp=timestamp,
-                nonce=nonce,
-                signature=signature,
+                date=date,
+                authorization=authorization,
             )
 
         if not authenticated:
@@ -206,17 +214,18 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         *,
         request: Request,
         app_encrypted: str | None,
-        timestamp: str,
-        nonce: str,
-        signature: str,
+        date: str,
+        authorization: str,
     ) -> bool:
-        """HMAC 签名校验：时间窗 + 解密 secret + 重算签名 + nonce 去重。"""
-        # 1. 时间窗
-        try:
-            ts = int(timestamp)
-        except (TypeError, ValueError):
+        """HanJiang-1 签名校验：时间窗 + 解密 secret + 重算签名。"""
+        # 1. 时间窗：解析 HTTP Date 格式
+        if not date:
             return False
-        if abs(time() - ts) > HMAC_TIMESTAMP_WINDOW_SECONDS:
+        request_time = _parse_http_date(date)
+        if request_time is None:
+            return False
+        now = datetime.now(timezone.utc)
+        if abs((now - request_time).total_seconds()) > OPENAPI_SIGNATURE_WINDOW_SECONDS:
             return False
 
         # 2. 解密取回明文 secret
@@ -224,26 +233,33 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         if not secret:
             return False
 
-        # 3. 重算签名
+        # 3. 提取 Authorization 中的签名值
+        # 格式：HanJiang-1 {app_id}:{signature}
+        parts = authorization.split(":", 1)
+        if len(parts) != 2 or not parts[1]:
+            return False
+        signature = parts[1].strip()
+
+        # 4. 取请求体
         body = b""
         try:
             body = await request.body()
         except Exception:
             body = b""
 
-        if not verify_request_signature(
+        # 5. Content-Type
+        content_type = request.headers.get("content-type", "")
+
+        # 6. 重算签名并比对
+        return verify_request_signature(
             app_key_plain=secret,
             method=request.method,
-            url=str(request.url),
+            uri=_extract_uri(request),
+            content_type=content_type,
+            date=date,
             body=body,
-            timestamp=timestamp,
-            nonce=nonce,
             signature=signature,
-        ):
-            return False
-
-        # 4. nonce 去重（TODO: 接 Redis SETNX）
-        return True
+        )
 
     # ── 创建 ────────────────────────────────────────────
     def create_app(
@@ -257,7 +273,6 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
     ) -> tuple[OpenApiAppResponse, str]:
         """新建应用，返回 (DTO, 明文 AppKey)。明文 AppKey 仅此次返回。"""
         app_id = generate_app_id()
-        # 极小概率碰撞，重生成一次
         while self._repository.get_by_app_id(app_id) is not None:
             app_id = generate_app_id()
 

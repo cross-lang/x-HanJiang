@@ -4,24 +4,26 @@ FastAPI 依赖注入模块
 
 本模块定义了 API 层通用的 FastAPI Depends 依赖项工厂函数，
 用于在路由处理函数中通过参数注入公共依赖。
-
-Functions:
-    get_request_id: 获取当前请求 ID
-    get_pagination: 获取分页参数
-    get_db_session: 获取数据库会话（FastAPI 依赖）
-    get_user_service: 获取用户服务实例
 """
+
+from __future__ import annotations
 
 from collections.abc import Generator
 from functools import lru_cache
 from time import time
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Depends, Request
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.constants.constants import OPENAPI_HEADER_APP_ID, OPENAPI_HEADER_APP_KEY
+from src.constants.constants import (
+    OPENAPI_HEADER_APP_ID,
+    OPENAPI_HEADER_APP_KEY,
+    OPENAPI_HEADER_AUTHORIZATION,
+    OPENAPI_HEADER_DATE,
+)
 from src.core.exceptions import AuthorizationException
 from src.infras.database import get_cached_database_provider, get_db_session
 from src.schemas.auth import CurrentUser
@@ -36,12 +38,28 @@ from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
 from src.utils.helpers import get_client_ip
 
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
+    from src.repositories.audit_log_repository import AuditLogRepository
+    from src.repositories.login_log_repository import LoginLogRepository
+    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.repositories.permission_repository import PermissionRepository
+    from src.repositories.role_permission_repository import RolePermissionRepository
+    from src.repositories.role_repository import RoleRepository
+    from src.repositories.user_repository import UserRepository
+    from src.services.login_log_service import LoginLogService
+    from src.services.openapi_app_service import OpenApiAppService
+    from src.services.role_service import RoleService
+    from src.services.user_service import UserService
+
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 # 开放平台 API Key 认证方案（Swagger UI 右上角会出现 Authorize 按钮）
 _app_id_scheme = APIKeyHeader(name=OPENAPI_HEADER_APP_ID, scheme_name="OpenAppId", auto_error=False)
 _app_key_scheme = APIKeyHeader(name=OPENAPI_HEADER_APP_KEY, scheme_name="OpenAppKey", auto_error=False)
+_app_date_scheme = APIKeyHeader(name=OPENAPI_HEADER_DATE, scheme_name="OpenAppDate", auto_error=False)
+_app_auth_scheme = APIKeyHeader(name=OPENAPI_HEADER_AUTHORIZATION, scheme_name="OpenAppAuthorization", auto_error=False)
 
 
 def get_request_id(request: Request) -> str | None:
@@ -59,7 +77,7 @@ def get_pagination(
 
 def get_notification_dispatcher(
     db_session: Session = Depends(get_db_session),
-) -> "NotificationDispatcher":
+) -> NotificationDispatcher:
     """获取通知调度器实例（供 AlertService 等内部服务使用）。"""
     from src.infras.notification import get_registry
     from src.notification.dispatcher import NotificationDispatcher
@@ -89,7 +107,7 @@ def get_notification_service(
 
 def get_user_repository(
     db_session: Session = Depends(get_db_session),
-):
+) -> UserRepository:
     """获取用户仓库实例（可被 DI 容器覆盖）。"""
     from src.repositories.user_repository import UserRepository
 
@@ -98,7 +116,7 @@ def get_user_repository(
 
 def get_login_log_repository(
     db_session: Session = Depends(get_db_session),
-):
+) -> LoginLogRepository:
     """获取登录日志仓库实例。"""
     from src.repositories.login_log_repository import LoginLogRepository
 
@@ -106,9 +124,9 @@ def get_login_log_repository(
 
 
 def get_user_service(
-    user_repository=Depends(get_user_repository),
-    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
-):
+    user_repository: UserRepository = Depends(get_user_repository),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+) -> UserService:
     """使用当前请求的 Repository 创建用户服务。"""
     from src.services.user_service import UserService
 
@@ -116,7 +134,7 @@ def get_user_service(
 
 
 def get_alert_service(
-    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
     db_session: Session = Depends(get_db_session),
 ) -> AlertService:
     """获取告警服务实例。"""
@@ -141,10 +159,10 @@ def get_file_service() -> FileStorageService:
 
 
 def get_auth_service(
-    user_repository=Depends(get_user_repository),
-    login_log_repository=Depends(get_login_log_repository),
-    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
-):
+    user_repository: UserRepository = Depends(get_user_repository),
+    login_log_repository: LoginLogRepository = Depends(get_login_log_repository),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+) -> AuthService:
     """获取认证服务。"""
     return AuthService(
         user_repository=user_repository,
@@ -155,7 +173,7 @@ def get_auth_service(
 
 def get_role_repository(
     db_session: Session = Depends(get_db_session),
-):
+) -> RoleRepository:
     """获取角色仓库实例。"""
     from src.repositories.role_repository import RoleRepository
 
@@ -164,7 +182,7 @@ def get_role_repository(
 
 def get_permission_repository(
     db_session: Session = Depends(get_db_session),
-):
+) -> PermissionRepository:
     """获取权限仓库实例。"""
     from src.repositories.permission_repository import PermissionRepository
 
@@ -173,7 +191,7 @@ def get_permission_repository(
 
 def get_role_permission_repository(
     db_session: Session = Depends(get_db_session),
-):
+) -> RolePermissionRepository:
     """获取角色权限关联仓库实例。"""
     from src.repositories.role_permission_repository import RolePermissionRepository
 
@@ -181,10 +199,10 @@ def get_role_permission_repository(
 
 
 def get_role_service(
-    role_repository=Depends(get_role_repository),
-    role_permission_repository=Depends(get_role_permission_repository),
-    permission_repository=Depends(get_permission_repository),
-):
+    role_repository: RoleRepository = Depends(get_role_repository),
+    role_permission_repository: RolePermissionRepository = Depends(get_role_permission_repository),
+    permission_repository: PermissionRepository = Depends(get_permission_repository),
+) -> RoleService:
     """使用当前请求的 Repository 创建角色服务。"""
     from src.services.role_service import RoleService
 
@@ -196,11 +214,11 @@ def get_role_service(
 
 
 def get_permission_service(
-    permission_repository=Depends(get_permission_repository),
-    role_permission_repository=Depends(get_role_permission_repository),
-    role_repository=Depends(get_role_repository),
-    dispatcher: "NotificationDispatcher" = Depends(get_notification_dispatcher),
-):
+    permission_repository: PermissionRepository = Depends(get_permission_repository),
+    role_permission_repository: RolePermissionRepository = Depends(get_role_permission_repository),
+    role_repository: RoleRepository = Depends(get_role_repository),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+) -> PermissionService:
     """使用当前请求的 Repository 创建权限服务。"""
     from src.services.permission_service import PermissionService
 
@@ -213,8 +231,8 @@ def get_permission_service(
 
 
 def get_login_log_service(
-    login_log_repository=Depends(get_login_log_repository),
-):
+    login_log_repository: LoginLogRepository = Depends(get_login_log_repository),
+) -> LoginLogService:
     """使用当前请求的 Repository 创建登录日志服务。"""
     from src.services.login_log_service import LoginLogService
 
@@ -223,7 +241,7 @@ def get_login_log_service(
 
 def get_openapi_app_service(
     db_session: Session = Depends(get_db_session),
-):
+) -> OpenApiAppService:
     """创建开放平台应用管理服务。"""
     from src.repositories.openapi_app_repository import OpenApiAppRepository
     from src.services.openapi_app_service import OpenApiAppService
@@ -235,11 +253,7 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> CurrentUser:
-    """解析 Bearer 令牌，返回当前登录用户.
-
-    使用 HTTPBearer 认证方案，Swagger UI 会自动在右上角显示 Authorize 按钮，
-    并为所有依赖本函数的接口标注锁图标；点 Authorize 填一次令牌即可全局生效。
-    """
+    """解析 Bearer 令牌，返回当前登录用户."""
     token = credentials.credentials if credentials is not None else None
     return auth_service.get_current_user(token)
 
@@ -296,10 +310,12 @@ async def get_current_app(
     request: Request,
     _app_id: str | None = Depends(_app_id_scheme),
     _app_key: str | None = Depends(_app_key_scheme),
-    svc=Depends(get_openapi_app_service),
+    _app_date: str | None = Depends(_app_date_scheme),
+    _app_auth: str | None = Depends(_app_auth_scheme),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
 ) -> CurrentApp:
     """解析开放平台应用身份，委托给 OpenApiAppService。"""
-    current = await svc.authenticate(request)
+    current = await service.authenticate(request)
     request.state.current_app = current
     return current
 
@@ -309,12 +325,7 @@ def require_app_scope(scope: str):
 
     def dependency(app: CurrentApp = Depends(get_current_app)) -> CurrentApp:
         if scope not in app.scopes:
-            from src.core.exceptions import AuthorizationException
-
             raise AuthorizationException(message=f"应用缺少 scope: {scope}")
         return app
 
     return dependency
-
-
-
