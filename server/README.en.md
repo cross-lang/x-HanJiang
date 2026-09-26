@@ -1,14 +1,25 @@
-# HanJiang
-
 [中文](README.md) | English
 
----
+# HanJiang Backend Service
 
 ## Introduction
 
-HanJiang (汉江) is a production-grade Python Web application framework built on top of FastAPI, following industry best engineering practices. It provides a standardized, modular, highly extensible, and maintainable backend service infrastructure.
+HanJiang backend is a Python web application framework built on FastAPI, following a three-layer architecture (API → Service → Repository) with dependency injection. It includes JWT authentication, RBAC permission model, audit logging, login logging, open platform AppId/AppKey authentication (with HanJiang-1 HMAC signature upgrade path), event-driven notification system, S3-compatible object storage, and seed data initialization.
 
-The project is ready to use out of the box, featuring a standard three-layer architecture (API → Service → Repository), FastAPI native dependency injection, dual configuration system, unified authentication with RBAC access control, **Open Platform API for external service integration (AppId+AppKey auth, with HMAC upgrade path)**, structured logging, business audit, S3-compatible object storage, and idempotent seed data initialization. It enables rapid development of enterprise-grade RESTful APIs suitable for local development, testing, and multi-environment production deployment.
+**Key Features:**
+- Standard three-layer architecture + FastAPI native DI
+- `@permission` decorator auto-scans routes and registers permissions to DB on startup
+- Dual auth tracks: user JWT + open platform HMAC signature
+- Separate business audit logs and login logs with operator, IP, before/after data
+- Event-driven multi-channel notifications (email/DingTalk/Feishu/SMS)
+- Unified storage abstraction (local / S3-compatible)
+- Production-grade security (bcrypt hashing, constant-time comparison, replay protection)
+
+**Use Cases:**
+- Enterprise internal admin systems
+- SaaS product backend foundation
+- Open platform / API gateway
+- Full-stack project boilerplate
 
 ## Quick Start
 
@@ -55,207 +66,172 @@ uv sync --no-dev
 
 ### 4. Configuration
 
-The project supports both `.env` environment variables and `config.yaml` configuration files. Configuration precedence: **environment variables > environment-specific YAML (config.{env}.yaml) > default YAML (config.yaml) > code defaults**.
+Two configuration methods are supported: `.env` environment variables and `config.yaml`. Priority: **env vars > env-specific YAML > default YAML > code defaults**.
 
-**Option 1: Using `.env` file (recommended)**
+**Method 1: `.env` file (recommended)**
 ```bash
 cp .env.example .env
 ```
 
-**Option 2: Using `config.yaml` file**
+**Method 2: `config.yaml` file**
 ```bash
 cp config.yaml.example config.yaml
 ```
 
-**Core configuration parameters:**
+**Key configuration parameters:**
 
-| Parameter | Environment Variable | Description |
-|-----------|---------------------|-------------|
-| `APP_ENV` | `APP_ENV` | Runtime environment: `development` / `testing` / `production` |
-| `SERVER_HOST` | `server.host` | Listen address, default `0.0.0.0` |
-| `SERVER_PORT` | `server.port` | Listen port, default `8000` |
-| `AUTH_SECRET_KEY` | `auth.secret_key` | JWT signing key; must be overridden with a random string >= 32 chars in production |
-| `MYSQL_HOST` | `database.host` | MySQL host address |
+| Parameter | Env Variable | Description |
+|-----------|-------------|-------------|
+| `APP_ENV` | `APP_ENV` | Environment: `development` / `testing` / `production` |
+| `SERVER_HOST` | `server.host` | Bind address, default `0.0.0.0` |
+| `SERVER_PORT` | `server.port` | Bind port, default `8000` |
+| `AUTH_SECRET_KEY` | `auth.secret_key` | JWT signing key, must be >= 32 chars in production |
+| `MYSQL_HOST` | `database.host` | MySQL host |
 | `MYSQL_PORT` | `database.port` | MySQL port, default `3306` |
 | `MYSQL_USER` | `database.user` | MySQL username |
 | `MYSQL_PASSWORD` | `database.password` | MySQL password |
-| `MYSQL_DATABASE` | `database.database` | MySQL database name, default `hanjiang` |
-| `REDIS_HOST` | `redis.host` | Redis host address |
+| `MYSQL_DATABASE` | `database.database` | Database name, default `hanjiang` |
+| `REDIS_HOST` | `redis.host` | Redis host |
 | `REDIS_PORT` | `redis.port` | Redis port, default `6379` |
-| `REDIS_PASSWORD` | `redis.password` | Redis password |
-| `STORAGE_PROVIDER` | `storage.provider` | Storage backend: `local` (local filesystem) / `s3` (S3-compatible object storage) |
+| `STORAGE_PROVIDER` | `storage.provider` | Storage: `local` / `s3` |
 
-> **Production**: Inject sensitive configuration such as `AUTH_SECRET_KEY`, database password, and Redis password via environment variables to avoid committing secrets to version control.
+> **Production**: inject secrets via environment variables.
 
-> **Secret key generation**:
+> **Generate secret key**:
 > ```bash
 > python -c "from src.utils.security import generate_secret_key; print(generate_secret_key())"
 > ```
 
 ### 5. Start the Service
 
-#### Option 1: Local Development with Hot Reload (Recommended)
+**Method 1: Local dev with hot reload (recommended)**
 
 ```bash
-# Start with CLI command (hot reload)
 uv run x-HanJiang
-
-# Or start with uvicorn directly
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Option 2: Docker Deployment
+**Method 2: Docker deployment**
 
 ```bash
 docker-compose up --build
 ```
 
-> Docker deployment requires a `.env` file with `AUTH_SECRET_KEY`, `MYSQL_PASSWORD`, `REDIS_PASSWORD` and other required environment variables configured in advance.
-
-After startup:
-- Swagger interactive docs: http://localhost:8000/docs
-- ReDoc read-only docs: http://localhost:8000/redoc
+Once running:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 - Health check: http://localhost:8000/api/v1/health
 
-### 6. Common Engineering Commands
+### 6. Common Commands
 
 ```bash
-# Run unit tests (with coverage report)
+# Run tests with coverage
 uv run pytest tests/ -v --cov=src --cov-report=term-missing
 
-# Code formatting
+# Format code
 uv run ruff format src/ tests/
 
-# Static code analysis
+# Lint
 uv run ruff check src/ tests/
 
-# Type checking
+# Type check
 uv run mypy src/
 
-# Initialize database tables (also done automatically on app startup)
-uv run python -c "from src.infras.database import init_db; init_db()"
+# Export OpenAPI spec
+uv run python scripts/export_openapi.py
 ```
 
 ### 7. Usage Examples
 
-**Login to obtain a token:**
+**Login to get token:**
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "superadmin", "password": "admin@123456"}'
 ```
 
-**Access a protected endpoint with the token:**
+**Call protected API with token:**
 ```bash
 curl http://localhost:8000/api/v1/users \
   -H "Authorization: Bearer <access_token>"
 ```
 
-**Upload a file:**
-```bash
-curl -X POST http://localhost:8000/api/v1/files/upload \
-  -H "Authorization: Bearer <access_token>" \
-  -F "file=@./example.pdf" \
-  -F "folder=documents"
-```
-
-**Query role permissions:**
-```bash
-curl http://localhost:8000/api/v1/roles/1/permissions \
-  -H "Authorization: Bearer <access_token>"
-```
-
-**Create an open platform app:**
-```bash
-curl -X POST http://localhost:8000/api/v1/openapi-apps \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "MyService", "scopes": ["ping:read"], "rate_limit_per_minute": 60, "auth_mode": "plain"}'
-```
-
-**Call an open platform endpoint:**
+**Call open platform API:**
 ```bash
 curl http://localhost:8000/api/open/v1/me \
-  -H "X-App-Id: hj_test_xxx" \
+  -H "X-App-Id: hj_xxx" \
   -H "X-App-Key: <app_key>"
 ```
 
-> After first deployment, you can log in with the default superadmin account: `superadmin` / `admin@123456`. Be sure to change this password in production.
+> Default super admin: `superadmin` / `admin@123456`. Change in production.
 
 ## Project Structure
 
 ```
-x-HanJiang/
-├── .env.example              # Environment variable template
-├── config.yaml.example       # YAML configuration file template
-├── alembic/                  # Database migration management
-│   ├── env.py                # Alembic environment configuration
-│   └── versions/             # Migration version scripts
-├── docs/                     # Project documentation
-│   └── hanjiang.sql          # Database schema definition (9 tables)
-├── examples/                 # Usage examples
-├── logs/                     # Runtime log output directory
+server/
+├── .env.example              # Env variable template
+├── config.yaml.example       # YAML config template
+├── alembic/                  # Database migrations
+│   ├── env.py
+│   └── versions/             # Migration scripts
+├── docs/                     # Project docs
+├── logs/                     # Runtime logs
 ├── scripts/                  # Engineering scripts
-│   ├── init_db.py            # Database initialization script
-│   └── export_openapi.py     # OpenAPI spec export script
+│   ├── init_db.py            # Database initialization
+│   └── export_openapi.py    # OpenAPI spec export
 ├── src/                      # Core business code
-│   ├── main.py               # Application entry point (factory function, lifecycle management)
-│   ├── api/                  # API layer
-│   │   ├── v1/               # User-facing v1 routes (JWT auth)
-│   │   │   ├── health.py     # Health check (with auto-alerting)
-│   │   │   ├── user.py       # User management CRUD
-│   │   │   ├── auth.py       # Authentication (login/refresh/me/logout)
-│   │   │   ├── role.py       # Role management and permission binding
-│   │   │   ├── audit.py      # Business audit log query
+│   ├── main.py               # App entry (factory, lifespan)
+│   ├── api/                  # API routes
+│   │   ├── v1/               # User v1 routes (JWT auth)
+│   │   │   ├── auth.py       # Auth (login/refresh/me/logout)
+│   │   │   ├── user.py       # User CRUD
+│   │   │   ├── role.py       # Role & permission binding
+│   │   │   ├── permission.py # Permission management
+│   │   │   ├── audit.py      # Audit logs + login logs
+│   │   │   ├── dashboard.py  # Dashboard stats
 │   │   │   ├── file.py       # File upload
-│   │   │   ├── notification.py # Notification records query and manual sending
-│   │   │   ├── alert.py      # System alerts (Webhook + broadcast)
-│   │   │   ├── maintenance.py # System maintenance notifications
-│   │   │   └── openapi_app.py # Open platform app management (super admin CRUD)
-│   │   ├── open/             # Open platform v1 routes (AppId/AppKey auth)
+│   │   │   ├── notification.py # Notification records
+│   │   │   ├── alert.py      # System alerts
+│   │   │   ├── maintenance.py # Maintenance notices
+│   │   │   └── openapi_app.py # Open platform app mgmt
+│   │   ├── open/             # Open platform v1 (AppId/AppKey)
 │   │   │   └── v1/
-│   │   │       ├── health.py  # Open platform health & version
-│   │   │       ├── ping.py    # Connectivity test (requires ping:read scope)
-│   │   │       └── app.py     # Current app info
-│   │   ├── dependencies.py   # DI dependency functions (Service/Repository/current_user/current_app)
-│   │   ├── response.py       # Unified response wrapper
-│   │   └── router.py         # Route aggregation registration
-│   ├── constants/            # Business constants and enums
-│   │   ├── base.py           # Describable enum base class
-│   │   ├── constants.py      # Global constant definitions
-│   │   └── enums.py          # Business enum definitions
-│   ├── core/                 # Core support modules
-│   │   ├── config.py         # Configuration loading and parsing
-│   │   ├── exceptions.py     # Custom exceptions and global exception handling
-│   │   ├── logger.py         # Logger initialization (loguru)
-│   │   ├── middleware.py     # Middleware (request ID, logging, CORS, rate limiting)
-│   │   ├── seed.py           # Idempotent seed data initialization
-│   │   ├── session.py        # Database session management
-│   │   └── tokens.py         # JWT token issuance and verification
-│   ├── infras/               # Infrastructure layer
-│   │   ├── database.py       # Database connection pool and session factory (SQLAlchemy)
-│   │   ├── cache.py          # Cache provider (Redis)
-│   │   ├── email.py          # Email sending
+│   │   │       ├── health.py  # Health check & version
+│   │   │       ├── app.py    # Current app info
+│   │   │       └── user.py   # Open platform user query
+│   │   ├── permission_decorator.py # @permission decorator + scanner
+│   │   ├── dependencies.py   # DI dependencies
+│   │   ├── response.py       # Unified response
+│   │   └── router.py         # Router aggregation
+│   ├── constants/            # Constants & enums
+│   │   ├── base.py           # Describable enum base
+│   │   ├── constants.py      # Global constants
+│   │   └── enums.py          # Business enums (ModuleCode, etc.)
+│   ├── core/                 # Core modules
+│   │   ├── config.py         # Config loading
+│   │   ├── exceptions.py     # Custom exceptions & handlers
+│   │   ├── logger.py         # Loguru setup
+│   │   ├── middleware.py     # Middleware (request ID, CORS, rate limit)
+│   │   ├── seed.py           # Seed data init
+│   │   └── tokens.py         # JWT sign & verify
+│   ├── infras/               # Infrastructure
+│   │   ├── database.py       # DB pool & session factory
+│   │   ├── cache.py          # Redis cache
+│   │   ├── email.py          # Email sender
 │   │   ├── http.py           # HTTP client
-│   │   ├── notification.py   # Notification channel providers (Email/DingTalk/Feishu/SMS)
-│   │   └── storage.py        # Storage abstraction layer (local filesystem / S3-compatible)
-│   ├── notification/         # Notification subsystem
-│   │   ├── dispatcher.py     # Notification dispatcher (event-driven, routing table, persistence, retry)
-│   │   ├── template.py       # Notification template rendering engine
-│   │   └── retry_worker.py   # Failed notification retry worker
-│   ├── models/               # Data models
-│   │   └── entities/         # SQLAlchemy ORM entities (8 tables)
-│   ├── repositories/         # Data access layer (Repository pattern)
-│   ├── schemas/              # API request/response DTOs (Pydantic BaseModel)
-│   ├── services/             # Business logic layer (Service pattern)
-│   └── utils/                # Utility functions
-│       └── security.py       # Security utils (password hashing / Fernet / HMAC / key generation)
-├── tests/                    # Test code
-├── Dockerfile                # Docker image build (multi-stage)
-├── docker-compose.yml        # Docker orchestration (App + MySQL + Redis)
-├── pyproject.toml            # Project dependencies and metadata
-├── uv.toml                   # uv package manager configuration
-└── LICENSE                   # MIT License
+│   │   ├── notification.py   # Notification providers
+│   │   └── storage.py        # Storage abstraction (local/S3)
+│   ├── models/               # SQLAlchemy ORM entities
+│   │   └── entities/
+│   ├── repositories/         # Data access layer
+│   ├── schemas/              # Pydantic DTOs
+│   ├── services/             # Business logic layer
+│   └── utils/                # Utilities
+│       └── security.py       # Security (password hash/HMAC/keygen)
+├── tests/                    # Tests
+├── Dockerfile
+├── docker-compose.yml
+├── pyproject.toml
+└── LICENSE
 ```
 
 ## System Architecture
@@ -264,412 +240,251 @@ x-HanJiang/
 
 ```mermaid
 flowchart TB
-  Client[Client / Admin Panel] -->|HTTP / JSON| API[API Layer<br/>Route Aggregation · Param Validation · Unified Response]
+  Client[Client] -->|HTTP / JSON| API[API Routes<br/>Routing · Validation · Response]
 
   subgraph Application[Application Layer]
     API --> Auth[User Auth<br/>Bearer JWT · Current User · RBAC]
-    API --> OpenAuth[Open Platform Auth<br/>AppId/AppKey · Scope · HMAC-ready]
-    Auth --> Service[Service Layer<br/>User · Role · Permission · Audit · File · Notification]
-    OpenAuth --> OpenService[Open Platform Service<br/>App Management · Auth · Signature]
+    API --> OpenAuth[Open Platform Auth<br/>AppId/AppKey · Scope · HMAC Signature]
+    Auth --> Service[Business Services<br/>Users · Roles · Permissions · Audit · Dashboard · Notifications]
+    OpenAuth --> OpenService[Open Platform Services<br/>App Management · Auth · Signature]
   end
 
   subgraph Data[Data Access Layer]
-    Service --> Repository[Repository Layer<br/>CRUD · Query · Entity Mapping]
-    Repository --> Entity[Models / Entities<br/>SQLAlchemy ORM Entities]
-    Service --> Schema[Schemas<br/>Pydantic Request & Response DTOs]
+    Service --> Repository[Repository<br/>CRUD · Query · Entity Mapping]
+    Repository --> Entity[Models / Entities<br/>SQLAlchemy ORM]
   end
 
-  subgraph Support[Core Support & Infrastructure]
+  subgraph Support[Core & Infrastructure]
     Core[Core<br/>Config · DI · Middleware · Exceptions · Tokens · Logging]
-    Infra[Infras<br/>Database · Cache · Email · HTTP · Storage · Notification Providers]
+    Infra[Infras<br/>Database · Cache · Email · HTTP · Storage · Notifications]
   end
 
-  Core -.Provides cross-cutting concerns.-> API
-  Core -.Provides cross-cutting concerns.-> Service
+  Core -.Cross-cutting.-> API
+  Core -.Cross-cutting.-> Service
   Repository --> Infra
-  Entity --> Infra
-  Service -->|File R/W| Infra
   Infra --> DB[(MySQL)]
   Infra --> Redis[(Redis)]
-  Infra --> OSS[(S3-Compatible Object Storage / Local Storage)]
+  Infra --> OSS[(S3 / Local Storage)]
 ```
 
-### Core Business Flow
+### Core Flow: Login & Authorization
 
 ```mermaid
 flowchart TD
-  Start([Client sends request]) --> Open{Open platform endpoint?}
-  Open -->|Yes| AppKey{AppId/AppKey valid?}
-  AppKey -->|No| Unauthorized[Return 401 Unauthorized]
-  AppKey -->|Yes| Scope{Has required scope?}
-  Scope -->|No| Forbidden[Return 403 Forbidden]
-  Scope -->|Yes| Route[API routing & param validation]
+  Start([Client Request]) --> Open{Open Platform API?}
+  Open -->|Yes| AppKey{Valid AppId/AppKey?}
+  AppKey -->|No| Unauthorized[401 Unauthorized]
+  AppKey -->|Yes| Scope{Required scope?}
+  Scope -->|No| Forbidden[403 Forbidden]
+  Scope -->|Yes| Route[Route & Validation]
   Open -->|No| Public{Public endpoint?}
-  Public -->|Yes: login / refresh / health check| Route[API routing & param validation]
-  Public -->|No| Token{Bearer Token valid?}
-  Token -->|No| Unauthorized[Return 401 Unauthorized]
-  Token -->|Yes| Permission{Has required role or permission?}
-  Permission -->|No| Forbidden[Return 403 Forbidden]
+  Public -->|Yes: login/refresh/health| Route
+  Public -->|No| Token{Valid Bearer Token?}
+  Token -->|No| Unauthorized
+  Token -->|Yes| Permission{Required permission?}
+  Permission -->|No| Forbidden
   Permission -->|Yes| Route
 
-  Route --> Login{Auth request?}
-  Login -->|Yes| Verify[Verify account and password]
-  Verify -->|Failed| LoginFailed[Record failed login log<br/>Return auth failure]
-  Verify -->|Success| IssueToken[Issue access & refresh tokens<br/>Record successful login log]
-  Login -->|No| Service[Invoke corresponding Service]
-  Service --> Repository[Repository reads/writes data]
+  Route --> Service[Call Business Service]
+  Service --> Repository[Repository Read/Write]
   Repository --> Database[(MySQL / Redis)]
-  Service --> Audit[Record business audit log<br/>Operator · IP · Before/after data]
-  Database --> Result[Assemble business result]
-  Audit --> Result
-  IssueToken --> Response[Unified response + X-Request-ID]
-  Result --> Response
-  LoginFailed --> Response
-  Unauthorized --> End([Request complete])
+  Service --> Audit[Write Audit Log<br/>Operator · IP · Before/After]
+  Service --> Response[Unified Response + X-Request-ID]
+  Audit --> Response
+  Unauthorized --> End([Done])
   Forbidden --> End
   Response --> End
 ```
 
-### Module Dependency Graph
+### Permission Auto-Registration
 
 ```mermaid
 flowchart LR
-  Main[main.py] --> Router[api.router]
-  Router --> API[api.v1 user-facing routes]
-  Router --> OpenAPI[api.open open platform routes]
-  API --> Dependencies[api.dependencies]
-  API --> Schemas[schemas]
-  API --> Services[services]
-
-  Dependencies --> Services
-  Services --> Repositories[repositories]
-  Services --> Schemas
-  Services --> Core[core<br/>Config · Exceptions · Logging · Tokens]
-  Services --> Infra[infras<br/>Cache · Email · HTTP · Storage · Notification]
-
-  Repositories --> Entities[models.entities]
-  Repositories --> Database[infras.database]
-  Entities --> Database
-  Core --> Infra
-  Core --> Constants[constants]
-  API --> Constants
-
-  classDef entry fill:#e8f1ff,stroke:#3973c6,color:#16345c;
-  classDef app fill:#eaf7ef,stroke:#3b8c5a,color:#1f4d31;
-  classDef support fill:#fff4df,stroke:#c68a22,color:#68470f;
-  classDef data fill:#f5eafa,stroke:#8b5ba7,color:#4b2d5d;
-
-  class Main,Router entry;
-  class API,Dependencies,Services app;
-  class Core,Infra,Constants support;
-  class Repositories,Entities,Database,Schemas data;
+  A[@permission Decorator] --> B[collect_permissions_from_app on Startup]
+  B --> C[Scan app.routes for Metadata]
+  C --> D[Upsert to permissions Table]
+  D --> E[In DB but not in Routes → is_deprecated=True]
 ```
 
 ## Tech Stack
 
 | Category | Technology | Description |
-|----------|------------|-------------|
-| **Language** | Python 3.11+ | Strongly typed, async-friendly modern Python |
-| **Web Framework** | FastAPI | High-performance async Python web framework |
+|----------|-----------|-------------|
+| **Language** | Python 3.11+ | Typed, async-friendly |
+| **Web Framework** | FastAPI | High-performance async web |
 | **ASGI Server** | Uvicorn | Lightweight ASGI server |
-| **Process Manager** | Gunicorn | Production-grade WSGI/ASGI process manager |
+| **ORM** | SQLAlchemy 2.0 | Python ORM toolkit |
+| **Migration** | Alembic | Database versioning |
+| **Validation** | Pydantic v2 | Data models & validation |
+| **Config** | pydantic-settings | Pydantic-based config |
 | **Database** | MySQL 8.0 | Relational database |
-| **ORM** | SQLAlchemy 2.0 | Python SQL toolkit and object-relational mapping |
-| **DB Driver** | PyMySQL | Pure Python MySQL driver |
-| **DB Migration** | Alembic | SQLAlchemy database migration tool |
-| **Cache** | Redis 7 | Token, login state, and notification retry queue |
-| **Object Storage** | boto3 | S3-compatible object storage (Qiniu Kodo / AWS S3 / MinIO) |
-| **Validation** | Pydantic v2 | Data modeling and validation framework |
-| **Config Management** | pydantic-settings | Pydantic-based configuration management |
-| **Logging** | Loguru | Modern Python logging library |
-| **Rate Limiting** | SlowAPI | Request rate limiting middleware |
-| **Password Hashing** | bcrypt | Secure password hashing |
-| **Symmetric Encryption** | cryptography (Fernet) | AppKey encryption, HMAC signature support |
-| **JWT** | PyJWT | JSON Web Token issuance and verification |
-| **HTTP Client** | httpx | Async HTTP client (notification channel API calls) |
-| **Package Manager** | uv | High-performance Python package manager |
-| **Linting** | Ruff | High-performance Python linter and formatter |
-| **Type Checking** | mypy | Static type checker for Python |
-| **Testing** | pytest | Python testing framework |
-| **Containerization** | Docker | Application containerization |
-| **Orchestration** | Docker Compose | Multi-container orchestration and management |
+| **Cache** | Redis 7 | Tokens, session, rate limiting |
+| **Object Storage** | boto3 | S3-compatible (Qiniu/AWS S3/MinIO) |
+| **Logging** | Loguru | Modern logging library |
+| **Auth** | PyJWT + bcrypt | JWT + password hashing |
+| **Encryption** | cryptography (Fernet) | AppKey encryption, HMAC |
+| **Rate Limiting** | SlowAPI | Request rate limiting |
+| **HTTP Client** | httpx | Async HTTP for notifications |
+| **Package Mgr** | uv | High-performance Python package mgr |
+| **Linting** | Ruff | Lint & format |
+| **Type Check** | mypy | Static type checking |
+| **Testing** | pytest | Unit testing |
+| **Container** | Docker / Docker Compose | Container deployment |
 
 ## API Documentation
 
-The project leverages FastAPI's automatic OpenAPI specification generation, providing the following API documentation capabilities:
+Once the backend is running:
 
-| Documentation Type | Access URL | Description |
-|--------------------|------------|-------------|
-| Swagger Interactive Docs | http://localhost:8000/docs | Online debugging, parameter input, request sending |
-| ReDoc Read-Only Docs | http://localhost:8000/redoc | Well-structured read-only API documentation |
-| OpenAPI JSON Spec | http://localhost:8000/openapi.json | Standard OpenAPI 3.x spec file, importable into Postman and similar tools |
+| Document Type | URL | Description |
+|---------------|-----|-------------|
+| Swagger UI | http://localhost:8000/docs | Interactive API docs |
+| ReDoc | http://localhost:8000/redoc | Read-only API docs |
+| OpenAPI JSON | http://localhost:8000/openapi.json | OpenAPI 3.x spec file |
 
-### API Endpoint List
+### Core Endpoints
 
-User-facing endpoints are prefixed with `/api/v1` (JWT auth). Open platform endpoints are prefixed with `/api/open/v1` (AppId/AppKey auth).
-
-**Health Check (Public):**
+**Health Check (public):**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/health` | Health check (database/cache connectivity) |
-| GET | `/api/v1/version` | Version information |
+| GET | `/api/v1/health` | Health check (DB/cache status) |
+| GET | `/api/v1/version` | Version info |
 
-**Authentication (login/refresh public, others require authentication):**
+**Auth:**
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| POST | `/api/v1/auth/login` | Username/email + password login | Public |
+| POST | `/api/v1/auth/login` | User login | Public |
 | POST | `/api/v1/auth/refresh` | Refresh token | Public |
-| GET | `/api/v1/auth/me` | Current logged-in user info | Required |
-| POST | `/api/v1/auth/logout` | Logout (clear Redis login state) | Required |
+| GET | `/api/v1/auth/me` | Current user info | Required |
+| POST | `/api/v1/auth/logout` | Logout | Required |
 
-**User Management (Requires Authentication):**
+**Users:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/users` | Create user |
-| GET | `/api/v1/users` | User list (pagination/keyword/status filter) |
+| POST | `/api/v1/users` | Create user (multi-role) |
+| GET | `/api/v1/users` | User list (pagination/filter) |
 | GET | `/api/v1/users/{id}` | User detail |
-| GET | `/api/v1/users/export` | Export users (CSV) |
 | POST | `/api/v1/users/{id}/update` | Update user |
-| POST | `/api/v1/users/{id}/delete` | Delete user (soft delete) |
+| POST | `/api/v1/users/{id}/delete` | Delete user |
+| POST | `/api/v1/users/{id}/reset-password` | Reset password |
 
-**Role Management (Requires Authentication):**
+**Roles:**
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/v1/roles` | Create role |
-| GET | `/api/v1/roles` | Role list (pagination/keyword/type/status filter) |
+| GET | `/api/v1/roles` | Role list |
 | GET | `/api/v1/roles/{id}` | Role detail |
 | POST | `/api/v1/roles/{id}/update` | Update role |
-| POST | `/api/v1/roles/{id}/delete` | Delete role (soft delete) |
-| GET | `/api/v1/roles/{id}/permissions` | Role permission list (with permission details) |
-| POST | `/api/v1/roles/{id}/permissions` | Bind permissions to role |
-| POST | `/api/v1/roles/{id}/permissions/{pid}/unbind` | Unbind role permission |
+| POST | `/api/v1/roles/{id}/delete` | Delete role |
+| GET | `/api/v1/roles/{id}/permissions` | Role permissions |
+| POST | `/api/v1/roles/{id}/permissions` | Bind permission |
 
-**Business Audit Logs (Requires Authentication):**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/audit/logs` | Query business changes by entity, action, operator, and time range |
-
-**File Upload (Requires Authentication):**
+**Permissions:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/files/upload` | Upload file; writes to cloud storage when configured, falls back to local storage |
+| GET | `/api/v1/permissions` | Permission list (auto-scanned, deprecated filtered) |
 
-**Login Logs (Requires Authentication):**
+**Audit & Logs:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/audit/login-logs` | Login log list (pagination/user/result/type/time-range filter) |
+| GET | `/api/v1/audit/logs` | Business audit log list |
+| GET | `/api/v1/audit/logs/{id}` | Audit log detail |
+| GET | `/api/v1/audit/login-logs` | Login log list |
 | GET | `/api/v1/audit/login-logs/{id}` | Login log detail |
 
-**Notification Management (Requires Authentication):**
+**Dashboard:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/notifications/send` | Manually send notification |
-| GET | `/api/v1/notifications` | Notification record list (pagination/event/channel/status filter) |
-| GET | `/api/v1/notifications/stats` | Notification delivery statistics |
+| GET | `/api/v1/dashboard/stats` | Dashboard stats (cards, trends, recent records) |
 
-**System Alerts:**
-
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| POST | `/api/v1/alerts` | Send alert to specified recipients (for external Webhook calls) | Public |
-| POST | `/api/v1/alerts/broadcast` | Broadcast alert to all active users | Required |
-
-**System Maintenance Notifications (Requires Authentication):**
+**Open Platform App Management:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/maintenance/notify` | Send maintenance notification to all users |
-
-**Open Platform App Management (Requires super_admin):**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/openapi-apps` | Create open platform app (returns AppId + AppKey, Key shown once) |
+| POST | `/api/v1/openapi-apps` | Create app (returns AppId + AppKey) |
 | GET | `/api/v1/openapi-apps` | App list |
 | GET | `/api/v1/openapi-apps/{id}` | App detail |
-| PATCH | `/api/v1/openapi-apps/{id}` | Update app (scopes/rate limit/auth mode/status) |
-| POST | `/api/v1/openapi-apps/{id}/rotate-key` | Rotate AppKey (old key invalidated immediately) |
-| DELETE | `/api/v1/openapi-apps/{id}` | Delete app (soft delete) |
+| POST | `/api/v1/openapi-apps/{id}/update` | Update app |
+| POST | `/api/v1/openapi-apps/{id}/delete` | Delete app |
 
-**Open Platform Endpoints (AppId/AppKey Auth):**
+**Open Platform APIs (AppId/AppKey auth):**
 
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| GET | `/api/open/v1/health` | Open platform health check | Public |
-| GET | `/api/open/v1/version` | Open platform version info | Public |
-| GET | `/api/open/v1/me` | Current calling app info | AppId/AppKey required |
-| GET | `/api/open/v1/ping` | Connectivity test | AppId/AppKey + `ping:read` scope |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/open/v1/health` | Health check |
+| GET | `/api/open/v1/version` | Version info |
+| GET | `/api/open/v1/me` | Current app info |
+| GET | `/api/open/v1/users` | User query |
 
-### Open Platform Authentication
+### Authorization
 
-Open Platform APIs are designed for external service-to-service integration, fully independent from user-facing JWT auth:
+- **User endpoints**: JWT Bearer Token + `@permission` decorator auto-registration + role/permission check
+- **Open platform endpoints**: AppId + AppKey (plain) or HanJiang-1 HMAC signature, scoped access control
 
-- **Auth method**: Send `X-App-Id` and `X-App-Key` headers (plaintext mode to start)
-- **Upgrade path**: Each AppKey is stored as both SHA256 hash (fast lookup) and Fernet-encrypted plaintext (for future HMAC mode). The `auth_mode` column (plain/hmac/both) allows switching without key rotation
-- **Scope-based authorization**: Each app has a scope list (e.g. `ping:read`); endpoints declare requirements via `require_app_scope("ping:read")`
-- **Swagger testing**: Enter `OpenAppId` and `OpenAppKey` in the Authorize dialog to test open platform endpoints
+## Storage
 
-### Access Control
+### Database
 
-**User-facing (`/api/v1/...`):**
-- All endpoints (except login, refresh, health check) require `Authorization: Bearer <token>`
-- Endpoints declare requirements via `require_user_role("role_code")` or `require_user_permission("perm_code")`
-- The `super_admin` role bypasses role restrictions by default
-- Permission evaluation results are cached in Redis by user and permission code
+- **Type**: MySQL 8.0+
+- **Config**: via `.env` (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`)
+- **Migrations**: Alembic
 
-**Open Platform (`/api/open/v1/...`):**
-- Requires `X-App-Id` and `X-App-Key` headers (plaintext mode)
-- Endpoints declare required scopes via `require_app_scope("scope:name")`
-- HMAC signature mode can be enabled per-app (`auth_mode=hmac`), requiring additional Timestamp / Nonce / Signature headers
+### Cache
 
-## Notification System Configuration
+- **Type**: Redis 7+
+- **Usage**: rate limiting, session cache, notification retry queue
+- **Config**: via `.env` (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`)
 
-The project includes a built-in event-driven multi-channel notification subsystem, supporting Email, DingTalk, Feishu, and SMS channels. Notification events are automatically triggered during business operations (password changes, failed logins, permission changes, etc.), and can also be manually sent or broadcast via API.
+### File Storage
 
-### Architecture Overview
+Two modes, switch via `storage.provider`:
 
-```
-Business Services (user_service / auth_service / ...)
-    ↓ dispatch_for_user(user_id, event_type, variables)
-Notification Dispatcher (NotificationDispatcher)
-    ↓ Query routing table → Determine channels
-    ↓ Query user_notification_configs → Determine recipients
-    ↓ Render templates → Call Provider to send
-    ↓ Persist records → Write failures to Redis retry queue
-Notification Channel Providers
-    ├─ EmailProvider (reuses SMTP configuration)
-    ├─ DingTalkProvider (Work notification per-user / Webhook group chat)
-    ├─ FeishuProvider (App message per-user / Webhook group chat)
-    └─ SmsProvider (skeleton, pending integration)
-```
+| Mode | Config | Use Case |
+|------|--------|----------|
+| `local` | `STORAGE_LOCAL_BASE_DIR=static` | Local dev, small deployments |
+| `s3` | `STORAGE_S3_ENDPOINT_URL` etc. | Production, object storage (Qiniu/AWS S3/MinIO) |
 
-### Notification Event Types
+**S3 parameters:**
 
-| Event | Trigger | Default Channels |
-|-------|---------|-----------------|
-| `user.password_changed` | User changes password | email |
-| `user.profile_updated` | User profile updated | email |
-| `user.status_changed` | User status changed | email, dingtalk |
-| `user.login_failed` | Consecutive login failures ≥3 | email, dingtalk |
-| `role.assigned` | Role assigned | email, dingtalk |
-| `permission.granted` | Permission granted | email |
-| `permission.revoked` | Permission revoked | email, dingtalk |
-| `system.alert` | System alert (health check failure/API call) | email, dingtalk, feishu |
-| `system.maintenance` | System maintenance notification | email, dingtalk, feishu |
+| Parameter | Description |
+|-----------|-------------|
+| `s3.endpoint_url` | S3-compatible service endpoint |
+| `s3.access_key` | Access key |
+| `s3.secret_key` | Secret key |
+| `s3.bucket` | Bucket name |
+| `s3.region` | Region |
+| `s3.public_url` | Public access URL (optional) |
 
-### Channel Configuration
-
-**DingTalk/Feishu support dual modes:**
-- **Work Notification/App Message** (recommended): Configure application credentials for per-user precise delivery
-- **Webhook Group Chat** (fallback): Only configure Webhook URL, sends to the group where the bot is located
-
-```yaml
-notification:
-  enabled: true
-  retry_interval_seconds: 60
-  alert_email: "ops@example.com"     # Health check alert email
-  # DingTalk
-  dingtalk_app_key: ""               # Enterprise app AppKey (work notification mode)
-  dingtalk_app_secret: ""
-  dingtalk_agent_id: ""
-  dingtalk_webhook: ""               # Group robot Webhook (group chat mode)
-  dingtalk_secret: ""
-  # Feishu
-  feishu_app_id: ""                  # Custom app AppId (app message mode)
-  feishu_app_secret: ""
-  feishu_webhook: ""                 # Group robot Webhook (group chat mode)
-  feishu_secret: ""
-```
-
-> DingTalk/Feishu per-user delivery requires binding users with channel recipients in the `user_notification_configs` table (DingTalk stores `userid`, Feishu stores `open_id`).
-
-## Storage Configuration
-
-The project provides a unified storage abstraction layer. Switch storage backends by changing the `storage.provider` configuration — zero changes to business code.
-
-### Local File Storage
-
-Suitable for development environments and small-scale deployments. Files are stored on the server's local filesystem.
-
-```yaml
-storage:
-  provider: "local"
-  local:
-    base_dir: "static"
-```
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `provider` | Storage backend identifier | `local` |
-| `local.base_dir` | Local storage root directory | `static` |
-
-### S3-Compatible Object Storage
-
-Suitable for production environments. Supports Qiniu Kodo, AWS S3, MinIO, and other S3-compatible services.
-
-```yaml
-storage:
-  provider: "s3"
-  s3:
-    endpoint_url: "https://s3.cn-south-1.qiniucs.com"
-    access_key: "<your-access-key>"
-    secret_key: "<your-secret-key>"
-    bucket: "x-hanjiang"
-    region: "cn-south-1"
-    prefix: "uploads"
-    public_url: ""
-    use_ssl: true
-```
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `provider` | Storage backend identifier | `s3` |
-| `s3.endpoint_url` | S3-compatible service endpoint | — |
-| `s3.access_key` | Access key | — |
-| `s3.secret_key` | Secret key | — |
-| `s3.bucket` | Bucket name | `x-hanjiang` |
-| `s3.region` | Storage region | `cn-south-1` |
-| `s3.prefix` | Object key prefix | `uploads` |
-| `s3.public_url` | Public access domain (optional, with protocol) | — |
-| `s3.use_ssl` | Enable SSL | `true` |
-
-> **Note**: In production, inject `access_key` and `secret_key` via environment variables to avoid committing secrets. The example endpoint `https://s3.cn-south-1.qiniucs.com` is for Qiniu Kodo's South China region. Replace it with the appropriate endpoint for other S3-compatible services.
+> **Note**: Inject S3 credentials via environment variables in production.
 
 ## License
 
-This project is open-sourced under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
 
 ## References
 
-| Technology | Official Documentation |
-|------------|----------------------|
+| Technology | Official Docs |
+|-----------|---------------|
 | Python | https://www.python.org/ |
 | FastAPI | https://fastapi.tiangolo.com/ |
-| Pydantic | https://docs.pydantic.dev/ |
 | SQLAlchemy | https://docs.sqlalchemy.org/ |
 | Alembic | https://alembic.sqlalchemy.org/ |
+| Pydantic | https://docs.pydantic.dev/ |
 | Redis | https://redis.io/docs/ |
 | uv | https://docs.astral.sh/uv/ |
-| Uvicorn | https://www.uvicorn.org/ |
-| Gunicorn | https://gunicorn.org/ |
-| Docker | https://docs.docker.com/ |
-| Docker Compose | https://docs.docker.com/compose/ |
 | Loguru | https://loguru.readthedocs.io/ |
-| pytest | https://docs.pytest.org/ |
-| Ruff | https://docs.astral.sh/ruff/ |
+| Docker | https://docs.docker.com/ |
 
 ## Contact
 
-- **Author**: John Young（夜雨诗来）
-- **Email**: [john.young@foxmail.com](mailto:john.young@foxmail.com)
+- **Author**: John Young (夜雨诗来)
+- **Email**: john.young@foxmail.com
 - **Gitee**: https://gitee.com/yeyushilai
 - **GitHub**: https://github.com/yeyushilai
 - **Project**: https://github.com/cross-lang/x-HanJiang

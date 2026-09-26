@@ -41,7 +41,8 @@ npm install
 npm run dev
 ```
 
-访问 http://localhost:5173。详细说明请参考 [web/admin/README.md](web/admin/README.md)。
+访问 http://localhost:5173
+详细说明请参考 [web/admin/README.md](web/admin/README.md)。
 
 ## 项目结构
 
@@ -78,8 +79,8 @@ x-HanJiang/
 ```mermaid
 graph TB
     subgraph 前端
-        A[管理后台 Vue3]
-        B[开放平台门户]
+        A[管理后台]
+        B[开放平台]
     end
 
     subgraph 后端
