@@ -98,7 +98,7 @@ cp config.yaml.example config.yaml
 
 ```bash
 # Start with CLI command (hot reload)
-uv run x-HanJiang --reload
+uv run x-HanJiang
 
 # Or start with uvicorn directly
 uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
@@ -167,7 +167,7 @@ curl http://localhost:8000/api/v1/roles/1/permissions \
 
 **Create an open platform app:**
 ```bash
-curl -X POST http://localhost:8000/api/v1/admin/apps \
+curl -X POST http://localhost:8000/api/v1/openapi-apps \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "MyService", "scopes": ["ping:read"], "rate_limit_per_minute": 60, "auth_mode": "plain"}'
@@ -464,8 +464,8 @@ User-facing endpoints are prefixed with `/api/v1` (JWT auth). Open platform endp
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/login-logs` | Login log list (pagination/user/result/type/time-range filter) |
-| GET | `/api/v1/login-logs/{id}` | Login log detail |
+| GET | `/api/v1/audit/login-logs` | Login log list (pagination/user/result/type/time-range filter) |
+| GET | `/api/v1/audit/login-logs/{id}` | Login log detail |
 
 **Notification Management (Requires Authentication):**
 
@@ -492,12 +492,12 @@ User-facing endpoints are prefixed with `/api/v1` (JWT auth). Open platform endp
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/admin/apps` | Create open platform app (returns AppId + AppKey, Key shown once) |
-| GET | `/api/v1/admin/apps` | App list |
-| GET | `/api/v1/admin/apps/{id}` | App detail |
-| PATCH | `/api/v1/admin/apps/{id}` | Update app (scopes/rate limit/auth mode/status) |
-| POST | `/api/v1/admin/apps/{id}/rotate-key` | Rotate AppKey (old key invalidated immediately) |
-| DELETE | `/api/v1/admin/apps/{id}` | Delete app (soft delete) |
+| POST | `/api/v1/openapi-apps` | Create open platform app (returns AppId + AppKey, Key shown once) |
+| GET | `/api/v1/openapi-apps` | App list |
+| GET | `/api/v1/openapi-apps/{id}` | App detail |
+| PATCH | `/api/v1/openapi-apps/{id}` | Update app (scopes/rate limit/auth mode/status) |
+| POST | `/api/v1/openapi-apps/{id}/rotate-key` | Rotate AppKey (old key invalidated immediately) |
+| DELETE | `/api/v1/openapi-apps/{id}` | Delete app (soft delete) |
 
 **Open Platform Endpoints (AppId/AppKey Auth):**
 

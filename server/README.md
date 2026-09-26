@@ -98,7 +98,7 @@ cp config.yaml.example config.yaml
 
 ```bash
 # 使用 CLI 命令启动（热重载）
-uv run x-HanJiang --reload
+uv run x-HanJiang
 
 # 或使用 uvicorn 直接启动
 uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
@@ -167,7 +167,7 @@ curl http://localhost:8000/api/v1/roles/1/permissions \
 
 **创建开放平台应用：**
 ```bash
-curl -X POST http://localhost:8000/api/v1/admin/apps \
+curl -X POST http://localhost:8000/api/v1/openapi-apps \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "MyService", "scopes": ["ping:read"], "rate_limit_per_minute": 60, "auth_mode": "plain"}'
@@ -206,7 +206,9 @@ x-HanJiang/
 │   │   │   ├── user.py       # 用户管理 CRUD
 │   │   │   ├── auth.py       # 认证（登录/刷新/当前用户/登出）
 │   │   │   ├── role.py       # 角色管理与权限绑定
-│   │   │   ├── audit.py      # 业务审计日志查询
+│   │   │   ├── dashboard.py  # 仪表盘统计
+│   │   │   ├── permission.py  # 权限管理
+│   │   │   ├── audit.py      # 业务审计日志 + 登录日志查询
 │   │   │   ├── file.py       # 文件上传
 │   │   │   ├── notification.py # 通知记录查询与手动发送
 │   │   │   ├── alert.py      # 系统告警（Webhook + 广播）
@@ -217,6 +219,7 @@ x-HanJiang/
 │   │   │       ├── health.py  # 开放平台健康检查与版本
 │   │   │       ├── ping.py    # 连通性测试（需 ping:read scope）
 │   │   │       └── app.py     # 当前应用信息
+│   │   ├── permission_decorator.py # @permission 装饰器 + 路由扫描自动注册权限
 │   │   ├── dependencies.py   # DI 依赖函数（Service/Repository/当前用户/当前应用）
 │   │   ├── response.py       # 统一响应封装
 │   │   └── router.py         # 路由聚合注册
@@ -448,11 +451,23 @@ flowchart LR
 | POST | `/api/v1/roles/{id}/permissions` | 绑定权限到角色 |
 | POST | `/api/v1/roles/{id}/permissions/{pid}/unbind` | 解绑角色权限 |
 
+**仪表盘统计（需鉴权）：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/dashboard/stats` | 仪表盘统计（卡片指标、登录趋势、操作日志趋势、角色分布、最近记录） |
+
 **业务审计日志（需鉴权）：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/v1/audit/logs` | 按实体、动作、操作人和时间范围查询业务变更 |
+
+**权限管理（需鉴权）：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/permissions` | 权限列表（自动从路由扫描注册，过滤已废弃） |
 
 **文件上传（需鉴权）：**
 
@@ -464,8 +479,8 @@ flowchart LR
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/login-logs` | 登录日志列表（分页/用户/结果/方式/时间范围过滤） |
-| GET | `/api/v1/login-logs/{id}` | 登录日志详情 |
+| GET | `/api/v1/audit/login-logs` | 登录日志列表（分页/用户/结果/方式/时间范围过滤） |
+| GET | `/api/v1/audit/login-logs/{id}` | 登录日志详情 |
 
 **通知管理（需鉴权）：**
 
@@ -492,12 +507,12 @@ flowchart LR
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/admin/apps` | 创建开放应用（返回 AppId + AppKey，Key 仅本次返回） |
-| GET | `/api/v1/admin/apps` | 应用列表 |
-| GET | `/api/v1/admin/apps/{id}` | 应用详情 |
-| PATCH | `/api/v1/admin/apps/{id}` | 更新应用（scope/限流/鉴权模式/状态） |
-| POST | `/api/v1/admin/apps/{id}/rotate-key` | 重置 AppKey（旧 Key 立即失效） |
-| DELETE | `/api/v1/admin/apps/{id}` | 删除应用（软删除） |
+| POST | `/api/v1/openapi-apps` | 创建开放应用（返回 AppId + AppKey，Key 仅本次返回） |
+| GET | `/api/v1/openapi-apps` | 应用列表 |
+| GET | `/api/v1/openapi-apps/{id}` | 应用详情 |
+| PATCH | `/api/v1/openapi-apps/{id}` | 更新应用（scope/限流/鉴权模式/状态） |
+| POST | `/api/v1/openapi-apps/{id}/rotate-key` | 重置 AppKey（旧 Key 立即失效） |
+| DELETE | `/api/v1/openapi-apps/{id}` | 删除应用（软删除） |
 
 **开放平台接口（AppId/AppKey 鉴权）：**
 
@@ -521,7 +536,9 @@ flowchart LR
 
 **用户态（`/api/v1/...`）：**
 - 除登录、刷新、健康检查外，均需 `Authorization: Bearer <token>` 请求头
-- 接口通过 `require_user_role("role_code")` 或 `require_user_permission("perm_code")` 声明访问要求
+- 接口通过 `@permission(code, name, module, operation)` 装饰器声明权限元数据，启动时自动扫描注册到 permissions 表
+- 同时通过 `Depends(require_user_permission("perm_code"))` 做实际鉴权
+- `super_admin` 角色默认绕过角色限制
 - `super_admin` 角色默认绕过角色限制
 - 普通用户的权限判断结果按用户和权限编码缓存于 Redis
 
@@ -670,6 +687,6 @@ storage:
 
 - **作者**：John Young（夜雨诗来）
 - **邮箱**：[john.young@foxmail.com](mailto:john.young@foxmail.com)
-- **Gitee**：https://gitee.com/yeyushilai
-- **GitHub**：https://github.com/yeyushilai
+- **Gitee**：https://gitee.com/cross-lang/x-HanJiang
+- **GitHub**：https://github.com/cross-lang/x-HanJiang
 - **项目地址**：https://github.com/cross-lang/x-HanJiang

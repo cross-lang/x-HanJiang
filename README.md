@@ -8,10 +8,12 @@
 
 **核心特征：**
 - 前后端分离：FastAPI 后端 + Vue 3 + Element Plus 前端，全栈 TypeScript 类型安全
-- 内置 JWT 认证 + RBAC 权限模型 + 操作审计，开箱即用
+- 内置 JWT 认证 + RBAC 权限模型 + 操作审计 + 登录日志，开箱即用
+- 装饰器自动扫描路由注册权限，启动时自动同步到 permissions 表
 - 开放平台 HanJiang-1 HMAC 签名鉴权，支持明文与签名双模式
 - 分层架构：API 路由 → 业务逻辑 → 数据访问，职责清晰
 - 生产级安全设计（常量时间比对、防重放、密码哈希）
+- 内置仪表盘（用户/角色/应用统计 + 登录趋势 + 操作日志趋势 + ECharts 可视化）
 - 完善的开发者体验（Swagger 文档、Alembic 迁移、统一异常处理）
 
 **适用场景：**
@@ -47,23 +49,25 @@ npm run dev
 x-HanJiang/
 ├── server/                  # 后端（FastAPI）
 │   ├── src/
-│   │   ├── api/              # 路由层
-│   │   ├── constants/        # 常量与枚举
-│   │   ├── core/             # 核心（配置/中间件/异常）
-│   │   ├── infras/           # 基础设施（数据库）
-│   │   ├── models/           # 数据模型
+│   │   ├── api/              # 路由层（v1 用户态 + open/v1 开放平台）
+│   │   ├── constants/        # 常量与枚举（ModuleCode、BaseEnum）
+│   │   ├── core/             # 核心（配置/中间件/异常/安全）
+│   │   ├── infras/           # 基础设施（数据库连接）
+│   │   ├── models/           # SQLAlchemy 数据模型
 │   │   ├── repositories/     # 数据访问层
 │   │   ├── schemas/          # Pydantic Schema
 │   │   ├── services/         # 业务逻辑层
-│   │   └── utils/             # 工具函数
+│   │   ├── utils/             # 工具函数
+│   │   └── main.py           # 应用入口
 │   ├── alembic/              # 数据库迁移
 │   ├── config/               # 配置文件
-│   ├── main.py               # 应用入口
+│   ├── logs/                 # 日志输出
 │   └── pyproject.toml
 ├── web/                      # 前端
-│   ├── admin/                # 管理后台（Vue3 + Element Plus）
+│   ├── admin/                # 管理后台（Vue3 + TS + Element Plus + ECharts）
 │   └── open/                 # 开放平台门户（待开发）
 ├── docker-compose.yml         # Docker 编排
+├── CHANGELOG.md              # 版本变更记录
 └── README.md
 ```
 
@@ -113,9 +117,20 @@ sequenceDiagram
     S->>DB: 查询用户
     DB-->>S: 用户记录
     S->>S: 验证密码哈希
+    S->>DB: 写入登录日志
     S-->>A: 生成 JWT Token
     A-->>F: 返回 access_token
     F->>F: 存入 localStorage
+```
+
+### 权限自动注册流程
+
+```mermaid
+flowchart LR
+    A[路由函数 @permission 装饰器] --> B[启动时 collect_permissions_from_app]
+    B --> C[扫描 app.routes 提取权限元数据]
+    C --> D[upsert 到 permissions 表]
+    D --> E[表里有但路由里没有 → is_deprecated=True]
 ```
 
 ## 技术栈
@@ -130,6 +145,7 @@ sequenceDiagram
 | **前端构建** | Vite 6 |
 | **UI 组件库** | Element Plus |
 | **状态管理** | Pinia |
+| **图表** | ECharts + vue-echarts |
 | **数据库** | MySQL |
 | **缓存** | Redis |
 | **日志** | Loguru |
@@ -150,15 +166,22 @@ sequenceDiagram
 |---|---|---|
 | 认证 | `POST /api/v1/auth/login` | 用户登录 |
 | 认证 | `GET /api/v1/auth/me` | 当前用户信息 |
-| 用户管理 | `GET /api/v1/users` | 用户列表 |
+| 用户管理 | `GET /api/v1/users` | 用户列表（支持多角色） |
 | 用户管理 | `POST /api/v1/users` | 创建用户 |
+| 用户管理 | `POST /api/v1/users/{id}/update` | 更新用户 |
 | 角色管理 | `GET /api/v1/roles` | 角色列表 |
+| 角色管理 | `GET /api/v1/roles/{id}/permissions` | 角色权限列表 |
+| 角色管理 | `POST /api/v1/roles/{id}/permissions` | 绑定权限 |
+| 权限管理 | `GET /api/v1/permissions` | 权限列表 |
+| 审计日志 | `GET /api/v1/audit/logs` | 业务审计日志列表 |
+| 登录日志 | `GET /api/v1/audit/login-logs` | 登录日志列表 |
+| 仪表盘 | `GET /api/v1/dashboard/stats` | 仪表盘统计数据 |
 | 开放平台 | `GET /api/open/v1/users` | 开放平台用户查询 |
 | 开放平台 | `GET /api/open/v1/apps/me` | 当前应用信息 |
 
 ### 权限控制
 
-- **用户态接口**：JWT Bearer Token + 角色/权限校验
+- **用户态接口**：JWT Bearer Token + `@permission` 装饰器自动注册权限 + 角色/权限校验
 - **开放平台接口**：AppId + AppKey（明文）或 HanJiang-1 HMAC 签名认证
 
 ## 存储配置说明
@@ -195,6 +218,7 @@ sequenceDiagram
 - [Vue 3 官方文档](https://cn.vuejs.org/)
 - [Vite 官方文档](https://cn.vitejs.dev/)
 - [Element Plus 官方文档](https://element-plus.org/zh-CN/)
+- [ECharts 官方文档](https://echarts.apache.org/zh/)
 - [Loguru 官方文档](https://loguru.readthedocs.io/)
 - [Docker 官方文档](https://docs.docker.com/)
 
@@ -202,5 +226,6 @@ sequenceDiagram
 
 - **作者**：John Young（夜雨诗来）
 - **邮箱**：john.young@foxmail.com
-- **Gitee**：https://gitee.com/yeyushilai
-- **GitHub**：https://github.com/yeyushilai
+- **Gitee**：https://gitee.com/cross-lang/x-HanJiang
+- **GitHub**：https://github.com/cross-lang/x-HanJiang
+- **项目地址**：https://github.com/cross-lang/x-HanJiang
