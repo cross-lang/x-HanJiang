@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, String, func, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infras.database import Base
 
@@ -41,9 +41,6 @@ class UserEntity(Base):
     avatar_url: Mapped[str | None] = mapped_column(
         String(500), nullable=True, comment="头像URL"
     )
-    role_id: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True, comment="主角色ID"
-    )
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
@@ -74,7 +71,6 @@ class UserEntity(Base):
 
     __table_args__ = (
         Index("uk_email", "email", unique=True),
-        Index("idx_role_id", "role_id"),
     )
 
 
@@ -174,6 +170,22 @@ class RolePermissionEntity(Base):
     )
 
     __table_args__ = (
-        Index("idx_role_id", "role_id"),
         Index("idx_permission_id", "permission_id"),
+    )
+
+
+
+class UserRoleEntity(Base):
+    """用户角色关联表实体（多对多）。"""
+
+    __tablename__ = "user_roles"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True, comment="主键ID"
+    )
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="用户ID")
+    role_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="角色ID")
+
+    __table_args__ = (
+        Index("idx_user_id", "user_id"),
     )

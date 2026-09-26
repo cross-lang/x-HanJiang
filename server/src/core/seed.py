@@ -129,7 +129,7 @@ def init_seed_data() -> None:
             session.flush()
             logger.info(f"Seed role created: role_code={_SEED_ADMIN_ROLE_CODE}")
 
-        # 管理员角色 → 绑定全部权限
+        # 管理员角色 → 绑定全部权限（幂等，无论角色是否新建都执行）
         for perm in perm_map.values():
             _ensure_role_permission(session, admin_role.id, perm.id)
 
@@ -165,6 +165,10 @@ def init_seed_data() -> None:
             )
             session.add(admin)
             session.flush()
+            # 绑定超级管理员角色
+            session.add(RolePermissionEntity.__class__ if False else __import__('src.models.entities.user_entity', fromlist=['UserRoleEntity']).UserRoleEntity(
+                user_id=admin.id, role_id=role.id
+            ))
             logger.info(f"Seed admin user created: username={_SEED_ADMIN_USERNAME}")
 
         session.commit()

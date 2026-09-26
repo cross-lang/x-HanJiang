@@ -177,11 +177,14 @@ class AuthService:
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态校验失败（放行）: {e}")
 
-        role_code: str | None = None
-        if user.role_id is not None:
-            role = self._role_repository.get_by_id(user.role_id)
-            if role is not None:
-                role_code = role.role_code
+        # 从 user_roles 查用户角色
+        from src.models.entities.user_entity import UserRoleEntity, RoleEntity
+        roles = self._user_repository.session.query(RoleEntity).join(
+            UserRoleEntity, UserRoleEntity.role_id == RoleEntity.id
+        ).filter(UserRoleEntity.user_id == user.id).all()
+        role_codes = [r.role_code for r in roles]
+        role_code = role_codes[0] if role_codes else None
+        role_ids = [r.id for r in roles]
 
         return CurrentUser(
             id=user.id,
@@ -189,7 +192,7 @@ class AuthService:
             email=user.email,
             name=user.name,
             age=user.age,
-            role_id=user.role_id,
+            role_id=role_ids[0] if role_ids else None,
             role_code=role_code,
             status=user.status or UserStatus.ACTIVE.value,
             avatar_url=user.avatar_url,

@@ -17,7 +17,7 @@ from src.constants.enums import NotificationEvent, UserStatus
 from src.core.exceptions import ConflictException, AuthorizationException, NotFoundException, ValidationException
 from src.core.logger import logger
 from src.utils.security import hash_password, verify_password
-from src.models.entities.user_entity import UserEntity
+from src.models.entities.user_entity import UserEntity, UserRoleEntity, RoleEntity
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.base_service import BaseService
@@ -88,7 +88,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             password_hash=hash_password(request.password),
             phone=request.phone,
             avatar_url=request.avatar_url,
-            role_id=request.role_id,
             status=request.status.value if isinstance(request.status, UserStatus) else request.status,
         )
         if getattr(request, "name", None) is not None:
@@ -98,12 +97,18 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         created = self._repository.create(entity)
         self._commit()
 
+        # 绑定多角色
+        role_ids = list(dict.fromkeys([rid for rid in (request.role_ids or []) if rid]))
+        for rid in role_ids:
+            self._repository.session.add(UserRoleEntity(user_id=created.id, role_id=rid))
+        self._commit()
+
         self._audit(
             entity_id=created.id,
             action="create",
             operator=operator,
             before_data=None,
-            after_data={"username": created.username, "email": created.email, "role_id": created.role_id},
+            after_data={"username": created.username, "email": created.email},
             remarks="user created",
         )
 
@@ -143,7 +148,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             password_hash=existing.password_hash,
             phone=existing.phone,
             avatar_url=existing.avatar_url,
-            role_id=existing.role_id,
             status=existing.status,
         )
         for key, value in patch_dict.items():
@@ -154,6 +158,14 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         if "age" in patch_dict:
             setattr(patch, "age", patch_dict["age"])
 
+        # 更新角色关联
+        if "role_ids" in patch_dict:
+            self._repository.session.query(UserRoleEntity).filter(
+                UserRoleEntity.user_id == id
+            ).delete()
+            for rid in patch_dict.pop("role_ids"):
+                self._repository.session.add(UserRoleEntity(user_id=id, role_id=rid))
+
         updated = self._repository.update(id, patch)
         if updated is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
@@ -163,8 +175,8 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             entity_id=updated.id,
             action="update",
             operator=operator,
-            before_data={"username": existing.username, "email": existing.email, "role_id": existing.role_id},
-            after_data={"username": updated.username, "email": updated.email, "role_id": updated.role_id},
+            before_data={"username": existing.username, "email": existing.email},
+            after_data={"username": updated.username, "email": updated.email},
             remarks="user updated",
         )
 
@@ -219,7 +231,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                 entity_id=id,
                 action="delete",
                 operator=operator,
-                before_data={"username": existing.username, "email": existing.email, "role_id": existing.role_id},
+                before_data={"username": existing.username, "email": existing.email},
                 after_data=None,
                 remarks="user deleted",
             )
@@ -281,12 +293,21 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
 
     def _to_response(self, entity: UserEntity) -> UserResponse:
         """实体转响应 DTO，关联查询角色名称。"""
+        # 查询用户角色列表
+        roles = []
         role_name = None
-        if entity.role_id:
-            from src.models.entities.user_entity import RoleEntity
-            role = self._repository.session.query(RoleEntity).get(entity.role_id)
+        user_role_rows = self._repository.session.query(UserRoleEntity).filter(
+            UserRoleEntity.user_id == entity.id
+        ).all()
+        role_ids = [ur.role_id for ur in user_role_rows]
+        for ur in user_role_rows:
+            role = self._repository.session.query(RoleEntity).get(ur.role_id)
             if role:
-                role_name = role.role_name
+                roles.append({"id": role.id, "role_name": role.role_name, "role_code": role.role_code})
+                if ur.role_id == entity.role_id:
+                    role_name = role.role_name
+        if not role_name and roles:
+            role_name = roles[0]["role_name"]
         return UserResponse(
             id=entity.id,
             username=entity.username,
@@ -295,8 +316,9 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             age=getattr(entity, "age", None),
             phone=entity.phone,
             avatar_url=entity.avatar_url,
-            role_id=entity.role_id,
+            role_id=role_ids[0] if role_ids else None,
             role_name=role_name,
+            roles=roles,
             status=entity.status or UserStatus.ACTIVE.value,
             last_login_at=entity.last_login_at,
             last_login_ip=entity.last_login_ip,

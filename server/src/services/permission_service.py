@@ -221,11 +221,19 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             provider.set(cache_key, False, ttl=300)
             return False
 
-        if user.role_id is None:
+        # 从 user_roles 查用户所有角色的权限
+        from src.models.entities.user_entity import UserRoleEntity
+        role_ids = self._repository.session.query(UserRoleEntity.role_id).filter(
+            UserRoleEntity.user_id == user.id
+        ).all()
+        role_ids = [r[0] for r in role_ids]
+        if not role_ids:
             provider.set(cache_key, False, ttl=300)
             return False
 
-        permission_ids = self._rp_repository.get_permission_ids_by_role(user.role_id)
+        permission_ids = []
+        for rid in role_ids:
+            permission_ids.extend(self._rp_repository.get_permission_ids_by_role(rid))
         if not permission_ids:
             provider.set(cache_key, False, ttl=300)
             return False

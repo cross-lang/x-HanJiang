@@ -7,6 +7,13 @@
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="role_name" label="角色名称" />
       <el-table-column prop="role_code" label="角色编码" />
+      <el-table-column prop="role_type" label="角色类型" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.role_type === 'system' ? 'warning' : 'info'">
+            {{ row.role_type === 'system' ? '系统内置' : '自定义' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="description" label="描述" />
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
@@ -217,7 +224,7 @@ async function handleEdit(row: any) {
   editForm.value = { id: row.id, role_name: row.role_name, description: row.description || '' }
   // 查角色已有权限
   const res = await request.get(`/roles/${row.id}/permissions`)
-  editSelectedPermissions.value = res.data.map((p: any) => p.id)
+  editSelectedPermissions.value = res.data.map((p: any) => p.permission.id)
   editDialogVisible.value = true
 }
 

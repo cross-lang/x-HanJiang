@@ -12,6 +12,7 @@ from src.models.entities.user_entity import (
     RoleEntity,
     RolePermissionEntity,
     UserEntity,
+    UserRoleEntity,
 )
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "RoleEntity",
     "PermissionEntity",
     "RolePermissionEntity",
+    "UserRoleEntity",
     "LoginLogEntity",
     "AuditLogEntity",
     "NotificationRecordEntity",

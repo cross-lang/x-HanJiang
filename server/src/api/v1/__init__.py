@@ -10,6 +10,7 @@ from src.api.v1 import (
     alert,
     audit,
     auth,
+    dashboard,
     file,
     health,
     maintenance,
@@ -54,6 +55,7 @@ v1_router.include_router(alert.router)
 v1_router.include_router(maintenance.router)
 
 # 注册开放平台管理路由
+v1_router.include_router(dashboard.router)
 v1_router.include_router(openapi_app.router)
 
 __all__ = ["v1_router"]

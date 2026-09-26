@@ -39,6 +39,7 @@ class UserCreateRequest(BaseModel):
     phone: str | None = Field(default=None, max_length=20, description="手机号")
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
     role_id: int | None = Field(default=None, description="主角色ID")
+    role_ids: list[int] = Field(default_factory=list, description="角色ID列表")
     role_name: str | None = Field(default=None, description="角色名称")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="状态")
 
@@ -76,7 +77,10 @@ class UserUpdateRequest(BaseModel):
     age: int | None = Field(default=None, ge=0, le=200, description="年龄")
     phone: str | None = Field(default=None, max_length=20, description="手机号")
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
+    birthday: str | None = Field(default=None, description="生日（YYYY-MM-DD）")
+    gender: str | None = Field(default=None, description="性别（male/female）")
     role_id: int | None = Field(default=None, description="主角色ID")
+    role_ids: list[int] | None = Field(default=None, description="角色ID列表")
     role_name: str | None = Field(default=None, description="角色名称")
     status: UserStatus | None = Field(default=None, description="状态")
 
