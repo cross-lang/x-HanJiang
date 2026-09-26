@@ -21,6 +21,7 @@ import io
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
+from src.api.permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     get_user_operator_context,
@@ -37,6 +38,7 @@ from src.schemas.user import (
     UserUpdateRequest,
 )
 from src.services.user_service import UserService
+from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -47,12 +49,12 @@ router = APIRouter(prefix="/users", tags=["用户管理"])
     description="创建一个新用户（校验邮箱/用户名全局唯一）",
     status_code=201,
 )
+@permission("user:create", "创建用户", "user", "create")
 async def create_user(
     body: UserCreateRequest,
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-    _=Depends(require_user_permission("user:create")),
 ):
     result = service.create(body.model_dump(), operator=get_user_operator_context(current_user))
     return success_response(result.model_dump(), request, code=201)
@@ -63,6 +65,7 @@ async def create_user(
     summary="用户列表",
     description="查询用户列表（分页，支持关键字/状态过滤）",
 )
+@permission("user:view", "查看用户", "user", "view")
 async def list_users(
     request: Request,
     page: int = 1,
@@ -71,7 +74,6 @@ async def list_users(
     status: str | None = None,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-    _=Depends(require_user_permission("user:view")),
 ):
     result = service.search(keyword=keyword, status=status, page=page, page_size=page_size)
     page_result = PaginatedResponse[UserResponse](
@@ -93,11 +95,11 @@ async def list_users(
     summary="导出用户列表",
     description="按筛选条件导出全部匹配用户为 CSV 文件（支持关键字/状态过滤）",
 )
+@permission("user:export", "导出用户", "user", "export")
 async def export_users(
     keyword: str | None = None,
     status: str | None = None,
     service: UserService = Depends(get_user_service),
-    _=Depends(require_user_permission("user:export")),
 ):
     rows = service.search(keyword=keyword, status=status, page=1, page_size=100000)["items"]
 
@@ -129,11 +131,11 @@ async def export_users(
     summary="查询用户",
     description="根据 ID 查询用户详情",
 )
+@permission("user:view", "查看用户", "user", "view")
 async def get_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
-    _=Depends(require_user_permission("user:view")),
 ):
     from src.core.exceptions import NotFoundException
 
@@ -148,13 +150,13 @@ async def get_user(
     summary="更新用户",
     description="更新用户信息（密码提供时重新哈希）",
 )
+@permission("user:edit", "编辑用户", "user", "edit")
 async def update_user(
     user_id: int,
     body: UserUpdateRequest,
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-    _=Depends(require_user_permission("user:edit")),
 ):
     result = service.update(
         user_id, body.model_dump(exclude_unset=True), operator=get_user_operator_context(current_user)
@@ -167,13 +169,13 @@ async def update_user(
     summary="重置用户密码",
     description="管理员重置指定用户的密码",
 )
+@permission("user:edit", "编辑用户", "user", "edit")
 async def reset_user_password(
     user_id: int,
     body: AdminResetPasswordRequest,
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-    _=Depends(require_user_permission("user:edit")),
 ):
     service.reset_password(user_id, body.new_password, operator=get_user_operator_context(current_user))
     return success_response({"message": "密码重置成功"}, request)
@@ -184,12 +186,12 @@ async def reset_user_password(
     summary="删除用户",
     description="根据 ID 软删除用户",
 )
+@permission("user:delete", "删除用户", "user", "delete")
 async def delete_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-    _=Depends(require_user_permission("user:delete")),
 ):
     service.delete(user_id, operator=get_user_operator_context(current_user))
     return success_response({"message": "用户删除成功"}, request)
@@ -200,12 +202,12 @@ async def delete_user(
     summary="导入用户列表",
     description="上传 CSV 文件批量导入用户（基础版本）",
 )
+@permission("user:import", "导入用户", "user", "import")
 async def import_users(
     request: Request,
     file: UploadFile = File(...),
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-    _=Depends(require_user_permission("user:import")),
 ):
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise ValueError("仅支持 CSV 文件导入")

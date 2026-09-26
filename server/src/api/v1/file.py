@@ -3,9 +3,11 @@
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 
+from src.api.permission_decorator import permission
 from src.api.dependencies import get_file_service, require_user_permission
 from src.api.response import success_response
 from src.services.file_service import FileStorageService
+from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/files", tags=["文件管理"])
 
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/files", tags=["文件管理"])
         "接口返回文件名、存储路径、访问地址和文件大小。"
     ),
 )
+@permission("file:create", "上传文件", "file", "create")
 async def upload_file(
     request: Request,
     file: UploadFile = File(
@@ -33,7 +36,6 @@ async def upload_file(
         examples=["avatars"],
     ),
     service: FileStorageService = Depends(get_file_service),
-    _=Depends(require_user_permission("file:create")),
 ):
     return service.upload_file(file, folder)
 
@@ -43,9 +45,9 @@ async def upload_file(
     summary="获取文件",
     description="根据文件路径下载或访问文件。",
 )
+@permission("file:view", "查看文件", "file", "view")
 async def get_file(
     file_path: str = Path(..., description="文件路径"),
     service: FileStorageService = Depends(get_file_service),
-    _=Depends(require_user_permission("file:view")),
 ):
     return service.download_file(file_path)

@@ -1,13 +1,27 @@
 <template>
   <el-card>
     <el-table :data="list" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="操作人" width="120" />
-      <el-table-column prop="method" label="方法" width="80" />
-      <el-table-column prop="path" label="路径" />
-      <el-table-column prop="status_code" label="状态码" width="100" />
-      <el-table-column prop="ip" label="IP" width="140" />
-      <el-table-column prop="created_at" label="时间" width="180" />
+      <template v-if="isLoginLog">
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="user_id" label="用户ID" width="100" />
+        <el-table-column prop="login_type" label="登录方式" width="120" />
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="ip_address" label="IP" width="140" />
+        <el-table-column prop="created_at" label="时间" width="180" />
+      </template>
+      <template v-else>
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="operator_name" label="操作人" width="120" />
+        <el-table-column prop="entity_type" label="实体类型" width="120" />
+        <el-table-column prop="action" label="操作" width="100" />
+        <el-table-column prop="remarks" label="备注" show-overflow-tooltip />
+        <el-table-column prop="ip_address" label="IP" width="140" />
+        <el-table-column prop="created_at" label="时间" width="180" />
+      </template>
     </el-table>
     <el-pagination
       style="margin-top: 20px; justify-content: flex-end; display: flex"
@@ -21,10 +35,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import request from '@/api/request'
 
 const props = defineProps<{ logType?: string }>()
-const type = computed(() => props.logType || 'audit')
-import request from '@/api/request'
+const isLoginLog = computed(() => props.logType === 'login')
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -35,7 +49,8 @@ const total = ref(0)
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/audit/logs', { params: { page: page.value, page_size: pageSize.value, type: type.value } })
+    const url = isLoginLog.value ? '/audit/login-logs' : '/audit/logs'
+    const res = await request.get(url, { params: { page: page.value, page_size: pageSize.value } })
     list.value = res.data.items
     total.value = res.data.total
   } catch (e) {

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Index, Integer, String, func, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infras.database import Base
@@ -149,6 +149,9 @@ class PermissionEntity(Base):
     )
     sort_order: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0", comment="排序序号"
+    )
+    is_deprecated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="0", comment="是否已废弃（路由中不再使用）"
     )
 
     __table_args__ = (

@@ -157,6 +157,42 @@ async def lifespan(app: FastAPI):
                 init_seed_data()
             except Exception as e:
                 logger.warning(f"Seed data initialization skipped: {e}")
+
+            # 自动扫描路由中的权限声明，同步到 permissions 表
+            try:
+                from src.api.permission_decorator import collect_permissions_from_app
+                from src.models.entities.user_entity import PermissionEntity
+                from src.infras.database import get_session
+
+                collected = collect_permissions_from_app(app)
+                session = get_session()
+                active_codes = {p["perm_code"] for p in collected}
+
+                # 1. upsert 路由里声明的权限
+                for perm in collected:
+                    existing = session.query(PermissionEntity).filter_by(perm_code=perm["perm_code"]).first()
+                    if existing:
+                        existing.perm_name = perm["perm_name"]
+                        existing.module = perm["module"]
+                        existing.operation = perm["operation"]
+                        existing.description = perm["description"]
+                        existing.is_deprecated = False
+                    else:
+                        session.add(PermissionEntity(**perm, is_deprecated=False))
+
+                # 2. 表里有但路由里没有的，标记为废弃（不删）
+                deprecated = session.query(PermissionEntity).filter(
+                    PermissionEntity.is_deprecated == False,
+                    ~PermissionEntity.perm_code.in_(active_codes),
+                ).all()
+                for d in deprecated:
+                    d.is_deprecated = True
+                    logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
+
+                session.commit()
+                logger.info(f"Auto-synced {len(collected)} permissions, {len(deprecated)} deprecated")
+            except Exception as e:
+                logger.warning(f"Permission auto-sync skipped: {e}")
         except Exception as e:
             logger.warning(f"Database initialization skipped: {e}")
     else:

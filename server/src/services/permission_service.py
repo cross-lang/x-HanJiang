@@ -64,6 +64,16 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         )
         self._dispatcher = dispatcher
 
+    def get_all_modules(self) -> list[str]:
+        """返回所有去重的模块列表。"""
+        rows = self._repository.session.query(PermissionEntity.module).distinct().all()
+        return sorted([r[0] for r in rows])
+
+    def get_all_operations(self) -> list[str]:
+        """返回所有去重的操作类型列表。"""
+        rows = self._repository.session.query(PermissionEntity.operation).distinct().all()
+        return sorted([r[0] for r in rows])
+
     def search(
         self,
         keyword: str | None = None,

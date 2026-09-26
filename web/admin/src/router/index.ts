@@ -49,6 +49,12 @@ const router = createRouter({
           component: () => import('@/views/AuditLog.vue'),
         },
         {
+          path: 'audit/login',
+          name: 'LoginLog',
+          component: () => import('@/views/AuditLog.vue'),
+          props: { logType: 'login' },
+        },
+        {
           path: 'apps',
           name: 'Apps',
           component: () => import('@/views/OpenAppList.vue'),

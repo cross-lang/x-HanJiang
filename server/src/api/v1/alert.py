@@ -13,6 +13,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
+from src.api.permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     require_user_permission,
@@ -25,6 +26,7 @@ from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import AlertSendRequest
 from src.schemas.auth import CurrentUser
 from src.services.alert_service import AlertService
+from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/alerts", tags=["系统告警"])
 
@@ -76,11 +78,11 @@ async def send_alert(
     summary="广播系统告警",
     description="广播系统告警给全体活跃用户（管理员操作）",
 )
+@permission("alert:broadcast", "广播告警", "alert", "broadcast")
 async def broadcast_alert(
     body: AlertSendRequest,
     request: Request,
     service: AlertService = Depends(_get_alert_service),
-    _=Depends(require_user_permission("alert:broadcast")),
 ):
     """广播系统告警接口。
 

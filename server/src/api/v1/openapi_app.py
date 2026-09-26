@@ -9,7 +9,8 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import get_openapi_app_service, require_user_permission
+from src.api.permission_decorator import permission
+from src.api.dependencies import get_openapi_app_service, get_current_user
 from src.api.response import success_response
 from src.schemas.openapi_app import (
     OpenApiAppCreateRequest,
@@ -18,18 +19,16 @@ from src.schemas.openapi_app import (
     OpenApiAppUpdateRequest,
 )
 from src.services.openapi_app_service import OpenApiAppService
+from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
 
-# 仅超管可访问
-_admin = require_user_permission("openapi_app:view")
-
-
 @router.post("", summary="创建开放应用")
+@permission("openapi_app:create", "创建开放应用", "openapi_app", "create")
 async def create_app(
     body: OpenApiAppCreateRequest,
     request: Request,
-    current_user=Depends(_admin),
+    current_user=Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     """创建开放应用。
@@ -47,10 +46,10 @@ async def create_app(
 
 
 @router.get("", summary="应用列表")
+@permission("openapi_app:view", "查看开放应用", "openapi_app", "view")
 async def list_apps(
     request: Request,
     keyword: str | None = None,
-    _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     items = service.list_apps(keyword=keyword)
@@ -58,21 +57,21 @@ async def list_apps(
 
 
 @router.get("/{app_id}", summary="应用详情")
+@permission("openapi_app:view", "查看开放应用", "openapi_app", "view")
 async def get_app(
     app_id: int,
     request: Request,
-    _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     return success_response(service.get_by_id(app_id).model_dump(), request)
 
 
 @router.patch("/{app_id}", summary="更新应用")
+@permission("openapi_app:edit", "编辑开放应用", "openapi_app", "edit")
 async def update_app(
     app_id: int,
     body: OpenApiAppUpdateRequest,
     request: Request,
-    _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     return success_response(
@@ -82,11 +81,11 @@ async def update_app(
 
 
 @router.put("/{app_id}/scopes", summary="更新应用 scope")
+@permission("openapi_app:edit", "编辑开放应用", "openapi_app", "edit")
 async def update_app_scopes(
     app_id: int,
     body: OpenApiAppScopesUpdateRequest,
     request: Request,
-    _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     """覆盖更新应用的 scope 列表。传入的 scopes 会完全覆盖原有值。"""
@@ -97,10 +96,10 @@ async def update_app_scopes(
 
 
 @router.post("/{app_id}/rotate-key", summary="重置 AppKey")
+@permission("openapi_app:edit", "编辑开放应用", "openapi_app", "edit")
 async def rotate_key(
     app_id: int,
     request: Request,
-    _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     resp, new_key = service.rotate_key(app_id)
@@ -111,10 +110,10 @@ async def rotate_key(
 
 
 @router.delete("/{app_id}", summary="删除应用")
+@permission("openapi_app:delete", "删除开放应用", "openapi_app", "delete")
 async def delete_app(
     app_id: int,
     request: Request,
-    _=Depends(_admin),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     ok = service.delete(app_id)

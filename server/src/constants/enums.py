@@ -108,3 +108,50 @@ class HttpMediaType(Enum):
     FILE = "application/octet-stream"
     FORM_URLENCODED = "application/x-www-form-urlencoded"
     MULTIPART = "multipart/form-data"
+
+
+class PermissionCode(Enum):
+    """权限编码集中定义。
+
+    格式：{module}:{operation}
+    所有 require_user_permission 调用必须引用本枚举，禁止散落字符串。
+    种子数据从本枚举遍历生成。
+    """
+
+    # ── 用户管理 ──────────────────────────────
+    USER_VIEW = "user:view"
+    USER_CREATE = "user:create"
+    USER_EDIT = "user:edit"
+    USER_DELETE = "user:delete"
+    USER_EXPORT = "user:export"
+    USER_IMPORT = "user:import"
+
+    # ── 角色管理 ──────────────────────────────
+    ROLE_VIEW = "role:view"
+    ROLE_CREATE = "role:create"
+    ROLE_EDIT = "role:edit"
+    ROLE_DELETE = "role:delete"
+
+    # ── 文件管理 ──────────────────────────────
+    FILE_VIEW = "file:view"
+    FILE_CREATE = "file:create"
+    FILE_DELETE = "file:delete"
+
+    # ── 审计日志 ──────────────────────────────
+    AUDIT_VIEW = "audit:view"
+
+    # ── 通知管理 ──────────────────────────────
+    NOTIFICATION_VIEW = "notification:view"
+    NOTIFICATION_CREATE = "notification:create"
+
+    # ── 告警管理 ──────────────────────────────
+    ALERT_BROADCAST = "alert:broadcast"
+
+    # ── 维护管理 ──────────────────────────────
+    MAINTENANCE_NOTIFY = "maintenance:notify"
+
+    # ── 开放平台应用 ──────────────────────────
+    OPENAPI_APP_VIEW = "openapi_app:view"
+    OPENAPI_APP_CREATE = "openapi_app:create"
+    OPENAPI_APP_EDIT = "openapi_app:edit"
+    OPENAPI_APP_DELETE = "openapi_app:delete"

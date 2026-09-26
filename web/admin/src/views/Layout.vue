@@ -1,13 +1,13 @@
 <template>
   <el-container style="height: 100vh">
-    <el-aside width="200px" style="background: #304156; position: relative">
-      <div style="color: #fff; text-align: center; padding: 20px 0; font-size: 18px; font-weight: bold">
+    <el-aside width="200px" style="background: #ffffff; border-right: 1px solid #e4e7ed; position: relative">
+      <div style="color: #303133; text-align: center; padding: 20px 0; font-size: 18px; font-weight: bold">
         汉江管理系统
       </div>
       <el-menu
         :default-active="$route.path"
-        background-color="#304156"
-        text-color="#bfcbd9"
+        background-color="#ffffff"
+        text-color="#5a5e66"
         active-text-color="#409eff"
         router
       >

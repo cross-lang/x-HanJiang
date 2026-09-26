@@ -11,6 +11,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
+from src.api.permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     require_user_permission,
@@ -22,6 +23,7 @@ from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import MaintenanceNotifyRequest
 from src.schemas.auth import CurrentUser
 from src.services.maintenance_service import MaintenanceService
+from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/maintenance", tags=["系统维护"])
 
@@ -39,11 +41,11 @@ def _get_maintenance_service(
     summary="发送系统维护通知",
     description="向全体活跃用户发送系统维护通知（管理员操作）",
 )
+@permission("maintenance:notify", "发送维护通知", "maintenance", "notify")
 async def notify_maintenance(
     body: MaintenanceNotifyRequest,
     request: Request,
     service: MaintenanceService = Depends(_get_maintenance_service),
-    _=Depends(require_user_permission("maintenance:notify")),
 ):
     """发送系统维护通知接口。
 

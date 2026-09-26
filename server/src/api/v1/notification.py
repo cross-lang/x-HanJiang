@@ -5,6 +5,7 @@
 
 from fastapi import APIRouter, Depends, Query, Request
 
+from src.api.permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     require_user_permission,
@@ -18,6 +19,7 @@ from src.schemas.notification import (
     NotificationStatsResponse,
 )
 from src.services.notification_service import NotificationService
+from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/notifications", tags=["通知管理"])
 
@@ -27,11 +29,11 @@ router = APIRouter(prefix="/notifications", tags=["通知管理"])
     summary="手动发送通知",
     description="手动触发一次通知发送（仅限管理员或调试使用）",
 )
+@permission("notification:create", "创建通知", "notification", "create")
 def send_notification(
     request: Request,
     body: NotificationSendRequest,
     notification_service: NotificationService = Depends(get_notification_service),
-    _=Depends(require_user_permission("notification:create")),
 ):
     """手动发送通知。
 
@@ -103,6 +105,7 @@ def send_notification(
     summary="通知列表",
     description="分页查询当前用户的通知发送记录",
 )
+@permission("notification:view", "查看通知", "notification", "view")
 def list_notifications(
     request: Request,
     page: int = Query(1, ge=1, description="页码"),
@@ -111,7 +114,6 @@ def list_notifications(
     channel: str | None = Query(None, description="按渠道过滤"),
     status: str | None = Query(None, description="按状态过滤"),
     notification_service: NotificationService = Depends(get_notification_service),
-    _=Depends(require_user_permission("notification:view")),
 ):
     """查询通知记录列表（分页）。"""
     result = notification_service.list_records(
@@ -129,10 +131,10 @@ def list_notifications(
     summary="通知统计",
     description="查询通知发送的成功/失败/待发送统计",
 )
+@permission("notification:view", "查看通知", "notification", "view")
 def get_notification_stats(
     request: Request,
     notification_service: NotificationService = Depends(get_notification_service),
-    _=Depends(require_user_permission("notification:view")),
 ):
     """通知统计接口。"""
     stats = NotificationStatsResponse(**notification_service.get_stats())
@@ -144,11 +146,11 @@ def get_notification_stats(
     summary="通知详情",
     description="查询单条通知记录详情",
 )
+@permission("notification:view", "查看通知", "notification", "view")
 def get_notification(
     request: Request,
     notification_id: int,
     notification_service: NotificationService = Depends(get_notification_service),
-    _=Depends(require_user_permission("notification:view")),
 ):
     """查询单条通知记录。"""
     result = notification_service.get_record(notification_id)

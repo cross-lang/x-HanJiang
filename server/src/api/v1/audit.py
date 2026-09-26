@@ -6,6 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 
+from src.api.permission_decorator import permission
 from src.api.dependencies import get_audit_service, get_current_user, get_login_log_service, require_user_permission
 from src.api.response import success_response
 from src.core.exceptions import NotFoundException
@@ -15,6 +16,7 @@ from src.schemas.common import PaginatedResponse
 from src.schemas.login_log import LoginLogResponse
 from src.services.audit_service import AuditService
 from src.services.login_log_service import LoginLogService
+from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/audit", tags=["审计日志"])
 
@@ -24,6 +26,7 @@ router = APIRouter(prefix="/audit", tags=["审计日志"])
     summary="审计日志列表",
     description="查询业务审计日志和登录日志",
 )
+@permission("audit:view", "查看审计日志", "audit", "view")
 async def list_audit_logs(
     request: Request,
     log_type: Literal["audit", "login", "all"] = Query(
@@ -63,7 +66,6 @@ async def list_audit_logs(
     ),
     audit_service: AuditService = Depends(get_audit_service),
     login_service: LoginLogService = Depends(get_login_log_service),
-    _=Depends(require_user_permission("audit:view")),
 ):
     fetch_page_size = page * page_size if log_type == "all" else page_size
     audit_result = audit_service.search(
@@ -113,10 +115,41 @@ async def list_audit_logs(
 
 
 @router.get(
+    "/login-logs",
+    summary="登录日志列表",
+    description="查询登录日志",
+)
+@permission("audit:view", "查看审计日志", "audit", "view")
+async def list_login_logs(
+    request: Request,
+    user_id: int | None = Query(default=None, description="用户 ID"),
+    status: str | None = Query(default=None, description="登录结果 success/failed"),
+    login_type: str | None = Query(default=None, description="登录方式 password/sso"),
+    start_time: datetime | None = Query(default=None),
+    end_time: datetime | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    login_service: LoginLogService = Depends(get_login_log_service),
+    _=Depends(get_current_user),
+):
+    result = login_service.search(
+        user_id=user_id,
+        status=status,
+        login_type=login_type,
+        start_time=start_time,
+        end_time=end_time,
+        page=page,
+        page_size=page_size,
+    )
+    return success_response(result, request)
+
+
+@router.get(
     "/logs/{log_id}",
     summary="审计日志详情",
     description="根据日志类型和 ID 查询单条日志详情",
 )
+@permission("audit:view", "查看审计日志", "audit", "view")
 async def get_audit_log(
     log_id: int,
     request: Request,
@@ -127,7 +160,6 @@ async def get_audit_log(
     ),
     audit_service: AuditService = Depends(get_audit_service),
     login_service: LoginLogService = Depends(get_login_log_service),
-    _=Depends(require_user_permission("audit:view")),
 ):
     result = (
         audit_service.get_by_id(log_id)
