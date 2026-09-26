@@ -1,675 +1,190 @@
-# 汉江（HanJiang）
-
 [English](README.en.md) | 中文
 
----
+# 汉江（HanJiang）— 全栈快速开发平台
 
-## 项目简介
-
-`汉江（HanJiang）`是一个基于 FastAPI 框架深度封装的 Python Web 应用框架，遵循行业最佳工程实践，提供标准化、模块化、高可扩展、高可维护的后端服务基础架构。
-
-项目开箱即用，具备标准三层架构（API → Service → Repository）、FastAPI 原生依赖注入、双配置体系、统一鉴权与 RBAC 权限控制、**面向外部服务的开放平台 API（AppId+AppKey 鉴权，可平滑升级 HMAC 签名）**、事件驱动多渠道通知系统（邮件/钉钉/飞书/短信）、结构化日志、业务审计、S3 兼容对象存储、种子数据自动初始化等能力，支持快速搭建企业级 RESTful API 服务，适配本地开发、测试与多环境生产部署。
+基于 FastAPI + Vue 3 + TypeScript 的全栈快速开发平台，内置用户认证、权限管理、开放平台签名鉴权、日志审计等企业级能力，开箱即用。
 
 ## 快速开始
 
-### 1. 环境要求
-
-| 工具 | 版本要求 |
-|------|----------|
-| Python | >= 3.11 |
-| uv | latest（推荐） |
-| MySQL | >= 8.0 |
-| Redis | >= 7.0 |
-
-**Windows 环境：**
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-**Linux 环境：**
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-**macOS 环境：**
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-### 2. 项目代码克隆
+### 后端启动
 
 ```bash
-git clone https://github.com/cross-lang/x-HanJiang.git
-cd x-HanJiang
+cd server
+uv run x-HanJiang
 ```
 
-### 3. 依赖同步安装
+详细配置说明请参考 [server/README.md](server/README.md)。
+
+### 前端启动
 
 ```bash
-# 安装所有依赖（生产 + 开发）
-uv sync
-
-# 仅安装生产依赖
-uv sync --no-dev
+cd web/admin
+npm install
+npm run dev
 ```
 
-### 4. 环境配置
-
-项目支持 `.env` 环境变量和 `config.yaml` 配置文件两种方式，配置优先级：**环境变量 > 环境特定 YAML（config.{env}.yaml）> 默认 YAML（config.yaml）> 代码默认值**。
-
-**方式一：使用 `.env` 文件（推荐）**
-```bash
-cp .env.example .env
-```
-
-**方式二：使用 `config.yaml` 文件**
-```bash
-cp config.yaml.example config.yaml
-```
-
-**核心配置参数说明：**
-
-| 参数 | 环境变量 | 说明 |
-|------|----------|------|
-| `APP_ENV` | `APP_ENV` | 运行环境：`development` / `testing` / `production` |
-| `SERVER_HOST` | `server.host` | 监听地址，默认 `0.0.0.0` |
-| `SERVER_PORT` | `server.port` | 监听端口，默认 `8000` |
-| `AUTH_SECRET_KEY` | `auth.secret_key` | JWT 签名密钥，生产环境必须覆盖为 >= 32 字符的随机字符串 |
-| `MYSQL_HOST` | `database.host` | MySQL 主机地址 |
-| `MYSQL_PORT` | `database.port` | MySQL 端口，默认 `3306` |
-| `MYSQL_USER` | `database.user` | MySQL 用户名 |
-| `MYSQL_PASSWORD` | `database.password` | MySQL 密码 |
-| `MYSQL_DATABASE` | `database.database` | MySQL 数据库名，默认 `hanjiang` |
-| `REDIS_HOST` | `redis.host` | Redis 主机地址 |
-| `REDIS_PORT` | `redis.port` | Redis 端口，默认 `6379` |
-| `REDIS_PASSWORD` | `redis.password` | Redis 密码 |
-| `STORAGE_PROVIDER` | `storage.provider` | 存储后端：`local`（本地文件系统）/ `s3`（S3 兼容对象存储） |
-
-> **生产环境**：建议通过环境变量注入 `AUTH_SECRET_KEY`、数据库密码、Redis 密码等敏感配置，避免将密钥写入版本库。
-
-> **密钥生成**：
-> ```bash
-> python -c "from src.utils.security import generate_secret_key; print(generate_secret_key())"
-> ```
-
-### 5. 服务启动
-
-#### 方式一：本地开发热重载启动（推荐）
-
-```bash
-# 使用 CLI 命令启动（热重载）
-uv run x-HanJiang --reload
-
-# 或使用 uvicorn 直接启动
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### 方式二：Docker 容器部署
-
-```bash
-docker-compose up --build
-```
-
-> Docker 部署需提前创建 `.env` 文件并配置 `AUTH_SECRET_KEY`、`MYSQL_PASSWORD`、`REDIS_PASSWORD` 等必填环境变量。
-
-服务启动后访问：
-- Swagger 交互式文档：http://localhost:8000/docs
-- ReDoc 只读文档：http://localhost:8000/redoc
-- 健康检查：http://localhost:8000/api/v1/health
-
-### 6. 常用工程命令
-
-```bash
-# 运行单元测试（含覆盖率报告）
-uv run pytest tests/ -v --cov=src --cov-report=term-missing
-
-# 代码格式化
-uv run ruff format src/ tests/
-
-# 静态代码检查
-uv run ruff check src/ tests/
-
-# 类型检查
-uv run mypy src/
-
-# 初始化数据库表（应用启动时也会自动建表）
-uv run python -c "from src.infras.database import init_db; init_db()"
-```
-
-### 7. 使用方法示例
-
-**登录获取令牌：**
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "superadmin", "password": "admin@123456"}'
-```
-
-**携带令牌访问受保护接口：**
-```bash
-curl http://localhost:8000/api/v1/users \
-  -H "Authorization: Bearer <access_token>"
-```
-
-**上传文件：**
-```bash
-curl -X POST http://localhost:8000/api/v1/files/upload \
-  -H "Authorization: Bearer <access_token>" \
-  -F "file=@./example.pdf" \
-  -F "folder=documents"
-```
-
-**查询角色权限：**
-```bash
-curl http://localhost:8000/api/v1/roles/1/permissions \
-  -H "Authorization: Bearer <access_token>"
-```
-
-**创建开放平台应用：**
-```bash
-curl -X POST http://localhost:8000/api/v1/admin/apps \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "MyService", "scopes": ["ping:read"], "rate_limit_per_minute": 60, "auth_mode": "plain"}'
-```
-
-**调用开放平台接口：**
-```bash
-curl http://localhost:8000/api/open/v1/me \
-  -H "X-App-Id: hj_test_xxx" \
-  -H "X-App-Key: <app_key>"
-```
-
-> 首次部署后可使用默认超级管理员账号登录：`superadmin` / `admin@123456`，生产环境请务必修改该密码。
+访问 http://localhost:5173。详细说明请参考 [web/admin/README.md](web/admin/README.md)。
 
 ## 项目结构
 
 ```
 x-HanJiang/
-├── .env.example              # 环境变量模板
-├── config.yaml.example       # YAML 配置文件模板
-├── alembic/                  # 数据库迁移管理
-│   ├── env.py                # Alembic 环境配置
-│   └── versions/             # 迁移版本脚本
-├── docs/                     # 项目文档
-│   └── hanjiang.sql          # 数据库表结构定义（9 张表）
-├── examples/                 # 使用示例
-├── logs/                     # 运行日志输出目录
-├── scripts/                  # 工程脚本
-│   ├── init_db.py            # 数据库初始化脚本
-│   └── export_openapi.py     # OpenAPI 规范导出脚本
-├── src/                      # 核心业务代码
-│   ├── main.py               # 应用入口（工厂函数、生命周期管理）
-│   ├── api/                  # API 接口层
-│   │   ├── v1/               # 用户态 v1 路由（JWT 鉴权）
-│   │   │   ├── health.py     # 健康检查（含故障自动告警）
-│   │   │   ├── user.py       # 用户管理 CRUD
-│   │   │   ├── auth.py       # 认证（登录/刷新/当前用户/登出）
-│   │   │   ├── role.py       # 角色管理与权限绑定
-│   │   │   ├── audit.py      # 业务审计日志查询
-│   │   │   ├── file.py       # 文件上传
-│   │   │   ├── notification.py # 通知记录查询与手动发送
-│   │   │   ├── alert.py      # 系统告警（Webhook + 广播）
-│   │   │   ├── maintenance.py # 系统维护通知
-│   │   │   └── openapi_app.py # 开放平台应用管理（超管 CRUD）
-│   │   ├── open/             # 开放平台 v1 路由（AppId/AppKey 鉴权）
-│   │   │   └── v1/
-│   │   │       ├── health.py  # 开放平台健康检查与版本
-│   │   │       ├── ping.py    # 连通性测试（需 ping:read scope）
-│   │   │       └── app.py     # 当前应用信息
-│   │   ├── dependencies.py   # DI 依赖函数（Service/Repository/当前用户/当前应用）
-│   │   ├── response.py       # 统一响应封装
-│   │   └── router.py         # 路由聚合注册
-│   ├── constants/            # 业务常量与枚举
-│   │   ├── base.py           # 可描述枚举基类
-│   │   ├── constants.py      # 全局常量定义
-│   │   └── enums.py          # 业务枚举定义
-│   ├── core/                 # 核心支撑模块
-│   │   ├── config.py         # 配置加载与解析
-│   │   ├── exceptions.py     # 自定义异常与全局异常处理
-│   │   ├── logger.py         # 日志初始化（loguru）
-│   │   ├── middleware.py     # 中间件（请求ID、日志、CORS、限流）
-│   │   ├── seed.py           # 种子数据自动初始化
-│   │   ├── session.py        # 数据库会话管理
-│   │   └── tokens.py         # JWT 令牌签发与验证
-│   ├── infras/               # 基础设施层
-│   │   ├── database.py       # 数据库连接池与会话工厂（SQLAlchemy）
-│   │   ├── cache.py          # 缓存提供者（Redis）
-│   │   ├── email.py          # 邮件发送
-│   │   ├── http.py           # HTTP 客户端
-│   │   ├── notification.py   # 通知渠道 Provider（邮件/钉钉/飞书/短信）
-│   │   └── storage.py        # 存储抽象层（本地文件 / S3 兼容）
-│   ├── notification/         # 通知子系统
-│   │   ├── dispatcher.py     # 通知调度器（事件驱动、路由表、持久化、重试）
-│   │   ├── template.py       # 通知模板渲染引擎
-│   │   └── retry_worker.py   # 失败通知重试 Worker
-│   ├── models/               # 数据模型
-│   │   └── entities/         # SQLAlchemy ORM 实体（9 张表）
-│   ├── repositories/         # 数据访问层（Repository 模式）
-│   ├── schemas/              # API 请求/响应 DTO（Pydantic BaseModel）
-│   ├── services/             # 业务逻辑层（Service 模式）
-│   └── utils/                # 工具函数
-│       └── security.py       # 安全工具（密码哈希/Fernet加解密/HMAC/密钥生成）
-├── tests/                    # 测试代码
-├── Dockerfile                # Docker 镜像构建（多阶段构建）
-├── docker-compose.yml        # Docker 编排（App + MySQL + Redis）
-├── pyproject.toml            # 项目依赖与元信息
-├── uv.toml                   # uv 包管理器配置
-└── LICENSE                   # MIT 许可证
+├── server/                  # 后端（FastAPI）
+│   ├── src/
+│   │   ├── api/              # 路由层
+│   │   ├── constants/        # 常量与枚举
+│   │   ├── core/             # 核心（配置/中间件/异常）
+│   │   ├── infras/           # 基础设施（数据库）
+│   │   ├── models/           # 数据模型
+│   │   ├── repositories/     # 数据访问层
+│   │   ├── schemas/          # Pydantic Schema
+│   │   ├── services/         # 业务逻辑层
+│   │   └── utils/             # 工具函数
+│   ├── alembic/              # 数据库迁移
+│   ├── config/               # 配置文件
+│   ├── main.py               # 应用入口
+│   └── pyproject.toml
+├── web/                      # 前端
+│   ├── admin/                # 管理后台（Vue3 + Element Plus）
+│   └── open/                 # 开放平台门户（待开发）
+├── docker-compose.yml         # Docker 编排
+└── README.md
 ```
 
 ## 系统架构
 
-### 系统分层架构
+### 分层架构
 
 ```mermaid
-flowchart TB
-  Client[客户端 / 管理端] -->|HTTP / JSON| API[API 接口层<br/>路由聚合 · 参数校验 · 统一响应]
+graph TB
+    subgraph 前端
+        A[管理后台 Vue3]
+        B[开放平台门户]
+    end
 
-  subgraph Application[应用层]
-    API --> Auth[用户态认证<br/>Bearer JWT · 当前用户 · RBAC]
-    API --> OpenAuth[开放平台认证<br/>AppId/AppKey · Scope · HMAC预留]
-    Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 文件 · 通知]
-    OpenAuth --> OpenService[开放平台服务<br/>应用管理 · 鉴权 · 签名校验]
-  end
+    subgraph 后端
+        C[API 路由层]
+        D[业务逻辑层]
+        E[数据访问层]
+    end
 
-  subgraph Data[数据访问层]
-    Service --> Repository[Repository 层<br/>CRUD · 查询 · Entity 映射]
-    Repository --> Entity[Models / Entities<br/>SQLAlchemy ORM 实体]
-    Service --> Schema[Schemas<br/>Pydantic 请求与响应 DTO]
-  end
+    subgraph 基础设施
+        F[(MySQL)]
+        G[(Redis)]
+    end
 
-  subgraph Support[核心支撑与基础设施]
-    Core[Core<br/>配置 · DI · 中间件 · 异常 · 令牌 · 日志]
-    Infra[Infras<br/>数据库 · 缓存 · 邮件 · HTTP · 存储 · 通知渠道]
-  end
-
-  Core -.提供横切能力.-> API
-  Core -.提供横切能力.-> Service
-  Repository --> Infra
-  Entity --> Infra
-  Service -->|文件读写| Infra
-  Infra --> DB[(MySQL)]
-  Infra --> Redis[(Redis)]
-  Infra --> OSS[(S3 兼容对象存储 / 本地存储)]
+    A -->|HTTP /api/v1| C
+    B -->|HTTP /api/open/v1| C
+    C --> D
+    D --> E
+    E --> F
+    D --> G
 ```
 
-### 核心业务流程
+### 核心业务流程：用户登录
 
 ```mermaid
-flowchart TD
-  Start([客户端发起请求]) --> Open{开放平台接口?}
-  Open -->|是| AppKey{AppId/AppKey 有效?}
-  AppKey -->|否| Unauthorized[返回 401 未授权]
-  AppKey -->|是| Scope{具备所需 scope?}
-  Scope -->|否| Forbidden[返回 403 无权限]
-  Scope -->|是| Route[API 路由与参数校验]
-  Open -->|否| Public{公开接口?}
-  Public -->|是：登录 / 刷新 / 健康检查| Route[API 路由与参数校验]
-  Public -->|否| Token{Bearer Token 有效?}
-  Token -->|否| Unauthorized[返回 401 未授权]
-  Token -->|是| Permission{具备所需角色或权限?}
-  Permission -->|否| Forbidden[返回 403 无权限]
-  Permission -->|是| Route
+sequenceDiagram
+    participant U as 用户
+    participant F as 前端
+    participant A as API
+    participant S as Service
+    participant DB as 数据库
 
-  Route --> Login{认证请求?}
-  Login -->|是| Verify[校验账号与密码]
-  Verify -->|失败| LoginFailed[记录失败登录日志<br/>返回认证失败]
-  Verify -->|成功| IssueToken[签发访问令牌与刷新令牌<br/>记录成功登录日志]
-  Login -->|否| Service[调用对应业务 Service]
-  Service --> Repository[Repository 读写数据]
-  Repository --> Database[(MySQL / Redis)]
-  Service --> Audit[记录业务审计日志<br/>操作者 · IP · 前后数据]
-  Database --> Result[组装业务结果]
-  Audit --> Result
-  IssueToken --> Response[统一响应 + X-Request-ID]
-  Result --> Response
-  LoginFailed --> Response
-  Unauthorized --> End([请求结束])
-  Forbidden --> End
-  Response --> End
-```
-
-### 模块依赖关系
-
-```mermaid
-flowchart LR
-  Main[main.py] --> Router[api.router]
-  Router --> API[api.v1 用户态路由]
-  Router --> OpenAPI[api.open 开放平台路由]
-  API --> Dependencies[api.dependencies]
-  API --> Schemas[schemas]
-  API --> Services[services]
-
-  Dependencies --> Services
-  Services --> Repositories[repositories]
-  Services --> Schemas
-  Services --> Core[core<br/>配置 · 异常 · 日志 · 令牌]
-  Services --> Infra[infras<br/>缓存 · 邮件 · HTTP · 存储 · 通知]
-
-  Repositories --> Entities[models.entities]
-  Repositories --> Database[infras.database]
-  Entities --> Database
-  Core --> Infra
-  Core --> Constants[constants]
-  API --> Constants
-
-  classDef entry fill:#e8f1ff,stroke:#3973c6,color:#16345c;
-  classDef app fill:#eaf7ef,stroke:#3b8c5a,color:#1f4d31;
-  classDef support fill:#fff4df,stroke:#c68a22,color:#68470f;
-  classDef data fill:#f5eafa,stroke:#8b5ba7,color:#4b2d5d;
-
-  class Main,Router entry;
-  class API,Dependencies,Services app;
-  class Core,Infra,Constants support;
-  class Repositories,Entities,Database,Schemas data;
+    U->>F: 输入用户名密码
+    F->>A: POST /auth/login
+    A->>S: 校验凭据
+    S->>DB: 查询用户
+    DB-->>S: 用户记录
+    S->>S: 验证密码哈希
+    S-->>A: 生成 JWT Token
+    A-->>F: 返回 access_token
+    F->>F: 存入 localStorage
 ```
 
 ## 技术栈
 
-| 分类 | 技术 | 说明 |
-|------|------|------|
-| **开发语言** | Python 3.11+ | 强类型、异步友好的现代 Python |
-| **Web 框架** | FastAPI | 高性能异步 Python Web 框架 |
-| **ASGI 服务器** | Uvicorn | 轻量级 ASGI 服务器 |
-| **进程管理** | Gunicorn | 生产级 WSGI/ASGI 进程管理器 |
-| **数据存储** | MySQL 8.0 | 关系型数据库 |
-| **ORM** | SQLAlchemy 2.0 | Python SQL 工具包与对象关系映射 |
-| **数据库驱动** | PyMySQL | 纯 Python MySQL 驱动 |
-| **数据库迁移** | Alembic | SQLAlchemy 数据库迁移工具 |
-| **缓存** | Redis 7 | 令牌、登录态与通知重试队列 |
-| **对象存储** | boto3 | S3 兼容对象存储（七牛 Kodo / AWS S3 / MinIO） |
-| **数据校验** | Pydantic v2 | 数据模型与校验框架 |
-| **配置管理** | pydantic-settings | 基于 Pydantic 的配置管理 |
-| **日志** | Loguru | 现代化 Python 日志库 |
-| **限流** | SlowAPI | 请求限流中间件 |
-| **密码哈希** | bcrypt | 安全密码哈希 |
-| **对称加密** | cryptography (Fernet) | AppKey 加密存储、HMAC 签名预留 |
-| **JWT** | PyJWT | JSON Web Token 签发与验证 |
-| **HTTP 客户端** | httpx | 异步 HTTP 客户端（通知渠道 API 调用） |
-| **包管理器** | uv | 高性能 Python 包管理器 |
-| **代码检查** | Ruff | 高性能 Python 代码检查与格式化工具 |
-| **类型检查** | mypy | Python 静态类型检查器 |
-| **测试框架** | pytest | Python 测试框架 |
-| **容器化** | Docker | 容器化部署 |
-| **容器编排** | Docker Compose | 多容器编排与管理 |
+| 分类 | 技术 |
+|---|---|
+| **后端语言** | Python 3.11+ |
+| **后端框架** | FastAPI |
+| **ORM** | SQLAlchemy 2.0 |
+| **数据库迁移** | Alembic |
+| **前端框架** | Vue 3 + TypeScript |
+| **前端构建** | Vite 6 |
+| **UI 组件库** | Element Plus |
+| **状态管理** | Pinia |
+| **数据库** | MySQL |
+| **缓存** | Redis |
+| **日志** | Loguru |
+| **认证** | JWT + HMAC 签名 |
+| **部署** | Docker / docker-compose |
 
-## API 文档说明
+## API 文档
 
-项目基于 FastAPI 自动生成 OpenAPI 规范，提供以下接口文档能力：
+后端启动后可访问：
 
-| 文档类型 | 访问地址 | 说明 |
-|----------|----------|------|
-| Swagger 交互式文档 | http://localhost:8000/docs | 支持在线调试、参数填写、请求发送 |
-| ReDoc 只读文档 | http://localhost:8000/redoc | 结构清晰的只读 API 文档 |
-| OpenAPI JSON 规范 | http://localhost:8000/openapi.json | 标准 OpenAPI 3.x 规范文件，可导入 Postman 等工具 |
+- **Swagger UI**：http://localhost:8000/docs
+- **ReDoc**：http://localhost:8000/redoc
+- **OpenAPI JSON**：http://localhost:8000/openapi.json
 
-### API 接口清单
+### 核心接口清单
 
-用户态接口前缀为 `/api/v1`（JWT 鉴权），开放平台接口前缀为 `/api/open/v1`（AppId/AppKey 鉴权）。
+| 模块 | 接口 | 说明 |
+|---|---|---|
+| 认证 | `POST /api/v1/auth/login` | 用户登录 |
+| 认证 | `GET /api/v1/auth/me` | 当前用户信息 |
+| 用户管理 | `GET /api/v1/users` | 用户列表 |
+| 用户管理 | `POST /api/v1/users` | 创建用户 |
+| 角色管理 | `GET /api/v1/roles` | 角色列表 |
+| 开放平台 | `GET /api/open/v1/users` | 开放平台用户查询 |
+| 开放平台 | `GET /api/open/v1/apps/me` | 当前应用信息 |
 
-**健康检查（公开）：**
+### 权限控制
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/health` | 健康检查（数据库/缓存连通状态） |
-| GET | `/api/v1/version` | 版本信息 |
-
-**认证（登录/刷新公开，其余需鉴权）：**
-
-| 方法 | 路径 | 说明 | 鉴权 |
-|------|------|------|------|
-| POST | `/api/v1/auth/login` | 用户名/邮箱 + 密码登录 | 公开 |
-| POST | `/api/v1/auth/refresh` | 刷新令牌 | 公开 |
-| GET | `/api/v1/auth/me` | 当前登录用户信息 | 需鉴权 |
-| POST | `/api/v1/auth/logout` | 退出登录（清除 Redis 登录态） | 需鉴权 |
-
-**用户管理（需鉴权）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/users` | 创建用户 |
-| GET | `/api/v1/users` | 用户列表（分页/关键字/状态过滤） |
-| GET | `/api/v1/users/{id}` | 用户详情 |
-| GET | `/api/v1/users/export` | 导出用户（CSV） |
-| POST | `/api/v1/users/{id}/update` | 更新用户 |
-| POST | `/api/v1/users/{id}/delete` | 删除用户（软删除） |
-
-**角色管理（需鉴权）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/roles` | 创建角色 |
-| GET | `/api/v1/roles` | 角色列表（分页/关键字/类型/状态过滤） |
-| GET | `/api/v1/roles/{id}` | 角色详情 |
-| POST | `/api/v1/roles/{id}/update` | 更新角色 |
-| POST | `/api/v1/roles/{id}/delete` | 删除角色（软删除） |
-| GET | `/api/v1/roles/{id}/permissions` | 角色权限列表（含权限详情） |
-| POST | `/api/v1/roles/{id}/permissions` | 绑定权限到角色 |
-| POST | `/api/v1/roles/{id}/permissions/{pid}/unbind` | 解绑角色权限 |
-
-**业务审计日志（需鉴权）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/audit/logs` | 按实体、动作、操作人和时间范围查询业务变更 |
-
-**文件上传（需鉴权）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/files/upload` | 上传文件；配置对象存储后写入云端，否则回退本地存储 |
-
-**登录日志（需鉴权）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/login-logs` | 登录日志列表（分页/用户/结果/方式/时间范围过滤） |
-| GET | `/api/v1/login-logs/{id}` | 登录日志详情 |
-
-**通知管理（需鉴权）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/notifications/send` | 手动发送通知 |
-| GET | `/api/v1/notifications` | 通知记录列表（分页/事件/渠道/状态过滤） |
-| GET | `/api/v1/notifications/stats` | 通知发送统计 |
-
-**系统告警：**
-
-| 方法 | 路径 | 说明 | 鉴权 |
-|------|------|------|------|
-| POST | `/api/v1/alerts` | 发送告警到指定接收人（供外部 Webhook 调用） | 公开 |
-| POST | `/api/v1/alerts/broadcast` | 广播告警给全体活跃用户 | 需鉴权 |
-
-**系统维护通知（需鉴权）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/maintenance/notify` | 向全体用户发送维护通知 |
-
-**开放平台应用管理（需 super_admin）：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/admin/apps` | 创建开放应用（返回 AppId + AppKey，Key 仅本次返回） |
-| GET | `/api/v1/admin/apps` | 应用列表 |
-| GET | `/api/v1/admin/apps/{id}` | 应用详情 |
-| PATCH | `/api/v1/admin/apps/{id}` | 更新应用（scope/限流/鉴权模式/状态） |
-| POST | `/api/v1/admin/apps/{id}/rotate-key` | 重置 AppKey（旧 Key 立即失效） |
-| DELETE | `/api/v1/admin/apps/{id}` | 删除应用（软删除） |
-
-**开放平台接口（AppId/AppKey 鉴权）：**
-
-| 方法 | 路径 | 说明 | 鉴权 |
-|------|------|------|------|
-| GET | `/api/open/v1/health` | 开放平台健康检查 | 公开 |
-| GET | `/api/open/v1/version` | 开放平台版本信息 | 公开 |
-| GET | `/api/open/v1/me` | 当前调用方应用信息 | 需 AppId/AppKey |
-| GET | `/api/open/v1/ping` | 连通性测试 | 需 AppId/AppKey + `ping:read` scope |
-
-### 开放平台鉴权说明
-
-开放平台 API 面向外部服务调用，与用户态 JWT 完全独立：
-
-- **认证方式**：请求头携带 `X-App-Id` 和 `X-App-Key`（明文模式起步）
-- **升级路径**：同一 AppKey 同时落库 SHA256 哈希（快查）和 Fernet 加密明文（HMAC 用），表上加 `auth_mode` 字段（plain/hmac/both），未来切 HMAC 签名只需改字段、不轮换密钥
-- **Scope 授权**：每个应用绑定 scope 列表（如 `ping:read`），接口通过 `require_app_scope("ping:read")` 声明
-- **Swagger 调试**：右上角 Authorize 里填 `OpenAppId` 和 `OpenAppKey` 即可调试开放平台接口
-
-### 权限控制说明
-
-**用户态（`/api/v1/...`）：**
-- 除登录、刷新、健康检查外，均需 `Authorization: Bearer <token>` 请求头
-- 接口通过 `require_user_role("role_code")` 或 `require_user_permission("perm_code")` 声明访问要求
-- `super_admin` 角色默认绕过角色限制
-- 普通用户的权限判断结果按用户和权限编码缓存于 Redis
-
-**开放平台（`/api/open/v1/...`）：**
-- 需 `X-App-Id` 和 `X-App-Key` 请求头（明文模式）
-- 接口通过 `require_app_scope("scope:name")` 声明所需 scope
-- 未来可切换 HMAC 签名模式（`auth_mode=hmac`），需额外携带 Timestamp / Nonce / Signature 头
-
-## 通知系统配置
-
-项目内置事件驱动多渠道通知子系统，支持邮件、钉钉、飞书、短信四种渠道。通知事件在业务流程中自动触发（密码变更、登录失败、权限变更等），也可通过 API 手动发送或广播。
-
-### 架构概览
-
-```
-业务服务 (user_service / auth_service / ...)
-    ↓ dispatch_for_user(user_id, event_type, variables)
-通知调度器 (NotificationDispatcher)
-    ↓ 查路由表 → 确定渠道
-    ↓ 查 user_notification_configs → 确定接收人
-    ↓ 渲染模板 → 调用 Provider 发送
-    ↓ 持久化记录 → 失败写入 Redis 重试队列
-通知渠道 Provider
-    ├─ EmailProvider（复用 SMTP 配置）
-    ├─ DingTalkProvider（工作通知 per-user / Webhook 群聊）
-    ├─ FeishuProvider（应用消息 per-user / Webhook 群聊）
-    └─ SmsProvider（骨架，待接入）
-```
-
-### 通知事件类型
-
-| 事件 | 触发时机 | 默认渠道 |
-|------|---------|----------|
-| `user.password_changed` | 用户修改密码 | email |
-| `user.profile_updated` | 用户资料更新 | email |
-| `user.status_changed` | 用户状态变更 | email, dingtalk |
-| `user.login_failed` | 连续登录失败 ≥3 次 | email, dingtalk |
-| `role.assigned` | 角色分配 | email, dingtalk |
-| `permission.granted` | 权限授予 | email |
-| `permission.revoked` | 权限撤销 | email, dingtalk |
-| `system.alert` | 系统告警（健康检查故障/API 调用） | email, dingtalk, feishu |
-| `system.maintenance` | 系统维护通知 | email, dingtalk, feishu |
-
-### 渠道配置
-
-**钉钉/飞书支持双模式：**
-- **工作通知/应用消息**（推荐）：配置应用凭证，per-user 精准投递
-- **Webhook 群聊**（降级）：仅配置 Webhook URL，发送到群机器人所在群
-
-```yaml
-notification:
-  enabled: true
-  retry_interval_seconds: 60
-  alert_email: "ops@example.com"     # 健康检查告警邮箱
-  # 钉钉
-  dingtalk_app_key: ""               # 企业内部应用 AppKey（工作通知模式）
-  dingtalk_app_secret: ""
-  dingtalk_agent_id: ""
-  dingtalk_webhook: ""               # 群机器人 Webhook（群聊模式）
-  dingtalk_secret: ""
-  # 飞书
-  feishu_app_id: ""                  # 自建应用 AppId（应用消息模式）
-  feishu_app_secret: ""
-  feishu_webhook: ""                 # 群机器人 Webhook（群聊模式）
-  feishu_secret: ""
-```
-
-> 钉钉/飞书 per-user 投递需要在 `user_notification_configs` 表中绑定用户与渠道接收人（钉钉存 `userid`，飞书存 `open_id`）。
+- **用户态接口**：JWT Bearer Token + 角色/权限校验
+- **开放平台接口**：AppId + AppKey（明文）或 HanJiang-1 HMAC 签名认证
 
 ## 存储配置说明
 
-项目提供统一存储抽象层，通过 `storage.provider` 配置项切换存储后端，业务代码零改动。
+### 数据库
 
-### 本地文件存储
+- **类型**：MySQL 8.0+
+- **配置**：通过 `.env` 文件配置 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE` 等
+- **迁移**：使用 Alembic 管理版本
 
-适用于开发环境和小规模部署，文件存储在服务器本地文件系统。
+### 缓存
 
-```yaml
-storage:
-  provider: "local"
-  local:
-    base_dir: "static"
-```
+- **类型**：Redis
+- **用途**：限流计数、会话缓存
+- **配置**：通过 `.env` 文件配置 `REDIS_HOST`、`REDIS_PORT`
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `provider` | 存储后端标识 | `local` |
-| `local.base_dir` | 本地存储根目录 | `static` |
+### 文件存储
 
-### S3 兼容对象存储
+支持两种模式，通过 `.env` 中 `STORAGE_PROVIDER` 切换：
 
-适用于生产环境，支持七牛云 Kodo、AWS S3、MinIO 等 S3 兼容服务。
-
-```yaml
-storage:
-  provider: "s3"
-  s3:
-    endpoint_url: "https://s3.cn-south-1.qiniucs.com"
-    access_key: "<your-access-key>"
-    secret_key: "<your-secret-key>"
-    bucket: "x-hanjiang"
-    region: "cn-south-1"
-    prefix: "uploads"
-    public_url: ""
-    use_ssl: true
-```
-
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `provider` | 存储后端标识 | `s3` |
-| `s3.endpoint_url` | S3 兼容服务地址 | — |
-| `s3.access_key` | 访问密钥 | — |
-| `s3.secret_key` | 秘密密钥 | — |
-| `s3.bucket` | 存储桶名称 | `x-hanjiang` |
-| `s3.region` | 存储区域 | `cn-south-1` |
-| `s3.prefix` | 对象键前缀 | `uploads` |
-| `s3.public_url` | 公开访问域名（可选，含协议头） | — |
-| `s3.use_ssl` | 是否启用 SSL | `true` |
-
-> **注意事项**：生产环境建议通过环境变量注入 `access_key` 和 `secret_key`，避免将密钥写入版本库。配置示例中七牛云 Kodo 华南区域地址为 `https://s3.cn-south-1.qiniucs.com`，其他 S3 兼容服务请替换为对应 endpoint。
+| 模式 | 配置 | 适用场景 |
+|---|---|---|
+| `local` | `STORAGE_LOCAL_BASE_DIR=static` | 本地开发、小型部署 |
+| `s3` | `STORAGE_S3_ENDPOINT_URL` 等 | 生产环境、对象存储（七牛/AWS S3/MinIO） |
 
 ## 许可证
 
-本项目基于 [MIT License](LICENSE) 开源。
+本项目采用 [MIT License](LICENSE) 开源协议。
 
 ## 参考资料
 
-| 技术 | 官方文档 |
-|------|----------|
-| Python | https://www.python.org/ |
-| FastAPI | https://fastapi.tiangolo.com/ |
-| Pydantic | https://docs.pydantic.dev/ |
-| SQLAlchemy | https://docs.sqlalchemy.org/ |
-| Alembic | https://alembic.sqlalchemy.org/ |
-| Redis | https://redis.io/docs/ |
-| uv | https://docs.astral.sh/uv/ |
-| Uvicorn | https://www.uvicorn.org/ |
-| Gunicorn | https://gunicorn.org/ |
-| Docker | https://docs.docker.com/ |
-| Docker Compose | https://docs.docker.com/compose/ |
-| Loguru | https://loguru.readthedocs.io/ |
-| pytest | https://docs.pytest.org/ |
-| Ruff | https://docs.astral.sh/ruff/ |
+- [FastAPI 官方文档](https://fastapi.tiangolo.com/)
+- [SQLAlchemy 官方文档](https://docs.sqlalchemy.org/)
+- [Vue 3 官方文档](https://cn.vuejs.org/)
+- [Vite 官方文档](https://cn.vitejs.dev/)
+- [Element Plus 官方文档](https://element-plus.org/zh-CN/)
+- [Loguru 官方文档](https://loguru.readthedocs.io/)
+- [Docker 官方文档](https://docs.docker.com/)
 
 ## 联系方式
 
 - **作者**：John Young（夜雨诗来）
-- **邮箱**：[john.young@foxmail.com](mailto:john.young@foxmail.com)
+- **邮箱**：john.young@foxmail.com
 - **Gitee**：https://gitee.com/yeyushilai
 - **GitHub**：https://github.com/yeyushilai
-- **项目地址**：https://github.com/cross-lang/x-HanJiang

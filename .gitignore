@@ -138,10 +138,16 @@ dmypy.json
 cython_debug/
 
 # Logs
-logs/
+server/logs/
 
 # Ruff cache
 .ruff_cache/
+
+# Frontend
+web/**/node_modules/
+web/**/dist/
+web/**/.vite/
+web/**/*.local
 
 # UV
 .python-version
