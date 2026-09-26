@@ -7,7 +7,6 @@ from src.api.permission_decorator import permission
 from src.api.dependencies import get_file_service, require_user_permission
 from src.api.response import success_response
 from src.services.file_service import FileStorageService
-from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/files", tags=["文件管理"])
 
@@ -19,6 +18,7 @@ router = APIRouter(prefix="/files", tags=["文件管理"])
         "使用 multipart/form-data 上传一个文件。文件会保存到对象存储或本地存储，"
         "接口返回文件名、存储路径、访问地址和文件大小。"
     ),
+    dependencies=[Depends(require_user_permission("file:create"))],
 )
 @permission("file:create", "上传文件", "file", "create")
 async def upload_file(
@@ -44,6 +44,7 @@ async def upload_file(
     "/{file_path:path}",
     summary="获取文件",
     description="根据文件路径下载或访问文件。",
+    dependencies=[Depends(require_user_permission("file:view"))],
 )
 @permission("file:view", "查看文件", "file", "view")
 async def get_file(

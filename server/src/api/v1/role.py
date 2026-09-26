@@ -37,7 +37,6 @@ from src.schemas.role import (
 )
 from src.services.permission_service import PermissionService
 from src.services.role_service import RoleService
-from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/roles", tags=["角色管理"])
 
@@ -46,6 +45,7 @@ router = APIRouter(prefix="/roles", tags=["角色管理"])
     "",
     summary="角色列表",
     description="查询角色列表（分页，支持关键字/类型/状态过滤）",
+    dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
 async def list_roles(
@@ -84,6 +84,7 @@ async def list_roles(
     summary="创建角色",
     description="创建一个新角色（校验编码/名称唯一）",
     status_code=201,
+    dependencies=[Depends(require_user_permission("role:create"))],
 )
 @permission("role:create", "创建角色", "role", "create")
 async def create_role(
@@ -101,6 +102,7 @@ async def create_role(
     "/{role_id}",
     summary="角色详情",
     description="根据 ID 查询角色详情",
+    dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
 async def get_role(
@@ -121,6 +123,7 @@ async def get_role(
     "/{role_id}/update",
     summary="更新角色",
     description="更新角色信息（名称/描述/状态）",
+    dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
 async def update_role(
@@ -143,6 +146,7 @@ async def update_role(
     "/{role_id}/delete",
     summary="删除角色",
     description="根据 ID 软删除角色",
+    dependencies=[Depends(require_user_permission("role:delete"))],
 )
 @permission("role:delete", "删除角色", "role", "delete")
 async def delete_role(
@@ -160,6 +164,7 @@ async def delete_role(
     "/{role_id}/permissions",
     summary="角色权限列表",
     description="查询角色绑定的权限列表（含权限详情）",
+    dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
 async def get_role_permissions(
@@ -177,6 +182,7 @@ async def get_role_permissions(
     summary="绑定权限",
     description="为角色绑定一个权限",
     status_code=201,
+    dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
 async def bind_permission(
@@ -199,6 +205,7 @@ async def bind_permission(
     "/{role_id}/permissions/{permission_id}/unbind",
     summary="解绑权限",
     description="解除角色与指定权限的绑定",
+    dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
 async def unbind_permission(

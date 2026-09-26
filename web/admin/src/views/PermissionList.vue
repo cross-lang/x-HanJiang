@@ -7,6 +7,13 @@
       <el-table-column prop="module" label="模块" width="100" />
       <el-table-column prop="operation" label="操作" width="100" />
       <el-table-column prop="description" label="描述" />
+      <el-table-column prop="is_deprecated" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.is_deprecated ? 'danger' : 'success'">
+            {{ row.is_deprecated ? '已废弃' : '正常' }}
+          </el-tag>
+        </template>
+      </el-table-column>
     </el-table>
     <el-pagination
       style="margin-top: 20px; justify-content: flex-end; display: flex"

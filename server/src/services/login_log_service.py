@@ -65,10 +65,20 @@ class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):
         }
 
     def _to_response(self, entity: LoginLogEntity) -> LoginLogResponse:
-        """实体转响应 DTO。"""
+        """实体转响应 DTO，关联查询用户名和姓名。"""
+        username = None
+        name = None
+        if entity.user_id:
+            from src.models.entities.user_entity import UserEntity
+            user = self._repository.session.query(UserEntity).get(entity.user_id)
+            if user:
+                username = user.username
+                name = user.name
         return LoginLogResponse(
             id=entity.id,
             user_id=entity.user_id,
+            username=username,
+            name=name,
             login_type=entity.login_type,
             ip_address=entity.ip_address,
             status=entity.status,

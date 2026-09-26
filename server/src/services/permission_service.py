@@ -292,11 +292,17 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
 
     def _to_response(self, entity: PermissionEntity) -> PermissionResponse:
         """实体转响应 DTO。"""
+        from src.constants.enums import ModuleCode
+        module_label = next(
+            (m.desc for m in ModuleCode if m.mark == entity.module),
+            entity.module,
+        )
         return PermissionResponse(
             id=entity.id,
             perm_code=entity.perm_code,
             perm_name=entity.perm_name,
             module=entity.module,
+            module_label=module_label,
             operation=entity.operation,
             description=entity.description,
             sort_order=entity.sort_order,

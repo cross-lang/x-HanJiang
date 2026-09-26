@@ -23,7 +23,6 @@ from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import MaintenanceNotifyRequest
 from src.schemas.auth import CurrentUser
 from src.services.maintenance_service import MaintenanceService
-from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/maintenance", tags=["系统维护"])
 
@@ -40,6 +39,7 @@ def _get_maintenance_service(
     "/notify",
     summary="发送系统维护通知",
     description="向全体活跃用户发送系统维护通知（管理员操作）",
+    dependencies=[Depends(require_user_permission("maintenance:notify"))],
 )
 @permission("maintenance:notify", "发送维护通知", "maintenance", "notify")
 async def notify_maintenance(

@@ -39,6 +39,7 @@ class UserCreateRequest(BaseModel):
     phone: str | None = Field(default=None, max_length=20, description="手机号")
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
     role_id: int | None = Field(default=None, description="主角色ID")
+    role_name: str | None = Field(default=None, description="角色名称")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="状态")
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
@@ -76,6 +77,7 @@ class UserUpdateRequest(BaseModel):
     phone: str | None = Field(default=None, max_length=20, description="手机号")
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
     role_id: int | None = Field(default=None, description="主角色ID")
+    role_name: str | None = Field(default=None, description="角色名称")
     status: UserStatus | None = Field(default=None, description="状态")
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
@@ -139,6 +141,7 @@ class UserResponse(BaseModel):
     phone: str | None = Field(default=None, description="手机号")
     avatar_url: str | None = Field(default=None, description="头像URL")
     role_id: int | None = Field(default=None, description="主角色ID")
+    role_name: str | None = Field(default=None, description="角色名称")
     status: str = Field(description="状态")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
     last_login_ip: str | None = Field(default=None, description="最后登录IP")

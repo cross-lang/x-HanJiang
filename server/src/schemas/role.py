@@ -39,6 +39,7 @@ class PermissionResponse(BaseModel):
     perm_code: str = Field(description="权限编码")
     perm_name: str = Field(description="权限名称")
     module: str = Field(description="所属模块")
+    module_label: str = Field(default="", description="模块中文名")
     operation: str = Field(description="操作类型")
     description: str | None = Field(default=None, description="权限说明")
     sort_order: int = Field(default=0, description="排序序号")

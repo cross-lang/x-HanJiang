@@ -162,10 +162,10 @@ async def lifespan(app: FastAPI):
             try:
                 from src.api.permission_decorator import collect_permissions_from_app
                 from src.models.entities.user_entity import PermissionEntity
-                from src.infras.database import get_session
 
                 collected = collect_permissions_from_app(app)
-                session = get_session()
+                print(f'>>> Collected permissions: {[p["perm_code"] for p in collected]}', flush=True)
+                session = get_cached_database_provider().get_session_factory()()
                 active_codes = {p["perm_code"] for p in collected}
 
                 # 1. upsert 路由里声明的权限
@@ -175,10 +175,12 @@ async def lifespan(app: FastAPI):
                         existing.perm_name = perm["perm_name"]
                         existing.module = perm["module"]
                         existing.operation = perm["operation"]
-                        existing.description = perm["description"]
+                        existing.description = (perm["description"] or "")[:250]
                         existing.is_deprecated = False
                     else:
-                        session.add(PermissionEntity(**perm, is_deprecated=False))
+                        p = dict(perm)
+                        p["description"] = (p.get("description") or "")[:250]
+                        session.add(PermissionEntity(**p, is_deprecated=False))
 
                 # 2. 表里有但路由里没有的，标记为废弃（不删）
                 deprecated = session.query(PermissionEntity).filter(
@@ -190,9 +192,9 @@ async def lifespan(app: FastAPI):
                     logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
 
                 session.commit()
-                logger.info(f"Auto-synced {len(collected)} permissions, {len(deprecated)} deprecated")
+                print(f'>>> Auto-synced {len(collected)} permissions, {len(deprecated)} deprecated', flush=True)
             except Exception as e:
-                logger.warning(f"Permission auto-sync skipped: {e}")
+                print(f'>>> Permission auto-sync ERROR: {e}', flush=True)
         except Exception as e:
             logger.warning(f"Database initialization skipped: {e}")
     else:

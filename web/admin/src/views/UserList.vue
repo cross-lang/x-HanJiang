@@ -9,6 +9,7 @@
       <el-table-column prop="name" label="姓名" />
       <el-table-column prop="email" label="邮箱" />
       <el-table-column prop="phone" label="手机号" width="130" />
+      <el-table-column prop="role_name" label="角色" width="120" />
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
@@ -19,19 +20,21 @@
       <el-table-column prop="created_at" label="创建时间" />
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <el-button
-            v-if="row.status !== 'active'"
-            size="small"
-            type="success"
-            @click="handleToggleStatus(row, 'active')"
-          >启用</el-button>
-          <el-button
-            v-if="row.status === 'active'"
-            size="small"
-            type="warning"
-            @click="handleToggleStatus(row, 'disabled')"
-          >禁用</el-button>
-          <el-button v-if="row.id !== userStore.userInfo?.id" size="small" @click="handleResetPassword(row)">重置密码</el-button>
+          <template v-if="canOperate(row)">
+            <el-button
+              v-if="row.status !== 'active'"
+              size="small"
+              type="success"
+              @click="handleToggleStatus(row, 'active')"
+            >启用</el-button>
+            <el-button
+              v-if="row.status === 'active'"
+              size="small"
+              type="warning"
+              @click="handleToggleStatus(row, 'disabled')"
+            >禁用</el-button>
+            <el-button v-if="row.id !== userStore.userInfo?.id" size="small" @click="handleResetPassword(row)">重置密码</el-button>
+          </template>
         </template>
       </el-table-column>
     </el-table>
@@ -204,12 +207,20 @@ function handleResetPassword(row: any) {
 
 async function confirmResetPassword() {
   try {
-    await request.post(`/users/${resetUser.value.id}/reset-password`, { new_password: resetPassword.value })
+    await request.post(`/users/${resetUser.value.id}/reset-password`, { new_password: resetPassword.value, confirm_password: resetPassword.value })
     ElMessage.success('密码已重置')
     resetVisible.value = false
   } catch (e) {
     // 错误已处理
   }
+}
+
+function canOperate(row: any): boolean {
+  // 超级管理员才能操作超级管理员
+  if (row.username === 'superadmin') {
+    return userStore.userInfo?.username === 'superadmin'
+  }
+  return true
 }
 
 onMounted(() => {

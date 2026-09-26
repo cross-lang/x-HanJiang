@@ -18,6 +18,8 @@ class LoginLogResponse(BaseModel):
 
     id: int = Field(description="日志唯一标识")
     user_id: int | None = Field(default=None, description="用户ID")
+    username: str | None = Field(default=None, description="用户名")
+    name: str | None = Field(default=None, description="用户姓名")
     login_type: str = Field(description="登录方式（password/sso）")
     ip_address: str | None = Field(default=None, description="IP地址")
     status: str = Field(description="登录结果（success/failed）")

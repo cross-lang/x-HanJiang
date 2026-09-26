@@ -10,7 +10,7 @@
 from fastapi import APIRouter, Depends, Request
 
 from src.api.permission_decorator import permission
-from src.api.dependencies import get_openapi_app_service, get_current_user
+from src.api.dependencies import require_user_permission, get_openapi_app_service, get_current_user
 from src.api.response import success_response
 from src.schemas.openapi_app import (
     OpenApiAppCreateRequest,
@@ -19,11 +19,10 @@ from src.schemas.openapi_app import (
     OpenApiAppUpdateRequest,
 )
 from src.services.openapi_app_service import OpenApiAppService
-from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
 
-@router.post("", summary="创建开放应用")
+@router.post("", summary="创建开放应用", dependencies=[Depends(require_user_permission("openapi_app:create"))])
 @permission("openapi_app:create", "创建开放应用", "openapi_app", "create")
 async def create_app(
     body: OpenApiAppCreateRequest,
@@ -45,7 +44,7 @@ async def create_app(
     return success_response(data, request)
 
 
-@router.get("", summary="应用列表")
+@router.get("", summary="应用列表", dependencies=[Depends(require_user_permission("openapi_app:view"))])
 @permission("openapi_app:view", "查看开放应用", "openapi_app", "view")
 async def list_apps(
     request: Request,
@@ -56,7 +55,7 @@ async def list_apps(
     return success_response([i.model_dump() for i in items], request)
 
 
-@router.get("/{app_id}", summary="应用详情")
+@router.get("/{app_id}", summary="应用详情", dependencies=[Depends(require_user_permission("openapi_app:view"))])
 @permission("openapi_app:view", "查看开放应用", "openapi_app", "view")
 async def get_app(
     app_id: int,
@@ -66,7 +65,7 @@ async def get_app(
     return success_response(service.get_by_id(app_id).model_dump(), request)
 
 
-@router.patch("/{app_id}", summary="更新应用")
+@router.patch("/{app_id}", summary="更新应用", dependencies=[Depends(require_user_permission("openapi_app:edit"))])
 @permission("openapi_app:edit", "编辑开放应用", "openapi_app", "edit")
 async def update_app(
     app_id: int,
@@ -80,7 +79,7 @@ async def update_app(
     )
 
 
-@router.put("/{app_id}/scopes", summary="更新应用 scope")
+@router.put("/{app_id}/scopes", summary="更新应用 scope", dependencies=[Depends(require_user_permission("openapi_app:edit"))])
 @permission("openapi_app:edit", "编辑开放应用", "openapi_app", "edit")
 async def update_app_scopes(
     app_id: int,
@@ -95,7 +94,7 @@ async def update_app_scopes(
     )
 
 
-@router.post("/{app_id}/rotate-key", summary="重置 AppKey")
+@router.post("/{app_id}/rotate-key", summary="重置 AppKey", dependencies=[Depends(require_user_permission("openapi_app:edit"))])
 @permission("openapi_app:edit", "编辑开放应用", "openapi_app", "edit")
 async def rotate_key(
     app_id: int,
@@ -109,7 +108,7 @@ async def rotate_key(
     )
 
 
-@router.delete("/{app_id}", summary="删除应用")
+@router.delete("/{app_id}", summary="删除应用", dependencies=[Depends(require_user_permission("openapi_app:delete"))])
 @permission("openapi_app:delete", "删除开放应用", "openapi_app", "delete")
 async def delete_app(
     app_id: int,

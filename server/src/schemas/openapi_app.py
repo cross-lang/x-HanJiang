@@ -10,6 +10,7 @@ class OpenApiAppCreateRequest(BaseModel):
     """管理员创建开放应用请求。"""
 
     name: str = Field(min_length=1, max_length=100, description="应用名")
+    description: str | None = Field(default=None, max_length=255, description="应用描述")
     scopes: list[str] = Field(default_factory=list, description="权限范围列表，如 ['ping:read']")
     rate_limit_per_minute: int = Field(default=60, ge=1, le=100000)
     auth_mode: str = Field(default="plain", pattern="^(plain|hmac|both)$")
@@ -19,6 +20,7 @@ class OpenApiAppUpdateRequest(BaseModel):
     """管理员更新开放应用（改 scope / 限流 / 鉴权模式 / 状态）。"""
 
     name: str | None = Field(default=None, max_length=100)
+    description: str | None = Field(default=None, max_length=255)
     scopes: list[str] | None = None
     rate_limit_per_minute: int | None = Field(default=None, ge=1, le=100000)
     auth_mode: str | None = Field(default=None, pattern="^(plain|hmac|both)$")
@@ -37,6 +39,7 @@ class OpenApiAppResponse(BaseModel):
     id: int
     app_id: str
     name: str
+    description: str | None = None
     scopes: list[str]
     status: str
     auth_mode: str

@@ -47,7 +47,7 @@ class PermissionRepository(BaseRepository[PermissionEntity, int]):
         limit: int = 100,
     ) -> tuple[list[PermissionEntity], int]:
         """按关键字/模块/操作类型搜索权限（分页）。"""
-        conditions = []
+        conditions = [PermissionEntity.is_deprecated == False]
         if keyword:
             like = f"%{keyword}%"
             conditions.append(

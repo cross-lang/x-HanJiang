@@ -280,7 +280,13 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         return user
 
     def _to_response(self, entity: UserEntity) -> UserResponse:
-        """实体转响应 DTO。"""
+        """实体转响应 DTO，关联查询角色名称。"""
+        role_name = None
+        if entity.role_id:
+            from src.models.entities.user_entity import RoleEntity
+            role = self._repository.session.query(RoleEntity).get(entity.role_id)
+            if role:
+                role_name = role.role_name
         return UserResponse(
             id=entity.id,
             username=entity.username,
@@ -290,6 +296,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             phone=entity.phone,
             avatar_url=entity.avatar_url,
             role_id=entity.role_id,
+            role_name=role_name,
             status=entity.status or UserStatus.ACTIVE.value,
             last_login_at=entity.last_login_at,
             last_login_ip=entity.last_login_ip,

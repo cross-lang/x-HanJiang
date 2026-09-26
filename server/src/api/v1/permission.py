@@ -26,7 +26,6 @@ from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.schemas.role import PermissionResponse
 from src.services.permission_service import PermissionService
-from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/permissions", tags=["权限管理"])
 
@@ -35,6 +34,7 @@ router = APIRouter(prefix="/permissions", tags=["权限管理"])
     "/meta",
     summary="权限元数据",
     description="返回所有去重的模块列表和操作类型列表，供前端下拉选择",
+    dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
 async def permission_meta(
@@ -51,6 +51,7 @@ async def permission_meta(
     "",
     summary="权限列表",
     description="查询权限列表（分页，支持关键字/模块/操作类型过滤）",
+    dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
 async def list_permissions(
@@ -89,6 +90,7 @@ async def list_permissions(
     summary="创建权限",
     description="创建一个新权限（校验编码唯一）",
     status_code=201,
+    dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
 async def create_permission(
@@ -106,6 +108,7 @@ async def create_permission(
     "/{perm_id}",
     summary="权限详情",
     description="根据 ID 查询权限详情",
+    dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
 async def get_permission(
@@ -126,6 +129,7 @@ async def get_permission(
     "/{perm_id}/update",
     summary="更新权限",
     description="更新权限信息",
+    dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
 async def update_permission(
@@ -148,6 +152,7 @@ async def update_permission(
     "/{perm_id}/delete",
     summary="删除权限",
     description="根据 ID 删除权限",
+    dependencies=[Depends(require_user_permission("role:delete"))],
 )
 @permission("role:delete", "删除角色", "role", "delete")
 async def delete_permission(

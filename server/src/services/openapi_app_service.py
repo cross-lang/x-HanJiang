@@ -51,8 +51,7 @@ def generate_app_id() -> str:
         - 其他环境：hj_test_xxxxxxxx
     主体 16 字节随机 → 32 hex 字符，约 128bit 熵，抗枚举。
     """
-    env_prefix = "hj_live_" if settings.is_production else "hj_test_"
-    return f"{env_prefix}{secrets.token_hex(16)}"
+    return f"hj_{secrets.token_hex(10)}"
 
 
 # ============================================================

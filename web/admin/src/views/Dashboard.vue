@@ -121,8 +121,8 @@ onMounted(async () => {
       request.get('/users', { params: { page: 1, page_size: 1 } }),
       request.get('/roles', { params: { page: 1, page_size: 1 } }),
       request.get('/admin/apps', { params: { page: 1, page_size: 1 } }),
-      request.get('/audit/logs', { params: { type: 'login', page: 1, page_size: 5 } }),
-      request.get('/audit/logs', { params: { type: 'audit', page: 1, page_size: 5 } }),
+      request.get('/audit/login-logs', { params: { page: 1, page_size: 5 } }),
+      request.get('/audit/logs', { params: { page: 1, page_size: 5 } }),
     ])
     stats.value.userCount = users.data?.total || 0
     stats.value.roleCount = roles.data?.total || 0

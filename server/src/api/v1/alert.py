@@ -26,7 +26,6 @@ from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import AlertSendRequest
 from src.schemas.auth import CurrentUser
 from src.services.alert_service import AlertService
-from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/alerts", tags=["系统告警"])
 
@@ -77,6 +76,7 @@ async def send_alert(
     "/broadcast",
     summary="广播系统告警",
     description="广播系统告警给全体活跃用户（管理员操作）",
+    dependencies=[Depends(require_user_permission("alert:broadcast"))],
 )
 @permission("alert:broadcast", "广播告警", "alert", "broadcast")
 async def broadcast_alert(

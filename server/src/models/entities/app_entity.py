@@ -43,6 +43,7 @@ class OpenApiAppEntity(Base):
 
     # ── 元信息 ──────────────────────────────────────────
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment="应用名")
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="应用描述")
     owner_user_id: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, comment="归属人（内部管理员用户ID）"
     )

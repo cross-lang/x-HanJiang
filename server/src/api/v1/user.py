@@ -38,7 +38,6 @@ from src.schemas.user import (
     UserUpdateRequest,
 )
 from src.services.user_service import UserService
-from src.constants.enums import PermissionCode
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -48,6 +47,7 @@ router = APIRouter(prefix="/users", tags=["用户管理"])
     summary="创建用户",
     description="创建一个新用户（校验邮箱/用户名全局唯一）",
     status_code=201,
+    dependencies=[Depends(require_user_permission("user:create"))],
 )
 @permission("user:create", "创建用户", "user", "create")
 async def create_user(
@@ -64,6 +64,7 @@ async def create_user(
     "",
     summary="用户列表",
     description="查询用户列表（分页，支持关键字/状态过滤）",
+    dependencies=[Depends(require_user_permission("user:view"))],
 )
 @permission("user:view", "查看用户", "user", "view")
 async def list_users(
@@ -94,6 +95,7 @@ async def list_users(
     "/export",
     summary="导出用户列表",
     description="按筛选条件导出全部匹配用户为 CSV 文件（支持关键字/状态过滤）",
+    dependencies=[Depends(require_user_permission("user:export"))],
 )
 @permission("user:export", "导出用户", "user", "export")
 async def export_users(
@@ -130,6 +132,7 @@ async def export_users(
     "/{user_id}",
     summary="查询用户",
     description="根据 ID 查询用户详情",
+    dependencies=[Depends(require_user_permission("user:view"))],
 )
 @permission("user:view", "查看用户", "user", "view")
 async def get_user(
@@ -149,6 +152,7 @@ async def get_user(
     "/{user_id}/update",
     summary="更新用户",
     description="更新用户信息（密码提供时重新哈希）",
+    dependencies=[Depends(require_user_permission("user:edit"))],
 )
 @permission("user:edit", "编辑用户", "user", "edit")
 async def update_user(
@@ -168,6 +172,7 @@ async def update_user(
     "/{user_id}/reset-password",
     summary="重置用户密码",
     description="管理员重置指定用户的密码",
+    dependencies=[Depends(require_user_permission("user:edit"))],
 )
 @permission("user:edit", "编辑用户", "user", "edit")
 async def reset_user_password(
@@ -185,6 +190,7 @@ async def reset_user_password(
     "/{user_id}/delete",
     summary="删除用户",
     description="根据 ID 软删除用户",
+    dependencies=[Depends(require_user_permission("user:delete"))],
 )
 @permission("user:delete", "删除用户", "user", "delete")
 async def delete_user(
@@ -201,6 +207,7 @@ async def delete_user(
     "/import",
     summary="导入用户列表",
     description="上传 CSV 文件批量导入用户（基础版本）",
+    dependencies=[Depends(require_user_permission("user:import"))],
 )
 @permission("user:import", "导入用户", "user", "import")
 async def import_users(
