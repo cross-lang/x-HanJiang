@@ -19,9 +19,44 @@ const router = createRouter({
           component: () => import('@/views/Dashboard.vue'),
         },
         {
+          path: 'panel',
+          name: 'DashboardPanel',
+          component: () => import('@/views/DashboardPanel.vue'),
+        },
+        {
           path: 'users',
           name: 'Users',
           component: () => import('@/views/UserList.vue'),
+        },
+        {
+          path: 'roles',
+          name: 'Roles',
+          component: () => import('@/views/RoleList.vue'),
+        },
+        {
+          path: 'permissions',
+          name: 'Permissions',
+          component: () => import('@/views/PermissionList.vue'),
+        },
+        {
+          path: 'apis/swagger',
+          name: 'SwaggerDoc',
+          component: () => import('@/views/SwaggerDoc.vue'),
+        },
+        {
+          path: 'audit',
+          name: 'Audit',
+          component: () => import('@/views/AuditLog.vue'),
+        },
+        {
+          path: 'apps',
+          name: 'Apps',
+          component: () => import('@/views/OpenAppList.vue'),
+        },
+        {
+          path: 'profile',
+          name: 'Profile',
+          component: () => import('@/views/Profile.vue'),
         },
       ],
     },

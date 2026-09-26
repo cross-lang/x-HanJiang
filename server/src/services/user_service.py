@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from src.constants.enums import NotificationEvent, UserStatus
-from src.core.exceptions import ConflictException, NotFoundException, ValidationException
+from src.core.exceptions import ConflictException, AuthorizationException, NotFoundException, ValidationException
 from src.core.logger import logger
 from src.utils.security import hash_password, verify_password
 from src.models.entities.user_entity import UserEntity
@@ -120,6 +120,10 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         if existing is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
 
+        # 超级管理员保护：非 superadmin 不能修改 superadmin
+        if existing.username == "superadmin" and operator and operator.get("operator_name") != "superadmin":
+            raise AuthorizationException(message="不能修改超级管理员账号")
+
         patch_dict = request.model_dump(exclude_unset=True)
 
         if "email" in patch_dict and patch_dict["email"] != existing.email:
@@ -204,6 +208,10 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         if existing is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
 
+        # 超级管理员保护
+        if existing.username == "superadmin" and operator and operator.get("operator_name") != "superadmin":
+            raise AuthorizationException(message="不能删除超级管理员账号")
+
         deleted = self._repository.delete(id)
         if deleted:
             self._commit()
@@ -225,6 +233,10 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
+
+        # 超级管理员保护
+        if existing.username == "superadmin" and operator and operator.get("operator_name") != "superadmin":
+            raise AuthorizationException(message="不能重置超级管理员密码")
 
         existing.password_hash = hash_password(new_password)
         self._commit()

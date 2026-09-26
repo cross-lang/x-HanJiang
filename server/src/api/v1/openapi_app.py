@@ -9,7 +9,7 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import get_openapi_app_service, require_user_role
+from src.api.dependencies import get_openapi_app_service, require_user_permission
 from src.api.response import success_response
 from src.schemas.openapi_app import (
     OpenApiAppCreateRequest,
@@ -22,7 +22,7 @@ from src.services.openapi_app_service import OpenApiAppService
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
 
 # 仅超管可访问
-_admin = require_user_role("super_admin")
+_admin = require_user_permission("openapi_app:view")
 
 
 @router.post("", summary="创建开放应用")

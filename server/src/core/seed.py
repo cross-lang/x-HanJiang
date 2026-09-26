@@ -29,6 +29,14 @@ from src.models.entities.user_entity import (
 # ── 超级管理员 ──────────────────────────────────────────────
 _SEED_ROLE_CODE = "super_admin"
 _SEED_ROLE_NAME = "超级管理员"
+
+# ── 管理员 ──────────────────────────────────────────────────
+_SEED_ADMIN_ROLE_CODE = "admin"
+_SEED_ADMIN_ROLE_NAME = "管理员"
+
+# ── 普通用户 ────────────────────────────────────────────────
+_SEED_USER_ROLE_CODE = "user"
+_SEED_USER_ROLE_NAME = "普通用户"
 _SEED_ADMIN_USERNAME = "superadmin"
 _SEED_ADMIN_PASSWORD = "admin@123456"
 _SEED_ADMIN_EMAIL = "superadmin@system.local"
@@ -54,6 +62,10 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("notification:create", "创建通知", "notification", "create", "手动发送通知", 41),
     ("alert:broadcast", "广播告警", "alert", "broadcast", "向全体用户广播告警", 50),
     ("maintenance:notify", "发送维护通知", "maintenance", "notify", "向全体用户发送维护通知", 51),
+    ("openapi_app:view", "查看开放平台应用", "openapi_app", "view", "查看开放平台应用列表", 60),
+    ("openapi_app:create", "创建开放平台应用", "openapi_app", "create", "创建开放平台应用", 61),
+    ("openapi_app:edit", "编辑开放平台应用", "openapi_app", "edit", "编辑开放平台应用", 62),
+    ("openapi_app:delete", "删除开放平台应用", "openapi_app", "delete", "删除开放平台应用", 63),
 ]
 
 
@@ -100,6 +112,42 @@ def init_seed_data() -> None:
         # 3. 超级管理员角色 → 绑定全部权限
         for perm in perm_map.values():
             _ensure_role_permission(session, role.id, perm.id)
+
+        # 3.5 管理员角色（除不能管理超级管理员外，其余权限相同）
+        admin_role = session.execute(
+            select(RoleEntity).where(RoleEntity.role_code == _SEED_ADMIN_ROLE_CODE)
+        ).scalars().first()
+        if admin_role is None:
+            admin_role = RoleEntity(
+                role_name=_SEED_ADMIN_ROLE_NAME,
+                role_code=_SEED_ADMIN_ROLE_CODE,
+                description="系统内置管理员角色，拥有除超级管理员管理外的全部权限",
+                role_type="system",
+                status="enabled",
+            )
+            session.add(admin_role)
+            session.flush()
+            logger.info(f"Seed role created: role_code={_SEED_ADMIN_ROLE_CODE}")
+
+        # 管理员角色 → 绑定全部权限
+        for perm in perm_map.values():
+            _ensure_role_permission(session, admin_role.id, perm.id)
+
+        # 3.6 普通用户角色（只能查看首页，无额外权限）
+        user_role = session.execute(
+            select(RoleEntity).where(RoleEntity.role_code == _SEED_USER_ROLE_CODE)
+        ).scalars().first()
+        if user_role is None:
+            user_role = RoleEntity(
+                role_name=_SEED_USER_ROLE_NAME,
+                role_code=_SEED_USER_ROLE_CODE,
+                description="系统内置普通用户角色，仅可查看首页",
+                role_type="system",
+                status="enabled",
+            )
+            session.add(user_role)
+            session.flush()
+            logger.info(f"Seed role created: role_code={_SEED_USER_ROLE_CODE}")
 
         # 4. 超级管理员用户
         admin = session.execute(

@@ -32,6 +32,12 @@ class UserEntity(Base):
     phone: Mapped[str | None] = mapped_column(
         String(20), nullable=True, comment="手机号"
     )
+    gender: Mapped[str | None] = mapped_column(
+        String(10), nullable=True, comment="性别：male/female"
+    )
+    birthday: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, comment="生日"
+    )
     avatar_url: Mapped[str | None] = mapped_column(
         String(500), nullable=True, comment="头像URL"
     )

@@ -2,7 +2,23 @@
 
 # HanJiang — Full-Stack Rapid Development Platform
 
-A full-stack rapid development platform built on FastAPI + Vue 3 + TypeScript, featuring built-in authentication, RBAC, open platform HMAC signature, and audit logging — production-ready out of the box.
+## Project Introduction
+
+HanJiang is a full-stack rapid development platform built on FastAPI + Vue 3 + TypeScript, deeply packaging the common capabilities of enterprise-grade web applications so developers can focus on business logic.
+
+**Key Features:**
+- Frontend-backend separation: FastAPI + Vue 3 + Element Plus, full-stack TypeScript
+- Built-in JWT auth + RBAC + audit logging, out-of-the-box
+- Open platform HanJiang-1 HMAC signature, supporting plain and signed modes
+- Layered architecture: API routes → Business logic → Data access
+- Production-grade security (constant-time comparison, replay protection, password hashing)
+- Great developer experience (Swagger docs, Alembic migrations, unified error handling)
+
+**Use Cases:**
+- Enterprise internal admin systems
+- SaaS product backend foundation
+- Open platform / API service gateway
+- Full-stack project boilerplate
 
 ## Quick Start
 

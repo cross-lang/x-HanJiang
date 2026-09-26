@@ -1,4 +1,4 @@
-# 汉江（HanJiang）管理后台（HanJiang Admin）
+# 汉江（HanJiang）管理系统（HanJiang Admin）
 
 基于 Vue 3 + TypeScript + Vite + Element Plus 的管理后台前端。
 

@@ -309,7 +309,7 @@ def main() -> None:
     logger.info(f"  Workers:  {workers}")
 
     uvicorn.run(
-        "src.main:app",
+        "main:app",
         host=args.host,
         port=args.port,
         reload=reload,

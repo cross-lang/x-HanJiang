@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <el-card class="login-card">
-      <h2 style="text-align: center; margin-bottom: 30px">汉江（HanJiang）管理后台</h2>
+      <h2 style="text-align: center; margin-bottom: 30px">汉江管理系统</h2>
       <el-form :model="form" @submit.prevent="handleLogin">
         <el-form-item>
           <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />

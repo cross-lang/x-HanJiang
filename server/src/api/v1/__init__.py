@@ -15,6 +15,7 @@ from src.api.v1 import (
     maintenance,
     notification,
     openapi_app,
+    permission,
     role,
     user,
 )
@@ -33,6 +34,9 @@ v1_router.include_router(auth.router)
 
 # 注册角色管理路由
 v1_router.include_router(role.router)
+
+# 注册权限管理路由
+v1_router.include_router(permission.router)
 
 # 注册审计日志路由
 v1_router.include_router(audit.router)
