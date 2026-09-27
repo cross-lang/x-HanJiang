@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import Depends, Request
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.constants.constants import (

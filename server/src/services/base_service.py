@@ -232,7 +232,7 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
         Args:
             entity_id: 实体主键
             action: 操作类型（create/update/delete）
-            operator: 操作者信息（包含 operator_id, operator_name, ip_address）
+            operator: 操作者信息（包含 operator_id, ip_address）
             before_data: 变更前数据快照
             after_data: 变更后数据快照
             remarks: 备注说明
@@ -245,7 +245,6 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
                 entity_id=entity_id,
                 action=action,
                 operator_id=operator.get("operator_id") if operator else None,
-                operator_name=operator.get("operator_name") if operator else None,
                 before_data=before_data,
                 after_data=after_data,
                 ip_address=operator.get("ip_address") if operator else None,

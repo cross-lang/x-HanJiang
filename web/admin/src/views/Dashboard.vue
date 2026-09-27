@@ -38,24 +38,71 @@
       <el-col :span="24">
         <el-card>
           <template #header>
-            <span>系统监控</span>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>系统监控</span>
+              <span style="font-size: 12px; color: #999">已运行 {{ monitor.uptime?.uptime_text || '-' }}</span>
+            </div>
           </template>
-          <div style="display: flex; align-items: center; gap: 40px">
-            <div style="text-align: center">
-              <div style="font-size: 32px; font-weight: bold; color: #409eff">
-                {{ monitor.disk?.used_percent || 0 }}%
+          <el-row :gutter="20">
+            <!-- CPU -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="font-size: 28px; font-weight: bold; color: #409eff">
+                  {{ monitor.cpu?.percent ?? 0 }}%
+                </div>
+                <div style="color: #999; margin: 8px 0">CPU 使用率</div>
+                <div style="font-size: 12px; color: #999">
+                  {{ monitor.cpu?.core_count }}核 / {{ monitor.cpu?.thread_count }}线程
+                </div>
+                <el-tag :type="statusType(monitor.cpu?.status)" size="small" style="margin-top: 6px">
+                  {{ statusText(monitor.cpu?.status) }}
+                </el-tag>
               </div>
-              <div style="color: #999; margin-top: 8px">磁盘使用率</div>
-              <el-tag :type="monitor.disk?.status === 'critical' ? 'danger' : monitor.disk?.status === 'warning' ? 'warning' : 'success'" size="small">
-                {{ monitor.disk?.status === 'critical' ? '严重' : monitor.disk?.status === 'warning' ? '警告' : '正常' }}
-              </el-tag>
-            </div>
-            <div style="flex: 1; line-height: 2">
-              <div>总容量：{{ monitor.disk?.total_gb || '-' }} GB</div>
-              <div>已用：{{ monitor.disk?.used_gb || '-' }} GB</div>
-              <div>剩余：{{ monitor.disk?.free_gb || '-' }} GB</div>
-            </div>
-          </div>
+            </el-col>
+            <!-- 内存 -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="font-size: 28px; font-weight: bold; color: #67c23a">
+                  {{ monitor.memory?.percent ?? 0 }}%
+                </div>
+                <div style="color: #999; margin: 8px 0">内存使用率</div>
+                <div style="font-size: 12px; color: #999">
+                  {{ monitor.memory?.used_gb }} / {{ monitor.memory?.total_gb }} GB
+                </div>
+                <el-tag :type="statusType(monitor.memory?.status)" size="small" style="margin-top: 6px">
+                  {{ statusText(monitor.memory?.status) }}
+                </el-tag>
+              </div>
+            </el-col>
+            <!-- 磁盘 -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="font-size: 28px; font-weight: bold; color: #e6a23c">
+                  {{ monitor.disk?.used_percent ?? 0 }}%
+                </div>
+                <div style="color: #999; margin: 8px 0">磁盘使用率</div>
+                <div style="font-size: 12px; color: #999">
+                  {{ monitor.disk?.used_gb }} / {{ monitor.disk?.total_gb }} GB
+                </div>
+                <el-tag :type="statusType(monitor.disk?.status)" size="small" style="margin-top: 6px">
+                  {{ statusText(monitor.disk?.status) }}
+                </el-tag>
+              </div>
+            </el-col>
+            <!-- 网络 -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="display: flex; justify-content: center; gap: 16px; font-size: 18px; font-weight: bold; color: #909399">
+                  <span>↓ {{ monitor.network?.recv_kbps ?? 0 }} KB/s</span>
+                  <span>↑ {{ monitor.network?.send_kbps ?? 0 }} KB/s</span>
+                </div>
+                <div style="color: #999; margin: 8px 0">网络 IO</div>
+                <div style="font-size: 12px; color: #999">
+                  收 {{ monitor.network?.bytes_recv_total_mb }} MB / 发 {{ monitor.network?.bytes_sent_total_mb }} MB
+                </div>
+              </div>
+            </el-col>
+          </el-row>
         </el-card>
       </el-col>
     </el-row>
@@ -108,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 
@@ -134,6 +181,28 @@ function formatTime(t: string) {
   return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+function statusType(s: string) {
+  if (s === 'critical') return 'danger'
+  if (s === 'warning') return 'warning'
+  return 'success'
+}
+function statusText(s: string) {
+  if (s === 'critical') return '严重'
+  if (s === 'warning') return '警告'
+  return '正常'
+}
+
+let monitorTimer: number | undefined
+
+async function fetchMonitor() {
+  try {
+    const res = await request.get('/admin/notification-configs/monitor/system')
+    monitor.value = res.data
+  } catch (e) {
+    // 普通用户可能没权限，忽略
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await request.get('/dashboard/my-activity')
@@ -142,11 +211,11 @@ onMounted(async () => {
   } catch (e) {
     // 静默处理
   }
-  try {
-    const res = await request.get('/admin/notification-configs/monitor/system')
-    monitor.value = res.data
-  } catch (e) {
-    // 普通用户可能没权限，忽略
-  }
+  await fetchMonitor()
+  monitorTimer = window.setInterval(fetchMonitor, 5000)
+})
+
+onUnmounted(() => {
+  if (monitorTimer) clearInterval(monitorTimer)
 })
 </script>

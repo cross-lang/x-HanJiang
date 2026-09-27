@@ -188,14 +188,14 @@ onMounted(async () => {
   }
   // 加载通知偏好
   try {
-    const res = await request.get('/auth/notification-preferences')
+    const res = await request.get('/profile/notification-preferences')
     preferenceEvents.value = res.data.events
   } catch (e) {
     // ignore
   }
   // 加载接收人
   try {
-    const res = await request.get('/auth/notification-recipients')
+    const res = await request.get('/profile/notification-recipients')
     recipients.value = res.data.items
   } catch (e) {
     // ignore
@@ -204,7 +204,7 @@ onMounted(async () => {
 
 async function toggleChannel(event: string, channel: string, enabled: boolean) {
   try {
-    await request.put('/auth/notification-preferences', {
+    await request.put('/profile/notification-preferences', {
       [event]: { [channel]: enabled },
     })
     ElMessage.success('已更新')
@@ -219,10 +219,10 @@ async function addRecipient() {
     return
   }
   try {
-    await request.post('/auth/notification-recipients', newRecipient.value)
+    await request.post('/profile/notification-recipients', newRecipient.value)
     ElMessage.success('已添加')
     newRecipient.value = { channel: 'email', recipient: '', label: '' }
-    const res = await request.get('/auth/notification-recipients')
+    const res = await request.get('/profile/notification-recipients')
     recipients.value = res.data.items
   } catch (e) {
     // 错误已处理
@@ -231,7 +231,7 @@ async function addRecipient() {
 
 async function toggleRecipient(row: any, enabled: boolean) {
   try {
-    await request.put(`/auth/notification-recipients/${row.id}`, { enabled })
+    await request.put(`/profile/notification-recipients/${row.id}`, { enabled })
     row.enabled = enabled
   } catch (e) {
     // 错误已处理
@@ -240,7 +240,7 @@ async function toggleRecipient(row: any, enabled: boolean) {
 
 async function removeRecipient(row: any) {
   try {
-    await request.delete(`/auth/notification-recipients/${row.id}`)
+    await request.delete(`/profile/notification-recipients/${row.id}`)
     ElMessage.success('已删除')
     recipients.value = recipients.value.filter((r: any) => r.id !== row.id)
   } catch (e) {
@@ -250,7 +250,7 @@ async function removeRecipient(row: any) {
 
 async function saveInfo() {
   try {
-    await request.put('/auth/me', form.value)
+    await request.put('/profile/me', form.value)
     ElMessage.success('保存成功')
     userStore.fetchUserInfo()
   } catch (e) {
@@ -264,7 +264,7 @@ async function changePassword() {
     return
   }
   try {
-    await request.post('/auth/change-password', {
+    await request.post('/profile/change-password', {
       old_password: pwdForm.value.old_password,
       new_password: pwdForm.value.new_password,
     })

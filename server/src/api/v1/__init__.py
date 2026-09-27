@@ -19,6 +19,7 @@ from src.api.v1 import (
     notification,
     openapi_app,
     permission,
+    profile,
     role,
     station,
     user,
@@ -35,6 +36,9 @@ v1_router.include_router(user.router)
 
 # 注册认证管理路由
 v1_router.include_router(auth.router)
+
+# 注册个人中心路由
+v1_router.include_router(profile.router)
 
 # 注册角色管理路由
 v1_router.include_router(role.router)

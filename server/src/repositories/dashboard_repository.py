@@ -180,15 +180,15 @@ class DashboardRepository:
             .limit(limit)
         ).all()
 
-    def recent_audits(self, limit: int = 10) -> list[AuditLogEntity]:
-        """最近操作日志（按时间倒序）。"""
+    def recent_audits(self, limit: int = 10) -> list:
+        """最近操作日志（按时间倒序，关联用户名）。"""
         return list(
             self._session.execute(
-                select(AuditLogEntity)
+                select(AuditLogEntity, UserEntity.username)
+                .outerjoin(UserEntity, UserEntity.id == AuditLogEntity.operator_id)
                 .order_by(AuditLogEntity.created_at.desc())
                 .limit(limit)
             )
-            .scalars()
             .all()
         )
 

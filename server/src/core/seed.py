@@ -91,7 +91,7 @@ _SEED_MENUS = [
     ("系统管理", "审计日志", "/audit", "Document", "audit_log:view", 4, "menu"),
     ("系统管理", "登录日志", "/audit/login", "User", "login_log:view", 5, "menu"),
     ("系统管理", "文件管理", "/files", "Folder", "file:view", 6, "menu"),
-    ("系统管理", "渠道配置", "/system-notification", "Bell", "alert:broadcast", 7, "menu"),
+    ("系统管理", "通知管理", "/system-notification", "Bell", "alert:broadcast", 7, "menu"),
     # 接口管理
     (0, "接口管理", "/apis", "Link", None, 4, "directory"),
     ("接口管理", "Swagger文档", "/apis/swagger", "Document", "swagger:view", 1, "menu"),
@@ -194,7 +194,6 @@ def init_seed_data() -> None:
                 password_hash=hash_password(_SEED_ADMIN_PASSWORD),
                 phone=None,
                 avatar_url=None,
-                role_id=role.id,
                 status="active",
             )
             session.add(admin)
@@ -207,6 +206,9 @@ def init_seed_data() -> None:
 
         # 5. 菜单数据
         _seed_menus(session)
+
+        # 6. 通知渠道配置（把 .env 里的 SMTP 等配置初始化进数据库）
+        _seed_notification_configs(session)
 
         session.commit()
         logger.info("Seed data initialization completed")
@@ -265,3 +267,73 @@ def _seed_menus(session) -> None:
         session.flush()
         parent_map[title] = m
         logger.info(f"Seed menu created: title={title}")
+
+
+def _seed_notification_configs(session) -> None:
+    """初始化通知渠道配置（幂等）。
+
+    把 .env / config.yaml 里已有的 SMTP 配置写入 system_notification_configs 表，
+    这样管理后台就能看到并编辑；表已有记录则跳过。
+    """
+    import json
+
+    from src.core.config import settings
+    from src.models.entities.system_notification_config_entity import (
+        SystemNotificationConfigEntity,
+    )
+
+    existing = session.execute(select(SystemNotificationConfigEntity)).scalars().all()
+    existing_channels = {r.channel for r in existing}
+
+    # 邮件：从 .env 的 SMTP 配置导入
+    if "email" not in existing_channels and settings.smtp.host:
+        email_cfg = {
+            "host": settings.smtp.host,
+            "port": settings.smtp.port,
+            "username": settings.smtp.username,
+            "password": settings.smtp.password,
+            "use_tls": settings.smtp.use_tls,
+            "from_name": settings.smtp.from_name,
+            "from_address": settings.smtp.from_address,
+        }
+        session.add(SystemNotificationConfigEntity(
+            channel="email",
+            config_json=json.dumps(email_cfg, ensure_ascii=False),
+            enabled=True,
+        ))
+        logger.info("Seed notification config created: channel=email")
+
+    # 钉钉：从 .env 导入（如果有配置）
+    if "dingtalk" not in existing_channels:
+        n = settings.notification
+        if n.dingtalk_webhook or n.dingtalk_app_key:
+            dt_cfg = {
+                "webhook": n.dingtalk_webhook or "",
+                "secret": n.dingtalk_secret or "",
+                "app_key": n.dingtalk_app_key or "",
+                "app_secret": n.dingtalk_app_secret or "",
+                "agent_id": n.dingtalk_agent_id or "",
+            }
+            session.add(SystemNotificationConfigEntity(
+                channel="dingtalk",
+                config_json=json.dumps(dt_cfg, ensure_ascii=False),
+                enabled=True,
+            ))
+            logger.info("Seed notification config created: channel=dingtalk")
+
+    # 飞书：从 .env 导入（如果有配置）
+    if "feishu" not in existing_channels:
+        n = settings.notification
+        if n.feishu_webhook or n.feishu_app_id:
+            fs_cfg = {
+                "webhook": n.feishu_webhook or "",
+                "secret": n.feishu_secret or "",
+                "app_id": n.feishu_app_id or "",
+                "app_secret": n.feishu_app_secret or "",
+            }
+            session.add(SystemNotificationConfigEntity(
+                channel="feishu",
+                config_json=json.dumps(fs_cfg, ensure_ascii=False),
+                enabled=True,
+            ))
+            logger.info("Seed notification config created: channel=feishu")

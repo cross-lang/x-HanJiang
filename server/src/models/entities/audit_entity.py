@@ -28,9 +28,6 @@ class AuditLogEntity(Base):
     operator_id: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, comment="操作者ID"
     )
-    operator_name: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, comment="操作者用户名"
-    )
     before_data: Mapped[dict | None] = mapped_column(
         JSON, nullable=True, comment="变更前数据"
     )

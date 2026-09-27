@@ -5,11 +5,11 @@ export function login(data: { username: string; password: string }) {
 }
 
 export function getCurrentUser() {
-  return request.get('/auth/me')
+  return request.get('/profile/me')
 }
 
 export function getMenus() {
-  return request.get('/auth/menus')
+  return request.get('/profile/menus')
 }
 
 export function logout() {

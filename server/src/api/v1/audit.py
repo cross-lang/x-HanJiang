@@ -77,18 +77,18 @@ async def list_audit_logs(
         page_size=page_size,
     )
     items = [AuditLogResponse.model_validate(i).model_dump() for i in result["items"]]
-    # 批量查用户姓名
     user_ids = list({i["operator_id"] for i in items if i.get("operator_id")})
-    name_map = {}
+    user_map = {}
     if user_ids:
         from src.models.entities.user_entity import UserEntity
         users = audit_service._repository.session.query(UserEntity).filter(
             UserEntity.id.in_(user_ids)
         ).all()
-        name_map = {u.id: u.name for u in users}
+        user_map = {u.id: u for u in users}
     for i in items:
-        i["operator_username"] = i.get("operator_name", "")
-        i["operator_real_name"] = name_map.get(i.get("operator_id"), "") or ""
+        u = user_map.get(i.get("operator_id"))
+        i["operator_username"] = u.username if u else ""
+        i["operator_real_name"] = u.name if u else ""
     result["items"] = items
     return success_response(result, request)
 
@@ -114,10 +114,20 @@ async def export_audit_logs(
         start_time=start_time, end_time=end_time, page=1, page_size=100000,
     )
 
-    fieldnames = ["id", "entity_type", "entity_id", "action", "operator_name", "ip_address", "created_at", "remarks"]
+    # 批量查用户名
+    user_ids = list({i.operator_id for i in result["items"] if i.operator_id})
+    username_map = {}
+    if user_ids:
+        from src.models.entities.user_entity import UserEntity
+        users = audit_service._repository.session.query(UserEntity).filter(
+            UserEntity.id.in_(user_ids)
+        ).all()
+        username_map = {u.id: u.username for u in users}
+
+    fieldnames = ["id", "entity_type", "entity_id", "action", "operator_username", "ip_address", "created_at", "remarks"]
     headers_cn = {
         "id": "ID", "entity_type": "实体类型", "entity_id": "实体ID", "action": "操作",
-        "operator_name": "操作人", "ip_address": "IP", "created_at": "时间", "remarks": "备注",
+        "operator_username": "操作人", "ip_address": "IP", "created_at": "时间", "remarks": "备注",
     }
 
     buf = io.StringIO()
@@ -125,6 +135,7 @@ async def export_audit_logs(
     writer.writerow(headers_cn)
     for row in result["items"]:
         data = AuditLogResponse.model_validate(row).model_dump()
+        data["operator_username"] = username_map.get(row.operator_id, "") if row.operator_id else ""
         writer.writerow({k: data.get(k, "") for k in fieldnames})
 
     content = buf.getvalue().encode("utf-8-sig")
@@ -151,7 +162,17 @@ async def get_audit_log(
     result = audit_service.get_by_id(log_id)
     if result is None:
         raise NotFoundException(message=f"审计日志 {log_id} 不存在")
-    return success_response(AuditLogResponse.model_validate(result).model_dump(), request)
+    data = AuditLogResponse.model_validate(result).model_dump()
+    # 关联查用户名
+    if result.operator_id:
+        from src.models.entities.user_entity import UserEntity
+        user = audit_service._repository.session.query(UserEntity).filter(
+            UserEntity.id == result.operator_id
+        ).first()
+        if user:
+            data["operator_username"] = user.username
+            data["operator_real_name"] = user.name
+    return success_response(data, request)
 
 
 

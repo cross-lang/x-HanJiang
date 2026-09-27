@@ -78,10 +78,12 @@ class StationNotificationProvider(BaseNotificationProvider):
 class EmailNotificationProvider(BaseNotificationProvider):
     """邮件通知渠道。"""
 
-    def __init__(self) -> None:
-        from src.infras.email import get_cached_email_provider
-
-        self._email = get_cached_email_provider()
+    def __init__(self, email_provider=None) -> None:
+        if email_provider is not None:
+            self._email = email_provider
+        else:
+            from src.infras.email import get_cached_email_provider
+            self._email = get_cached_email_provider()
 
     @property
     def channel_name(self) -> str:
@@ -500,4 +502,98 @@ def register_default_providers() -> NotificationProviderRegistry:
         )
 
     logger.info("Notification providers: {}", registry.list_channels())
+    return registry
+
+
+# ============================================================
+# 动态从数据库加载渠道配置
+# ============================================================
+
+def reload_providers_from_db() -> NotificationProviderRegistry:
+    """从 system_notification_configs 表读取配置，重建 provider registry。
+
+    在应用启动时和管理员修改渠道配置后调用，实现改完即生效、无需重启。
+    数据库中未配置的渠道回退到 .env 配置。
+    """
+    import json
+
+    from sqlalchemy import select
+
+    from src.infras.database import get_cached_database_provider
+    from src.models.entities.system_notification_config_entity import (
+        SystemNotificationConfigEntity,
+    )
+
+    registry = get_registry()
+    registry._providers.clear()
+
+    # 站内信始终注册
+    registry.register(StationNotificationProvider())
+
+    session = get_cached_database_provider().get_session_factory()()
+    try:
+        rows = session.execute(
+            select(SystemNotificationConfigEntity)
+        ).scalars().all()
+        db_configs = {r.channel: r for r in rows}
+    finally:
+        session.close()
+
+    def _cfg(channel: str) -> dict:
+        row = db_configs.get(channel)
+        if not row or not row.enabled:
+            return {}
+        try:
+            return json.loads(row.config_json) if row.config_json else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    # 邮件：优先用数据库配置，没有则回退 .env
+    email_cfg = _cfg("email")
+    if email_cfg:
+        from src.infras.email import SmtpEmailProvider
+        registry.register(EmailNotificationProvider(SmtpEmailProvider(
+            host=email_cfg.get("host", ""),
+            port=int(email_cfg.get("port", 465)),
+            username=email_cfg.get("username", ""),
+            password=email_cfg.get("password", ""),
+            use_tls=email_cfg.get("use_tls", False),
+            from_name=email_cfg.get("from_name", ""),
+            from_address=email_cfg.get("from_address", ""),
+        )))
+    else:
+        registry.register(EmailNotificationProvider())
+
+    # 钉钉
+    dt = _cfg("dingtalk")
+    if dt:
+        registry.register(DingTalkNotificationProvider(
+            webhook_url=dt.get("webhook", ""),
+            secret=dt.get("secret", ""),
+            app_key=dt.get("app_key", ""),
+            app_secret=dt.get("app_secret", ""),
+            agent_id=dt.get("agent_id", ""),
+        ))
+
+    # 飞书
+    fs = _cfg("feishu")
+    if fs:
+        registry.register(FeishuNotificationProvider(
+            webhook_url=fs.get("webhook", ""),
+            secret=fs.get("secret", ""),
+            app_id=fs.get("app_id", ""),
+            app_secret=fs.get("app_secret", ""),
+        ))
+
+    # 短信
+    sms = _cfg("sms")
+    if sms:
+        registry.register(SmsNotificationProvider(
+            access_key=sms.get("access_key", ""),
+            secret_key=sms.get("secret_key", ""),
+            sign_name=sms.get("sign_name", ""),
+            template_code=sms.get("template_code", ""),
+        ))
+
+    logger.info("Notification providers reloaded from DB: {}", registry.list_channels())
     return registry

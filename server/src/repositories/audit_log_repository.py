@@ -10,7 +10,7 @@ Classes:
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from src.core.exceptions import DatabaseException
 from src.models.entities.audit_entity import AuditLogEntity
@@ -40,8 +40,6 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
         limit: int = 100,
     ) -> tuple[list[AuditLogEntity], int]:
         """按条件搜索审计日志（分页）。"""
-        from sqlalchemy import or_
-
         conditions = []
         if entity_type:
             conditions.append(AuditLogEntity.entity_type == entity_type)
@@ -55,14 +53,24 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
             conditions.append(AuditLogEntity.created_at <= end_time)
         if keyword and keyword.strip():
             kw = keyword.strip()
+            # 操作人关键字：先在 users 表匹配用户名/姓名，再按 operator_id 过滤
+            from src.models.entities.user_entity import UserEntity
+            matching_ids = self.session.execute(
+                select(UserEntity.id).where(
+                    or_(
+                        UserEntity.username.contains(kw),
+                        UserEntity.name.contains(kw),
+                    )
+                )
+            ).scalars().all()
             conditions.append(
                 or_(
                     AuditLogEntity.entity_type.contains(kw),
                     AuditLogEntity.action.contains(kw),
-                    AuditLogEntity.operator_name.contains(kw),
                     AuditLogEntity.entity_id.contains(kw),
                     AuditLogEntity.ip_address.contains(kw),
                     AuditLogEntity.remarks.contains(kw),
+                    AuditLogEntity.operator_id.in_(matching_ids) if matching_ids else False,
                 )
             )
         return self._paginate(conditions, skip, limit)

@@ -20,7 +20,7 @@
       <el-table-column prop="role_code" label="角色编码" />
       <el-table-column prop="role_type" label="角色类型" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.role_type === 'system' ? 'warning' : 'info'">
+          <el-tag :type="row.role_type === 'system' ? 'warning' : 'info'" effect="plain" size="small">
             {{ row.role_type === 'system' ? '系统内置' : '自定义' }}
           </el-tag>
         </template>
@@ -28,7 +28,7 @@
       <el-table-column prop="description" label="描述" />
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'enabled' ? 'success' : 'danger'">
+          <el-tag :type="row.status === 'enabled' ? 'success' : 'danger'" effect="plain" size="small">
             {{ row.status === 'enabled' ? '启用' : '禁用' }}
           </el-tag>
         </template>

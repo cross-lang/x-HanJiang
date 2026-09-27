@@ -22,9 +22,9 @@ def setup_notification_system() -> asyncio.Task | None:
         logger.info("Notification system disabled, skipping")
         return None
 
-    # 1. 注册已配置的渠道 Provider
-    from src.infras.notification import register_default_providers
-    register_default_providers()
+    # 1. 从数据库注册渠道 Provider（优先 DB，未配置的渠道回退 .env）
+    from src.infras.notification import reload_providers_from_db
+    reload_providers_from_db()
 
     # 2. 启动失败重试 Worker
     from src.notification.retry import NOTIFICATION_RETRY_QUEUE_KEY, handle_notification_retry

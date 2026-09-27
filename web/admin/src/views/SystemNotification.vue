@@ -81,6 +81,15 @@ async function saveConfig(row: any) {
 }
 
 async function testConfig(row: any) {
-  ElMessage.success('测试消息已发送')
+  try {
+    const res = await request.post(`/admin/notification-configs/${row.channel}/test`)
+    if (res.data.success) {
+      ElMessage.success('测试消息已发送')
+    } else {
+      ElMessage.error('发送失败：' + (res.data.error || '未知错误'))
+    }
+  } catch (e: any) {
+    ElMessage.error('测试失败：' + (e?.message || '网络错误'))
+  }
 }
 </script>

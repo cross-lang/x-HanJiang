@@ -61,7 +61,7 @@
     <el-dialog v-model="detailVisible" title="审计详情" width="700px">
       <div v-if="detailRow">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="操作者">{{ detailRow.operator_name }}</el-descriptions-item>
+          <el-descriptions-item label="操作者">{{ detailRow.operator_username }}（{{ detailRow.operator_real_name || '-' }}）</el-descriptions-item>
           <el-descriptions-item label="操作时间">{{ detailRow.created_at }}</el-descriptions-item>
           <el-descriptions-item label="实体类型">{{ detailRow.entity_type }}</el-descriptions-item>
           <el-descriptions-item label="操作">{{ detailRow.action }}</el-descriptions-item>

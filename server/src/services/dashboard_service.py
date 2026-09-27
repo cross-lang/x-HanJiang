@@ -60,12 +60,12 @@ class DashboardService:
         recent_audits = self._repository.recent_audits(10)
         recent_audits_list = [
             {
-                "id": r.id,
-                "entity_type": r.entity_type,
-                "action": r.action,
-                "operator_name": r.operator_name,
-                "ip_address": r.ip_address,
-                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "id": r[0].id,
+                "entity_type": r[0].entity_type,
+                "action": r[0].action,
+                "operator_name": r[1] or "-",
+                "ip_address": r[0].ip_address,
+                "created_at": r[0].created_at.isoformat() if r[0].created_at else None,
             }
             for r in recent_audits
         ]
