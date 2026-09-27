@@ -328,6 +328,11 @@ async def get_current_app(
     return current
 
 
+def is_admin_user(user: CurrentUser) -> bool:
+    """判断当前用户是否为管理员或超管（可查看全部数据）。"""
+    return "*" in user.permissions or user.role_code in ("super_admin", "admin")
+
+
 def require_app_scope(scope: str):
     """要求当前应用必须拥有指定 scope。"""
 

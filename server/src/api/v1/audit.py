@@ -9,10 +9,11 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 
 from src.api.api_permission_decorator import permission
-from src.api.dependencies import get_audit_service, get_current_user, get_login_log_service, require_user_permission
+from src.api.dependencies import get_audit_service, get_current_user, get_login_log_service, is_admin_user, require_user_permission
 from src.api.response import success_response
 from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
+from src.schemas.auth import CurrentUser
 from src.services.audit_service import AuditService
 from src.services.login_log_service import LoginLogService
 
@@ -56,8 +57,11 @@ async def list_audit_logs(
     page: int = Query(default=1, ge=1, description="页码，从 1 开始。"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页条数，1-100。"),
     audit_service: AuditService = Depends(get_audit_service),
-    _=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
+    # 普通用户只能看自己的操作记录
+    if not is_admin_user(current_user):
+        operator_id = current_user.id
     result = audit_service.search(
         entity_type=entity_type,
         action=action,
@@ -155,8 +159,11 @@ async def list_login_logs(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     login_service: LoginLogService = Depends(get_login_log_service),
-    _=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
+    # 普通用户只能看自己的登录日志
+    if not is_admin_user(current_user):
+        user_id = current_user.id
     result = login_service.search(
         user_id=user_id,
         status=status,
@@ -167,6 +174,53 @@ async def list_login_logs(
         page_size=page_size,
     )
     return success_response(result, request)
+
+
+@router.get(
+    "/login-logs/export",
+    summary="导出登录日志",
+    description="按筛选条件导出登录日志为 CSV 文件",
+    dependencies=[Depends(require_user_permission("login_log:export"))],
+)
+@permission("login_log:export", "导出登录日志", "login_log", "export")
+async def export_login_logs(
+    request: Request,
+    status: str | None = None,
+    login_type: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    login_service: LoginLogService = Depends(get_login_log_service),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    user_id = None if is_admin_user(current_user) else current_user.id
+    result = login_service.search(
+        user_id=user_id, status=status, login_type=login_type,
+        start_time=start_time, end_time=end_time, page=1, page_size=100000,
+    )
+
+    fieldnames = ["id", "username", "ip_address", "status", "login_type", "created_at", "user_agent"]
+    headers_cn = {
+        "id": "ID", "username": "用户名", "ip_address": "IP", "status": "状态",
+        "login_type": "登录方式", "created_at": "时间", "user_agent": "浏览器",
+    }
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=fieldnames)
+    writer.writerow(headers_cn)
+    for row in result["items"]:
+        d = {
+            "id": row.id, "username": row.username, "ip_address": row.ip_address,
+            "status": row.status, "login_type": row.login_type,
+            "created_at": str(row.created_at), "user_agent": row.user_agent or "",
+        }
+        writer.writerow({k: d.get(k, "") for k in fieldnames})
+
+    content = buf.getvalue().encode("utf-8-sig")
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=login_logs_export.csv"},
+    )
 
 
 @router.get(

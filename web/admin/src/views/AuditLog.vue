@@ -84,13 +84,16 @@ async function fetchList() {
 
 function handleExport() {
   const token = localStorage.getItem('access_token') || ''
-  fetch('/api/v1/audit/logs/export', { headers: { Authorization: `Bearer ${token}` } })
+  const isLogin = isLoginLog.value
+  const api = isLogin ? '/api/v1/audit/login-logs/export' : '/api/v1/audit/logs/export'
+  const filename = isLogin ? 'login_logs_export.csv' : 'audit_logs_export.csv'
+  fetch(api, { headers: { Authorization: `Bearer ${token}` } })
     .then(r => r.blob())
     .then(blob => {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = 'audit_logs_export.csv'
+      link.download = filename
       link.click()
       URL.revokeObjectURL(url)
     })

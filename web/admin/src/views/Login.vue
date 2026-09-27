@@ -4,10 +4,10 @@
       <h2 style="text-align: center; margin-bottom: 30px">汉江管理系统</h2>
       <el-form :model="form" @submit.prevent="handleLogin">
         <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
+          <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" name="username" autocomplete="username" />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password @keyup.enter="handleLogin" />
+          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password name="password" autocomplete="current-password" @keyup.enter="handleLogin" />
         </el-form-item>
         <el-button type="primary" style="width: 100%" :loading="loading" @click="handleLogin">
           登 录

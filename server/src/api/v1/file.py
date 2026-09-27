@@ -4,8 +4,9 @@
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 
 from src.api.api_permission_decorator import permission
-from src.api.dependencies import get_current_user, get_file_service, require_user_permission
+from src.api.dependencies import get_current_user, get_file_service, is_admin_user, require_user_permission
 from src.api.response import success_response
+from src.schemas.auth import CurrentUser
 from src.services.file_service import FileStorageService
 
 router = APIRouter(prefix="/files", tags=["文件管理"])
@@ -41,8 +42,11 @@ async def list_files(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     service: FileStorageService = Depends(get_file_service),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    result = service.list_files(folder=folder, keyword=keyword, page=page, page_size=page_size)
+    # 普通用户只能看自己上传的文件
+    uploaded_by = None if is_admin_user(current_user) else current_user.id
+    result = service.list_files(folder=folder, keyword=keyword, page=page, page_size=page_size, uploaded_by=uploaded_by)
     return success_response(result, request)
 
 
