@@ -429,3 +429,54 @@ def get_registry() -> NotificationProviderRegistry:
     if _registry is None:
         _registry = NotificationProviderRegistry()
     return _registry
+
+
+def register_default_providers() -> NotificationProviderRegistry:
+    """根据配置注册所有已配置的通知渠道 Provider。
+
+    邮件渠道始终注册（复用 SMTP 配置）；钉钉/飞书/短信按配置存在与否决定。
+    """
+    from src.core.config import settings
+
+    registry = get_registry()
+    cfg = settings.notification
+
+    # 邮件渠道始终注册（复用 SMTP 配置）
+    registry.register(EmailNotificationProvider())
+
+    # 钉钉（webhook 或应用凭证，任一配置即启用）
+    if cfg.dingtalk_webhook or cfg.dingtalk_app_key:
+        registry.register(
+            DingTalkNotificationProvider(
+                webhook_url=cfg.dingtalk_webhook,
+                secret=cfg.dingtalk_secret,
+                app_key=cfg.dingtalk_app_key,
+                app_secret=cfg.dingtalk_app_secret,
+                agent_id=cfg.dingtalk_agent_id,
+            )
+        )
+
+    # 飞书（webhook 或应用凭证，任一配置即启用）
+    if cfg.feishu_webhook or cfg.feishu_app_id:
+        registry.register(
+            FeishuNotificationProvider(
+                webhook_url=cfg.feishu_webhook,
+                secret=cfg.feishu_secret,
+                app_id=cfg.feishu_app_id,
+                app_secret=cfg.feishu_app_secret,
+            )
+        )
+
+    # 短信
+    if cfg.sms_access_key:
+        registry.register(
+            SmsNotificationProvider(
+                access_key=cfg.sms_access_key,
+                secret_key=cfg.sms_secret_key,
+                sign_name=cfg.sms_sign_name,
+                template_code=cfg.sms_template_code,
+            )
+        )
+
+    logger.info("Notification providers: {}", registry.list_channels())
+    return registry

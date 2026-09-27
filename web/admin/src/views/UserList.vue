@@ -35,7 +35,7 @@
               v-if="row.status === 'active'"
               size="small"
               type="warning"
-              @click="handleToggleStatus(row, 'disabled')"
+              @click="handleToggleStatus(row, 'inactive')"
             >禁用</el-button>
             <el-button size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button v-if="row.id !== userStore.userInfo?.id" size="small" @click="handleResetPassword(row)">重置密码</el-button>
@@ -99,7 +99,7 @@
       <el-form-item label="状态">
         <el-radio-group v-model="form.status">
           <el-radio value="active">启用</el-radio>
-          <el-radio value="disabled">禁用</el-radio>
+          <el-radio value="inactive">禁用</el-radio>
         </el-radio-group>
       </el-form-item>
     </el-form>
@@ -215,7 +215,8 @@ async function handleSubmit() {
   try {
     if (isEdit.value) {
       const { name, email, phone, birthday, gender, role_ids, status } = form.value
-      await request.post(`/users/${editId.value}/update`, { name, email, phone, birthday, gender, role_ids, status })
+      const birthdayStr = birthday ? (typeof birthday === 'string' ? birthday.split('T')[0] : new Date(birthday).toISOString().split('T')[0]) : ''
+      await request.post(`/users/${editId.value}/update`, { name, email, phone, birthday: birthdayStr, gender, role_ids, status })
       ElMessage.success('更新成功')
     } else {
       await request.post('/users', { ...form.value, role_id: form.value.role_ids[0] })

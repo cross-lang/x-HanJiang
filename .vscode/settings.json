@@ -1,0 +1,8 @@
+{
+    "jedi.workspace.exclude": [
+        "**/venv/**",
+        "**/.git/**",
+        "**/dist/**",
+        "**/build/**"
+    ]
+}

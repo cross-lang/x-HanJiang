@@ -12,6 +12,8 @@
 
 from typing import Callable
 
+from src.core.logger import logger
+
 
 def permission(code: str, name: str = "", module: str = "", operation: str = ""):
     """声明路由所需权限（仅挂载元数据，鉴权仍用 Depends）。
@@ -41,7 +43,7 @@ def collect_permissions_from_app(app) -> list[dict]:
             endpoint = route.endpoint
             path = getattr(route, "path", "?")
             if hasattr(endpoint, "_permission_code"):
-                print(f">>> Found perm: {endpoint._permission_code} at {path}", flush=True)
+                logger.debug(f"Found permission: {endpoint._permission_code} at {path}")
                 permissions.append({
                     "perm_code": endpoint._permission_code,
                     "perm_name": endpoint._permission_name or endpoint._permission_code,
@@ -50,7 +52,7 @@ def collect_permissions_from_app(app) -> list[dict]:
                     "description": (endpoint.__doc__ or "")[:250],
                 })
             else:
-                print(f">>> No perm attr: {path} -> {endpoint.__name__}", flush=True)
+                logger.debug(f"No permission decorator: {path} -> {endpoint.__name__}")
     # 按 perm_code 去重（多个路由共用同一权限码时只保留一条）
     seen = set()
     unique = []

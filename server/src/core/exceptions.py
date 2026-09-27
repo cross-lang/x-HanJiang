@@ -343,10 +343,15 @@ async def _generic_exception_handler(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """注册全局异常处理器到 FastAPI 应用。
+    """将全局异常处理器注册到 FastAPI 应用。
 
-    包括 AppException 层级、Pydantic 校验异常、以及通用异常兜底处理。
-    必须在 create_app() 中调用。
+    注册顺序：
+        1. AppException    → 所有自定义业务/系统异常
+        2. ValidationError → Pydantic 请求体校验失败
+        3. Exception       → 兜底：未被上述处理器捕获的异常
+
+    注册后，路由函数抛出对应异常时，FastAPI 会自动调用对应的 handler
+    返回标准化的 JSON 错误响应，而不是默认的 HTML/纯文本错误页。
 
     Args:
         app: FastAPI 应用实例

@@ -28,7 +28,7 @@
 
 ```bash
 cd server
-uv run x-HanJiang
+uv run x-HanJiang --reload
 ```
 
 详细配置说明请参考 [server/README.md](server/README.md)。

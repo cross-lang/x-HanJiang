@@ -39,169 +39,73 @@ from src.core.middleware import (
     RequestLoggingMiddleware,
     setup_rate_limiter,
 )
+from src.infras.cache import get_cached_cache_provider
+from src.infras.database import get_cached_database_provider
 
 try:
-    from src.infras.database import get_cached_database_provider
-    _has_db = True
+    from slowapi import Limiter  # noqa: F401
+    _has_slowapi = True
 except ImportError:
-    _has_db = False
+    _has_slowapi = False
 
-try:
-    from src.infras.cache import get_cached_cache_provider
-    _has_redis = True
-except ImportError:
-    _has_redis = False
-
-
-def _register_notification_providers() -> None:
-    """注册所有已配置的通知渠道 Provider。"""
-    from src.infras.notification import (
-        DingTalkNotificationProvider,
-        EmailNotificationProvider,
-        FeishuNotificationProvider,
-        SmsNotificationProvider,
-        get_registry,
-    )
-
-    registry = get_registry()
-    cfg = settings.notification
-
-    # 邮件渠道始终注册（复用 SMTP 配置）
-    registry.register(EmailNotificationProvider())
-
-    # 钉钉（webhook 或 应用凭证，任一配置即启用）
-    if cfg.dingtalk_webhook or cfg.dingtalk_app_key:
-        registry.register(
-            DingTalkNotificationProvider(
-                webhook_url=cfg.dingtalk_webhook,
-                secret=cfg.dingtalk_secret,
-                app_key=cfg.dingtalk_app_key,
-                app_secret=cfg.dingtalk_app_secret,
-                agent_id=cfg.dingtalk_agent_id,
-            )
-        )
-
-    # 飞书（webhook 或 应用凭证，任一配置即启用）
-    if cfg.feishu_webhook or cfg.feishu_app_id:
-        registry.register(
-            FeishuNotificationProvider(
-                webhook_url=cfg.feishu_webhook,
-                secret=cfg.feishu_secret,
-                app_id=cfg.feishu_app_id,
-                app_secret=cfg.feishu_app_secret,
-            )
-        )
-
-    # 短信
-    if cfg.sms_access_key:
-        registry.register(
-            SmsNotificationProvider(
-                access_key=cfg.sms_access_key,
-                secret_key=cfg.sms_secret_key,
-                sign_name=cfg.sms_sign_name,
-                template_code=cfg.sms_template_code,
-            )
-        )
-
-    logger.info("Notification providers: {}", registry.list_channels())
-
-
-def _setup_notification() -> asyncio.Task | None:
-    """初始化通知子系统，返回重试 Worker 的 Task（未启动则返回 None）。"""
-    if not settings.notification.enabled:
-        logger.info("Notification system disabled, skipping")
-        return None
-
-    # 1. 注册已配置的渠道 Provider
-    _register_notification_providers()
-
-    # 2. 启动失败重试 Worker（依赖 Redis）
-    if not (_has_redis and settings.redis.url):
-        logger.info("Redis unavailable, notification retry worker skipped")
-        return None
-
-    from src.notification.retry_worker import run_retry_worker
-
-    task = asyncio.create_task(
-        run_retry_worker(settings.notification.retry_interval_seconds)
-    )
-    logger.info("Notification retry worker scheduled")
-    return task
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期管理。
-
-    在应用启动时初始化日志和核心组件，在应用关闭时执行清理操作。
-    """
+    """应用生命周期管理。"""
     setup_logging()
 
-    logger.info(f"{APP_NAME} v{APP_VERSION} starting up...")
-    logger.info(f"Environment: {settings.app_env}")
-    logger.info(f"Debug mode: {settings.server.debug}")
-    logger.info(f"Storage provider: {settings.storage.provider}")
-    logger.info(f"Listening on: {settings.server.host}:{settings.server.port}")
+    logger.info(f"{APP_NAME} v{APP_VERSION} starting up (env={settings.app_env}, debug={settings.server.debug})")
 
+    # 初始化数据库
+    get_cached_database_provider()
+    from src.infras.database import init_db
+    init_db()
+    logger.info("Database initialized successfully")
 
-    if _has_db and settings.database.url:
-        try:
-            db_provider = get_cached_database_provider()
-            from src.infras.database import init_db
-            init_db()
-            logger.info("Database initialized successfully")
+    # 初始化种子数据
+    from src.core.seed import init_seed_data
+    init_seed_data()
 
-            try:
-                from src.core.seed import init_seed_data
+    # 自动扫描路由中的权限声明，同步到 permissions 表
+    try:
+        from src.api.permission_decorator import collect_permissions_from_app
+        from src.models.entities.user_entity import PermissionEntity
 
-                init_seed_data()
-            except Exception as e:
-                logger.warning(f"Seed data initialization skipped: {e}")
+        collected = collect_permissions_from_app(app)
+        logger.debug(f"Collected permissions: {[p['perm_code'] for p in collected]}")
+        session = get_cached_database_provider().get_session_factory()()
+        active_codes = {p["perm_code"] for p in collected}
 
-            # 自动扫描路由中的权限声明，同步到 permissions 表
-            try:
-                from src.api.permission_decorator import collect_permissions_from_app
-                from src.models.entities.user_entity import PermissionEntity
+        for perm in collected:
+            existing = session.query(PermissionEntity).filter_by(perm_code=perm["perm_code"]).first()
+            if existing:
+                existing.perm_name = perm["perm_name"]
+                existing.module = perm["module"]
+                existing.operation = perm["operation"]
+                existing.description = (perm["description"] or "")[:250]
+                existing.is_deprecated = False
+            else:
+                p = dict(perm)
+                p["description"] = (p.get("description") or "")[:250]
+                session.add(PermissionEntity(**p, is_deprecated=False))
 
-                collected = collect_permissions_from_app(app)
-                print(f'>>> Collected permissions: {[p["perm_code"] for p in collected]}', flush=True)
-                session = get_cached_database_provider().get_session_factory()()
-                active_codes = {p["perm_code"] for p in collected}
+        deprecated = session.query(PermissionEntity).filter(
+            PermissionEntity.is_deprecated == False,
+            ~PermissionEntity.perm_code.in_(active_codes),
+        ).all()
+        for d in deprecated:
+            d.is_deprecated = True
+            logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
 
-                # 1. upsert 路由里声明的权限
-                for perm in collected:
-                    existing = session.query(PermissionEntity).filter_by(perm_code=perm["perm_code"]).first()
-                    if existing:
-                        existing.perm_name = perm["perm_name"]
-                        existing.module = perm["module"]
-                        existing.operation = perm["operation"]
-                        existing.description = (perm["description"] or "")[:250]
-                        existing.is_deprecated = False
-                    else:
-                        p = dict(perm)
-                        p["description"] = (p.get("description") or "")[:250]
-                        session.add(PermissionEntity(**p, is_deprecated=False))
-
-                # 2. 表里有但路由里没有的，标记为废弃（不删）
-                deprecated = session.query(PermissionEntity).filter(
-                    PermissionEntity.is_deprecated == False,
-                    ~PermissionEntity.perm_code.in_(active_codes),
-                ).all()
-                for d in deprecated:
-                    d.is_deprecated = True
-                    logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
-
-                session.commit()
-                print(f'>>> Auto-synced {len(collected)} permissions, {len(deprecated)} deprecated', flush=True)
-            except Exception as e:
-                print(f'>>> Permission auto-sync ERROR: {e}', flush=True)
-        except Exception as e:
-            logger.warning(f"Database initialization skipped: {e}")
-    else:
-        logger.info("MySQL connection fields not configured, database features disabled")
+        session.commit()
+        logger.info(f"Permissions auto-synced: {len(collected)} active, {len(deprecated)} deprecated")
+    except Exception as e:
+        logger.warning(f"Permission auto-sync failed: {e}")
 
     # 初始化通知子系统
-    retry_task = _setup_notification()
+    from src.notification.bootstrap import setup_notification_system
+    retry_task = setup_notification_system()
 
     yield
 
@@ -214,19 +118,11 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
 
-    if _has_db and settings.database.url:
-        try:
-            get_cached_database_provider().close()
-            logger.info("Database connection closed")
-        except Exception as e:
-            logger.warning(f"Error closing database connection: {e}")
+    get_cached_database_provider().close()
+    logger.info("Database connection closed")
 
-    if _has_redis and settings.redis.url:
-        try:
-            get_cached_cache_provider().close()
-            logger.info("Redis connection closed")
-        except Exception as e:
-            logger.warning(f"Error closing Redis connection: {e}")
+    get_cached_cache_provider().close()
+    logger.info("Redis connection closed")
 
 
 def create_app() -> FastAPI:
@@ -253,44 +149,66 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # 中间件顺序：后注册的在外层（最后处理请求，最先处理响应）
-    # ExceptionHandlingMiddleware 最先注册，最后执行 → 兜底
+    # ============================================================
+    # 中间件注册顺序（核心原则：后注册的在外层）
+    # ============================================================
+    #
+    # FastAPI 中间件采用"洋葱模型"，请求从外层进入，响应从内层出来：
+    #
+    #   ┌─────────────────────────────────────────────────────────┐
+    #   │  CORS (最外层)                                          │
+    #   │  ┌─────────────────────────────────────────────────┐   │
+    #   │  │  RequestID                                      │   │
+    #   │  │  ┌─────────────────────────────────────────┐   │   │
+    #   │  │  │  RequestLogging                         │   │   │
+    #   │  │  │  ┌─────────────────────────────────┐   │   │   │
+    #   │  │  │  │  ExceptionHandling (最内层)     │   │   │   │
+    #   │  │  │  │  ┌─────────────────────────┐   │   │   │   │
+    #   │  │  │  │  │     路由处理函数         │   │   │   │   │
+    #   │  │  │  │  └─────────────────────────┘   │   │   │   │
+    #   │  │  │  └─────────────────────────────────┘   │   │   │
+    #   │  │  └─────────────────────────────────────────┘   │   │
+    #   │  └─────────────────────────────────────────────────┘   │
+    #   └─────────────────────────────────────────────────────────┘
+    #
+    #   请求进入顺序（外层先执行）：CORS → RequestID → RequestLogging → ExceptionHandling → 路由
+    #   响应返回顺序（内层先返回）：路由 → ExceptionHandling → RequestLogging → RequestID → CORS
+    #
+    # 为什么要这样排列？
+    #   - CORS 最外层：跨域请求在最开始就要处理，否则其他中间件都收不到请求
+    #   - RequestID 次外层：尽早为请求打上唯一标识，后续日志都能关联
+    #   - RequestLogging 中间层：记录请求信息，异常已被内层处理，不会记录异常堆栈
+    #   - ExceptionHandling 最内层：作为最后一道防线，兜底处理所有未捕获的异常
+    # ============================================================
+
+    # 1. 最先注册 → 最内层（最早返回）→ 异常兜底
     app.add_middleware(ExceptionHandlingMiddleware)
-    # RequestLoggingMiddleware 次之
+    # 2. 请求日志记录
     app.add_middleware(RequestLoggingMiddleware)
-    # RequestIDMiddleware 最先执行
+    # 3. 请求ID生成与传递
     app.add_middleware(RequestIDMiddleware)
-
-    # CORS 必须在最后注册 → 最外层，处理 OPTIONS 预检
-    # 修复 #8: allow_credentials=True 时不允许 "*"
-    cors_origins = settings.cors.origins
-    if "*" in cors_origins and settings.is_production:
-        logger.warning(
-            "CORS origins 含 '*' 且生产环境启用凭据转发，浏览器会拒绝；"
-            "请在配置中指定可信来源列表"
-        )
-
+    # 4. 最后注册 → 最外层（最早执行） → CORS 跨域处理
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials="*" not in cors_origins,
+        allow_origins=settings.cors.origins,
+        allow_credentials="*" not in settings.cors.origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
+    # 注册全局异常处理器
     register_exception_handlers(app)
 
     # 限流器注册（在应用 state 上挂载 limiter，slowapi 通过装饰器使用）
-    try:
+    if _has_slowapi:
         setup_rate_limiter(app)
-        logger.info(
-            f"Rate limiter enabled: {settings.rate_limit.per_minute} req/min per IP"
-        )
-    except Exception as e:
-        logger.warning(f"Rate limiter setup failed (slowapi not installed?): {e}")
+        logger.info(f"Rate limiter enabled: {settings.rate_limit.per_minute} req/min per IP")
+    else:
+        logger.info("Rate limiter disabled (slowapi not installed)")
 
     # 认证用户路由（面向用户，JWT 鉴权）
     app.include_router(api_router)
+
     # 开放平台路由（面向应用，AppId/AppKey 鉴权）
     app.include_router(open_router)
 
@@ -340,11 +258,6 @@ def main() -> None:
 
     reload = args.reload or settings.server.debug
     workers = 1 if reload else settings.server.workers
-
-    logger.info(f"Starting {APP_NAME} v{APP_VERSION}...")
-    logger.info(f"  Address:  http://{args.host}:{args.port}")
-    logger.info(f"  Reload:   {reload}")
-    logger.info(f"  Workers:  {workers}")
 
     uvicorn.run(
         "main:app",

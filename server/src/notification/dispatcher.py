@@ -243,6 +243,8 @@ class NotificationDispatcher:
 
     def _enqueue_retry(self, records: list[NotificationRecordEntity]) -> None:
         """将失败记录写入 Redis 重试队列（ZSET，score 为下次重试时间戳）。"""
+        from src.notification.retry import NOTIFICATION_RETRY_QUEUE_KEY
+
         try:
             from src.infras.cache import get_cached_cache_provider
 
@@ -262,6 +264,6 @@ class NotificationDispatcher:
                 )
                 delay = 2**record.retry_count * 60  # 1min, 2min, 4min
                 score = time.time() + delay
-                redis.zadd("notification:retry_queue", {retry_data: score})
+                redis.zadd(NOTIFICATION_RETRY_QUEUE_KEY, {retry_data: score})
         except Exception as exc:
             logger.error("Failed to enqueue notification retry: {}", exc)
