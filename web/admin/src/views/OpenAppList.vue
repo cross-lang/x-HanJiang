@@ -25,9 +25,10 @@
         </template>
       </el-table-column>
       <el-table-column prop="created_at" label="创建时间" width="160" />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="handleEdit(row)">编辑</el-button>
+          <el-button size="small" type="warning" @click="handleRotateKey(row)">重置密钥</el-button>
           <el-button size="small" :type="row.status === 'active' ? 'warning' : 'success'" @click="handleToggleStatus(row)">
             {{ row.status === 'active' ? '禁用' : '启用' }}
           </el-button>
@@ -149,6 +150,24 @@
       <el-button type="primary" @click="resultVisible = false">我已保存</el-button>
     </template>
   </el-dialog>
+
+  <!-- 重置密钥成功弹窗 -->
+  <el-dialog v-model="rotateResultVisible" title="App Key 重置成功">
+    <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
+      旧 App Key 已失效，请立即通知调用方更新！新 Key 关闭后无法再次查看。
+    </el-alert>
+    <p style="display:flex;align-items:center;gap:8px;">
+      <strong>App ID：</strong><span>{{ rotateResult.app_id }}</span>
+      <el-button size="small" @click="copyText(rotateResult.app_id)">复制</el-button>
+    </p>
+    <p style="display:flex;align-items:center;gap:8px;">
+      <strong>新 App Key：</strong><span>{{ rotateResult.app_key }}</span>
+      <el-button size="small" @click="copyText(rotateResult.app_key)">复制</el-button>
+    </p>
+    <template #footer>
+      <el-button type="primary" @click="rotateResultVisible = false">我已保存</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -166,6 +185,9 @@ const dialogVisible = ref(false)
 const resultVisible = ref(false)
 const form = ref({ name: '', description: '', auth_mode: 'plain', scopes: [] as string[] })
 const createdApp = ref({ app_id: '', app_key: '' })
+
+const rotateResultVisible = ref(false)
+const rotateResult = ref({ app_id: '', app_key: '' })
 
 const editDialogVisible = ref(false)
 const editForm = ref({ id: 0, name: '', description: '', auth_mode: 'plain', scopes: [] as string[] })
@@ -289,8 +311,24 @@ async function handleToggleStatus(row: any) {
   }
 }
 
-async function handleDelete(row: any) {
+async function handleRotateKey(row: any) {
   try {
+    await ElMessageBox.confirm(
+      `确定重置应用「${row.name}」的 App Key 吗？重置后旧 Key 将立即失效，所有正在使用旧 Key 的调用都会失败！`,
+      '危险操作确认',
+      { type: 'warning', confirmButtonText: '确定重置' }
+    )
+  } catch { return }
+  try {
+    const res = await request.post(`/admin/apps/${row.id}/rotate-key`)
+    rotateResult.value = { app_id: res.data.app_id, app_key: res.data.app_key }
+    rotateResultVisible.value = true
+  } catch (e) {
+    // 错误已处理
+  }
+}
+
+async function handleDelete(row: any) {  try {
     await ElMessageBox.confirm(
       `确定删除应用「${row.name}」吗？删除后该应用将无法调用任何接口，此操作不可撤销！`,
       '危险操作确认',

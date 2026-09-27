@@ -221,12 +221,18 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             provider.set(cache_key, False, ttl=300)
             return False
 
-        # 从 user_roles 查用户所有角色的权限
+        # 从 user_roles 查用户所有角色
         from src.models.entities.user_entity import UserRoleEntity
-        role_ids = self._repository.session.query(UserRoleEntity.role_id).filter(
-            UserRoleEntity.user_id == user.id
-        ).all()
-        role_ids = [r[0] for r in role_ids]
+        role_rows = self._repository.session.query(UserRoleEntity.role_id, RoleEntity.role_code).join(
+            RoleEntity, RoleEntity.id == UserRoleEntity.role_id
+        ).filter(UserRoleEntity.user_id == user.id).all()
+
+        # 超管短路：拥有 super_admin 角色则自动拥有所有权限
+        if any(r[1] == "super_admin" for r in role_rows):
+            provider.set(cache_key, True, ttl=300)
+            return True
+
+        role_ids = [r[0] for r in role_rows]
         if not role_ids:
             provider.set(cache_key, False, ttl=300)
             return False

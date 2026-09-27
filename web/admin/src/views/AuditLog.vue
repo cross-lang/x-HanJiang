@@ -36,8 +36,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import request from '@/api/request'
+import { useUserStore } from '@/stores/user'
 
+const route = useRoute()
+const userStore = useUserStore()
 const props = defineProps<{ logType?: string }>()
 const isLoginLog = computed(() => props.logType === 'login')
 
@@ -47,11 +51,25 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
+// 从首页跳转时带 mine=true，只看自己的记录
+const isMine = computed(() => route.query.mine === 'true')
+
 async function fetchList() {
   loading.value = true
   try {
     const url = isLoginLog.value ? '/audit/login-logs' : '/audit/logs'
-    const res = await request.get(url, { params: { page: page.value, page_size: pageSize.value } })
+    const params: any = { page: page.value, page_size: pageSize.value }
+    if (isMine.value) {
+      const myId = userStore.userInfo?.id
+      if (myId) {
+        if (isLoginLog.value) {
+          params.user_id = myId
+        } else {
+          params.operator_id = myId
+        }
+      }
+    }
+    const res = await request.get(url, { params })
     list.value = res.data.items
     total.value = res.data.total
   } catch (e) {

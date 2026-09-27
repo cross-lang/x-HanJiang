@@ -43,6 +43,7 @@
             <span>开放平台</span>
           </template>
           <el-menu-item index="/apps"><el-icon><Grid /></el-icon><span>应用管理</span></el-menu-item>
+          <el-menu-item index="/app-scopes"><el-icon><Lock /></el-icon><span>权限管理</span></el-menu-item>
         </el-sub-menu>
       </el-menu>
 
@@ -78,20 +79,47 @@
           </template>
         </el-dropdown>
       </el-header>
-      <el-main style="background: #f0f2f5">
-        <router-view />
+      <el-main style="background: #f0f2f5; padding: 0">
+        <div style="background: #fff; padding: 12px 20px; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; gap: 12px">
+          <el-button text @click="$router.push('/dashboard')">
+            <el-icon style="margin-right: 4px"><Back /></el-icon>返回首页
+          </el-button>
+          <el-divider direction="vertical" />
+          <span style="color: #606266; font-size: 14px">{{ pageTitle }}</span>
+        </div>
+        <div style="padding: 20px">
+          <router-view />
+        </div>
       </el-main>
     </el-container>
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
+const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+const pageTitle = computed(() => {
+  const map: Record<string, string> = {
+    '/dashboard': '首页',
+    '/panel': '仪表盘',
+    '/users': '用户管理',
+    '/roles': '角色管理',
+    '/permissions': '权限管理',
+    '/audit': '审计日志',
+    '/audit/login': '登录日志',
+    '/apps': '应用管理',
+    '/app-scopes': '开放平台权限管理',
+    '/apis/swagger': 'Swagger 文档',
+    '/profile': '个人中心',
+  }
+  return map[route.path] || route.path
+})
 
 onMounted(() => {
   userStore.fetchUserInfo().catch(() => {})

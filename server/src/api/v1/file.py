@@ -4,7 +4,7 @@
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 
 from src.api.api_permission_decorator import permission
-from src.api.dependencies import get_file_service, require_user_permission
+from src.api.dependencies import get_current_user, get_file_service, require_user_permission
 from src.api.response import success_response
 from src.services.file_service import FileStorageService
 
@@ -14,41 +14,61 @@ router = APIRouter(prefix="/files", tags=["文件管理"])
 @router.post(
     "/upload",
     summary="上传文件",
-    description=(
-        "使用 multipart/form-data 上传一个文件。文件会保存到对象存储或本地存储，"
-        "接口返回文件名、存储路径、访问地址和文件大小。"
-    ),
     dependencies=[Depends(require_user_permission("file:create"))],
 )
 @permission("file:create", "上传文件", "file", "create")
 async def upload_file(
     request: Request,
-    file: UploadFile = File(
-        ...,
-        description="要上传的文件，表单字段名必须是 file。",
-    ),
-    folder: str = Query(
-        default="general",
-        description=(
-            "文件保存目录或对象存储前缀，例如 avatars、documents。"
-            "不需要填写开头或结尾的斜杠；不传时使用 general。"
-        ),
-        examples=["avatars"],
-    ),
+    file: UploadFile = File(...),
+    folder: str = Query(default="general"),
+    service: FileStorageService = Depends(get_file_service),
+    current_user=Depends(get_current_user),
+):
+    result = service.save_upload(file, folder, operator={"operator_id": current_user.id})
+    return success_response(result, request, code=201)
+
+
+@router.get(
+    "",
+    summary="文件列表",
+    dependencies=[Depends(require_user_permission("file:view"))],
+)
+@permission("file:view", "查看文件", "file", "view")
+async def list_files(
+    request: Request,
+    folder: str | None = Query(default=None),
+    keyword: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     service: FileStorageService = Depends(get_file_service),
 ):
-    return service.upload_file(file, folder)
+    result = service.list_files(folder=folder, keyword=keyword, page=page, page_size=page_size)
+    return success_response(result, request)
 
 
 @router.get(
     "/{file_path:path}",
     summary="获取文件",
-    description="根据文件路径下载或访问文件。",
     dependencies=[Depends(require_user_permission("file:view"))],
 )
 @permission("file:view", "查看文件", "file", "view")
 async def get_file(
-    file_path: str = Path(..., description="文件路径"),
+    file_path: str = Path(...),
     service: FileStorageService = Depends(get_file_service),
 ):
     return service.download_file(file_path)
+
+
+@router.delete(
+    "/{file_id}",
+    summary="删除文件",
+    dependencies=[Depends(require_user_permission("file:delete"))],
+)
+@permission("file:delete", "删除文件", "file", "delete")
+async def delete_file(
+    file_id: int,
+    request: Request,
+    service: FileStorageService = Depends(get_file_service),
+):
+    service.delete_file(file_id)
+    return success_response({"deleted": True}, request)

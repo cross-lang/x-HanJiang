@@ -60,6 +60,11 @@ const router = createRouter({
           component: () => import('@/views/OpenAppList.vue'),
         },
         {
+          path: 'app-scopes',
+          name: 'AppScopes',
+          component: () => import('@/views/OpenScopeList.vue'),
+        },
+        {
           path: 'profile',
           name: 'Profile',
           component: () => import('@/views/Profile.vue'),

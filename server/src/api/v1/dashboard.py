@@ -19,3 +19,14 @@ async def get_stats(
     service = DashboardService()
     data = service.get_stats()
     return success_response(data, request)
+
+
+@router.get("/my-activity", summary="我的最近活动")
+async def get_my_activity(
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """获取当前用户的最近登录日志和操作日志（首页用）。"""
+    service = DashboardService()
+    data = service.get_my_activity(current_user.id)
+    return success_response(data, request)
