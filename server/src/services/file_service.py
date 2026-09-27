@@ -108,26 +108,30 @@ class FileStorageService:
             count_stmt = count_stmt.where(FileEntity.original_name.like(like))
 
         total = self._session.execute(count_stmt).scalar() or 0
+        from src.models.entities.user_entity import UserEntity
         rows = self._session.execute(
-            stmt.order_by(FileEntity.created_at.desc())
+            stmt.add_columns(UserEntity)
+            .outerjoin(UserEntity, UserEntity.id == FileEntity.uploaded_by)
+            .order_by(FileEntity.created_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
-        ).scalars().all()
+        ).all()
 
         return {
             "items": [
                 {
-                    "id": r.id,
-                    "original_name": r.original_name,
-                    "extension": r.extension,
-                    "mime_type": r.mime_type,
-                    "size_bytes": r.size_bytes,
-                    "folder": r.folder,
-                    "storage_type": r.storage_type,
-                    "url": r.url,
-                    "uploaded_by": r.uploaded_by,
-                    "is_public": r.is_public,
-                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                    "id": r[0].id,
+                    "original_name": r[0].original_name,
+                    "extension": r[0].extension,
+                    "mime_type": r[0].mime_type,
+                    "size_bytes": r[0].size_bytes,
+                    "folder": r[0].folder,
+                    "storage_type": r[0].storage_type,
+                    "url": r[0].url,
+                    "uploaded_by": r[0].uploaded_by,
+                    "uploader_name": r[1].name if r[1] else None,
+                    "is_public": r[0].is_public,
+                    "created_at": r[0].created_at.strftime("%Y-%m-%d %H:%M:%S") if r[0].created_at else None,
                 }
                 for r in rows
             ],

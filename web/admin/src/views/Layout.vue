@@ -11,42 +11,25 @@
         active-text-color="#409eff"
         router
       >
-        <el-menu-item index="/dashboard">
-          <el-icon><Odometer /></el-icon>
-          <span>首页</span>
-        </el-menu-item>
-        <el-menu-item index="/panel">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>仪表盘</span>
-        </el-menu-item>
-        <el-sub-menu index="system">
-          <template #title>
-            <el-icon><Setting /></el-icon>
-            <span>系统管理</span>
-          </template>
-          <el-menu-item index="/users"><el-icon><User /></el-icon><span>用户管理</span></el-menu-item>
-          <el-menu-item index="/roles"><el-icon><UserFilled /></el-icon><span>角色管理</span></el-menu-item>
-          <el-menu-item index="/permissions"><el-icon><Lock /></el-icon><span>权限管理</span></el-menu-item>
-          <el-menu-item index="/audit"><el-icon><Document /></el-icon><span>审计日志</span></el-menu-item>
-          <el-menu-item index="/audit/login"><el-icon><User /></el-icon><span>登录日志</span></el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="apis">
-          <template #title>
-            <el-icon><Link /></el-icon>
-            <span>接口管理</span>
-          </template>
-          <el-menu-item index="/apis/swagger"><el-icon><Document /></el-icon><span>Swagger 文档</span></el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="open">
-          <template #title>
-            <el-icon><Connection /></el-icon>
-            <span>开放平台</span>
-          </template>
-          <el-menu-item index="/apps"><el-icon><Grid /></el-icon><span>应用管理</span></el-menu-item>
-          <el-menu-item index="/app-scopes"><el-icon><Lock /></el-icon><span>权限管理</span></el-menu-item>
-        </el-sub-menu>
+        <template v-for="menu in menus" :key="menu.id">
+          <!-- 目录：有子菜单 -->
+          <el-sub-menu v-if="menu.children && menu.children.length > 0" :index="String(menu.id)">
+            <template #title>
+              <el-icon><component :is="menu.icon" /></el-icon>
+              <span>{{ menu.title }}</span>
+            </template>
+            <el-menu-item v-for="child in menu.children" :key="child.id" :index="child.path">
+              <el-icon><component :is="child.icon" /></el-icon>
+              <span>{{ child.title }}</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <!-- 菜单：直接可点击 -->
+          <el-menu-item v-else :index="menu.path">
+            <el-icon><component :is="menu.icon" /></el-icon>
+            <span>{{ menu.title }}</span>
+          </el-menu-item>
+        </template>
       </el-menu>
-
     </el-aside>
     <el-container>
       <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center">
@@ -104,25 +87,30 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+const menus = computed(() => userStore.menus)
+
 const pageTitle = computed(() => {
-  const map: Record<string, string> = {
-    '/dashboard': '首页',
-    '/panel': '仪表盘',
-    '/users': '用户管理',
-    '/roles': '角色管理',
-    '/permissions': '权限管理',
-    '/audit': '审计日志',
-    '/audit/login': '登录日志',
-    '/apps': '应用管理',
-    '/app-scopes': '开放平台权限管理',
-    '/apis/swagger': 'Swagger 文档',
-    '/profile': '个人中心',
+  // 从菜单树里找当前路由对应的标题
+  const findTitle = (list: any[], path: string): string => {
+    for (const item of list) {
+      if (item.path === path) return item.title
+      if (item.children) {
+        const found = findTitle(item.children, path)
+        if (found) return found
+      }
+    }
+    return ''
   }
-  return map[route.path] || route.path
+  return findTitle(menus.value, route.path) || route.path
 })
 
-onMounted(() => {
-  userStore.fetchUserInfo().catch(() => {})
+onMounted(async () => {
+  try {
+    await userStore.fetchUserInfo()
+    await userStore.fetchMenus()
+  } catch {
+    router.push('/login')
+  }
 })
 
 function handleCommand(cmd: string) {

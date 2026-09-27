@@ -140,6 +140,9 @@ cython_debug/
 # Logs
 server/logs/
 
+# Uploaded files
+server/static/
+
 # Ruff cache
 .ruff_cache/
 

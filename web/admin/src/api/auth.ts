@@ -8,6 +8,10 @@ export function getCurrentUser() {
   return request.get('/auth/me')
 }
 
+export function getMenus() {
+  return request.get('/auth/menus')
+}
+
 export function logout() {
   return request.post('/auth/logout')
 }

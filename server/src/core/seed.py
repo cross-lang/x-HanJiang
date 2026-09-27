@@ -21,6 +21,7 @@ from src.core.logger import logger
 from src.utils.security import hash_password
 from src.infras.database import get_cached_database_provider
 from src.infras.database import MySqlProvider
+from src.models.entities.menu_entity import MenuEntity
 from src.models.entities.user_entity import (
     PermissionEntity,
     RoleEntity,
@@ -68,7 +69,34 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("openapi_app:create", "创建开放平台应用", "openapi_app", "create", "创建开放平台应用", 61),
     ("openapi_app:edit", "编辑开放平台应用", "openapi_app", "edit", "编辑开放平台应用", 62),
     ("openapi_app:delete", "删除开放平台应用", "openapi_app", "delete", "删除开放平台应用", 63),
+    ("swagger:view", "查看Swagger文档", "swagger", "view", "查看API Swagger文档", 70),
+    ("audit_log:export", "导出审计日志", "audit_log", "export", "导出审计日志CSV", 31),
 ]
+
+# ── 内置菜单定义 ──────────────────────────────────────────────
+# (parent_title 或 0, title, path, icon, perm_code, sort_order, type)
+# parent 为 0 表示根菜单
+_SEED_MENUS = [
+    # 根菜单
+    (0, "首页", "/dashboard", "Odometer", None, 1, "menu"),
+    (0, "仪表盘", "/panel", "DataAnalysis", "dashboard:view", 2, "menu"),
+    (0, "系统管理", "/system", "Setting", None, 3, "directory"),
+    # 系统管理子菜单
+    ("系统管理", "用户管理", "/users", "User", "user:view", 1, "menu"),
+    ("系统管理", "角色管理", "/roles", "UserFilled", "role:view", 2, "menu"),
+    ("系统管理", "权限管理", "/permissions", "Lock", "role:view", 3, "menu"),
+    ("系统管理", "审计日志", "/audit", "Document", "audit_log:view", 4, "menu"),
+    ("系统管理", "登录日志", "/audit/login", "User", "login_log:view", 5, "menu"),
+    ("系统管理", "文件管理", "/files", "Folder", "file:view", 6, "menu"),
+    # 接口管理
+    (0, "接口管理", "/apis", "Link", None, 4, "directory"),
+    ("接口管理", "Swagger文档", "/apis/swagger", "Document", "swagger:view", 1, "menu"),
+    # 开放平台
+    (0, "开放平台", "/open", "Connection", None, 5, "directory"),
+    ("开放平台", "应用管理", "/apps", "Grid", "openapi_app:view", 1, "menu"),
+    ("开放平台", "权限管理", "/app-scopes", "Lock", "openapi_app:view", 2, "menu"),
+]
+
 
 
 def init_seed_data() -> None:
@@ -173,6 +201,9 @@ def init_seed_data() -> None:
             ))
             logger.info(f"Seed admin user created: username={_SEED_ADMIN_USERNAME}")
 
+        # 5. 菜单数据
+        _seed_menus(session)
+
         session.commit()
         logger.info("Seed data initialization completed")
     except Exception as e:  # noqa: BLE001
@@ -197,3 +228,36 @@ def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:
         )
         session.add(relation)
         session.flush()
+
+def _seed_menus(session) -> None:
+    """初始化菜单数据（幂等）。"""
+    # 先查已有菜单，按 title 建索引
+    existing = session.execute(select(MenuEntity)).scalars().all()
+    title_map = {m.title: m for m in existing}
+
+    parent_map: dict[str, MenuEntity] = {}
+    for item in existing:
+        parent_map[item.title] = item
+
+    for parent_title, title, path, icon, perm_code, sort_order, mtype in _SEED_MENUS:
+        if title in title_map:
+            continue
+        parent_id = 0
+        if parent_title != 0:
+            parent = parent_map.get(parent_title)
+            if parent:
+                parent_id = parent.id
+        m = MenuEntity(
+            parent_id=parent_id,
+            title=title,
+            path=path,
+            icon=icon,
+            perm_code=perm_code,
+            sort_order=sort_order,
+            type=mtype,
+            status="enabled",
+        )
+        session.add(m)
+        session.flush()
+        parent_map[title] = m
+        logger.info(f"Seed menu created: title={title}")

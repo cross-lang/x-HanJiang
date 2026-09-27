@@ -133,6 +133,7 @@ class ApiModuleCode(BaseEnum):
     MAINTENANCE = ("maintenance", "维护管理")
     OPENAPI_APP = ("openapi_app", "开放平台应用")
     DASHBOARD = ("dashboard", "仪表盘")
+    SWAGGER = ("swagger", "接口文档")
 
 
 class OpenApiModuleCode(BaseEnum):

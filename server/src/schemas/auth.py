@@ -88,5 +88,6 @@ class CurrentUser(BaseModel):
     status: str = Field(description="用户状态")
     avatar_url: str | None = Field(default=None, description="头像URL")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
+    permissions: list[str] = Field(default_factory=list, description="当前用户拥有的权限码列表")
 
     model_config = ConfigDict(from_attributes=True)

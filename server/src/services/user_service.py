@@ -317,6 +317,8 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             email=entity.email,
             name=getattr(entity, "name", None),
             age=getattr(entity, "age", None),
+            gender=getattr(entity, "gender", None),
+            birthday=getattr(entity, "birthday", None),
             phone=entity.phone,
             avatar_url=entity.avatar_url,
             role_id=role_ids[0] if role_ids else None,

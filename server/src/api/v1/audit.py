@@ -1,9 +1,12 @@
 ﻿#!/usr/bin/env python3
 """审计日志接口。"""
 
+import csv
+import io
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import StreamingResponse
 
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_audit_service, get_current_user, get_login_log_service, require_user_permission
@@ -68,6 +71,48 @@ async def list_audit_logs(
     return success_response(result, request)
 
 
+
+@router.get(
+    "/logs/export",
+    summary="导出审计日志",
+    description="按筛选条件导出审计日志为 CSV 文件",
+    dependencies=[Depends(require_user_permission("audit_log:export"))],
+)
+@permission("audit_log:export", "导出审计日志", "audit_log", "export")
+async def export_audit_logs(
+    entity_type: str | None = None,
+    action: str | None = None,
+    operator_id: int | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    audit_service: AuditService = Depends(get_audit_service),
+):
+    result = audit_service.search(
+        entity_type=entity_type, action=action, operator_id=operator_id,
+        start_time=start_time, end_time=end_time, page=1, page_size=100000,
+    )
+
+    fieldnames = ["id", "entity_type", "entity_id", "action", "operator_name", "ip_address", "created_at", "remarks"]
+    headers_cn = {
+        "id": "ID", "entity_type": "实体类型", "entity_id": "实体ID", "action": "操作",
+        "operator_name": "操作人", "ip_address": "IP", "created_at": "时间", "remarks": "备注",
+    }
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=fieldnames)
+    writer.writerow(headers_cn)
+    for row in result["items"]:
+        data = AuditLogResponse.model_validate(row).model_dump()
+        writer.writerow({k: data.get(k, "") for k in fieldnames})
+
+    content = buf.getvalue().encode("utf-8-sig")
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=audit_logs_export.csv"},
+    )
+
+
 @router.get(
     "/logs/{log_id}",
     summary="业务审计日志详情",
@@ -85,6 +130,7 @@ async def get_audit_log(
     if result is None:
         raise NotFoundException(message=f"审计日志 {log_id} 不存在")
     return success_response(AuditLogResponse.model_validate(result).model_dump(), request)
+
 
 
 # ============================================================

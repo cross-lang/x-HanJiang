@@ -1,5 +1,8 @@
 <template>
   <el-card>
+    <div v-if="!isLoginLog" style="margin-bottom: 16px; text-align: right">
+      <el-button icon="Download" @click="handleExport">导出CSV</el-button>
+    </div>
     <el-table :data="list" v-loading="loading">
       <template v-if="isLoginLog">
         <el-table-column prop="id" label="ID" width="80" />
@@ -77,6 +80,20 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+function handleExport() {
+  const token = localStorage.getItem('access_token') || ''
+  fetch('/api/v1/audit/logs/export', { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'audit_logs_export.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+    })
 }
 
 onMounted(() => {

@@ -69,6 +69,11 @@ const router = createRouter({
           name: 'Profile',
           component: () => import('@/views/Profile.vue'),
         },
+        {
+          path: 'files',
+          name: 'Files',
+          component: () => import('@/views/FileList.vue'),
+        },
       ],
     },
   ],

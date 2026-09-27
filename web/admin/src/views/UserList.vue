@@ -1,12 +1,16 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 20px">
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between">
       <el-button type="primary" @click="handleCreate">新建用户</el-button>
+      <el-button icon="Download" @click="handleExport">导出CSV</el-button>
     </div>
     <el-table :data="list" v-loading="loading">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="name" label="姓名" />
+      <el-table-column label="性别" width="70">
+        <template #default="{ row }">{{ row.gender === 'male' ? '男' : row.gender === 'female' ? '女' : '-' }}</template>
+      </el-table-column>
       <el-table-column prop="email" label="邮箱" />
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column label="角色" width="150">
@@ -262,6 +266,20 @@ function canOperate(row: any): boolean {
     return userStore.userInfo?.username === 'superadmin'
   }
   return true
+}
+
+function handleExport() {
+  const token = localStorage.getItem('access_token') || ''
+  fetch('/api/v1/users/export', { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'users_export.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+    })
 }
 
 onMounted(() => {

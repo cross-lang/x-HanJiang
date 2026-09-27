@@ -186,6 +186,18 @@ class AuthService:
         role_code = role_codes[0] if role_codes else None
         role_ids = [r.id for r in roles]
 
+        # 查用户所有权限码
+        from src.models.entities.user_entity import PermissionEntity, RolePermissionEntity
+        permissions: list[str] = []
+        if role_ids:
+            perm_rows = self._user_repository.session.query(PermissionEntity.perm_code).join(
+                RolePermissionEntity, RolePermissionEntity.permission_id == PermissionEntity.id
+            ).filter(RolePermissionEntity.role_id.in_(role_ids)).all()
+            permissions = [r[0] for r in perm_rows]
+        # 超管自动拥有所有权限标记
+        if "super_admin" in role_codes:
+            permissions = ["*"]
+
         return CurrentUser(
             id=user.id,
             username=user.username,
@@ -197,6 +209,7 @@ class AuthService:
             status=user.status or UserStatus.ACTIVE.value,
             avatar_url=user.avatar_url,
             last_login_at=user.last_login_at,
+            permissions=permissions,
         )
 
     def logout(self, user_id: int) -> None:

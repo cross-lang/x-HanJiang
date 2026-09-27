@@ -102,7 +102,7 @@ onMounted(async () => {
 
 async function saveInfo() {
   try {
-    await request.patch('/auth/me', form.value)
+    await request.put('/auth/me', form.value)
     ElMessage.success('保存成功')
     userStore.fetchUserInfo()
   } catch (e) {
