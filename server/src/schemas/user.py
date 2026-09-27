@@ -152,6 +152,17 @@ class UserResponse(BaseModel):
     status: str = Field(description="状态")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
     last_login_ip: str | None = Field(default=None, description="最后登录IP")
+    gender: str | None = Field(default=None, description="性别（male/female）")
+    birthday: str | None = Field(default=None, description="生日（YYYY-MM-DD）")
+
+    @field_validator("birthday", mode="before")
+    @classmethod
+    def parse_birthday(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return v[:10]
+        return str(v)[:10]
     created_at: datetime | None = Field(default=None, description="创建时间")
     updated_at: datetime | None = Field(default=None, description="更新时间")
 

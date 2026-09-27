@@ -39,6 +39,7 @@ class AppAuthMode(Enum):
 class NotificationChannel(BaseEnum):
     """通知发送渠道"""
 
+    STATION = "station", "站内信"
     EMAIL = "email", "邮件"
     SMS = "sms", "短信"
     DINGTALK = "dingtalk", "钉钉"

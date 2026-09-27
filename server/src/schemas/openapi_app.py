@@ -45,6 +45,7 @@ class OpenApiAppResponse(BaseModel):
     auth_mode: str
     rate_limit_per_minute: int
     owner_user_id: int | None
+    owner_name: str | None = None
     last_used_at: datetime | None
     created_at: datetime
 

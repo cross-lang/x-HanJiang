@@ -106,10 +106,11 @@ async def export_users(
     rows = service.search(keyword=keyword, status=status, page=1, page_size=100000)["items"]
 
     fieldnames = [
-        "id", "username", "email", "phone", "status", "last_login_at", "created_at",
+        "id", "username", "name", "email", "phone", "gender", "birthday", "roles", "status", "last_login_at", "created_at",
     ]
     headers_cn = {
-        "id": "ID", "username": "用户名", "email": "邮箱", "phone": "手机号",
+        "id": "ID", "username": "用户名", "name": "姓名", "email": "邮箱", "phone": "手机号",
+        "gender": "性别", "birthday": "生日", "roles": "角色",
         "status": "状态", "last_login_at": "最后登录", "created_at": "创建时间",
     }
 
@@ -118,6 +119,8 @@ async def export_users(
     writer.writerow(headers_cn)
     for row in rows:
         data = row.model_dump()
+        if isinstance(data.get("roles"), list):
+            data["roles"] = ";".join(r.get("role_name", "") for r in data["roles"])
         writer.writerow({k: data.get(k, "") for k in fieldnames})
 
     content = buf.getvalue().encode("utf-8-sig")

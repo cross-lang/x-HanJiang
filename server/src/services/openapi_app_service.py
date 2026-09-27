@@ -346,15 +346,22 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     # ── Entity → DTO ────────────────────────────────────
     def _to_response(self, e: OpenApiAppEntity) -> OpenApiAppResponse:
+        owner_name = None
+        if e.owner_user_id:
+            from src.models.entities.user_entity import UserEntity
+            owner = self._repository.session.query(UserEntity).get(e.owner_user_id)
+            owner_name = owner.name or owner.username if owner else None
         return OpenApiAppResponse(
             id=e.id,
             app_id=e.app_id,
             name=e.name,
+            description=e.description,
             scopes=parse_scopes(e.scopes),
             status=e.status,
             auth_mode=e.auth_mode,
             rate_limit_per_minute=e.rate_limit_per_minute,
             owner_user_id=e.owner_user_id,
+            owner_name=owner_name,
             last_used_at=e.last_used_at,
             created_at=e.created_at,
         )

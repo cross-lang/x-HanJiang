@@ -333,6 +333,12 @@ def is_admin_user(user: CurrentUser) -> bool:
     return "*" in user.permissions or user.role_code in ("super_admin", "admin")
 
 
+def get_station_service() -> "StationMessageService":
+    """创建站内信服务。"""
+    from src.services.station_service import StationMessageService
+    return StationMessageService()
+
+
 def require_app_scope(scope: str):
     """要求当前应用必须拥有指定 scope。"""
 

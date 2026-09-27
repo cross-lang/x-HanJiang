@@ -1,0 +1,60 @@
+<template>
+  <el-popover placement="bottom" :width="360" trigger="click" @show="fetchList">
+    <template #reference>
+      <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" style="margin-right: 20px; cursor: pointer">
+        <el-icon :size="20" style="color: #666; cursor: pointer"><Bell /></el-icon>
+      </el-badge>
+    </template>
+    <div style="max-height: 400px; overflow-y: auto">
+      <div v-if="list.length === 0" style="text-align: center; color: #999; padding: 30px 0">暂无消息</div>
+      <div v-for="item in list" :key="item.id" style="padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer" @click="markRead(item.id)">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span v-if="!item.is_read" style="width: 8px; height: 8px; background: #f56c6c; border-radius: 50%; flex-shrink: 0"></span>
+          <span style="font-weight: 500; color: #333">{{ item.title }}</span>
+        </div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">{{ item.created_at }}</div>
+      </div>
+    </div>
+    <div style="padding: 8px; text-align: center; border-top: 1px solid #f0f0f0">
+      <el-button text size="small" @click="markAllRead">全部已读</el-button>
+    </div>
+  </el-popover>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { Bell } from '@element-plus/icons-vue'
+import request from '@/api/request'
+import { ElMessage } from 'element-plus'
+
+const unreadCount = ref(0)
+const list = ref<any[]>([])
+
+async function fetchUnread() {
+  const res = await request.get('/station/messages/unread-count')
+  unreadCount.value = res.data.count
+}
+
+async function fetchList() {
+  const res = await request.get('/station/messages', { params: { page: 1, page_size: 10 } })
+  list.value = res.data.items
+}
+
+async function markRead(id: number) {
+  await request.post(`/station/messages/${id}/read`)
+  fetchUnread()
+  fetchList()
+}
+
+async function markAllRead() {
+  await request.post('/station/messages/read-all')
+  ElMessage.success('全部已读')
+  fetchUnread()
+  fetchList()
+}
+
+onMounted(() => {
+  fetchUnread()
+  setInterval(fetchUnread, 60000)
+})
+</script>

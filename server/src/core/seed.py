@@ -60,7 +60,10 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("file:view", "查看文件", "file", "view", "查看文件列表与详情", 20),
     ("file:create", "上传文件", "file", "create", "上传文件", 21),
     ("file:delete", "删除文件", "file", "delete", "删除文件", 22),
-    ("audit:view", "查看审计日志", "audit", "view", "查看业务审计日志", 30),
+    ("audit_log:view", "查看审计日志", "audit_log", "view", "查看业务审计日志", 30),
+    ("audit_log:export", "导出审计日志", "audit_log", "export", "导出审计日志CSV", 31),
+    ("login_log:view", "查看登录日志", "login_log", "view", "查看登录日志", 35),
+    ("login_log:export", "导出登录日志", "login_log", "export", "导出登录日志CSV", 36),
     ("notification:view", "查看通知", "notification", "view", "查看通知记录", 40),
     ("notification:create", "创建通知", "notification", "create", "手动发送通知", 41),
     ("alert:broadcast", "广播告警", "alert", "broadcast", "向全体用户广播告警", 50),
@@ -69,8 +72,8 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("openapi_app:create", "创建开放平台应用", "openapi_app", "create", "创建开放平台应用", 61),
     ("openapi_app:edit", "编辑开放平台应用", "openapi_app", "edit", "编辑开放平台应用", 62),
     ("openapi_app:delete", "删除开放平台应用", "openapi_app", "delete", "删除开放平台应用", 63),
-    ("swagger:view", "查看Swagger文档", "swagger", "view", "查看API Swagger文档", 70),
-    ("audit_log:export", "导出审计日志", "audit_log", "export", "导出审计日志CSV", 31),
+    ("dashboard:view", "查看仪表盘", "dashboard", "view", "获取仪表盘关键指标", 70),
+    ("swagger:view", "查看Swagger文档", "swagger", "view", "查看API Swagger文档", 80),
 ]
 
 # ── 内置菜单定义 ──────────────────────────────────────────────

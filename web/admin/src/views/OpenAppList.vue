@@ -24,6 +24,7 @@
           <el-tag :type="row.status === 'active' ? 'success' : 'danger'">{{ row.status === 'active' ? '启用' : '禁用' }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="owner_name" label="拥有者" width="120" />
       <el-table-column prop="created_at" label="创建时间" width="160" />
       <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
@@ -280,7 +281,7 @@ function handleEdit(row: any) {
 
 async function handleUpdate() {
   try {
-    await request.patch(`/admin/apps/${editForm.value.id}`, {
+    await request.put(`/admin/apps/${editForm.value.id}`, {
       name: editForm.value.name,
       description: editForm.value.description,
       auth_mode: editForm.value.auth_mode,
@@ -304,7 +305,7 @@ async function handleToggleStatus(row: any) {
     )
   } catch { return }
   try {
-    await request.patch(`/admin/apps/${row.id}`, { status: newStatus })
+    await request.put(`/admin/apps/${row.id}`, { status: newStatus })
     ElMessage.success(newStatus === 'active' ? '已启用' : '已禁用')
     fetchList()
   } catch (e) {

@@ -99,7 +99,7 @@ async def get_app(
     return success_response(service.get_by_id(app_id).model_dump(), request)
 
 
-@router.patch("/{app_id}", summary="更新应用", dependencies=[Depends(require_user_permission("openapi_app:edit"))])
+@router.put("/{app_id}", summary="更新应用", dependencies=[Depends(require_user_permission("openapi_app:edit"))])
 @permission("openapi_app:edit", "编辑开放应用", "openapi_app", "edit")
 async def update_app(
     app_id: int,

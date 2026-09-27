@@ -18,6 +18,7 @@ from src.api.v1 import (
     openapi_app,
     permission,
     role,
+    station,
     user,
 )
 
@@ -56,6 +57,7 @@ v1_router.include_router(maintenance.router)
 
 # 注册开放平台管理路由
 v1_router.include_router(dashboard.router)
+v1_router.include_router(station.router)
 v1_router.include_router(openapi_app.router)
 
 __all__ = ["v1_router"]

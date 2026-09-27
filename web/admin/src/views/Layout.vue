@@ -33,6 +33,7 @@
     </el-aside>
     <el-container>
       <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center">
+        <NotificationBell />
         <el-dropdown @command="handleCommand">
           <span style="cursor: pointer; display: flex; align-items: center; gap: 10px">
             <el-avatar :size="36" style="background: #79bbff">
@@ -82,6 +83,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
