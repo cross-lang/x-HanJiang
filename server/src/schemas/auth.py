@@ -87,6 +87,9 @@ class CurrentUser(BaseModel):
     role_code: str | None = Field(default=None, description="角色编码")
     status: str = Field(description="用户状态")
     avatar_url: str | None = Field(default=None, description="头像URL")
+    phone: str | None = Field(default=None, description="手机号")
+    birthday: str | None = Field(default=None, description="生日")
+    gender: str | None = Field(default=None, description="性别")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
     permissions: list[str] = Field(default_factory=list, description="当前用户拥有的权限码列表")
 

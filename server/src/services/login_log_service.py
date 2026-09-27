@@ -43,6 +43,7 @@ class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):
         login_type: str | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
@@ -54,6 +55,7 @@ class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):
             login_type=login_type,
             start_time=start_time,
             end_time=end_time,
+            keyword=keyword,
             skip=skip,
             limit=page_size,
         )

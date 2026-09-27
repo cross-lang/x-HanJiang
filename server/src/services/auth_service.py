@@ -208,6 +208,9 @@ class AuthService:
             role_code=role_code,
             status=user.status or UserStatus.ACTIVE.value,
             avatar_url=user.avatar_url,
+            phone=getattr(user, 'phone', None),
+            birthday=user.birthday.strftime("%Y-%m-%d") if user.birthday else None,
+            gender=getattr(user, 'gender', None),
             last_login_at=user.last_login_at,
             permissions=permissions,
         )

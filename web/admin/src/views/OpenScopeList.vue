@@ -1,6 +1,17 @@
 <template>
   <el-card>
-    <el-table :data="list" v-loading="loading">
+    <div style="margin-bottom: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px">
+      <el-input
+        v-model="keyword"
+        placeholder="按Scope编码/名称/模块搜索"
+        style="width: 260px"
+        clearable
+        @keyup.enter="handleSearch"
+        @clear="handleSearch"
+      />
+      <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
+    </div>
+    <el-table :data="filteredList" v-loading="loading">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="scope_code" label="Scope 编码" width="220" />
       <el-table-column prop="scope_name" label="Scope 名称" />
@@ -20,11 +31,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import request from '@/api/request'
 
 const list = ref<any[]>([])
 const loading = ref(false)
+const keyword = ref('')
+
+const filteredList = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  if (!kw) return list.value
+  return list.value.filter((row: any) =>
+    [row.scope_code, row.scope_name, row.module_label, row.module, row.operation, row.description]
+      .filter(Boolean)
+      .some((v: any) => String(v).toLowerCase().includes(kw))
+  )
+})
+
+function handleSearch() {
+  // 前端过滤即时生效，无需重新请求
+}
 
 function operationType(op: string) {
   const map: Record<string, string> = {

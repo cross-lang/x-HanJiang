@@ -21,6 +21,7 @@ from src.models.entities.user_entity import UserEntity, UserRoleEntity, RoleEnti
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.base_service import BaseService
+from src.notification.notification_decorators import notify
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
@@ -94,6 +95,11 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             entity.name = request.name
         if getattr(request, "age", None) is not None:
             entity.age = request.age
+        if getattr(request, "gender", None) is not None:
+            entity.gender = request.gender
+        if getattr(request, "birthday", None) is not None:
+            from datetime import datetime
+            entity.birthday = datetime.strptime(request.birthday, "%Y-%m-%d")
         created = self._repository.create(entity)
         self._commit()
 
@@ -155,6 +161,10 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             if patch_dict.get(k) == "":
                 patch_dict[k] = None
 
+        if patch_dict.get("birthday") and isinstance(patch_dict["birthday"], str):
+            from datetime import datetime
+            patch_dict["birthday"] = datetime.strptime(patch_dict["birthday"], "%Y-%m-%d")
+
         for key, value in patch_dict.items():
             if hasattr(patch, key):
                 setattr(patch, key, value)
@@ -164,7 +174,9 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             setattr(patch, "age", patch_dict["age"])
 
         # 更新角色关联
+        role_changed = False
         if "role_ids" in patch_dict:
+            role_changed = True
             self._repository.session.query(UserRoleEntity).filter(
                 UserRoleEntity.user_id == id
             ).delete()
@@ -187,6 +199,8 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
 
         result = self._to_response(updated)
         logger.info(f"User updated: id={result.id} username={result.username}")
+
+        # 角色变更通知由 @notify 装饰器处理
 
         # ── 通知：密码变更 ──
         if "password_hash" in patch_dict:
@@ -219,6 +233,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
 
         return result
 
+    @notify(NotificationEvent.USER_DELETED, target="self")
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
         """软删除用户。"""
         existing = self._repository.get_by_id(id)

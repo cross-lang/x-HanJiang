@@ -52,6 +52,24 @@ class BaseNotificationProvider(ABC):
         """渠道标识，如 'email', 'dingtalk', 'feishu', 'sms'。"""
 
 
+
+# ============================================================
+# Station（站内信，直接写数据库）
+# ============================================================
+
+
+class StationNotificationProvider(BaseNotificationProvider):
+    """站内信通知渠道（直接写 notification_records 表）。"""
+
+    @property
+    def channel_name(self) -> str:
+        return "station"
+
+    def send(self, message: NotificationMessage) -> bool:
+        # dispatcher 已经写了记录，这里返回 True 表示成功
+        return True
+
+
 # ============================================================
 # Email（复用已有 SmtpEmailProvider）
 # ============================================================
@@ -440,6 +458,9 @@ def register_default_providers() -> NotificationProviderRegistry:
 
     registry = get_registry()
     cfg = settings.notification
+
+    # 站内信渠道始终注册（直接写数据库）
+    registry.register(StationNotificationProvider())
 
     # 邮件渠道始终注册（复用 SMTP 配置）
     registry.register(EmailNotificationProvider())

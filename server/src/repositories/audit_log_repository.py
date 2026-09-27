@@ -35,10 +35,13 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
         operator_id: int | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
+        keyword: str | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[AuditLogEntity], int]:
         """按条件搜索审计日志（分页）。"""
+        from sqlalchemy import or_
+
         conditions = []
         if entity_type:
             conditions.append(AuditLogEntity.entity_type == entity_type)
@@ -50,6 +53,18 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
             conditions.append(AuditLogEntity.created_at >= start_time)
         if end_time:
             conditions.append(AuditLogEntity.created_at <= end_time)
+        if keyword and keyword.strip():
+            kw = keyword.strip()
+            conditions.append(
+                or_(
+                    AuditLogEntity.entity_type.contains(kw),
+                    AuditLogEntity.action.contains(kw),
+                    AuditLogEntity.operator_name.contains(kw),
+                    AuditLogEntity.entity_id.contains(kw),
+                    AuditLogEntity.ip_address.contains(kw),
+                    AuditLogEntity.remarks.contains(kw),
+                )
+            )
         return self._paginate(conditions, skip, limit)
 
     def update(self, id: int, entity: AuditLogEntity) -> AuditLogEntity | None:

@@ -7,12 +7,17 @@
     </template>
     <div style="max-height: 400px; overflow-y: auto">
       <div v-if="list.length === 0" style="text-align: center; color: #999; padding: 30px 0">暂无消息</div>
-      <div v-for="item in list" :key="item.id" style="padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer" @click="markRead(item.id)">
-        <div style="display: flex; align-items: center; gap: 8px">
-          <span v-if="!item.is_read" style="width: 8px; height: 8px; background: #f56c6c; border-radius: 50%; flex-shrink: 0"></span>
-          <span style="font-weight: 500; color: #333">{{ item.title }}</span>
+      <div v-for="item in list" :key="item.id" style="border-bottom: 1px solid #f0f0f0">
+        <div style="padding: 12px; cursor: pointer" @click="toggleExpand(item)">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span v-if="!item.is_read" style="width: 8px; height: 8px; background: #f56c6c; border-radius: 50%; flex-shrink: 0"></span>
+            <span style="font-weight: 500; color: #333">{{ item.title }}</span>
+          </div>
+          <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">{{ item.created_at }}</div>
         </div>
-        <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">{{ item.created_at }}</div>
+        <div v-if="expandedId === item.id" style="padding: 8px 12px 12px 16px; background: #fafafa; font-size: 13px; color: #666">
+          {{ item.content }}
+        </div>
       </div>
     </div>
     <div style="padding: 8px; text-align: center; border-top: 1px solid #f0f0f0">
@@ -29,6 +34,7 @@ import { ElMessage } from 'element-plus'
 
 const unreadCount = ref(0)
 const list = ref<any[]>([])
+const expandedId = ref<number | null>(null)
 
 async function fetchUnread() {
   const res = await request.get('/station/messages/unread-count')
@@ -40,10 +46,12 @@ async function fetchList() {
   list.value = res.data.items
 }
 
-async function markRead(id: number) {
-  await request.post(`/station/messages/${id}/read`)
-  fetchUnread()
-  fetchList()
+async function toggleExpand(item: any) {
+  expandedId.value = expandedId.value === item.id ? null : item.id
+  if (!item.is_read) {
+    await request.post(`/station/messages/${item.id}/read`)
+    fetchUnread()
+  }
 }
 
 async function markAllRead() {

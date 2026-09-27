@@ -54,6 +54,10 @@ async def list_audit_logs(
         default=None,
         description="查询结束时间，格式为 ISO 8601，例如 2026-09-13T23:59:59。",
     ),
+    keyword: str | None = Query(
+        default=None,
+        description="关键字，模糊匹配实体类型、操作、操作人、实体ID、IP、备注。",
+    ),
     page: int = Query(default=1, ge=1, description="页码，从 1 开始。"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页条数，1-100。"),
     audit_service: AuditService = Depends(get_audit_service),
@@ -68,10 +72,24 @@ async def list_audit_logs(
         operator_id=operator_id,
         start_time=start_time,
         end_time=end_time,
+        keyword=keyword,
         page=page,
         page_size=page_size,
     )
-    result["items"] = [AuditLogResponse.model_validate(i).model_dump() for i in result["items"]]
+    items = [AuditLogResponse.model_validate(i).model_dump() for i in result["items"]]
+    # 批量查用户姓名
+    user_ids = list({i["operator_id"] for i in items if i.get("operator_id")})
+    name_map = {}
+    if user_ids:
+        from src.models.entities.user_entity import UserEntity
+        users = audit_service._repository.session.query(UserEntity).filter(
+            UserEntity.id.in_(user_ids)
+        ).all()
+        name_map = {u.id: u.name for u in users}
+    for i in items:
+        i["operator_username"] = i.get("operator_name", "")
+        i["operator_real_name"] = name_map.get(i.get("operator_id"), "") or ""
+    result["items"] = items
     return success_response(result, request)
 
 
@@ -156,6 +174,10 @@ async def list_login_logs(
     login_type: str | None = Query(default=None, description="登录方式：password / sso"),
     start_time: datetime | None = Query(default=None, description="查询起始时间"),
     end_time: datetime | None = Query(default=None, description="查询结束时间"),
+    keyword: str | None = Query(
+        default=None,
+        description="关键字，模糊匹配IP、状态、登录方式。",
+    ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     login_service: LoginLogService = Depends(get_login_log_service),
@@ -170,6 +192,7 @@ async def list_login_logs(
         login_type=login_type,
         start_time=start_time,
         end_time=end_time,
+        keyword=keyword,
         page=page,
         page_size=page_size,
     )

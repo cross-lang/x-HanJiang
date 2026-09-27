@@ -1,30 +1,44 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 16px; text-align: right">
+    <div style="margin-bottom: 16px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 8px">
+      <el-input
+        v-model="keyword"
+        :placeholder="searchPlaceholder"
+        style="width: 230px"
+        clearable
+        @keyup.enter="handleSearch"
+        @clear="handleSearch"
+      />
+      <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
       <el-button icon="Download" @click="handleExport">导出CSV</el-button>
     </div>
     <el-table :data="list" v-loading="loading">
       <template v-if="isLoginLog">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" width="120" />
-        <el-table-column prop="name" label="姓名" width="120" />
-        <el-table-column prop="login_type" label="登录方式" width="120" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="username" label="用户名" min-width="120" />
+        <el-table-column prop="name" label="姓名" min-width="120" />
+        <el-table-column prop="login_type" label="登录方式" min-width="120" />
+        <el-table-column prop="status" label="状态" min-width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ row.status }}</el-tag>
+            <el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ loginStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="ip_address" label="IP" width="140" />
-        <el-table-column prop="created_at" label="时间" width="180" />
+        <el-table-column prop="ip_address" label="IP" min-width="140" />
+        <el-table-column prop="created_at" label="时间" min-width="180">
+          <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+        </el-table-column>
       </template>
       <template v-else>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="operator_name" label="操作人" width="120" />
-        <el-table-column prop="entity_type" label="实体类型" width="120" />
-        <el-table-column prop="action" label="操作" width="100" />
-        <el-table-column prop="remarks" label="备注" show-overflow-tooltip />
-        <el-table-column prop="ip_address" label="IP" width="140" />
-        <el-table-column prop="created_at" label="时间" width="180" />
+        <el-table-column prop="operator_username" label="用户名" min-width="120" />
+        <el-table-column prop="operator_real_name" label="姓名" min-width="120" />
+        <el-table-column prop="entity_type" label="实体类型" min-width="120" />
+        <el-table-column prop="action" label="操作" min-width="120" />
+        <el-table-column prop="remarks" label="备注" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="ip_address" label="IP" min-width="140" />
+        <el-table-column prop="created_at" label="时间" min-width="180">
+          <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+        </el-table-column>
       </template>
     </el-table>
     <el-pagination
@@ -40,19 +54,28 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
+import { formatDateTime } from '@/utils/format'
 
 const route = useRoute()
 const userStore = useUserStore()
 const props = defineProps<{ logType?: string }>()
 const isLoginLog = computed(() => props.logType === 'login')
+const searchPlaceholder = computed(() =>
+  isLoginLog.value ? '按IP/状态/登录方式搜索' : '按操作人/IP/备注搜索'
+)
 
 const list = ref<any[]>([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const keyword = ref('')
+
+// 登录状态：英文原值 → 中文展示（仅前端维护，后端值不变）
+const loginStatusText = (s: string) => (s === 'success' ? '成功' : '失败')
 
 // 从首页跳转时带 mine=true，只看自己的记录
 const isMine = computed(() => route.query.mine === 'true')
@@ -61,7 +84,11 @@ async function fetchList() {
   loading.value = true
   try {
     const url = isLoginLog.value ? '/audit/login-logs' : '/audit/logs'
-    const params: any = { page: page.value, page_size: pageSize.value }
+    const params: any = {
+      page: page.value,
+      page_size: pageSize.value,
+      keyword: keyword.value.trim() || undefined,
+    }
     if (isMine.value) {
       const myId = userStore.userInfo?.id
       if (myId) {
@@ -80,6 +107,11 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+function handleSearch() {
+  page.value = 1
+  fetchList()
 }
 
 function handleExport() {

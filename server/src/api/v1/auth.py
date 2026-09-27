@@ -49,6 +49,26 @@ async def login(
         body.password,
         ip_address=ip,
     )
+    # 新设备登录检测：查最近登录日志，IP不同则发邮件
+    try:
+        from src.models.entities.login_log_entity import LoginLogEntity
+        from src.infras.database import get_cached_database_provider
+        from src.api.dependencies import get_notification_dispatcher
+        from src.constants.enums import NotificationEvent
+        db = get_cached_database_provider().get_session_factory()()
+        # 查该用户最近一次成功登录的IP
+        last = db.query(LoginLogEntity).filter(
+            LoginLogEntity.user_id == result.user_id,
+            LoginLogEntity.status == "success",
+        ).order_by(LoginLogEntity.created_at.desc()).offset(1).first()
+        if last and last.ip_address != ip:
+            get_notification_dispatcher().dispatch_for_user(
+                user_id=result.user_id,
+                event_type=NotificationEvent.LOGIN_NEW_DEVICE,
+                variables={"ip": ip, "time": result.login_time if hasattr(result, 'login_time') else ""},
+            )
+    except Exception:
+        pass
     return success_response(result.model_dump(), request)
 
 
@@ -88,9 +108,35 @@ class ChangePasswordRequest(BaseModel):
 async def me(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
 ):
     """当前用户信息接口。"""
-    return success_response(current_user.model_dump(), request)
+    data = current_user.model_dump()
+    # 查角色列表
+    db = user_service._repository.session
+    from src.models.entities.user_entity import UserRoleEntity, RoleEntity, PermissionEntity
+    roles = db.query(RoleEntity).join(
+        UserRoleEntity, UserRoleEntity.role_id == RoleEntity.id
+    ).filter(UserRoleEntity.user_id == current_user.id).all()
+    data["roles"] = [{"id": r.id, "name": r.role_name, "code": r.role_code} for r in roles]
+
+    # 查权限详情（带模块和名称）
+    if "*" not in current_user.permissions:
+        from src.models.entities.user_entity import RolePermissionEntity
+        role_ids = [r.id for r in roles]
+        perms = db.query(PermissionEntity).join(
+            RolePermissionEntity, RolePermissionEntity.permission_id == PermissionEntity.id
+        ).filter(
+            RolePermissionEntity.role_id.in_(role_ids),
+            PermissionEntity.is_deprecated == 0,
+        ).order_by(PermissionEntity.sort_order).all()
+        data["permission_list"] = [
+            {"code": p.perm_code, "name": p.perm_name, "module": p.module}
+            for p in perms
+        ]
+    else:
+        data["permission_list"] = []
+    return success_response(data, request)
 
 
 @router.put(
@@ -143,6 +189,38 @@ async def change_password(
         raise ValidationException(message="原密码错误")
     user.password_hash = hash_password(body.new_password)
     user_service._repository.session.commit()
+
+    # 发站内信
+    try:
+        from src.services.station_service import StationMessageService
+        from datetime import datetime
+        StationMessageService().send_station(
+            user_id=current_user.id,
+            title="密码已修改",
+            content=f"您的密码已于 {datetime.now().strftime('%Y-%m-%d %H:%M')} 修改",
+        )
+    except Exception:
+        pass
+
+    # 发邮件
+    try:
+        from src.notification.dispatcher import NotificationDispatcher
+        from src.infras.notification import get_registry
+        from src.infras.database import get_cached_database_provider
+        from datetime import datetime
+        db = get_cached_database_provider().get_session_factory()()
+        dispatcher = NotificationDispatcher(registry=get_registry(), session=db)
+        dispatcher.dispatch(
+            event_type="user.password_changed",
+            recipients={"email": user.email},
+            variables={
+                "username": user.name or user.username,
+                "changed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            },
+        )
+    except Exception:
+        pass
+
     return success_response({"message": "密码修改成功"}, request)
 
 
@@ -214,3 +292,204 @@ async def get_menus(
         return success_response(tree, request)
     finally:
         session.close()
+
+
+# ── 个人通知偏好 ────────────────────────────────────────────
+
+NOTIFICATION_EVENT_LABELS = {
+    "user.password_changed": "修改密码",
+    "user.profile_updated": "个人资料修改",
+    "user.created": "新用户创建",
+    "user.deleted": "账号删除",
+    "role.assigned": "角色变更",
+    "file.uploaded": "文件上传",
+    "file.deleted": "文件删除",
+    "file.downloaded": "文件下载",
+    "app.created": "应用创建",
+    "app.updated": "应用更新",
+    "app.deleted": "应用删除",
+    "app.key_reset": "AppKey重置",
+    "login.new_device": "新设备登录",
+}
+
+CHANNEL_LABELS = {
+    "station": "站内信",
+    "email": "邮件",
+    "dingtalk": "钉钉",
+    "feishu": "飞书",
+}
+
+
+@router.get(
+    "/notification-preferences",
+    summary="获取我的通知偏好",
+)
+async def get_my_preferences(
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    from src.models.entities.notification_preference_entity import UserNotificationPreferenceEntity
+    from src.infras.database import get_cached_database_provider
+    db = get_cached_database_provider().get_session_factory()()
+    rows = db.query(UserNotificationPreferenceEntity).filter(
+        UserNotificationPreferenceEntity.user_id == current_user.id
+    ).all()
+    # 转成 {event: {channel: enabled}} 结构
+    prefs = {}
+    for r in rows:
+        if r.event_type not in prefs:
+            prefs[r.event_type] = {}
+        prefs[r.event_type][r.channel] = r.enabled
+
+    # 返回完整列表（含所有事件和渠道）
+    events = []
+    for event_code, event_name in NOTIFICATION_EVENT_LABELS.items():
+        channels = []
+        for ch_code, ch_name in CHANNEL_LABELS.items():
+            channels.append({
+                "code": ch_code,
+                "name": ch_name,
+                "enabled": prefs.get(event_code, {}).get(ch_code, ch_code == "station"),  # 默认站内信开
+            })
+        events.append({
+            "event": event_code,
+            "name": event_name,
+            "channels": channels,
+        })
+    return success_response({"events": events}, request)
+
+
+@router.put(
+    "/notification-preferences",
+    summary="更新我的通知偏好",
+)
+async def update_my_preferences(
+    request: Request,
+    body: dict,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """body: {event_type: {channel: enabled}}"""
+    from src.models.entities.notification_preference_entity import UserNotificationPreferenceEntity
+    from src.infras.database import get_cached_database_provider
+    db = get_cached_database_provider().get_session_factory()()
+    for event_type, channels in body.items():
+        for channel, enabled in channels.items():
+            row = db.query(UserNotificationPreferenceEntity).filter(
+                UserNotificationPreferenceEntity.user_id == current_user.id,
+                UserNotificationPreferenceEntity.event_type == event_type,
+                UserNotificationPreferenceEntity.channel == channel,
+            ).first()
+            if row:
+                row.enabled = enabled
+            else:
+                row = UserNotificationPreferenceEntity(
+                    user_id=current_user.id,
+                    event_type=event_type,
+                    channel=channel,
+                    enabled=enabled,
+                )
+                db.add(row)
+    db.commit()
+    return success_response({"updated": True}, request)
+
+
+# ── 个人通知接收人管理 ────────────────────────────────────
+
+@router.get(
+    "/notification-recipients",
+    summary="获取我的通知接收人列表",
+)
+async def get_my_recipients(
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    from src.models.entities.notification_recipient_entity import NotificationRecipientEntity
+    from src.infras.database import get_cached_database_provider
+    db = get_cached_database_provider().get_session_factory()()
+    rows = db.query(NotificationRecipientEntity).filter(
+        NotificationRecipientEntity.user_id == current_user.id
+    ).order_by(NotificationRecipientEntity.channel, NotificationRecipientEntity.id).all()
+    return success_response({
+        "items": [{
+            "id": r.id,
+            "channel": r.channel,
+            "recipient": r.recipient,
+            "label": r.label,
+            "enabled": r.enabled,
+        } for r in rows]
+    }, request)
+
+
+@router.post(
+    "/notification-recipients",
+    summary="添加通知接收人",
+)
+async def add_recipient(
+    request: Request,
+    body: dict,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    from src.models.entities.notification_recipient_entity import NotificationRecipientEntity
+    from src.infras.database import get_cached_database_provider
+    db = get_cached_database_provider().get_session_factory()()
+    row = NotificationRecipientEntity(
+        user_id=current_user.id,
+        channel=body["channel"],
+        recipient=body["recipient"],
+        label=body.get("label", ""),
+        enabled=body.get("enabled", True),
+    )
+    db.add(row)
+    db.commit()
+    return success_response({"id": row.id}, request, code=201)
+
+
+@router.put(
+    "/notification-recipients/{recipient_id}",
+    summary="更新通知接收人",
+)
+async def update_recipient(
+    recipient_id: int,
+    request: Request,
+    body: dict,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    from src.models.entities.notification_recipient_entity import NotificationRecipientEntity
+    from src.infras.database import get_cached_database_provider
+    db = get_cached_database_provider().get_session_factory()()
+    row = db.query(NotificationRecipientEntity).filter(
+        NotificationRecipientEntity.id == recipient_id,
+        NotificationRecipientEntity.user_id == current_user.id,
+    ).first()
+    if not row:
+        from src.core.exceptions import NotFoundException
+        raise NotFoundException(message="接收人不存在")
+    for k in ("channel", "recipient", "label", "enabled"):
+        if k in body:
+            setattr(row, k, body[k])
+    db.commit()
+    return success_response({"updated": True}, request)
+
+
+@router.delete(
+    "/notification-recipients/{recipient_id}",
+    summary="删除通知接收人",
+)
+async def delete_recipient(
+    recipient_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    from src.models.entities.notification_recipient_entity import NotificationRecipientEntity
+    from src.infras.database import get_cached_database_provider
+    db = get_cached_database_provider().get_session_factory()()
+    row = db.query(NotificationRecipientEntity).filter(
+        NotificationRecipientEntity.id == recipient_id,
+        NotificationRecipientEntity.user_id == current_user.id,
+    ).first()
+    if not row:
+        from src.core.exceptions import NotFoundException
+        raise NotFoundException(message="接收人不存在")
+    db.delete(row)
+    db.commit()
+    return success_response({"deleted": True}, request)

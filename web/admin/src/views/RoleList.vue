@@ -1,7 +1,18 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 20px">
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center">
       <el-button type="primary" @click="handleCreate">新建角色</el-button>
+      <div style="display: flex; gap: 8px">
+        <el-input
+          v-model="keyword"
+          placeholder="按角色名称/编码搜索"
+          style="width: 230px"
+          clearable
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
+      </div>
     </div>
     <el-table :data="list" v-loading="loading">
       <el-table-column prop="id" label="ID" width="80" />
@@ -130,6 +141,7 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const keyword = ref('')
 
 // 新建
 const dialogVisible = ref(false)
@@ -184,7 +196,13 @@ const editSelectedPermissions = ref<number[]>([])
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/roles', { params: { page: page.value, page_size: pageSize.value } })
+    const res = await request.get('/roles', {
+      params: {
+        page: page.value,
+        page_size: pageSize.value,
+        keyword: keyword.value.trim() || undefined,
+      },
+    })
     list.value = res.data.items
     total.value = res.data.total
   } catch (e) {
@@ -192,6 +210,11 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+function handleSearch() {
+  page.value = 1
+  fetchList()
 }
 
 async function fetchPermissions() {

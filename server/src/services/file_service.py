@@ -80,6 +80,7 @@ class FileStorageService:
             "size": result.size,
             "storage": result.storage,
             "content_type": content_type,
+            "uploaded_by": uploaded_by,
         }
 
     # ── 列表 ────────────────────────────────────────────
@@ -185,14 +186,30 @@ class FileStorageService:
 
     # ── 删除（软删除）───────────────────────────────────
 
-    def delete_file(self, file_id: int) -> bool:
+    def delete_file(self, file_id: int, operator_username: str = "") -> bool:
         """软删除文件记录（不真删存储里的文件）。"""
         entity = self._session.get(FileEntity, file_id)
         if entity is None:
             raise NotFoundException(message=f"文件 {file_id} 不存在")
+        # 删除前先记录上传者和文件名
+        uploaded_by = entity.uploaded_by
+        filename = entity.original_name
         entity.is_deleted = True
         self._session.commit()
         logger.info(f"File soft-deleted: id={file_id} key={entity.file_key}")
+
+        # 文件删除通知给上传者
+        if uploaded_by:
+            try:
+                from src.api.dependencies import get_notification_dispatcher
+                from src.constants.enums import NotificationEvent
+                get_notification_dispatcher().dispatch_for_user(
+                    user_id=uploaded_by,
+                    event_type=NotificationEvent.FILE_DELETED,
+                    variables={"filename": filename, "operator": operator_username},
+                )
+            except Exception:
+                pass
         return True
 
     # ── 统计 ────────────────────────────────────────────

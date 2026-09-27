@@ -1,5 +1,5 @@
 <template>
-  <div style="max-width: 800px; margin: 0 auto">
+  <div style="max-width: 900px; margin: 0 auto">
     <el-card style="margin-bottom: 20px">
       <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px">
         <el-avatar :size="64" style="background: #79bbff; font-size: 28px">
@@ -43,6 +43,51 @@
           </el-form>
         </el-tab-pane>
 
+        <el-tab-pane label="角色权限" name="roles">
+          <div style="padding: 10px 0">
+            <h4 style="margin: 0 0 16px; color: #333">我的角色</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px">
+              <el-tag v-for="r in roles" :key="r.id" type="primary" size="large" effect="dark" style="padding: 8px 16px; font-size: 14px">
+                {{ r.name }}
+              </el-tag>
+            </div>
+
+            <h4 style="margin: 0 0 16px; color: #333">我的权限</h4>
+            <el-alert v-if="permissions.includes('*')" type="success" :closable="false" style="margin-bottom: 16px">
+              超级管理员，拥有所有权限
+            </el-alert>
+            <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px">
+              <div v-for="group in groupedPermissions" :key="group.module" style="background: #f8f9fa; border-radius: 8px; padding: 16px">
+                <div style="font-weight: 600; color: #409eff; margin-bottom: 12px; font-size: 14px">
+                  {{ moduleNameMap[group.module] || group.module }}
+                </div>
+                <div v-for="p in group.items" :key="p.code" style="padding: 4px 0; font-size: 13px; color: #555">
+                  {{ p.name }} <span style="color: #aaa; font-size: 12px">({{ p.code }})</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane label="通知偏好" name="notify">
+          <div style="padding: 10px 0">
+            <el-alert type="info" :closable="false" style="margin-bottom: 20px">
+              选择您希望接收哪些事件的通知，未勾选的将不再推送
+            </el-alert>
+            <el-table :data="preferenceEvents" border>
+              <el-table-column prop="name" label="事件" width="180" />
+              <el-table-column v-for="ch in channelList" :key="ch.code" :label="ch.name" width="100" align="center">
+                <template #default="{ row }">
+                  <el-switch
+                    :model-value="row.channels.find((c: any) => c.code === ch.code)?.enabled"
+                    @change="(val: string | number | boolean) => toggleChannel(row.event, ch.code, val as boolean)"
+                  />
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-tab-pane>
+
         <el-tab-pane label="修改密码" name="password">
           <el-form :model="pwdForm" label-width="100px" style="max-width: 500px">
             <el-form-item label="原密码">
@@ -65,13 +110,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 const activeTab = ref('info')
+const roles = ref<any[]>([])
+const permissions = ref<string[]>([])
+const permissionList = ref<any[]>([])
+const preferenceEvents = ref<any[]>([])
+const recipients = ref<any[]>([])
+const newRecipient = ref({ channel: 'email', recipient: '', label: '' })
+const channelNames: Record<string, string> = {
+  station: '站内信', email: '邮件', dingtalk: '钉钉', feishu: '飞书',
+}
+
+const channelList = [
+  { code: 'station', name: '站内信' },
+  { code: 'email', name: '邮件' },
+  { code: 'dingtalk', name: '钉钉' },
+  { code: 'feishu', name: '飞书' },
+]
+
+const moduleNameMap: Record<string, string> = {
+  user: '用户管理',
+  role: '角色管理',
+  file: '文件管理',
+  audit_log: '审计日志',
+  login_log: '登录日志',
+  notification: '通知管理',
+  alert: '告警管理',
+  maintenance: '维护管理',
+  openapi_app: '开放平台应用',
+  openapi_scope: '开放平台权限',
+  dashboard: '仪表盘',
+  swagger: 'Swagger文档',
+}
+
+const groupedPermissions = computed(() => {
+  const map: Record<string, any[]> = {}
+  for (const p of permissionList.value) {
+    if (!map[p.module]) map[p.module] = []
+    map[p.module].push(p)
+  }
+  return Object.entries(map).map(([module, items]) => ({ module, items }))
+})
 
 const form = ref({
   name: '',
@@ -97,8 +182,71 @@ onMounted(async () => {
       birthday: info.birthday || '',
       gender: info.gender || 'male',
     }
+    roles.value = info.roles || []
+    permissions.value = info.permissions || []
+    permissionList.value = info.permission_list || []
+  }
+  // 加载通知偏好
+  try {
+    const res = await request.get('/auth/notification-preferences')
+    preferenceEvents.value = res.data.events
+  } catch (e) {
+    // ignore
+  }
+  // 加载接收人
+  try {
+    const res = await request.get('/auth/notification-recipients')
+    recipients.value = res.data.items
+  } catch (e) {
+    // ignore
   }
 })
+
+async function toggleChannel(event: string, channel: string, enabled: boolean) {
+  try {
+    await request.put('/auth/notification-preferences', {
+      [event]: { [channel]: enabled },
+    })
+    ElMessage.success('已更新')
+  } catch (e) {
+    // 错误已处理
+  }
+}
+
+async function addRecipient() {
+  if (!newRecipient.value.recipient) {
+    ElMessage.warning('请输入接收人地址')
+    return
+  }
+  try {
+    await request.post('/auth/notification-recipients', newRecipient.value)
+    ElMessage.success('已添加')
+    newRecipient.value = { channel: 'email', recipient: '', label: '' }
+    const res = await request.get('/auth/notification-recipients')
+    recipients.value = res.data.items
+  } catch (e) {
+    // 错误已处理
+  }
+}
+
+async function toggleRecipient(row: any, enabled: boolean) {
+  try {
+    await request.put(`/auth/notification-recipients/${row.id}`, { enabled })
+    row.enabled = enabled
+  } catch (e) {
+    // 错误已处理
+  }
+}
+
+async function removeRecipient(row: any) {
+  try {
+    await request.delete(`/auth/notification-recipients/${row.id}`)
+    ElMessage.success('已删除')
+    recipients.value = recipients.value.filter((r: any) => r.id !== row.id)
+  } catch (e) {
+    // 错误已处理
+  }
+}
 
 async function saveInfo() {
   try {

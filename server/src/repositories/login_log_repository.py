@@ -40,10 +40,13 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
         login_type: str | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
+        keyword: str | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[LoginLogEntity], int]:
         """按条件搜索登录日志（分页）。"""
+        from sqlalchemy import or_
+
         conditions = []
         if user_id is not None:
             conditions.append(LoginLogEntity.user_id == user_id)
@@ -55,6 +58,15 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
             conditions.append(LoginLogEntity.created_at >= start_time)
         if end_time is not None:
             conditions.append(LoginLogEntity.created_at <= end_time)
+        if keyword and keyword.strip():
+            kw = keyword.strip()
+            conditions.append(
+                or_(
+                    LoginLogEntity.ip_address.contains(kw),
+                    LoginLogEntity.status.contains(kw),
+                    LoginLogEntity.login_type.contains(kw),
+                )
+            )
         return self._paginate(conditions, skip, limit)
 
     def count_recent_failures(

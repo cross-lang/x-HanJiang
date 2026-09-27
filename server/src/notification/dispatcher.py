@@ -51,14 +51,29 @@ from src.repositories.notification_repository import NotificationRepository
 # 默认路由表：NotificationEvent → [NotificationChannel]
 DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
     # 用户域
-    NotificationEvent.USER_PASSWORD_CHANGED: [NotificationChannel.EMAIL],
-    NotificationEvent.USER_PROFILE_UPDATED: [NotificationChannel.EMAIL],
-    NotificationEvent.USER_STATUS_CHANGED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
+    NotificationEvent.USER_PASSWORD_CHANGED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_PROFILE_UPDATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_STATUS_CHANGED: [NotificationChannel.STATION, NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
     NotificationEvent.USER_LOGIN_FAILED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
+    NotificationEvent.USER_CREATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
     # 角色权限域
-    NotificationEvent.ROLE_ASSIGNED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
-    NotificationEvent.PERMISSION_GRANTED: [NotificationChannel.EMAIL],
-    NotificationEvent.PERMISSION_REVOKED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
+    NotificationEvent.ROLE_ASSIGNED: [NotificationChannel.STATION, NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
+    NotificationEvent.PERMISSION_GRANTED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.PERMISSION_REVOKED: [NotificationChannel.STATION, NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
+    # 文件域
+    NotificationEvent.FILE_UPLOADED: [NotificationChannel.STATION],
+    NotificationEvent.FILE_DELETED: [NotificationChannel.STATION],
+    NotificationEvent.FILE_DOWNLOADED: [NotificationChannel.STATION],
+    # 用户域补充
+    NotificationEvent.USER_DELETED: [NotificationChannel.EMAIL],
+    NotificationEvent.LOGIN_NEW_DEVICE: [NotificationChannel.EMAIL],
+    # 角色域补充
+    NotificationEvent.ROLE_DELETED: [NotificationChannel.STATION],
+    # 开放应用域
+    NotificationEvent.OPENAPI_APP_CREATED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_UPDATED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_DELETED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_KEY_RESET: [NotificationChannel.EMAIL],
     # 系统域
     NotificationEvent.SYSTEM_ALERT: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK, NotificationChannel.FEISHU],
     NotificationEvent.SYSTEM_MAINTENANCE: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK, NotificationChannel.FEISHU],

@@ -1,8 +1,15 @@
 <template>
   <el-container style="height: 100vh">
-    <el-aside width="200px" style="background: #ffffff; border-right: 1px solid #e4e7ed; position: relative">
-      <div style="color: #303133; text-align: center; padding: 20px 0; font-size: 18px; font-weight: bold">
-        汉江管理系统
+    <el-aside
+      :width="isCollapsed ? '64px' : '200px'"
+      style="background: #ffffff; border-right: 1px solid #e4e7ed; position: relative; transition: width 0.25s ease; overflow: hidden"
+    >
+      <div
+        class="app-title"
+        :title="isCollapsed ? '点击展开菜单' : '点击收起菜单'"
+        @click="toggleMenu"
+      >
+        {{ isCollapsed ? '汉江' : '汉江管理系统' }}
       </div>
       <el-menu
         :default-active="$route.path"
@@ -10,6 +17,8 @@
         text-color="#5a5e66"
         active-text-color="#409eff"
         router
+        :collapse="isCollapsed"
+        :collapse-transition="false"
       >
         <template v-for="menu in menus" :key="menu.id">
           <!-- 目录：有子菜单 -->
@@ -80,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import NotificationBell from '@/components/NotificationBell.vue'
@@ -88,6 +97,14 @@ import NotificationBell from '@/components/NotificationBell.vue'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+// 左侧菜单折叠状态（持久化到 localStorage）
+const isCollapsed = ref(localStorage.getItem('sidebar_collapsed') === '1')
+
+function toggleMenu() {
+  isCollapsed.value = !isCollapsed.value
+  localStorage.setItem('sidebar_collapsed', isCollapsed.value ? '1' : '0')
+}
 
 const menus = computed(() => userStore.menus)
 
@@ -103,7 +120,8 @@ const pageTitle = computed(() => {
     }
     return ''
   }
-  return findTitle(menus.value, route.path) || route.path
+  const titleMap: Record<string, string> = { '/profile': '个人中心' }
+  return findTitle(menus.value, route.path) || titleMap[route.path] || route.path
 })
 
 onMounted(async () => {
@@ -124,3 +142,21 @@ function handleCommand(cmd: string) {
   }
 }
 </script>
+
+<style scoped>
+.app-title {
+  color: #303133;
+  text-align: center;
+  padding: 20px 0;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+.app-title:hover {
+  color: #409eff;
+  background-color: #f5f7fa;
+}
+</style>

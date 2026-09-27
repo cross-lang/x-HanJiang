@@ -58,6 +58,19 @@ class NotificationEvent(BaseEnum):
     USER_PROFILE_UPDATED = "user.profile_updated", "资料变更"
     USER_STATUS_CHANGED = "user.status_changed", "账号状态变更"
     USER_LOGIN_FAILED = "user.login_failed", "连续登录失败告警"
+    USER_CREATED = "user.created", "新用户创建"
+    FILE_UPLOADED = "file.uploaded", "文件上传完成"
+    FILE_DELETED = "file.deleted", "文件已删除"
+    FILE_DOWNLOADED = "file.downloaded", "文件被下载"
+    USER_DELETED = "user.deleted", "用户已删除"
+    ROLE_DELETED = "role.deleted", "角色已删除"
+    LOGIN_NEW_DEVICE = "login.new_device", "新设备登录"
+
+    # ── 开放应用域 ──────────────────────────────────
+    OPENAPI_APP_CREATED = "openapi_app.created", "开放应用已创建"
+    OPENAPI_APP_UPDATED = "openapi_app.updated", "开放应用已更新"
+    OPENAPI_APP_DELETED = "openapi_app.deleted", "开放应用已删除"
+    OPENAPI_APP_KEY_RESET = "openapi_app.key_reset", "AppKey已重置"
 
     # ── 角色权限域 ──────────────────────────────
     ROLE_ASSIGNED = "role.assigned", "角色变更"

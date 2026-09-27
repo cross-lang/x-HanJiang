@@ -28,12 +28,13 @@ from src.constants.constants import (
     OPENAPI_HEADER_DATE,
     OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
-from src.constants.enums import AppAuthMode
+from src.constants.enums import AppAuthMode, NotificationEvent
 from src.utils.security import generate_secret_key
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
 from src.services.base_service import BaseService
+from src.notification.notification_decorators import notify
 from src.utils import security
 
 # ── 开放平台鉴权协议常量 ─────────────────────────────────
@@ -308,6 +309,11 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         return self._to_response(e)
 
     # ── 更新 ────────────────────────────────────────────
+    @notify(
+        NotificationEvent.OPENAPI_APP_UPDATED,
+        target="owner",
+        vars_extractor=lambda r: {"app_name": r.name, "app_id": r.app_id},
+    )
     def update(self, id: int, patch: dict[str, Any]) -> OpenApiAppResponse:
         e = self._repository.get_by_id(id)
         if e is None:

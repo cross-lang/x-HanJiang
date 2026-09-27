@@ -37,6 +37,8 @@ class UserCreateRequest(BaseModel):
     name: str | None = Field(default=None, max_length=100, description="姓名")
     age: int | None = Field(default=None, ge=0, le=200, description="年龄")
     phone: str | None = Field(default=None, max_length=20, description="手机号")
+    gender: str | None = Field(default=None, description="性别（male/female）")
+    birthday: str | None = Field(default=None, description="生日（YYYY-MM-DD）")
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
     role_id: int | None = Field(default=None, description="主角色ID")
     role_ids: list[int] = Field(default_factory=list, description="角色ID列表")

@@ -1,8 +1,19 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between">
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center">
       <el-button type="primary" @click="handleCreate">新建用户</el-button>
-      <el-button icon="Download" @click="handleExport">导出CSV</el-button>
+      <div style="display: flex; gap: 8px">
+        <el-input
+          v-model="keyword"
+          placeholder="按用户名/姓名/邮箱搜索"
+          style="width: 230px"
+          clearable
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
+        <el-button icon="Download" @click="handleExport">导出CSV</el-button>
+      </div>
     </div>
     <el-table :data="list" v-loading="loading">
       <el-table-column prop="id" label="ID" width="80" />
@@ -136,6 +147,7 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const keyword = ref('')
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -159,7 +171,13 @@ const resetPassword = ref('')
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/users', { params: { page: page.value, page_size: pageSize.value } })
+    const res = await request.get('/users', {
+      params: {
+        page: page.value,
+        page_size: pageSize.value,
+        keyword: keyword.value.trim() || undefined,
+      },
+    })
     list.value = res.data.items
     total.value = res.data.total
   } catch (e) {
@@ -167,6 +185,11 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+function handleSearch() {
+  page.value = 1
+  fetchList()
 }
 
 async function fetchRoles() {

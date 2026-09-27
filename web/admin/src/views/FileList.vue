@@ -1,10 +1,13 @@
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; margin-bottom: 16px">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
       <el-upload :show-file-list="false" :http-request="handleUpload" :headers="uploadHeaders">
         <el-button type="primary" icon="Upload">上传文件</el-button>
       </el-upload>
-      <el-input v-model="keyword" placeholder="搜索文件名" style="width: 240px" clearable @keyup.enter="loadData" @clear="loadData" />
+      <div style="display: flex; gap: 8px">
+        <el-input v-model="keyword" placeholder="按文件名搜索" style="width: 240px" clearable @keyup.enter="handleSearch" @clear="handleSearch" />
+        <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
+      </div>
     </div>
 
     <el-table :data="list" v-loading="loading" border>
@@ -14,7 +17,7 @@
       <el-table-column label="大小" width="120">
         <template #default="{ row }">{{ formatSize(row.size_bytes) }}</template>
       </el-table-column>
-      <el-table-column prop="uploader_name" label="上传者" width="120" />
+      <el-table-column prop="uploader_display" label="上传者" min-width="150" />
       <el-table-column label="上传时间" width="180">
         <template #default="{ row }">{{ row.created_at ? row.created_at.replace('T', ' ').substring(0, 19) : '-' }}</template>
       </el-table-column>
@@ -57,7 +60,7 @@ async function loadData() {
   loading.value = true
   try {
     const res = await request.get('/files', {
-      params: { page: page.value, page_size: pageSize.value, keyword: keyword.value || undefined },
+      params: { page: page.value, page_size: pageSize.value, keyword: keyword.value.trim() || undefined },
     })
     list.value = res.data.items || []
     total.value = res.data.total || 0
@@ -66,6 +69,11 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+function handleSearch() {
+  page.value = 1
+  loadData()
 }
 
 async function handleUpload(option: any) {

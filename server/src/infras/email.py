@@ -94,7 +94,8 @@ class SmtpEmailProvider(EmailProvider):
             return False
 
         message = MIMEMultipart("alternative")
-        message["From"] = f"{self._from_name} <{self._from_address}>"
+        from email.header import Header
+        message["From"] = f"{Header(self._from_name, 'utf-8').encode()} <{self._from_address}>"
         message["To"] = to_address
         message["Subject"] = subject
         if text_content:
