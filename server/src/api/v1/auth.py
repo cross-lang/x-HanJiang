@@ -111,9 +111,13 @@ async def update_me(
         raise NotFoundException(message="用户不存在")
     data = body.model_dump(exclude_unset=True)
     for k, v in data.items():
-        if v is not None and hasattr(user, k):
-            setattr(user, k, v)
-    user_service._commit()
+        if v is None or v == '' or not hasattr(user, k):
+            continue
+        # birthday 是 date 类型，前端传的是 ISO datetime，截取前10位 YYYY-MM-DD
+        if k == 'birthday' and isinstance(v, str) and len(v) >= 10:
+            v = v[:10]
+        setattr(user, k, v)
+    user_service._repository.session.commit()
     return success_response({"message": "修改成功"}, request)
 
 
@@ -138,7 +142,7 @@ async def change_password(
         from src.core.exceptions import ValidationException
         raise ValidationException(message="原密码错误")
     user.password_hash = hash_password(body.new_password)
-    user_service._commit()
+    user_service._repository.session.commit()
     return success_response({"message": "密码修改成功"}, request)
 
 
