@@ -1,6 +1,6 @@
 <template>
   <el-card>
-    <div v-if="!isLoginLog" style="margin-bottom: 16px; text-align: right">
+    <div style="margin-bottom: 16px; text-align: right">
       <el-button icon="Download" @click="handleExport">导出CSV</el-button>
     </div>
     <el-table :data="list" v-loading="loading">
@@ -88,8 +88,16 @@ function handleExport() {
   const api = isLogin ? '/api/v1/audit/login-logs/export' : '/api/v1/audit/logs/export'
   const filename = isLogin ? 'login_logs_export.csv' : 'audit_logs_export.csv'
   fetch(api, { headers: { Authorization: `Bearer ${token}` } })
-    .then(r => r.blob())
+    .then(async r => {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        ElMessage.error(err.message || `导出失败（${r.status}）`)
+        return
+      }
+      return r.blob()
+    })
     .then(blob => {
+      if (!blob) return
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url

@@ -88,12 +88,15 @@ import request from '@/api/request'
 const userStore = useUserStore()
 const today = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 
-const quickLinks = [
-  { title: '用户管理', desc: '查看和管理系统用户', path: '/users', icon: 'User', color: '#409eff' },
-  { title: '角色管理', desc: '分配角色和权限', path: '/roles', icon: 'UserFilled', color: '#67c23a' },
-  { title: '开放应用', desc: '管理第三方接入应用', path: '/apps', icon: 'Grid', color: '#e6a23c' },
-  { title: '个人中心', desc: '修改个人信息和密码', path: '/profile', icon: 'Setting', color: '#909399' },
+const allQuickLinks = [
+  { title: '用户管理', desc: '查看和管理系统用户', path: '/users', icon: 'User', color: '#409eff', perm: 'user:view' },
+  { title: '角色管理', desc: '分配角色和权限', path: '/roles', icon: 'UserFilled', color: '#67c23a', perm: 'role:view' },
+  { title: '开放应用', desc: '管理第三方接入应用', path: '/apps', icon: 'Grid', color: '#e6a23c', perm: 'openapi_app:view' },
+  { title: '个人中心', desc: '修改个人信息和密码', path: '/profile', icon: 'Setting', color: '#909399', perm: '' },
 ]
+
+const permissions = userStore.userInfo?.permissions || []
+const quickLinks = allQuickLinks.filter(l => !l.perm || permissions.includes('*') || permissions.includes(l.perm))
 
 const myLogins = ref<any[]>([])
 const myAudits = ref<any[]>([])

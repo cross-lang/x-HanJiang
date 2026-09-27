@@ -132,6 +132,7 @@ class ApiModuleCode(BaseEnum):
     ALERT = ("alert", "告警管理")
     MAINTENANCE = ("maintenance", "维护管理")
     OPENAPI_APP = ("openapi_app", "开放平台应用")
+    OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
     DASHBOARD = ("dashboard", "仪表盘")
     SWAGGER = ("swagger", "接口文档")
 

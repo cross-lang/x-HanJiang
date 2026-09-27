@@ -27,9 +27,15 @@ class DashboardService:
             week_ago = today - timedelta(days=6)
 
             # 关键指标
-            user_count = self._session.execute(select(func.count(UserEntity.id))).scalar() or 0
-            role_count = self._session.execute(select(func.count(RoleEntity.id))).scalar() or 0
-            app_count = self._session.execute(select(func.count(OpenApiAppEntity.id))).scalar() or 0
+            user_count = self._session.execute(
+                select(func.count(UserEntity.id)).where(UserEntity.status == "active", UserEntity.deleted_at.is_(None))
+            ).scalar() or 0
+            role_count = self._session.execute(
+                select(func.count(RoleEntity.id)).where(RoleEntity.status == "enabled", RoleEntity.deleted_at.is_(None))
+            ).scalar() or 0
+            app_count = self._session.execute(
+                select(func.count(OpenApiAppEntity.id)).where(OpenApiAppEntity.status == "active", OpenApiAppEntity.deleted_at.is_(None))
+            ).scalar() or 0
 
             # 今日登录数
             today_login = self._session.execute(

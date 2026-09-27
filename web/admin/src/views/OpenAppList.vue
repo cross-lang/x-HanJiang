@@ -258,6 +258,7 @@ async function fetchScopes() {
 function handleCreate() {
   form.value = { name: '', description: '', auth_mode: 'plain', scopes: [] }
   dialogVisible.value = true
+  fetchScopes()
 }
 
 async function handleSubmit() {
@@ -346,6 +347,5 @@ async function handleDelete(row: any) {  try {
 
 onMounted(() => {
   fetchList()
-  fetchScopes()
 })
 </script>

@@ -24,8 +24,8 @@ from src.services.openapi_app_service import OpenApiAppService
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
 
 
-@router.get("/scopes", summary="可用 scope 列表", dependencies=[Depends(require_user_permission("openapi_app:view"))])
-@permission("openapi_app:view", "查看开放应用", "openapi_app", "view")
+@router.get("/scopes", summary="可用 scope 列表", dependencies=[Depends(require_user_permission("openapi_scope:view"))])
+@permission("openapi_scope:view", "查看开放应用权限", "openapi_scope", "view")
 async def list_scopes(
     request: Request,
     db=Depends(get_db_session),
