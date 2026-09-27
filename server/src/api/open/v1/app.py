@@ -13,7 +13,7 @@ from src.api.response import success_response
 router = APIRouter(tags=["开放平台：应用信息"])
 
 
-@router.get("/me", summary="当前应用信息")
+@router.get("/me", summary="当前开放平台应用信息")
 async def me(
     request: Request,
     app: CurrentApp = Depends(get_current_app),

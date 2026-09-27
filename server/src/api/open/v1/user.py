@@ -14,6 +14,7 @@ from src.api.dependencies import (
     get_user_service,
     require_app_scope,
 )
+from src.api.openapi_scope_decorator import app_scope
 from src.api.response import success_response
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
@@ -22,11 +23,16 @@ from src.services.user_service import UserService
 router = APIRouter(prefix="/users", tags=["开放平台：用户管理"])
 
 
-@router.post("", summary="创建用户")
+@router.post(
+    "",
+    summary="开放平台创建用户",
+    dependencies=[Depends(require_app_scope("user:write"))],
+)
+@app_scope("user:write", "创建用户", "user", "write")
 async def create_user(
     body: UserCreateRequest,
     request: Request,
-    app: CurrentApp = Depends(require_app_scope("user:write")),
+    app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
 ):
     """创建用户（需 `user:write` scope）。"""
@@ -34,14 +40,19 @@ async def create_user(
     return success_response(result.model_dump(), request, code=201)
 
 
-@router.get("", summary="用户列表")
+@router.get(
+    "",
+    summary="开放平台用户列表",
+    dependencies=[Depends(require_app_scope("user:read"))],
+)
+@app_scope("user:read", "查询用户列表", "user", "read")
 async def list_users(
     request: Request,
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
     status: str | None = None,
-    app: CurrentApp = Depends(require_app_scope("user:read")),
+    app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
 ):
     """查询用户列表（需 `user:read` scope）。"""
@@ -60,11 +71,16 @@ async def list_users(
     return success_response(page_result.model_dump(), request)
 
 
-@router.get("/{user_id}", summary="用户详情")
+@router.get(
+    "/{user_id}",
+    summary="开放平台用户详情",
+    dependencies=[Depends(require_app_scope("user:read"))],
+)
+@app_scope("user:read", "查询用户详情", "user", "read")
 async def get_user(
     user_id: int,
     request: Request,
-    app: CurrentApp = Depends(require_app_scope("user:read")),
+    app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
 ):
     """查询单个用户详情（需 `user:read` scope）。"""
@@ -76,12 +92,17 @@ async def get_user(
     return success_response(result.model_dump(), request)
 
 
-@router.patch("/{user_id}", summary="更新用户")
+@router.patch(
+    "/{user_id}",
+    summary="开放平台更新用户",
+    dependencies=[Depends(require_app_scope("user:write"))],
+)
+@app_scope("user:write", "更新用户", "user", "write")
 async def update_user(
     user_id: int,
     body: UserUpdateRequest,
     request: Request,
-    app: CurrentApp = Depends(require_app_scope("user:write")),
+    app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
 ):
     """更新用户信息（需 `user:write` scope）。"""
@@ -91,11 +112,16 @@ async def update_user(
     return success_response(result.model_dump(), request)
 
 
-@router.delete("/{user_id}", summary="删除用户")
+@router.delete(
+    "/{user_id}",
+    summary="开放平台删除用户",
+    dependencies=[Depends(require_app_scope("user:write"))],
+)
+@app_scope("user:write", "删除用户", "user", "write")
 async def delete_user(
     user_id: int,
     request: Request,
-    app: CurrentApp = Depends(require_app_scope("user:write")),
+    app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
 ):
     """软删除用户（需 `user:write` scope）。"""

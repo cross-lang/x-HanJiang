@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 用户接口
 
@@ -21,7 +21,7 @@ import io
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
-from src.api.permission_decorator import permission
+from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     get_user_operator_context,

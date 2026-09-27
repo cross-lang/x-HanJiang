@@ -7,9 +7,11 @@
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="app_id" label="App ID" width="200" />
       <el-table-column prop="name" label="应用名称" />
-      <el-table-column prop="auth_mode" label="鉴权模式" width="90">
+      <el-table-column prop="auth_mode" label="鉴权模式" width="110">
         <template #default="{ row }">
-          <el-tag :type="row.auth_mode === 'hmac' ? 'success' : 'warning'">{{ row.auth_mode }}</el-tag>
+          <el-tag v-if="row.auth_mode === 'plain'" type="warning">明文</el-tag>
+          <el-tag v-else-if="row.auth_mode === 'hmac'" type="success">HMAC 签名</el-tag>
+          <el-tag v-else type="primary">双模式</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="scopes" label="权限范围">
@@ -43,7 +45,7 @@
   </el-card>
 
   <!-- 新建弹窗 -->
-  <el-dialog v-model="dialogVisible" title="新建应用" width="560px">
+  <el-dialog v-model="dialogVisible" title="新建应用" width="640px">
     <el-form :model="form" label-width="80px">
       <el-form-item label="名称">
         <el-input v-model="form.name" />
@@ -59,22 +61,25 @@
         </el-select>
       </el-form-item>
       <el-form-item label="权限范围">
-        <el-checkbox-group v-model="form.scopes">
-          <el-checkbox :model-value="isGroupAll('basic', form.scopes)" :indeterminate="isGroupIndeterminate('basic', form.scopes)" @change="(val: any) => toggleGroup('basic', form.scopes, val)">
-            <span style="font-weight: 600; color: #606266;">基础接口</span>
-          </el-checkbox>
-          <div style="margin-bottom: 12px; margin-left: 24px;">
-            <el-checkbox value="health:read" style="margin-right: 20px;">健康检查</el-checkbox>
-            <el-checkbox value="app:read">应用信息</el-checkbox>
-          </div>
-          <el-checkbox :model-value="isGroupAll('user', form.scopes)" :indeterminate="isGroupIndeterminate('user', form.scopes)" @change="(val: any) => toggleGroup('user', form.scopes, val)">
-            <span style="font-weight: 600; color: #606266;">用户管理</span>
-          </el-checkbox>
-          <div style="margin-left: 24px;">
-            <el-checkbox value="user:read" style="margin-right: 20px;">查看用户</el-checkbox>
-            <el-checkbox value="user:write">写用户</el-checkbox>
-          </div>
-        </el-checkbox-group>
+        <el-collapse v-model="activeGroups">
+          <el-collapse-item v-for="(items, module) in groupedScopes" :key="module" :name="module">
+            <template #title>
+              <el-checkbox
+                :model-value="isGroupAllChecked(items, form.scopes)"
+                :indeterminate="isGroupIndeterminate(items, form.scopes)"
+                @change="(val: any) => toggleGroup(items, form.scopes, val)"
+                @click.stop
+              >{{ moduleLabel(module, items) }}</el-checkbox>
+            </template>
+            <el-checkbox-group v-model="form.scopes">
+              <div v-for="s in items" :key="s.id" style="margin-bottom: 8px; margin-left: 10px">
+                <el-checkbox :value="s.scope_code">
+                  {{ s.scope_name }}（{{ s.scope_code }}）
+                </el-checkbox>
+              </div>
+            </el-checkbox-group>
+          </el-collapse-item>
+        </el-collapse>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -84,7 +89,7 @@
   </el-dialog>
 
   <!-- 编辑弹窗 -->
-  <el-dialog v-model="editDialogVisible" title="编辑应用" width="560px">
+  <el-dialog v-model="editDialogVisible" title="编辑应用" width="640px">
     <el-form :model="editForm" label-width="80px">
       <el-form-item label="名称">
         <el-input v-model="editForm.name" />
@@ -100,22 +105,25 @@
         </el-select>
       </el-form-item>
       <el-form-item label="权限范围">
-        <el-checkbox-group v-model="editForm.scopes">
-          <el-checkbox :model-value="isGroupAll('basic', editForm.scopes)" :indeterminate="isGroupIndeterminate('basic', editForm.scopes)" @change="(val: any) => toggleGroup('basic', editForm.scopes, val)">
-            <span style="font-weight: 600; color: #606266;">基础接口</span>
-          </el-checkbox>
-          <div style="margin-bottom: 12px; margin-left: 24px;">
-            <el-checkbox value="health:read" style="margin-right: 20px;">健康检查</el-checkbox>
-            <el-checkbox value="app:read">应用信息</el-checkbox>
-          </div>
-          <el-checkbox :model-value="isGroupAll('user', editForm.scopes)" :indeterminate="isGroupIndeterminate('user', editForm.scopes)" @change="(val: any) => toggleGroup('user', editForm.scopes, val)">
-            <span style="font-weight: 600; color: #606266;">用户管理</span>
-          </el-checkbox>
-          <div style="margin-left: 24px;">
-            <el-checkbox value="user:read" style="margin-right: 20px;">查看用户</el-checkbox>
-            <el-checkbox value="user:write">写用户</el-checkbox>
-          </div>
-        </el-checkbox-group>
+        <el-collapse v-model="editActiveGroups">
+          <el-collapse-item v-for="(items, module) in groupedScopes" :key="module" :name="module">
+            <template #title>
+              <el-checkbox
+                :model-value="isGroupAllChecked(items, editForm.scopes)"
+                :indeterminate="isGroupIndeterminate(items, editForm.scopes)"
+                @change="(val: any) => toggleGroup(items, editForm.scopes, val)"
+                @click.stop
+              >{{ moduleLabel(module, items) }}</el-checkbox>
+            </template>
+            <el-checkbox-group v-model="editForm.scopes">
+              <div v-for="s in items" :key="s.id" style="margin-bottom: 8px; margin-left: 10px">
+                <el-checkbox :value="s.scope_code">
+                  {{ s.scope_name }}（{{ s.scope_code }}）
+                </el-checkbox>
+              </div>
+            </el-checkbox-group>
+          </el-collapse-item>
+        </el-collapse>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -144,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
 
@@ -162,31 +170,45 @@ const createdApp = ref({ app_id: '', app_key: '' })
 const editDialogVisible = ref(false)
 const editForm = ref({ id: 0, name: '', description: '', auth_mode: 'plain', scopes: [] as string[] })
 
-const SCOPE_GROUPS: Record<string, string[]> = {
-  basic: ['health:read', 'app:read'],
-  user: ['user:read', 'user:write'],
+const scopeList = ref<any[]>([])
+const activeGroups = ref<string[]>([])
+const editActiveGroups = ref<string[]>([])
+
+const groupedScopes = computed(() => {
+  const groups: Record<string, any[]> = {}
+  for (const s of scopeList.value) {
+    const mod = s.module || '其他'
+    if (!groups[mod]) groups[mod] = []
+    groups[mod].push(s)
+  }
+  return groups
+})
+
+function isGroupAllChecked(items: any[], selected: string[]): boolean {
+  return items.length > 0 && items.every((s: any) => selected.includes(s.scope_code))
 }
 
-function isGroupAll(group: string, selected: string[]): boolean {
-  return SCOPE_GROUPS[group].every(s => selected.includes(s))
+function isGroupIndeterminate(items: any[], selected: string[]): boolean {
+  const checked = items.filter((s: any) => selected.includes(s.scope_code)).length
+  return checked > 0 && checked < items.length
 }
 
-function isGroupIndeterminate(group: string, selected: string[]): boolean {
-  const checked = SCOPE_GROUPS[group].filter(s => selected.includes(s)).length
-  return checked > 0 && checked < SCOPE_GROUPS[group].length
-}
-
-function toggleGroup(group: string, selected: string[], val: any) {
+function toggleGroup(items: any[], selected: string[], val: any) {
+  const codes = items.map((s: any) => s.scope_code)
   if (val) {
-    for (const s of SCOPE_GROUPS[group]) {
-      if (!selected.includes(s)) selected.push(s)
+    for (const c of codes) {
+      if (!selected.includes(c)) selected.push(c)
     }
   } else {
-    for (const s of SCOPE_GROUPS[group]) {
-      const idx = selected.indexOf(s)
+    for (const c of codes) {
+      const idx = selected.indexOf(c)
       if (idx > -1) selected.splice(idx, 1)
     }
   }
+}
+
+function moduleLabel(mod: string, items: any[]): string {
+  return items[0]?.module_label || mod
 }
 
 function copyText(text: string) {
@@ -204,6 +226,11 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+async function fetchScopes() {
+  const res = await request.get('/admin/apps/scopes')
+  scopeList.value = res.data
 }
 
 function handleCreate() {
@@ -281,5 +308,6 @@ async function handleDelete(row: any) {
 
 onMounted(() => {
   fetchList()
+  fetchScopes()
 })
 </script>

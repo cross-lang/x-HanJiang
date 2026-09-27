@@ -206,6 +206,22 @@ function handleCreate() {
 }
 
 async function handleSubmit() {
+  if (!form.value.role_name?.trim()) {
+    ElMessage.warning('请输入角色名称')
+    return
+  }
+  if (!form.value.role_code?.trim()) {
+    ElMessage.warning('请输入角色编码')
+    return
+  }
+  if (!form.value.description?.trim()) {
+    ElMessage.warning('请输入角色描述')
+    return
+  }
+  if (selectedPermissions.value.length === 0) {
+    ElMessage.warning('请至少选择一个权限')
+    return
+  }
   try {
     const res = await request.post('/roles', form.value)
     const roleId = res.data.id
@@ -229,6 +245,18 @@ async function handleEdit(row: any) {
 }
 
 async function handleUpdate() {
+  if (!editForm.value.role_name?.trim()) {
+    ElMessage.warning('请输入角色名称')
+    return
+  }
+  if (!editForm.value.description?.trim()) {
+    ElMessage.warning('请输入角色描述')
+    return
+  }
+  if (editSelectedPermissions.value.length === 0) {
+    ElMessage.warning('请至少选择一个权限')
+    return
+  }
   try {
     // 更新基本信息
     await request.post(`/roles/${editForm.value.id}/update`, {

@@ -300,9 +300,9 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
 
     def _to_response(self, entity: PermissionEntity) -> PermissionResponse:
         """实体转响应 DTO。"""
-        from src.constants.enums import ModuleCode
+        from src.constants.enums import ApiModuleCode
         module_label = next(
-            (m.desc for m in ModuleCode if m.mark == entity.module),
+            (m.desc for m in ApiModuleCode if m.mark == entity.module),
             entity.module,
         )
         return PermissionResponse(

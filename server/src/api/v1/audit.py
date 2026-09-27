@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """审计日志接口。"""
 
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from src.api.permission_decorator import permission
+from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_audit_service, get_current_user, get_login_log_service, require_user_permission
 from src.api.response import success_response
 from src.core.exceptions import NotFoundException

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 告警接口
 
@@ -13,7 +13,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from src.api.permission_decorator import permission
+from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     require_user_permission,

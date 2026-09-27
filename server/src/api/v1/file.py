@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """文件管理接口。"""
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 
-from src.api.permission_decorator import permission
+from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_file_service, require_user_permission
 from src.api.response import success_response
 from src.services.file_service import FileStorageService

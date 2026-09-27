@@ -112,8 +112,8 @@ class HttpMediaType(Enum):
 
 
 
-class ModuleCode(BaseEnum):
-    """权限模块编码与中文名映射。"""
+class ApiModuleCode(BaseEnum):
+    """用户态权限模块编码与中文名映射。"""
 
     USER = ("user", "用户管理")
     ROLE = ("role", "角色管理")
@@ -124,3 +124,10 @@ class ModuleCode(BaseEnum):
     ALERT = ("alert", "告警管理")
     MAINTENANCE = ("maintenance", "维护管理")
     OPENAPI_APP = ("openapi_app", "开放平台应用")
+
+
+class OpenApiModuleCode(BaseEnum):
+    """开放平台 scope 模块编码与中文名映射。"""
+
+    USER = ("user", "用户管理")
+    HEALTH = ("health", "健康检查")

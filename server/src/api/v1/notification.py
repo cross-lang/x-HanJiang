@@ -1,11 +1,11 @@
-"""通知管理 API。
+﻿"""通知管理 API。
 
 提供通知记录查询、统计和手动触发接口。
 """
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from src.api.permission_decorator import permission
+from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     require_user_permission,

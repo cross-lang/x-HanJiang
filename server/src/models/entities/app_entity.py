@@ -12,7 +12,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Index, Integer, String, Text, func, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infras.database import Base
@@ -85,4 +85,44 @@ class OpenApiAppEntity(Base):
     __table_args__ = (
         Index("uk_app_id", "app_id", unique=True),
         Index("idx_owner_user_id", "owner_user_id"),
+    )
+
+
+class OpenApiScopeEntity(Base):
+    """开放平台 scope 元数据表。
+
+    启动时自动扫描开放平台路由的 @app_scope 装饰器，upsert 到本表。
+    管理后台创建/编辑应用时，从本表拉取可选 scope 列表。
+    """
+
+    __tablename__ = "openapi_scopes"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True, comment="主键ID"
+    )
+    scope_code: Mapped[str] = mapped_column(
+        String(100), nullable=False, comment="Scope 编码，如 user:read"
+    )
+    scope_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, comment="Scope 中文名"
+    )
+    module: Mapped[str] = mapped_column(
+        String(50), nullable=False, comment="所属模块"
+    )
+    operation: Mapped[str] = mapped_column(
+        String(20), nullable=False, comment="操作类型"
+    )
+    description: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, comment="说明"
+    )
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", comment="排序序号"
+    )
+    is_deprecated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="0", comment="是否已废弃（路由中不再使用）"
+    )
+
+    __table_args__ = (
+        Index("uk_scope_code", "scope_code", unique=True),
+        Index("idx_module", "module"),
     )

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 应用入口模块
 
@@ -40,7 +40,7 @@ from src.core.middleware import (
     setup_rate_limiter,
 )
 from src.infras.cache import get_cached_cache_provider
-from src.infras.database import get_cached_database_provider
+
 
 try:
     from slowapi import Limiter  # noqa: F401
@@ -57,8 +57,11 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"{APP_NAME} v{APP_VERSION} starting up (env={settings.app_env}, debug={settings.server.debug})")
 
-    # 初始化数据库
+    # 创建数据库引擎对象和连接池
+    from src.infras.database import get_cached_database_provider
     get_cached_database_provider()
+
+    # 初始化数据库（表）
     from src.infras.database import init_db
     init_db()
     logger.info("Database initialized successfully")
@@ -67,9 +70,13 @@ async def lifespan(app: FastAPI):
     from src.core.seed import init_seed_data
     init_seed_data()
 
+    # 初始化 Redis
+    get_cached_cache_provider()
+    logger.info("Redis connection established")
+
     # 自动扫描路由中的权限声明，同步到 permissions 表
     try:
-        from src.api.permission_decorator import collect_permissions_from_app
+        from src.api.api_permission_decorator import collect_permissions_from_app
         from src.models.entities.user_entity import PermissionEntity
 
         collected = collect_permissions_from_app(app)
@@ -102,6 +109,42 @@ async def lifespan(app: FastAPI):
         logger.info(f"Permissions auto-synced: {len(collected)} active, {len(deprecated)} deprecated")
     except Exception as e:
         logger.warning(f"Permission auto-sync failed: {e}")
+
+    # 自动扫描开放平台路由的 scope 声明，同步到 openapi_scopes 表
+    try:
+        from src.api.openapi_scope_decorator import collect_scopes_from_app
+        from src.models.entities.app_entity import OpenApiScopeEntity
+
+        collected_scopes = collect_scopes_from_app(app)
+        logger.debug(f"Collected scopes: {[s['scope_code'] for s in collected_scopes]}")
+        scope_session = get_cached_database_provider().get_session_factory()()
+        active_scope_codes = {s["scope_code"] for s in collected_scopes}
+
+        for sc in collected_scopes:
+            existing = scope_session.query(OpenApiScopeEntity).filter_by(scope_code=sc["scope_code"]).first()
+            if existing:
+                existing.scope_name = sc["scope_name"]
+                existing.module = sc["module"]
+                existing.operation = sc["operation"]
+                existing.description = (sc["description"] or "")[:250]
+                existing.is_deprecated = False
+            else:
+                s = dict(sc)
+                s["description"] = (s.get("description") or "")[:250]
+                scope_session.add(OpenApiScopeEntity(**s, is_deprecated=False))
+
+        deprecated_scopes = scope_session.query(OpenApiScopeEntity).filter(
+            OpenApiScopeEntity.is_deprecated == False,
+            ~OpenApiScopeEntity.scope_code.in_(active_scope_codes),
+        ).all()
+        for d in deprecated_scopes:
+            d.is_deprecated = True
+            logger.info(f"Scope deprecated (not found in routes): {d.scope_code}")
+
+        scope_session.commit()
+        logger.info(f"OpenAPI scopes auto-synced: {len(collected_scopes)} active, {len(deprecated_scopes)} deprecated")
+    except Exception as e:
+        logger.warning(f"OpenAPI scope auto-sync failed: {e}")
 
     # 初始化通知子系统
     from src.notification.bootstrap import setup_notification_system

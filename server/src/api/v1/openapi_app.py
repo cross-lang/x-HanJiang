@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """开放平台应用管理接口（内部管理员用，走用户态 JWT）。
 
 路由前缀：/api/v1/admin/apps
@@ -9,9 +9,10 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.permission_decorator import permission
+from src.api.api_permission_decorator import permission
 from src.api.dependencies import require_user_permission, get_openapi_app_service, get_current_user
 from src.api.response import success_response
+from src.infras.database import get_db_session
 from src.schemas.openapi_app import (
     OpenApiAppCreateRequest,
     OpenApiAppCreatedResponse,
@@ -21,6 +22,39 @@ from src.schemas.openapi_app import (
 from src.services.openapi_app_service import OpenApiAppService
 
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
+
+
+@router.get("/scopes", summary="可用 scope 列表", dependencies=[Depends(require_user_permission("openapi_app:view"))])
+@permission("openapi_app:view", "查看开放应用", "openapi_app", "view")
+async def list_scopes(
+    request: Request,
+    db=Depends(get_db_session),
+):
+    """返回所有可用的开放平台 scope（分组展示给前端创建应用时勾选）。"""
+    from src.models.entities.app_entity import OpenApiScopeEntity
+    from src.constants.enums import OpenApiModuleCode
+
+    entities = db.query(OpenApiScopeEntity).filter(
+        OpenApiScopeEntity.is_deprecated == False
+    ).order_by(OpenApiScopeEntity.sort_order, OpenApiScopeEntity.id).all()
+
+    result = []
+    for e in entities:
+        module_label = next(
+            (m.desc for m in OpenApiModuleCode if m.mark == e.module),
+            e.module,
+        )
+        result.append({
+            "id": e.id,
+            "scope_code": e.scope_code,
+            "scope_name": e.scope_name,
+            "module": e.module,
+            "module_label": module_label,
+            "operation": e.operation,
+            "description": e.description,
+        })
+    return success_response(result, request)
+
 
 @router.post("", summary="创建开放应用", dependencies=[Depends(require_user_permission("openapi_app:create"))])
 @permission("openapi_app:create", "创建开放应用", "openapi_app", "create")
