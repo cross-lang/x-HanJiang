@@ -199,7 +199,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         try:
             self._repository.touch_last_used(app_id)
         except Exception:
-            self._repository.session.rollback()
+            self._repository.rollback()
 
         return CurrentApp(
             app_id=app.app_id,
@@ -295,10 +295,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     # ── 查询 ────────────────────────────────────────────
     def list_apps(self, keyword: str | None = None, limit: int = 100) -> list[OpenApiAppResponse]:
-        stmt = self._repository._base_query()
-        if keyword:
-            stmt = stmt.where(OpenApiAppEntity.name.like(f"%{keyword}%"))
-        rows = list(self._repository.session.execute(stmt.limit(limit)).scalars().all())
+        rows = self._repository.search_by_keyword(keyword=keyword, limit=limit)
         return [self._to_response(r) for r in rows]
 
     def get_by_id(self, id: int) -> OpenApiAppResponse:
@@ -324,7 +321,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         for k, v in patch.items():
             if v is not None and hasattr(e, k):
                 setattr(e, k, v)
-        self._repository.session.flush()
+        self._repository.flush()
         self._commit()
         self._log_action("updated", id)
         return self._to_response(e)
@@ -338,7 +335,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         new_plain = generate_secret_key()
         e.app_key_hash = security.sha256_hex(new_plain)
         e.app_key_encrypted = security.encrypt_text(new_plain)
-        self._repository.session.flush()
+        self._repository.flush()
         self._commit()
         self._log_action("key rotated", id, app_id=e.app_id)
         return self._to_response(e), new_plain
@@ -354,8 +351,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
     def _to_response(self, e: OpenApiAppEntity) -> OpenApiAppResponse:
         owner_name = None
         if e.owner_user_id:
-            from src.models.entities.user_entity import UserEntity
-            owner = self._repository.session.query(UserEntity).get(e.owner_user_id)
+            owner = self._repository.get_owner_user(e.owner_user_id)
             owner_name = owner.name or owner.username if owner else None
         return OpenApiAppResponse(
             id=e.id,

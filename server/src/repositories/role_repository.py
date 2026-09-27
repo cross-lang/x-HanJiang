@@ -15,10 +15,10 @@ Classes:
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.core.exceptions import ConflictException, DatabaseException
-from src.models.entities.user_entity import RoleEntity
+from src.models.entities.user_entity import RoleEntity, UserRoleEntity
 from src.repositories.base_repository import BaseRepository
 
 
@@ -48,6 +48,26 @@ class RoleRepository(BaseRepository[RoleEntity, int]):
         """根据角色名称查询角色（含软删除，用于唯一性校验）。"""
         stmt = select(RoleEntity).where(RoleEntity.role_name == role_name)
         return self.session.execute(stmt).scalars().first()
+
+    def get_by_user_id(self, user_id: int) -> list[RoleEntity]:
+        """查询用户关联的所有角色（用于登录态/权限判断）。"""
+        stmt = (
+            select(RoleEntity)
+            .join(UserRoleEntity, UserRoleEntity.role_id == RoleEntity.id)
+            .where(UserRoleEntity.user_id == user_id)
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def count_user_links(self, role_id: int) -> int:
+        """统计角色关联的用户数。"""
+        return (
+            self.session.execute(
+                select(func.count(UserRoleEntity.user_id)).where(
+                    UserRoleEntity.role_id == role_id
+                )
+            ).scalar()
+            or 0
+        )
 
     def search(
         self,

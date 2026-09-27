@@ -23,9 +23,6 @@ class UserEntity(Base):
     name: Mapped[str | None] = mapped_column(
         String(100), nullable=True, comment="姓名"
     )
-    age: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="年龄"
-    )
     password_hash: Mapped[str | None] = mapped_column(
         String(255), nullable=True, comment="密码哈希"
     )

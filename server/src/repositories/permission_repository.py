@@ -59,3 +59,29 @@ class PermissionRepository(BaseRepository[PermissionEntity, int]):
         if operation:
             conditions.append(PermissionEntity.operation == operation)
         return self._paginate(conditions, skip, limit)
+
+    def get_all_modules(self) -> list[str]:
+        """返回所有去重的模块列表。"""
+        rows = self.session.execute(
+            select(PermissionEntity.module).distinct()
+        ).all()
+        return sorted([r[0] for r in rows])
+
+    def get_all_operations(self) -> list[str]:
+        """返回所有去重的操作类型列表。"""
+        rows = self.session.execute(
+            select(PermissionEntity.operation).distinct()
+        ).all()
+        return sorted([r[0] for r in rows])
+
+    def exists_permission_in(
+        self, permission_ids: list[int], perm_code: str
+    ) -> bool:
+        """判断指定权限编码是否存在于权限 ID 集合中（用于权限判断）。"""
+        if not permission_ids:
+            return False
+        stmt = select(PermissionEntity.id).where(
+            PermissionEntity.id.in_(permission_ids),
+            PermissionEntity.perm_code == perm_code,
+        )
+        return self.session.execute(stmt).scalar() is not None

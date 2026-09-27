@@ -177,23 +177,16 @@ class AuthService:
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态校验失败（放行）: {e}")
 
-        # 从 user_roles 查用户角色
-        from src.models.entities.user_entity import UserRoleEntity, RoleEntity
-        roles = self._user_repository.session.query(RoleEntity).join(
-            UserRoleEntity, UserRoleEntity.role_id == RoleEntity.id
-        ).filter(UserRoleEntity.user_id == user.id).all()
+        # 从 user_roles 查用户角色（经仓库）
+        roles = self._role_repository.get_by_user_id(user.id)
         role_codes = [r.role_code for r in roles]
         role_code = role_codes[0] if role_codes else None
         role_ids = [r.id for r in roles]
 
-        # 查用户所有权限码
-        from src.models.entities.user_entity import PermissionEntity, RolePermissionEntity
+        # 查用户所有权限码（经仓库）
         permissions: list[str] = []
         if role_ids:
-            perm_rows = self._user_repository.session.query(PermissionEntity.perm_code).join(
-                RolePermissionEntity, RolePermissionEntity.permission_id == PermissionEntity.id
-            ).filter(RolePermissionEntity.role_id.in_(role_ids)).all()
-            permissions = [r[0] for r in perm_rows]
+            permissions = self._user_repository.get_perm_codes_by_role_ids(role_ids)
         # 超管自动拥有所有权限标记
         if "super_admin" in role_codes:
             permissions = ["*"]
@@ -203,7 +196,6 @@ class AuthService:
             username=user.username,
             email=user.email,
             name=user.name,
-            age=user.age,
             role_id=role_ids[0] if role_ids else None,
             role_code=role_code,
             status=user.status or UserStatus.ACTIVE.value,
@@ -264,7 +256,7 @@ class AuthService:
         status: str,
         ip_address: str | None,
     ) -> None:
-        """写入登录日志（login_logs 表）。"""
+        """写入登录日志（login_logs 表，经仓库）。"""
         try:
             log = LoginLogEntity(
                 user_id=user_id,
@@ -273,10 +265,10 @@ class AuthService:
                 ip_address=ip_address,
                 created_at=datetime.now(UTC).replace(tzinfo=None),
             )
-            self._user_repository.session.add(log)
-            self._user_repository.session.commit()
+            self._login_log_repository.create(log)
+            self._login_log_repository.commit()
         except Exception as e:  # noqa: BLE001
-            self._user_repository.session.rollback()
+            self._login_log_repository.rollback()
             logger.warning(f"写入登录日志失败: {e}")
 
     def _issue_tokens(self, user: UserEntity, ip_address: str | None = None) -> TokenResponse:
@@ -301,14 +293,16 @@ class AuthService:
         except Exception as e:
             logger.warning(f"Redis 登录态写入失败: {e}")
 
-        # 更新最后登录信息
+        # 更新最后登录信息（经仓库）
         try:
-            user.last_login_at = datetime.now(UTC).replace(tzinfo=None)
-            user.last_login_ip = ip_address
-            self._user_repository.session.flush()
-            self._user_repository.session.commit()
+            self._user_repository.update_last_login(
+                user_id=user.id,
+                last_login_at=datetime.now(UTC).replace(tzinfo=None),
+                ip_address=ip_address,
+            )
+            self._user_repository.commit()
         except Exception as e:
-            self._user_repository.session.rollback()
+            self._user_repository.rollback()
             logger.warning(f"更新最后登录信息失败: {e}")
 
         return TokenResponse(

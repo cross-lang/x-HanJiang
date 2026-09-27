@@ -33,7 +33,9 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="创建时间" />
+      <el-table-column prop="created_at" label="创建时间">
+        <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="handleEdit(row)">编辑</el-button>
@@ -132,9 +134,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
+import { formatDateTime } from '@/utils/format'
+
+const route = useRoute()
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -337,7 +343,18 @@ async function handleDelete(row: any) {
 }
 
 onMounted(() => {
+  const q = route.query.keyword
+  if (q) keyword.value = String(q)
   fetchList()
   fetchPermissions()
+})
+
+// 全局搜索跳转携带 keyword 时自动过滤
+watch(() => route.query.keyword, (q) => {
+  if (q) {
+    keyword.value = String(q)
+    page.value = 1
+    fetchList()
+  }
 })
 </script>

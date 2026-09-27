@@ -23,6 +23,7 @@ from src.models.entities.user_entity import (
 from src.repositories.permission_repository import PermissionRepository
 from src.repositories.role_permission_repository import RolePermissionRepository
 from src.repositories.role_repository import RoleRepository
+from src.repositories.user_repository import UserRepository
 from src.schemas.role import (
     PermissionResponse,
     RolePermissionResponse,
@@ -52,6 +53,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         permission_repository: PermissionRepository,
         role_permission_repository: RolePermissionRepository | None = None,
         role_repository: RoleRepository | None = None,
+        user_repository: UserRepository | None = None,
         dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         """初始化权限服务。"""
@@ -62,17 +64,18 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         self._role_repository = role_repository or RoleRepository(
             session=permission_repository.session
         )
+        self._user_repository = user_repository or UserRepository(
+            session=permission_repository.session
+        )
         self._dispatcher = dispatcher
 
     def get_all_modules(self) -> list[str]:
         """返回所有去重的模块列表。"""
-        rows = self._repository.session.query(PermissionEntity.module).distinct().all()
-        return sorted([r[0] for r in rows])
+        return self._repository.get_all_modules()
 
     def get_all_operations(self) -> list[str]:
         """返回所有去重的操作类型列表。"""
-        rows = self._repository.session.query(PermissionEntity.operation).distinct().all()
-        return sorted([r[0] for r in rows])
+        return self._repository.get_all_operations()
 
     def search(
         self,
@@ -120,7 +123,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             operator=operator,
             before_data=None,
             after_data={"perm_code": created.perm_code, "perm_name": created.perm_name},
-            remarks="permission created",
+            remarks="创建新权限",
         )
         result = self._to_response(created)
         logger.info(f"Permission created: id={result.id} code={result.perm_code}")
@@ -162,7 +165,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             operator=operator,
             before_data={"perm_code": existing.perm_code, "perm_name": existing.perm_name, "module": existing.module, "operation": existing.operation},
             after_data={"perm_code": updated.perm_code, "perm_name": updated.perm_name, "module": updated.module, "operation": updated.operation},
-            remarks="permission updated",
+            remarks="更新权限",
         )
         result = self._to_response(updated)
         logger.info(f"Permission updated: id={result.id} code={result.perm_code}")
@@ -181,7 +184,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             operator=operator,
             before_data={"perm_code": existing.perm_code, "perm_name": existing.perm_name, "module": existing.module, "operation": existing.operation},
             after_data=None,
-            remarks="permission deleted",
+            remarks="删除权限",
         )
         logger.info(f"Permission deleted: id={id}")
         return True
@@ -204,9 +207,6 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
     def has_permission(self, user_id: int, permission_code: str) -> bool:
         """判断用户是否拥有某权限，使用缓存避免反复查库。"""
         from src.infras.cache import get_cached_cache_provider
-        from sqlalchemy import select
-
-        from src.models.entities.user_entity import PermissionEntity
 
         cache_key = f"perm:{user_id}:{permission_code}"
         provider = get_cached_cache_provider()
@@ -214,25 +214,16 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         if cached is not None:
             return bool(cached)
 
-        from src.repositories.user_repository import UserRepository
-
-        user = UserRepository(session=self._repository.session).get_by_id(user_id)
-        if user is None:
-            provider.set(cache_key, False, ttl=300)
-            return False
-
-        # 从 user_roles 查用户所有角色
-        from src.models.entities.user_entity import UserRoleEntity
-        role_rows = self._repository.session.query(UserRoleEntity.role_id, RoleEntity.role_code).join(
-            RoleEntity, RoleEntity.id == UserRoleEntity.role_id
-        ).filter(UserRoleEntity.user_id == user.id).all()
+        # 从 user_roles 查用户所有角色（经仓库）
+        user_roles = self._role_repository.get_by_user_id(user_id)
+        role_rows = [(r.id, r.role_code) for r in user_roles]
 
         # 超管短路：拥有 super_admin 角色则自动拥有所有权限
-        if any(r[1] == SystemRoleCode.SUPER_ADMIN.mark for r in role_rows):
+        if any(code == SystemRoleCode.SUPER_ADMIN.mark for _, code in role_rows):
             provider.set(cache_key, True, ttl=300)
             return True
 
-        role_ids = [r[0] for r in role_rows]
+        role_ids = [rid for rid, _ in role_rows]
         if not role_ids:
             provider.set(cache_key, False, ttl=300)
             return False
@@ -244,11 +235,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             provider.set(cache_key, False, ttl=300)
             return False
 
-        stmt = select(PermissionEntity.id).where(
-            PermissionEntity.id.in_(permission_ids),
-            PermissionEntity.perm_code == permission_code,
-        )
-        allowed = self._repository.session.execute(stmt).scalar() is not None
+        allowed = self._repository.exists_permission_in(permission_ids, permission_code)
 
         provider.set(cache_key, allowed, ttl=300)
         return allowed
@@ -269,7 +256,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             operator=operator,
             before_data={"role_id": role_id, "permission_id": permission_id},
             after_data={"role_id": role_id, "permission_id": permission_id},
-            remarks="role permission bound",
+            remarks="给角色绑定权限",
         )
         # ── 通知：权限授予 ──
         self._dispatch_permission_event(
@@ -293,7 +280,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
                 operator=operator,
                 before_data={"role_id": role_id, "permission_id": permission_id},
                 after_data=None,
-                remarks="role permission unbound",
+                remarks="解除角色权限绑定",
             )
             # ── 通知：权限回收 ──
             if perm:
@@ -333,9 +320,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             return
 
         try:
-            from src.repositories.user_repository import UserRepository
-
-            users = UserRepository(session=self._repository.session).get_by_role_id(role_id)
+            users = self._user_repository.get_by_role_id(role_id)
             for user in users:
                 try:
                     self._dispatcher.dispatch_for_user(

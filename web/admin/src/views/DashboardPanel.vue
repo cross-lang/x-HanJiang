@@ -123,7 +123,12 @@
     <el-row :gutter="20" style="margin-bottom: 20px">
       <el-col :span="12">
         <el-card shadow="hover">
-          <template #header>最近登录记录</template>
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>最近登录记录</span>
+              <el-button text type="primary" size="small" @click="goAudit('login')">查看更多</el-button>
+            </div>
+          </template>
           <el-table :data="recentLogins" size="small" empty-text="暂无记录">
             <el-table-column prop="username" label="用户" width="100" />
             <el-table-column prop="ip_address" label="IP" width="120" />
@@ -142,7 +147,12 @@
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
-          <template #header>最近操作日志</template>
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>最近操作日志</span>
+              <el-button text type="primary" size="small" @click="goAudit('audit')">查看更多</el-button>
+            </div>
+          </template>
           <el-table :data="recentAudits" size="small" empty-text="暂无记录">
             <el-table-column prop="operator_name" label="操作人" width="100" />
             <el-table-column prop="entity_type" label="实体" width="100" />
@@ -160,6 +170,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import request from '@/api/request'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -169,6 +180,7 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 
 use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent])
 
+const router = useRouter()
 const stats = ref({ userCount: 0, roleCount: 0, appCount: 0, todayLogin: 0 })
 const loginTrend = ref({ dates: [] as string[], counts: [] as number[] })
 const auditTrend = ref({ dates: [] as string[], counts: [] as number[] })
@@ -261,6 +273,10 @@ const notifyChartOption = computed(() => ({
 function formatTime(t: string) {
   if (!t) return ''
   return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function goAudit(type: 'login' | 'audit') {
+  router.push(type === 'login' ? '/audit/login' : '/audit')
 }
 
 function formatSize(bytes: number): string {

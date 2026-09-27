@@ -42,7 +42,14 @@
     </el-aside>
     <el-container>
       <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center">
+        <GlobalSearch />
         <NotificationBell />
+        <el-badge is-dot class="ai-btn" @click="aiVisible = true">
+          <div class="ai-entry">
+            <el-icon :size="18"><MagicStick /></el-icon>
+            <span>AI 助手</span>
+          </div>
+        </el-badge>
         <el-dropdown @command="handleCommand">
           <span style="cursor: pointer; display: flex; align-items: center; gap: 10px">
             <el-avatar :size="36" style="background: #79bbff">
@@ -85,6 +92,31 @@
         </div>
       </el-main>
     </el-container>
+
+    <!-- AI 助手聊天弹窗 -->
+    <el-drawer v-model="aiVisible" title="AI 助手" size="420px" direction="rtl">
+      <div style="display: flex; flex-direction: column; height: 100%">
+        <div style="flex: 1; overflow-y: auto; padding: 12px; background: #f8f9fb; border-radius: 8px; margin-bottom: 12px">
+          <div v-if="aiMessages.length === 0" style="text-align: center; color: #999; padding: 40px 0">
+            <el-icon size="40" color="#c0c4cc"><MagicStick /></el-icon>
+            <p style="margin-top: 12px">你好！我是 AI 助手，有什么可以帮你的？</p>
+          </div>
+          <div v-for="(msg, idx) in aiMessages" :key="idx" style="margin-bottom: 12px; display: flex; justify-content: flex-end">
+            <div style="background: #409eff; color: #fff; padding: 8px 12px; border-radius: 8px; max-width: 80%">
+              {{ msg.content }}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <el-input
+            v-model="aiInput"
+            placeholder="输入你的问题..."
+            @keyup.enter="sendAiMessage"
+          />
+          <el-button type="primary" @click="sendAiMessage">发送</el-button>
+        </div>
+      </div>
+    </el-drawer>
   </el-container>
 </template>
 
@@ -92,11 +124,26 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import GlobalSearch from '@/components/GlobalSearch.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+const aiVisible = ref(false)
+const aiInput = ref('')
+const aiMessages = ref<any[]>([])
+
+function sendAiMessage() {
+  if (!aiInput.value.trim()) return
+  aiMessages.value.push({ role: 'user', content: aiInput.value })
+  aiInput.value = ''
+  // TODO: 后续接入 AI 接口
+  setTimeout(() => {
+    aiMessages.value.push({ role: 'assistant', content: 'AI 助手功能即将上线，敬请期待！' })
+  }, 500)
+}
 
 // 左侧菜单折叠状态（持久化到 localStorage）
 const isCollapsed = ref(localStorage.getItem('sidebar_collapsed') === '1')
@@ -158,5 +205,30 @@ function handleCommand(cmd: string) {
 .app-title:hover {
   color: #409eff;
   background-color: #f5f7fa;
+}
+.ai-btn {
+  margin-right: 24px;
+  cursor: pointer;
+}
+.ai-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+  transition: all 0.2s ease;
+}
+.ai-entry:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.45);
+  filter: brightness(1.06);
 }
 </style>

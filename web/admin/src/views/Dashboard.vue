@@ -33,6 +33,33 @@
       </el-col>
     </el-row>
 
+    <!-- 系统监控 -->
+    <el-row :gutter="20" style="margin-top: 20px">
+      <el-col :span="24">
+        <el-card>
+          <template #header>
+            <span>系统监控</span>
+          </template>
+          <div style="display: flex; align-items: center; gap: 40px">
+            <div style="text-align: center">
+              <div style="font-size: 32px; font-weight: bold; color: #409eff">
+                {{ monitor.disk?.used_percent || 0 }}%
+              </div>
+              <div style="color: #999; margin-top: 8px">磁盘使用率</div>
+              <el-tag :type="monitor.disk?.status === 'critical' ? 'danger' : monitor.disk?.status === 'warning' ? 'warning' : 'success'" size="small">
+                {{ monitor.disk?.status === 'critical' ? '严重' : monitor.disk?.status === 'warning' ? '警告' : '正常' }}
+              </el-tag>
+            </div>
+            <div style="flex: 1; line-height: 2">
+              <div>总容量：{{ monitor.disk?.total_gb || '-' }} GB</div>
+              <div>已用：{{ monitor.disk?.used_gb || '-' }} GB</div>
+              <div>剩余：{{ monitor.disk?.free_gb || '-' }} GB</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 我的最近动态 -->
     <el-row :gutter="20" style="margin-top: 20px">
       <el-col :span="12">
@@ -100,6 +127,7 @@ const quickLinks = allQuickLinks.filter(l => !l.perm || permissions.includes('*'
 
 const myLogins = ref<any[]>([])
 const myAudits = ref<any[]>([])
+const monitor = ref<any>({})
 
 function formatTime(t: string) {
   if (!t) return ''
@@ -113,6 +141,12 @@ onMounted(async () => {
     myAudits.value = res.data.recent_audits
   } catch (e) {
     // 静默处理
+  }
+  try {
+    const res = await request.get('/admin/notification-configs/monitor/system')
+    monitor.value = res.data
+  } catch (e) {
+    // 普通用户可能没权限，忽略
   }
 })
 </script>

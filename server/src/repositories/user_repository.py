@@ -15,10 +15,16 @@ Classes:
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from src.core.exceptions import ConflictException
-from src.models.entities.user_entity import UserEntity
+from src.models.entities.user_entity import (
+    PermissionEntity,
+    RoleEntity,
+    RolePermissionEntity,
+    UserEntity,
+    UserRoleEntity,
+)
 from src.repositories.base_repository import BaseRepository
 
 
@@ -58,6 +64,57 @@ class UserRepository(BaseRepository[UserEntity, int]):
         """根据角色 ID 查询所有未删除用户。"""
         stmt = self._base_query().where(UserEntity.role_id == role_id)
         return list(self.session.execute(stmt).scalars().all())
+
+    def get_roles_by_user_id(self, user_id: int) -> list[RoleEntity]:
+        """查询用户关联的所有角色（含角色编码，用于登录态/详情组装）。"""
+        stmt = (
+            select(RoleEntity)
+            .join(UserRoleEntity, UserRoleEntity.role_id == RoleEntity.id)
+            .where(UserRoleEntity.user_id == user_id)
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_perm_codes_by_role_ids(self, role_ids: list[int]) -> list[str]:
+        """根据角色 ID 列表查询去重后的权限编码。"""
+        if not role_ids:
+            return []
+        stmt = (
+            select(PermissionEntity.perm_code)
+            .join(
+                RolePermissionEntity,
+                RolePermissionEntity.permission_id == PermissionEntity.id,
+            )
+            .where(RolePermissionEntity.role_id.in_(role_ids))
+        )
+        return [r[0] for r in self.session.execute(stmt).all()]
+
+    def get_permissions_by_role_ids(self, role_ids: list[int]) -> list[PermissionEntity]:
+        """根据角色 ID 列表查询权限实体（排除已废弃，按 sort_order 排序）。"""
+        if not role_ids:
+            return []
+        stmt = (
+            select(PermissionEntity)
+            .join(
+                RolePermissionEntity,
+                RolePermissionEntity.permission_id == PermissionEntity.id,
+            )
+            .where(
+                RolePermissionEntity.role_id.in_(role_ids),
+                PermissionEntity.is_deprecated == 0,
+            )
+            .order_by(PermissionEntity.sort_order)
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def replace_user_roles(self, user_id: int, role_ids: list[int]) -> None:
+        """整体替换用户角色关联（先删后插）。"""
+        self.session.execute(
+            delete(UserRoleEntity).where(UserRoleEntity.user_id == user_id)
+        )
+        for rid in role_ids:
+            self.session.add(UserRoleEntity(user_id=user_id, role_id=rid))
+        self.session.flush()
+
 
     def search(
         self,
@@ -99,3 +156,12 @@ class UserRepository(BaseRepository[UserEntity, int]):
         except Exception as e:
             self.session.rollback()
             raise DatabaseException(message=f"删除用户失败: {e}") from e
+
+    def update_last_login(self, user_id: int, last_login_at: datetime, ip_address: str | None) -> None:
+        """更新用户最后登录时间与 IP（登录成功后调用）。"""
+        existing = self.get_by_id(user_id)
+        if existing is None:
+            return
+        existing.last_login_at = last_login_at
+        existing.last_login_ip = ip_address
+        self.session.flush()

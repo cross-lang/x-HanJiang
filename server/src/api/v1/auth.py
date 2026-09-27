@@ -14,15 +14,23 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
-from src.api.dependencies import get_auth_service, get_current_user, get_user_service
+from src.api.dependencies import (
+    get_auth_service,
+    get_current_user,
+    get_notification_dispatcher,
+    get_station_service,
+    get_user_service,
+)
 from src.models.entities.menu_entity import MenuEntity
 from src.api.response import success_response
+from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.auth import (
     CurrentUser,
     LoginRequest,
     RefreshTokenRequest,
 )
 from src.services.auth_service import AuthService
+from src.services.station_service import StationMessageService
 from src.services.user_service import UserService
 from src.utils.helpers import get_client_ip
 
@@ -112,24 +120,14 @@ async def me(
 ):
     """当前用户信息接口。"""
     data = current_user.model_dump()
-    # 查角色列表
-    db = user_service._repository.session
-    from src.models.entities.user_entity import UserRoleEntity, RoleEntity, PermissionEntity
-    roles = db.query(RoleEntity).join(
-        UserRoleEntity, UserRoleEntity.role_id == RoleEntity.id
-    ).filter(UserRoleEntity.user_id == current_user.id).all()
+    # 查角色列表（经仓库）
+    roles = user_service._repository.get_roles_by_user_id(current_user.id)
     data["roles"] = [{"id": r.id, "name": r.role_name, "code": r.role_code} for r in roles]
 
     # 查权限详情（带模块和名称）
     if "*" not in current_user.permissions:
-        from src.models.entities.user_entity import RolePermissionEntity
         role_ids = [r.id for r in roles]
-        perms = db.query(PermissionEntity).join(
-            RolePermissionEntity, RolePermissionEntity.permission_id == PermissionEntity.id
-        ).filter(
-            RolePermissionEntity.role_id.in_(role_ids),
-            PermissionEntity.is_deprecated == 0,
-        ).order_by(PermissionEntity.sort_order).all()
+        perms = user_service._repository.get_permissions_by_role_ids(role_ids)
         data["permission_list"] = [
             {"code": p.perm_code, "name": p.perm_name, "module": p.module}
             for p in perms
@@ -163,7 +161,7 @@ async def update_me(
         if k == 'birthday' and isinstance(v, str) and len(v) >= 10:
             v = v[:10]
         setattr(user, k, v)
-    user_service._repository.session.commit()
+    user_service._repository.commit()
     return success_response({"message": "修改成功"}, request)
 
 
@@ -177,9 +175,13 @@ async def change_password(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service),
+    station_service: StationMessageService = Depends(get_station_service),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ):
     """修改当前用户密码。"""
     from src.utils.security import verify_password, hash_password
+    from datetime import datetime
+
     user = user_service._repository.get_by_id(current_user.id)
     if user is None:
         from src.core.exceptions import NotFoundException
@@ -188,13 +190,11 @@ async def change_password(
         from src.core.exceptions import ValidationException
         raise ValidationException(message="原密码错误")
     user.password_hash = hash_password(body.new_password)
-    user_service._repository.session.commit()
+    user_service._repository.commit()
 
     # 发站内信
     try:
-        from src.services.station_service import StationMessageService
-        from datetime import datetime
-        StationMessageService().send_station(
+        station_service.send_station(
             user_id=current_user.id,
             title="密码已修改",
             content=f"您的密码已于 {datetime.now().strftime('%Y-%m-%d %H:%M')} 修改",
@@ -204,12 +204,6 @@ async def change_password(
 
     # 发邮件
     try:
-        from src.notification.dispatcher import NotificationDispatcher
-        from src.infras.notification import get_registry
-        from src.infras.database import get_cached_database_provider
-        from datetime import datetime
-        db = get_cached_database_provider().get_session_factory()()
-        dispatcher = NotificationDispatcher(registry=get_registry(), session=db)
         dispatcher.dispatch(
             event_type="user.password_changed",
             recipients={"email": user.email},

@@ -4,7 +4,12 @@
 from fastapi import APIRouter, Depends, Request
 
 from src.api.api_permission_decorator import permission
-from src.api.dependencies import CurrentUser, get_current_user, require_user_permission
+from src.api.dependencies import (
+    CurrentUser,
+    get_current_user,
+    get_dashboard_service,
+    require_user_permission,
+)
 from src.api.response import success_response
 from src.services.dashboard_service import DashboardService
 
@@ -20,9 +25,9 @@ router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
 async def get_stats(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
+    service: DashboardService = Depends(get_dashboard_service),
 ):
     """获取仪表盘关键指标和趋势数据。"""
-    service = DashboardService()
     data = service.get_stats()
     return success_response(data, request)
 
@@ -31,8 +36,8 @@ async def get_stats(
 async def get_my_activity(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
+    service: DashboardService = Depends(get_dashboard_service),
 ):
     """获取当前用户的最近登录日志和操作日志（首页用）。"""
-    service = DashboardService()
     data = service.get_my_activity(current_user.id)
     return success_response(data, request)

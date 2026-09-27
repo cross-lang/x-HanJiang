@@ -13,7 +13,7 @@
             <span v-if="!item.is_read" style="width: 8px; height: 8px; background: #f56c6c; border-radius: 50%; flex-shrink: 0"></span>
             <span style="font-weight: 500; color: #333">{{ item.title }}</span>
           </div>
-          <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">{{ item.created_at }}</div>
+          <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">{{ formatDateTime(item.created_at) }}</div>
         </div>
         <div v-if="expandedId === item.id" style="padding: 8px 12px 12px 16px; background: #fafafa; font-size: 13px; color: #666">
           {{ item.content }}
@@ -31,6 +31,7 @@ import { ref, onMounted } from 'vue'
 import { Bell } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { ElMessage } from 'element-plus'
+import { formatDateTime } from '@/utils/format'
 
 const unreadCount = ref(0)
 const list = ref<any[]>([])

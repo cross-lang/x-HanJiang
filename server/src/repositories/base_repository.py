@@ -77,6 +77,18 @@ class BaseRepository(ABC, Generic[T, ID]):
 
     # ── 写入 ──────────────────────────────────────────────
 
+    def commit(self) -> None:
+        """提交当前事务（Service 层统一通过仓库提交，不直接操作会话）。"""
+        self.session.commit()
+
+    def rollback(self) -> None:
+        """回滚当前事务（Service 层统一通过仓库回滚，不直接操作会话）。"""
+        self.session.rollback()
+
+    def flush(self) -> None:
+        """刷新待持久化的变更到数据库（Service 层统一通过仓库触发，不直接操作会话）。"""
+        self.session.flush()
+
     def create(self, entity: T) -> T:
         """创建新实体。"""
         try:

@@ -203,14 +203,15 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
         Raises:
             Exception: 数据库操作失败时抛出原始异常
         """
-        session = getattr(self._repository, "session", None)
-        if session is None:
+        commit = getattr(self._repository, "commit", None)
+        if commit is None:
             return
 
         try:
-            session.commit()
+            commit()
         except Exception as e:
-            if hasattr(session, "rollback"):
+            session = getattr(self._repository, "session", None)
+            if session is not None and hasattr(session, "rollback"):
                 session.rollback()
             logger.error(f"[{self.entity_type}] 事务提交失败: {e}")
             raise

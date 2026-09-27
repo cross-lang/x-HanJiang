@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from src.repositories.role_permission_repository import RolePermissionRepository
     from src.repositories.role_repository import RoleRepository
     from src.repositories.user_repository import UserRepository
+    from src.services.global_search_service import GlobalSearchService
     from src.services.login_log_service import LoginLogService
     from src.services.openapi_app_service import OpenApiAppService
     from src.services.role_service import RoleService
@@ -95,6 +96,7 @@ def get_notification_service(
     """获取通知业务服务实例。"""
     from src.infras.notification import get_registry
     from src.notification.dispatcher import NotificationDispatcher
+    from src.repositories.notification_repository import NotificationRepository
 
     dispatcher = NotificationDispatcher(
         registry=get_registry(),
@@ -102,7 +104,7 @@ def get_notification_service(
     )
     return NotificationService(
         dispatcher=dispatcher,
-        session=db_session,
+        repository=NotificationRepository(session=db_session),
     )
 
 
@@ -151,24 +153,40 @@ def get_audit_service(
     return AuditService(audit_log_repository=AuditLogRepository(session=db_session))
 
 
-@lru_cache(maxsize=1)
-def get_file_service() -> FileStorageService:
-    """获取共享的文件存储服务，使用 StorageProvider 抽象层。"""
+def get_file_service(
+    db_session: Session = Depends(get_db_session),
+) -> FileStorageService:
+    """获取文件存储服务，使用 StorageProvider 抽象层 + 请求级仓库。"""
     from src.infras.storage import get_cached_storage_provider
+    from src.repositories.file_repository import FileRepository
 
-    return FileStorageService(provider=get_cached_storage_provider())
+    return FileStorageService(
+        file_repository=FileRepository(session=db_session),
+        provider=get_cached_storage_provider(),
+    )
 
 
-def get_auth_service(
-    user_repository: UserRepository = Depends(get_user_repository),
-    login_log_repository: LoginLogRepository = Depends(get_login_log_repository),
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
-) -> AuthService:
-    """获取认证服务。"""
-    return AuthService(
-        user_repository=user_repository,
-        login_log_repository=login_log_repository,
-        dispatcher=dispatcher,
+def get_dashboard_service(
+    db_session: Session = Depends(get_db_session),
+) -> "DashboardService":
+    """获取仪表盘统计服务。"""
+    from src.repositories.dashboard_repository import DashboardRepository
+    from src.services.dashboard_service import DashboardService
+
+    return DashboardService(repository=DashboardRepository(session=db_session))
+
+
+def get_system_notification_service(
+    db_session: Session = Depends(get_db_session),
+) -> "SystemNotificationService":
+    """获取系统通知配置服务。"""
+    from src.repositories.system_notification_config_repository import (
+        SystemNotificationConfigRepository,
+    )
+    from src.services.system_notification_service import SystemNotificationService
+
+    return SystemNotificationService(
+        repository=SystemNotificationConfigRepository(session=db_session)
     )
 
 
@@ -199,6 +217,21 @@ def get_role_permission_repository(
     return RolePermissionRepository(session=db_session)
 
 
+def get_auth_service(
+    user_repository: UserRepository = Depends(get_user_repository),
+    role_repository: RoleRepository = Depends(get_role_repository),
+    login_log_repository: LoginLogRepository = Depends(get_login_log_repository),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+) -> AuthService:
+    """获取认证服务。"""
+    return AuthService(
+        user_repository=user_repository,
+        role_repository=role_repository,
+        login_log_repository=login_log_repository,
+        dispatcher=dispatcher,
+    )
+
+
 def get_role_service(
     role_repository: RoleRepository = Depends(get_role_repository),
     role_permission_repository: RolePermissionRepository = Depends(get_role_permission_repository),
@@ -218,6 +251,7 @@ def get_permission_service(
     permission_repository: PermissionRepository = Depends(get_permission_repository),
     role_permission_repository: RolePermissionRepository = Depends(get_role_permission_repository),
     role_repository: RoleRepository = Depends(get_role_repository),
+    user_repository: UserRepository = Depends(get_user_repository),
     dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> PermissionService:
     """使用当前请求的 Repository 创建权限服务。"""
@@ -227,17 +261,22 @@ def get_permission_service(
         permission_repository=permission_repository,
         role_permission_repository=role_permission_repository,
         role_repository=role_repository,
+        user_repository=user_repository,
         dispatcher=dispatcher,
     )
 
 
 def get_login_log_service(
     login_log_repository: LoginLogRepository = Depends(get_login_log_repository),
+    user_repository: UserRepository = Depends(get_user_repository),
 ) -> LoginLogService:
     """使用当前请求的 Repository 创建登录日志服务。"""
     from src.services.login_log_service import LoginLogService
 
-    return LoginLogService(login_log_repository=login_log_repository)
+    return LoginLogService(
+        login_log_repository=login_log_repository,
+        user_repository=user_repository,
+    )
 
 
 def get_openapi_app_service(
@@ -248,6 +287,18 @@ def get_openapi_app_service(
     from src.services.openapi_app_service import OpenApiAppService
 
     return OpenApiAppService(repo=OpenApiAppRepository(session=db_session))
+
+
+def get_global_search_service(
+    db_session: Session = Depends(get_db_session),
+) -> GlobalSearchService:
+    """获取全局搜索服务。"""
+    from src.repositories.global_search_repository import GlobalSearchRepository
+    from src.services.global_search_service import GlobalSearchService
+
+    return GlobalSearchService(
+        repository=GlobalSearchRepository(session=db_session)
+    )
 
 
 def get_current_user(
@@ -333,10 +384,16 @@ def is_admin_user(user: CurrentUser) -> bool:
     return "*" in user.permissions or user.role_code in ("super_admin", "admin")
 
 
-def get_station_service() -> "StationMessageService":
+def get_station_service(
+    db_session: Session = Depends(get_db_session),
+) -> "StationMessageService":
     """创建站内信服务。"""
+    from src.repositories.station_message_repository import StationMessageRepository
     from src.services.station_service import StationMessageService
-    return StationMessageService()
+
+    return StationMessageService(
+        repository=StationMessageRepository(session=db_session)
+    )
 
 
 def require_app_scope(scope: str):

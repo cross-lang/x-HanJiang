@@ -91,6 +91,7 @@ _SEED_MENUS = [
     ("系统管理", "审计日志", "/audit", "Document", "audit_log:view", 4, "menu"),
     ("系统管理", "登录日志", "/audit/login", "User", "login_log:view", 5, "menu"),
     ("系统管理", "文件管理", "/files", "Folder", "file:view", 6, "menu"),
+    ("系统管理", "渠道配置", "/system-notification", "Bell", "alert:broadcast", 7, "menu"),
     # 接口管理
     (0, "接口管理", "/apis", "Link", None, 4, "directory"),
     ("接口管理", "Swagger文档", "/apis/swagger", "Document", "swagger:view", 1, "menu"),

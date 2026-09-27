@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy.orm import Session
-
 from src.models.entities.notification_entity import NotificationRecordEntity
 from src.notification.dispatcher import NotificationDispatcher
 from src.repositories.notification_repository import NotificationRepository
@@ -23,16 +21,16 @@ class NotificationService:
     """通知业务逻辑层。
 
     内部委托 NotificationDispatcher 完成实际调度。
+    数据查询仅通过 NotificationRepository，不直接操作数据库会话。
     """
 
     def __init__(
         self,
         dispatcher: NotificationDispatcher,
-        session: Session,
+        repository: NotificationRepository,
     ) -> None:
         self._dispatcher = dispatcher
-        self._session = session
-        self._repository = NotificationRepository(session=session)
+        self._repository = repository
 
     # ── 发送 ───────────────────────────────────────────────
 
@@ -78,22 +76,14 @@ class NotificationService:
         channel: str | None = None,
         status: str | None = None,
     ) -> PaginatedResponse[NotificationRecordResponse]:
-        """分页查询通知记录。"""
-        query = self._session.query(NotificationRecordEntity)
-
-        if event_type:
-            query = query.filter(NotificationRecordEntity.event_type == event_type)
-        if channel:
-            query = query.filter(NotificationRecordEntity.channel == channel)
-        if status:
-            query = query.filter(NotificationRecordEntity.status == status)
-
-        total = query.count()
-        items = (
-            query.order_by(NotificationRecordEntity.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-            .all()
+        """分页查询通知记录（经仓库）。"""
+        skip = (page - 1) * page_size
+        items, total = self._repository.search_records(
+            event_type=event_type,
+            channel=channel,
+            status=status,
+            skip=skip,
+            limit=page_size,
         )
 
         return PaginatedResponse[NotificationRecordResponse](

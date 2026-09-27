@@ -1,37 +1,27 @@
 #!/usr/bin/env python3
-"""站内信服务。"""
+"""站内信服务。
 
-from sqlalchemy import select, func
+仅调用 StationMessageRepository 存取数据，不直接操作数据库会话。
+"""
 
-from src.infras.database import get_cached_database_provider
 from src.models.entities.notification_entity import NotificationRecordEntity
+from src.repositories.station_message_repository import StationMessageRepository
 
 
 class StationMessageService:
     """站内信服务。"""
 
-    def __init__(self):
-        self._session = get_cached_database_provider().get_session_factory()()
+    def __init__(self, repository: StationMessageRepository) -> None:
+        self._repository = repository
 
     def unread_count(self, user_id: int) -> int:
-        return self._session.execute(
-            select(func.count(NotificationRecordEntity.id))
-            .where(
-                NotificationRecordEntity.channel == "station",
-                NotificationRecordEntity.recipient == f"user:{user_id}",
-                NotificationRecordEntity.status == "unread",
-            )
-        ).scalar() or 0
+        return self._repository.unread_count(user_id)
 
     def list_messages(self, user_id: int, page: int, page_size: int) -> dict:
-        base = select(NotificationRecordEntity).where(
-            NotificationRecordEntity.channel == "station",
-            NotificationRecordEntity.recipient == f"user:{user_id}",
-        ).order_by(NotificationRecordEntity.created_at.desc())
-
-        total = self._session.execute(select(func.count()).select_from(base.subquery())).scalar() or 0
-        rows = self._session.execute(base.offset((page - 1) * page_size).limit(page_size)).scalars().all()
-
+        skip = (page - 1) * page_size
+        rows, total = self._repository.list_messages(
+            user_id=user_id, skip=skip, limit=page_size
+        )
         items = [
             {
                 "id": r.id,
@@ -45,26 +35,17 @@ class StationMessageService:
         return {"total": total, "items": items}
 
     def mark_read(self, user_id: int, msg_id: int) -> None:
-        msg = self._session.execute(
-            select(NotificationRecordEntity).where(
-                NotificationRecordEntity.id == msg_id,
-                NotificationRecordEntity.recipient == f"user:{user_id}",
-            )
-        ).scalars().first()
+        msg = self._repository.get_message(user_id, msg_id)
         if msg:
-            msg.status = "read"
-            self._session.commit()
+            self._repository.mark_read(msg)
+            self._repository.commit()
 
     def mark_all_read(self, user_id: int) -> None:
-        self._session.query(NotificationRecordEntity).filter(
-            NotificationRecordEntity.channel == "station",
-            NotificationRecordEntity.recipient == f"user:{user_id}",
-            NotificationRecordEntity.status == "unread",
-        ).update({"status": "read"})
-        self._session.commit()
+        self._repository.mark_all_read(user_id)
+        self._repository.commit()
 
     def send_station(self, user_id: int, title: str, content: str) -> None:
-        """发送站内信给指定用户。"""
+        """发送站内信给指定用户（经仓库）。"""
         msg = NotificationRecordEntity(
             event_type="station.message",
             channel="station",
@@ -75,5 +56,5 @@ class StationMessageService:
             retry_count=0,
             max_retries=0,
         )
-        self._session.add(msg)
-        self._session.commit()
+        self._repository.create(msg)
+        self._repository.commit()

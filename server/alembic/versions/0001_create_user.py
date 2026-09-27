@@ -23,7 +23,6 @@ def upgrade() -> None:
         sa.Column("username", sa.String(length=50), nullable=False, comment="用户名"),
         sa.Column("email", sa.String(length=255), nullable=False, comment="邮箱地址"),
         sa.Column("name", sa.String(length=100), nullable=False, comment="显示名称"),
-        sa.Column("age", sa.Integer(), nullable=True, comment="年龄"),
         sa.Column(
             "created_at",
             sa.DateTime(),

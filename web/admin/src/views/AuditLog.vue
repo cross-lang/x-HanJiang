@@ -27,6 +27,11 @@
         <el-table-column prop="created_at" label="时间" min-width="180">
           <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
         </el-table-column>
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-button size="small" link @click="showDetail(row)">详情</el-button>
+          </template>
+        </el-table-column>
       </template>
       <template v-else>
         <el-table-column prop="id" label="ID" width="80" />
@@ -39,6 +44,11 @@
         <el-table-column prop="created_at" label="时间" min-width="180">
           <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
         </el-table-column>
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-button size="small" link @click="showDetail(row)">详情</el-button>
+          </template>
+        </el-table-column>
       </template>
     </el-table>
     <el-pagination
@@ -48,6 +58,23 @@
       :total="total"
       @current-change="fetchList"
     />
+    <el-dialog v-model="detailVisible" title="审计详情" width="700px">
+      <div v-if="detailRow">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="操作者">{{ detailRow.operator_name }}</el-descriptions-item>
+          <el-descriptions-item label="操作时间">{{ detailRow.created_at }}</el-descriptions-item>
+          <el-descriptions-item label="实体类型">{{ detailRow.entity_type }}</el-descriptions-item>
+          <el-descriptions-item label="操作">{{ detailRow.action }}</el-descriptions-item>
+          <el-descriptions-item label="IP">{{ detailRow.ip_address }}</el-descriptions-item>
+          <el-descriptions-item label="备注">{{ detailRow.remarks }}</el-descriptions-item>
+        </el-descriptions>
+        <el-divider />
+        <h4>变更前数据</h4>
+        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.before_data, null, 2) }}</pre>
+        <h4>变更后数据</h4>
+        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.after_data, null, 2) }}</pre>
+      </div>
+    </el-dialog>
   </el-card>
 </template>
 
@@ -68,7 +95,14 @@ const searchPlaceholder = computed(() =>
 )
 
 const list = ref<any[]>([])
+const detailVisible = ref(false)
+const detailRow = ref<any>(null)
 const loading = ref(false)
+
+function showDetail(row: any) {
+  detailRow.value = row
+  detailVisible.value = true
+}
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)

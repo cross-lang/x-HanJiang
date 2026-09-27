@@ -65,6 +65,11 @@ const router = createRouter({
           component: () => import('@/views/OpenScopeList.vue'),
         },
         {
+          path: 'system-notification',
+          name: 'SystemNotification',
+          component: () => import('@/views/SystemNotification.vue'),
+        },
+        {
           path: 'profile',
           name: 'Profile',
           component: () => import('@/views/Profile.vue'),

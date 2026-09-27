@@ -13,6 +13,7 @@ from typing import Any
 
 from src.models.entities.log_entity import LoginLogEntity
 from src.repositories.login_log_repository import LoginLogRepository
+from src.repositories.user_repository import UserRepository
 from src.schemas.login_log import LoginLogResponse
 from src.services.base_service import BaseService
 
@@ -32,9 +33,14 @@ class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):
 
     entity_type = "login_log"
 
-    def __init__(self, login_log_repository: LoginLogRepository) -> None:
+    def __init__(
+        self,
+        login_log_repository: LoginLogRepository,
+        user_repository: UserRepository | None = None,
+    ) -> None:
         """初始化登录日志服务。"""
         self._repository: LoginLogRepository = login_log_repository
+        self._user_repository = user_repository
 
     def search(
         self,
@@ -67,12 +73,11 @@ class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):
         }
 
     def _to_response(self, entity: LoginLogEntity) -> LoginLogResponse:
-        """实体转响应 DTO，关联查询用户名和姓名。"""
+        """实体转响应 DTO，关联查询用户名和姓名（经仓库）。"""
         username = None
         name = None
-        if entity.user_id:
-            from src.models.entities.user_entity import UserEntity
-            user = self._repository.session.query(UserEntity).get(entity.user_id)
+        if entity.user_id and self._user_repository is not None:
+            user = self._user_repository.get_by_id(entity.user_id)
             if user:
                 username = user.username
                 name = user.name

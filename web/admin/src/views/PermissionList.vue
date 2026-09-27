@@ -41,8 +41,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import request from '@/api/request'
+
+const route = useRoute()
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -92,6 +95,17 @@ function handleSearch() {
 }
 
 onMounted(() => {
+  const q = route.query.keyword
+  if (q) keyword.value = String(q)
   fetchList()
+})
+
+// 全局搜索跳转携带 keyword 时自动过滤
+watch(() => route.query.keyword, (q) => {
+  if (q) {
+    keyword.value = String(q)
+    page.value = 1
+    fetchList()
+  }
 })
 </script>

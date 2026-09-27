@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from src.core.exceptions import ConflictException
 from src.models.entities.app_entity import OpenApiAppEntity
+from src.models.entities.user_entity import UserEntity
 from src.repositories.base_repository import BaseRepository
 
 
@@ -28,6 +29,20 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         """按对外 AppId 查询（不含已软删除）。"""
         stmt = self._base_query().where(OpenApiAppEntity.app_id == app_id)
         return self.session.execute(stmt).scalars().first()
+
+    def search_by_keyword(
+        self, keyword: str | None = None, limit: int = 100
+    ) -> list[OpenApiAppEntity]:
+        """按名称关键字查询应用（不含已软删除）。"""
+        stmt = self._base_query()
+        if keyword:
+            stmt = stmt.where(OpenApiAppEntity.name.like(f"%{keyword}%"))
+        return list(self.session.execute(stmt.limit(limit)).scalars().all())
+
+    def get_owner_user(self, user_id: int) -> UserEntity | None:
+        """查询应用所属用户（跨实体只读查询，用于组装 owner 名称）。"""
+        return self.session.get(UserEntity, user_id)
+
 
     def touch_last_used(self, app_id: str) -> None:
         """更新最近鉴权时间（异步、失败不影响主流程）。"""

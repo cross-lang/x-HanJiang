@@ -93,8 +93,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         )
         if getattr(request, "name", None) is not None:
             entity.name = request.name
-        if getattr(request, "age", None) is not None:
-            entity.age = request.age
         if getattr(request, "gender", None) is not None:
             entity.gender = request.gender
         if getattr(request, "birthday", None) is not None:
@@ -103,11 +101,11 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         created = self._repository.create(entity)
         self._commit()
 
-        # 绑定多角色
+        # 绑定多角色（经仓库）
         role_ids = list(dict.fromkeys([rid for rid in (request.role_ids or []) if rid]))
-        for rid in role_ids:
-            self._repository.session.add(UserRoleEntity(user_id=created.id, role_id=rid))
-        self._commit()
+        if role_ids:
+            self._repository.replace_user_roles(created.id, role_ids)
+            self._commit()
 
         self._audit(
             entity_id=created.id,
@@ -115,7 +113,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             operator=operator,
             before_data=None,
             after_data={"username": created.username, "email": created.email},
-            remarks="user created",
+            remarks=f"创建用户{created.username}（{created.name or '-'}）",
         )
 
         result = self._to_response(created)
@@ -170,18 +168,13 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                 setattr(patch, key, value)
         if "name" in patch_dict:
             setattr(patch, "name", patch_dict["name"])
-        if "age" in patch_dict:
-            setattr(patch, "age", patch_dict["age"])
 
-        # 更新角色关联
+        # 更新角色关联（经仓库）
         role_changed = False
         if "role_ids" in patch_dict:
             role_changed = True
-            self._repository.session.query(UserRoleEntity).filter(
-                UserRoleEntity.user_id == id
-            ).delete()
-            for rid in patch_dict.pop("role_ids"):
-                self._repository.session.add(UserRoleEntity(user_id=id, role_id=rid))
+            role_ids = patch_dict.pop("role_ids")
+            self._repository.replace_user_roles(id, role_ids)
 
         updated = self._repository.update(id, patch)
         if updated is None:
@@ -194,7 +187,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             operator=operator,
             before_data={"username": existing.username, "email": existing.email},
             after_data={"username": updated.username, "email": updated.email},
-            remarks="user updated",
+            remarks=f"更新用户{updated.username}的信息",
         )
 
         result = self._to_response(updated)
@@ -253,7 +246,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                 operator=operator,
                 before_data={"username": existing.username, "email": existing.email},
                 after_data=None,
-                remarks="user deleted",
+                remarks=f"删除用户{existing.username}",
             )
             logger.info(f"User deleted: id={id} username={existing.username}")
         return deleted
@@ -279,7 +272,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             operator=operator,
             before_data={"username": existing.username},
             after_data={"username": existing.username, "action": "password_reset"},
-            remarks="password reset by admin",
+            remarks=f"管理员重置用户{existing.username}的密码",
         )
         logger.info(f"Password reset by admin: user_id={id}")
 
@@ -312,18 +305,14 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         return user
 
     def _to_response(self, entity: UserEntity) -> UserResponse:
-        """实体转响应 DTO，关联查询角色名称。"""
+        """实体转响应 DTO，关联查询角色名称（经仓库）。"""
         # 查询用户角色列表
         roles = []
         role_name = None
-        user_role_rows = self._repository.session.query(UserRoleEntity).filter(
-            UserRoleEntity.user_id == entity.id
-        ).all()
-        role_ids = [ur.role_id for ur in user_role_rows]
-        for ur in user_role_rows:
-            role = self._repository.session.query(RoleEntity).get(ur.role_id)
-            if role:
-                roles.append({"id": role.id, "role_name": role.role_name, "role_code": role.role_code})
+        user_roles = self._repository.get_roles_by_user_id(entity.id)
+        role_ids = [r.id for r in user_roles]
+        for role in user_roles:
+            roles.append({"id": role.id, "role_name": role.role_name, "role_code": role.role_code})
         if roles:
             role_name = roles[0]["role_name"]
         return UserResponse(
@@ -331,7 +320,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             username=entity.username,
             email=entity.email,
             name=getattr(entity, "name", None),
-            age=getattr(entity, "age", None),
             gender=getattr(entity, "gender", None),
             birthday=getattr(entity, "birthday", None),
             phone=entity.phone,

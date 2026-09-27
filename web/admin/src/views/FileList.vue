@@ -41,9 +41,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
+
+const route = useRoute()
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -127,5 +130,18 @@ function formatSize(bytes: number) {
   return (bytes / 1024 / 1024).toFixed(1) + ' MB'
 }
 
-onMounted(() => loadData())
+onMounted(() => {
+  const q = route.query.keyword
+  if (q) keyword.value = String(q)
+  loadData()
+})
+
+// 全局搜索跳转携带 keyword 时自动过滤
+watch(() => route.query.keyword, (q) => {
+  if (q) {
+    keyword.value = String(q)
+    page.value = 1
+    loadData()
+  }
+})
 </script>

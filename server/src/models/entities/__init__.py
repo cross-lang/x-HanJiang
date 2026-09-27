@@ -11,6 +11,9 @@ from src.models.entities.notification_recipient_entity import (
 from src.models.entities.notification_preference_entity import (
     UserNotificationPreferenceEntity,
 )
+from src.models.entities.system_notification_config_entity import (
+    SystemNotificationConfigEntity,
+)
 from src.models.entities.notification_entity import NotificationRecordEntity
 from src.models.entities.user_entity import (
     PermissionEntity,
@@ -31,6 +34,7 @@ __all__ = [
     "NotificationRecordEntity",
     "NotificationRecipientEntity",
     "UserNotificationPreferenceEntity",
+    "SystemNotificationConfigEntity",
     "OpenApiAppEntity",
     "OpenApiScopeEntity",
     "FileEntity",

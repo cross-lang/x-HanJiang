@@ -55,7 +55,7 @@ class FakeUserRepository:
         existing = self._items.get(id)
         if existing is None:
             return None
-        for key in ("username", "email", "name", "age"):
+        for key in ("username", "email", "name"):
             val = getattr(entity, key, None)
             if val not in (None, ""):
                 setattr(existing, key, val)
@@ -79,7 +79,7 @@ class TestUserService:
     def test_create_user(self):
         """创建合法用户成功。"""
         data = UserCreateRequest(
-            username="alice", email="alice@example.com", name="Alice", age=30
+            username="alice", email="alice@example.com", name="Alice"
         )
         result = self.service.create(data.model_dump())
         assert result.id == 1

@@ -48,6 +48,47 @@ class NotificationRepository(BaseRepository[NotificationRecordEntity, int]):
         stmt = select(func.count()).where(self.model_class.status == status)
         return self.session.execute(stmt).scalar() or 0
 
+    def search_records(
+        self,
+        event_type: str | None = None,
+        channel: str | None = None,
+        status: str | None = None,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[NotificationRecordEntity], int]:
+        """按事件类型/渠道/状态分页查询通知记录（按时间倒序）。"""
+        from sqlalchemy import func
+
+        conditions = []
+        if event_type:
+            conditions.append(self.model_class.event_type == event_type)
+        if channel:
+            conditions.append(self.model_class.channel == channel)
+        if status:
+            conditions.append(self.model_class.status == status)
+
+        total = (
+            self.session.execute(
+                select(func.count())
+                .select_from(
+                    select(self.model_class).where(*conditions).subquery()
+                )
+            ).scalar()
+            or 0
+        )
+        rows = list(
+            self.session.execute(
+                select(self.model_class)
+                .where(*conditions)
+                .order_by(self.model_class.created_at.desc())
+                .offset(skip)
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+        return rows, total
+
     @staticmethod
     def _entity_name() -> str:
         return "通知记录"

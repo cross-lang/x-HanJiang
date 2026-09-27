@@ -15,21 +15,27 @@ from typing import Any
 
 from fastapi import UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
-from sqlalchemy import func, select
 
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
-from src.infras.database import get_cached_database_provider
 from src.infras.storage import StorageProvider, get_cached_storage_provider
 from src.models.entities.file_entity import FileEntity
+from src.repositories.file_repository import FileRepository
 
 
 class FileStorageService:
-    """文件存储服务（业务层）。"""
+    """文件存储服务（业务层）。
 
-    def __init__(self, provider: StorageProvider | None = None) -> None:
+    仅调用 FileRepository 存取数据，不直接操作数据库会话。
+    """
+
+    def __init__(
+        self,
+        file_repository: FileRepository,
+        provider: StorageProvider | None = None,
+    ) -> None:
         self._provider = provider or get_cached_storage_provider()
-        self._session = get_cached_database_provider().get_session_factory()()
+        self._repository = file_repository
         logger.info(f"FileStorageService initialized with provider: {type(self._provider).__name__}")
 
     # ── 上传 ────────────────────────────────────────────
@@ -63,8 +69,8 @@ class FileStorageService:
             url=result.url,
             uploaded_by=uploaded_by,
         )
-        self._session.add(entity)
-        self._session.commit()
+        self._repository.create(entity)
+        self._repository.commit()
 
         logger.info(
             f"File uploaded: key={result.key} size={result.size} "
@@ -93,30 +99,15 @@ class FileStorageService:
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
-        """查询文件列表（分页）。"""
-        stmt = select(FileEntity).where(FileEntity.is_deleted == False)
-        count_stmt = select(func.count(FileEntity.id)).where(FileEntity.is_deleted == False)
-
-        if folder:
-            stmt = stmt.where(FileEntity.folder == folder)
-            count_stmt = count_stmt.where(FileEntity.folder == folder)
-        if uploaded_by:
-            stmt = stmt.where(FileEntity.uploaded_by == uploaded_by)
-            count_stmt = count_stmt.where(FileEntity.uploaded_by == uploaded_by)
-        if keyword:
-            like = f"%{keyword}%"
-            stmt = stmt.where(FileEntity.original_name.like(like))
-            count_stmt = count_stmt.where(FileEntity.original_name.like(like))
-
-        total = self._session.execute(count_stmt).scalar() or 0
-        from src.models.entities.user_entity import UserEntity
-        rows = self._session.execute(
-            stmt.add_columns(UserEntity)
-            .outerjoin(UserEntity, UserEntity.id == FileEntity.uploaded_by)
-            .order_by(FileEntity.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        ).all()
+        """查询文件列表（分页，经仓库）。"""
+        skip = (page - 1) * page_size
+        rows, total = self._repository.list_files(
+            folder=folder,
+            uploaded_by=uploaded_by,
+            keyword=keyword,
+            skip=skip,
+            limit=page_size,
+        )
 
         return {
             "items": [
@@ -187,15 +178,14 @@ class FileStorageService:
     # ── 删除（软删除）───────────────────────────────────
 
     def delete_file(self, file_id: int, operator_username: str = "") -> bool:
-        """软删除文件记录（不真删存储里的文件）。"""
-        entity = self._session.get(FileEntity, file_id)
+        """软删除文件记录（不真删存储里的文件，经仓库）。"""
+        entity = self._repository.soft_delete(file_id)
         if entity is None:
             raise NotFoundException(message=f"文件 {file_id} 不存在")
         # 删除前先记录上传者和文件名
         uploaded_by = entity.uploaded_by
         filename = entity.original_name
-        entity.is_deleted = True
-        self._session.commit()
+        self._repository.commit()
         logger.info(f"File soft-deleted: id={file_id} key={entity.file_key}")
 
         # 文件删除通知给上传者
@@ -215,20 +205,8 @@ class FileStorageService:
     # ── 统计 ────────────────────────────────────────────
 
     def get_storage_stats(self) -> dict[str, Any]:
-        """获取存储用量统计。"""
-        total_size = self._session.execute(
-            select(func.coalesce(func.sum(FileEntity.size_bytes), 0)).where(
-                FileEntity.is_deleted == False
-            )
-        ).scalar() or 0
-        total_count = self._session.execute(
-            select(func.count(FileEntity.id)).where(FileEntity.is_deleted == False)
-        ).scalar() or 0
-        by_folder = self._session.execute(
-            select(FileEntity.folder, func.count(FileEntity.id), func.coalesce(func.sum(FileEntity.size_bytes), 0))
-            .where(FileEntity.is_deleted == False)
-            .group_by(FileEntity.folder)
-        ).all()
+        """获取存储用量统计（经仓库）。"""
+        total_size, total_count, by_folder = self._repository.get_storage_stats()
         return {
             "total_size_bytes": total_size,
             "total_count": total_count,
@@ -236,7 +214,3 @@ class FileStorageService:
                 {"folder": r[0], "count": r[1], "size_bytes": r[2]} for r in by_folder
             ],
         }
-
-    def __del__(self):
-        if hasattr(self, '_session'):
-            self._session.close()

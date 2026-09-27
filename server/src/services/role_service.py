@@ -106,7 +106,7 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
             operator=operator,
             before_data=None,
             after_data={"role_name": created.role_name, "role_code": created.role_code},
-            remarks="role created",
+            remarks=f"创建角色{existing.role_name}",
         )
         result = self._to_response(created)
         logger.info(f"Role created: id={result.id} code={result.role_code}")
@@ -142,7 +142,7 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
             operator=operator,
             before_data={"role_name": existing.role_name, "role_code": existing.role_code, "status": existing.status},
             after_data={"role_name": updated.role_name, "role_code": updated.role_code, "status": updated.status},
-            remarks="role updated",
+            remarks=f"更新角色{existing.role_name}",
         )
         result = self._to_response(updated)
         logger.info(f"Role updated: id={result.id} code={result.role_code}")
@@ -154,10 +154,8 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         if existing is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
 
-        # 检查是否有关联用户
-        user_count = self._repository.session.query(UserRoleEntity).filter(
-            UserRoleEntity.role_id == id
-        ).count()
+        # 检查是否有关联用户（经仓库）
+        user_count = self._repository.count_user_links(id)
         if user_count > 0:
             raise ConflictException(
                 message=f"该角色已关联 {user_count} 个用户，请先解除角色关联后再删除"
@@ -172,7 +170,7 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
                 operator=operator,
                 before_data={"role_name": existing.role_name, "role_code": existing.role_code, "status": existing.status},
                 after_data=None,
-                remarks="role deleted",
+                remarks=f"删除角色{existing.role_name}",
             )
             logger.info(f"Role deleted: id={id} code={existing.role_code}")
         return deleted
