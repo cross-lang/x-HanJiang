@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 权限业务逻辑实现
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from src.constants.enums import NotificationEvent
+from src.constants.enums import NotificationEvent, SystemRoleCode
 from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import (
@@ -228,7 +228,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         ).filter(UserRoleEntity.user_id == user.id).all()
 
         # 超管短路：拥有 super_admin 角色则自动拥有所有权限
-        if any(r[1] == "super_admin" for r in role_rows):
+        if any(r[1] == SystemRoleCode.SUPER_ADMIN.mark for r in role_rows):
             provider.set(cache_key, True, ttl=300)
             return True
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 角色业务逻辑实现
 
@@ -16,6 +16,7 @@ from src.models.entities.user_entity import (
     PermissionEntity,
     RoleEntity,
     RolePermissionEntity,
+    UserRoleEntity,
 )
 from src.repositories.permission_repository import PermissionRepository
 from src.repositories.role_permission_repository import RolePermissionRepository
@@ -148,10 +149,20 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         return result
 
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
-        """软删除角色。"""
+        """软删除角色。有关联用户的角色不允许删除。"""
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
+
+        # 检查是否有关联用户
+        user_count = self._repository.session.query(UserRoleEntity).filter(
+            UserRoleEntity.role_id == id
+        ).count()
+        if user_count > 0:
+            raise ConflictException(
+                message=f"该角色已关联 {user_count} 个用户，请先解除角色关联后再删除"
+            )
+
         deleted = self._repository.delete(id)
         if deleted:
             self._commit()

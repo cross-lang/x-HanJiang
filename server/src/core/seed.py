@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 种子数据管理模块
 
@@ -16,6 +16,7 @@ Functions:
 
 from sqlalchemy import select
 
+from src.constants.enums import SystemRoleCode
 from src.core.logger import logger
 from src.utils.security import hash_password
 from src.infras.database import get_cached_database_provider
@@ -28,11 +29,11 @@ from src.models.entities.user_entity import (
 )
 
 # ── 超级管理员 ──────────────────────────────────────────────
-_SEED_ROLE_CODE = "super_admin"
+_SEED_ROLE_CODE = SystemRoleCode.SUPER_ADMIN.mark
 _SEED_ROLE_NAME = "超级管理员"
 
 # ── 管理员 ──────────────────────────────────────────────────
-_SEED_ADMIN_ROLE_CODE = "admin"
+_SEED_ADMIN_ROLE_CODE = SystemRoleCode.ADMIN.mark
 _SEED_ADMIN_ROLE_NAME = "管理员"
 
 # ── 普通用户 ────────────────────────────────────────────────

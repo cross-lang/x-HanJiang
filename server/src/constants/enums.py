@@ -112,6 +112,14 @@ class HttpMediaType(Enum):
 
 
 
+class SystemRoleCode(BaseEnum):
+    """系统内置角色编码（种子数据中固定存在，不可删除）。"""
+
+    SUPER_ADMIN = ("super_admin", "超级管理员")
+    ADMIN = ("admin", "管理员")
+    USER = ("user", "普通用户")
+
+
 class ApiModuleCode(BaseEnum):
     """用户态权限模块编码与中文名映射。"""
 
@@ -124,6 +132,7 @@ class ApiModuleCode(BaseEnum):
     ALERT = ("alert", "告警管理")
     MAINTENANCE = ("maintenance", "维护管理")
     OPENAPI_APP = ("openapi_app", "开放平台应用")
+    DASHBOARD = ("dashboard", "仪表盘")
 
 
 class OpenApiModuleCode(BaseEnum):

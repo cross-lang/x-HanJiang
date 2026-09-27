@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 FastAPI 依赖注入模块
 
@@ -24,6 +24,7 @@ from src.constants.constants import (
     OPENAPI_HEADER_AUTHORIZATION,
     OPENAPI_HEADER_DATE,
 )
+from src.constants.enums import SystemRoleCode
 from src.core.exceptions import AuthorizationException
 from src.infras.database import get_cached_database_provider, get_db_session
 from src.schemas.auth import CurrentUser
@@ -264,7 +265,7 @@ def require_user_role(role_code: str):
     def dependency(
         current_user: CurrentUser = Depends(get_current_user),
     ) -> CurrentUser:
-        if current_user.role_code != role_code and current_user.role_code != "super_admin":
+        if current_user.role_code != role_code and current_user.role_code != SystemRoleCode.SUPER_ADMIN.mark:
             raise AuthorizationException(message=f"需要角色 {role_code}")
         return current_user
 

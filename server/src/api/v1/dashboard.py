@@ -3,14 +3,20 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import CurrentUser, get_current_user
+from src.api.api_permission_decorator import permission
+from src.api.dependencies import CurrentUser, get_current_user, require_user_permission
 from src.api.response import success_response
 from src.services.dashboard_service import DashboardService
 
 router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
 
 
-@router.get("/stats", summary="仪表盘统计数据")
+@router.get(
+    "/stats",
+    summary="仪表盘统计数据",
+    dependencies=[Depends(require_user_permission("dashboard:view"))],
+)
+@permission("dashboard:view", "查看仪表盘", "dashboard", "view")
 async def get_stats(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
