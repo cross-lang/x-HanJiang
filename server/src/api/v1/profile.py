@@ -97,7 +97,7 @@ async def update_me(
 @router.post(
     "/change-password",
     summary="修改密码",
-    description="当前用户修改自己的密码（需提供原密码）",
+    description="当前用户修改自己的密码（需提供原密码 + 邮箱验证码二次认证）",
 )
 async def change_password(
     body: ChangePasswordRequest,
@@ -118,6 +118,14 @@ async def change_password(
     if not verify_password(body.old_password, user.password_hash or ""):
         from src.core.exceptions import ValidationException
         raise ValidationException(message="原密码错误")
+
+    # 二次认证：邮箱验证码
+    cache = get_cached_cache_provider()
+    code = getattr(body, "code", "") or ""
+    if not _check_email_code(user, cache, code):
+        from src.core.exceptions import ValidationException
+        raise ValidationException(message="邮箱验证码错误或已过期")
+
     user.password_hash = hash_password(body.new_password)
     user_service._repository.commit()
 
@@ -398,3 +406,102 @@ async def delete_recipient(
     db.delete(row)
     db.commit()
     return success_response({"deleted": True}, request)
+
+
+# ── 安全设置：邮箱二次认证 ──────────────────────────────────
+
+import random
+from src.infras.cache import get_cached_cache_provider
+
+
+def _send_email_code(user, cache, dispatcher) -> None:
+    """生成 6 位邮箱验证码，存 Redis（5 分钟），并通过邮件发出。"""
+    code = f"{random.randint(100000, 999999)}"
+    cache.set(f"verify_code:{user.id}", code, ttl=300)
+    try:
+        dispatcher.dispatch(
+            event_type="security.verify_code",
+            recipients={"email": user.email},
+            variables={"code": code, "username": user.name or user.username},
+        )
+    except Exception:
+        pass
+
+
+def _check_email_code(user, cache, code: str) -> bool:
+    """校验邮箱验证码是否正确（一次性）。"""
+    if not code:
+        return False
+    saved = cache.get(f"verify_code:{user.id}")
+    if saved != code:
+        return False
+    cache.delete(f"verify_code:{user.id}")
+    return True
+
+
+@router.post(
+    "/send-verify-code",
+    summary="发送邮箱验证码",
+    description="安全设置二次认证：向当前用户邮箱发送 6 位验证码，5 分钟有效",
+)
+async def send_verify_code(
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+):
+    user = user_service._repository.get_by_id(current_user.id)
+    if user is None or not user.email:
+        from src.core.exceptions import ValidationException
+        raise ValidationException(message="当前账号未绑定邮箱，无法发送验证码")
+    cache = get_cached_cache_provider()
+    _send_email_code(user, cache, dispatcher)
+    return success_response({"message": "验证码已发送至邮箱"}, request)
+
+
+@router.post(
+    "/update-phone",
+    summary="修改手机号",
+    description="需通过邮箱验证码二次认证",
+)
+async def update_phone(
+    request: Request,
+    body: dict,
+    current_user: CurrentUser = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    user = user_service._repository.get_by_id(current_user.id)
+    if user is None:
+        from src.core.exceptions import NotFoundException
+        raise NotFoundException(message="用户不存在")
+    cache = get_cached_cache_provider()
+    if not _check_email_code(user, cache, body.get("code", "")):
+        from src.core.exceptions import ValidationException
+        raise ValidationException(message="邮箱验证码错误或已过期")
+    user.phone = body.get("phone", "")
+    user_service._repository.commit()
+    return success_response({"message": "手机号修改成功"}, request)
+
+
+@router.post(
+    "/update-email",
+    summary="修改邮箱",
+    description="需通过原邮箱验证码二次认证",
+)
+async def update_email(
+    request: Request,
+    body: dict,
+    current_user: CurrentUser = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    user = user_service._repository.get_by_id(current_user.id)
+    if user is None:
+        from src.core.exceptions import NotFoundException
+        raise NotFoundException(message="用户不存在")
+    cache = get_cached_cache_provider()
+    if not _check_email_code(user, cache, body.get("code", "")):
+        from src.core.exceptions import ValidationException
+        raise ValidationException(message="原邮箱验证码错误或已过期")
+    user.email = body.get("email", "")
+    user_service._repository.commit()
+    return success_response({"message": "邮箱修改成功"}, request)

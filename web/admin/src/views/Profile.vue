@@ -22,12 +22,6 @@
             <el-form-item label="姓名">
               <el-input v-model="form.name" />
             </el-form-item>
-            <el-form-item label="邮箱">
-              <el-input v-model="form.email" />
-            </el-form-item>
-            <el-form-item label="手机号">
-              <el-input v-model="form.phone" />
-            </el-form-item>
             <el-form-item label="生日">
               <el-date-picker v-model="form.birthday" type="date" />
             </el-form-item>
@@ -88,21 +82,83 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="修改密码" name="password">
-          <el-form :model="pwdForm" label-width="100px" style="max-width: 500px">
-            <el-form-item label="原密码">
-              <el-input v-model="pwdForm.old_password" type="password" show-password />
-            </el-form-item>
-            <el-form-item label="新密码">
-              <el-input v-model="pwdForm.new_password" type="password" show-password />
-            </el-form-item>
-            <el-form-item label="确认密码">
-              <el-input v-model="pwdForm.confirm_password" type="password" show-password />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="changePassword">修改密码</el-button>
-            </el-form-item>
-          </el-form>
+        <el-tab-pane label="安全设置" name="security">
+          <div style="max-width: 600px">
+            <el-alert type="warning" :closable="false" style="margin-bottom: 20px">
+              修改手机号、邮箱、密码均需通过邮箱验证码二次认证
+            </el-alert>
+
+            <!-- 手机 -->
+            <el-card shadow="never" style="margin-bottom: 16px; background: #fafafa">
+              <template #header><b>绑定手机</b></template>
+              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px">
+                <span style="color: #666; width: 60px">当前</span>
+                <span>{{ userStore.userInfo?.phone || '未绑定' }}</span>
+              </div>
+              <el-form :model="phoneForm" label-width="80px">
+                <el-form-item label="新手机号">
+                  <el-input v-model="phoneForm.phone" placeholder="请输入新手机号" />
+                </el-form-item>
+                <el-form-item label="邮箱验证码">
+                  <div style="display: flex; gap: 8px; width: 100%">
+                    <el-input v-model="phoneForm.code" placeholder="6 位验证码" style="flex: 1" />
+                    <el-button @click="sendCode('phone')" :loading="codeLoading">发送验证码</el-button>
+                  </div>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="updatePhone">修改手机号</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+
+            <!-- 邮箱 -->
+            <el-card shadow="never" style="margin-bottom: 16px; background: #fafafa">
+              <template #header><b>绑定邮箱</b></template>
+              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px">
+                <span style="color: #666; width: 60px">当前</span>
+                <span>{{ userStore.userInfo?.email || '未绑定' }}</span>
+              </div>
+              <el-form :model="emailForm" label-width="80px">
+                <el-form-item label="新邮箱">
+                  <el-input v-model="emailForm.email" placeholder="请输入新邮箱" />
+                </el-form-item>
+                <el-form-item label="邮箱验证码">
+                  <div style="display: flex; gap: 8px; width: 100%">
+                    <el-input v-model="emailForm.code" placeholder="6 位验证码" style="flex: 1" />
+                    <el-button @click="sendCode('email')" :loading="codeLoading">发送验证码</el-button>
+                  </div>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="updateEmail">修改邮箱</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+
+            <!-- 密码 -->
+            <el-card shadow="never" style="background: #fafafa">
+              <template #header><b>修改密码</b></template>
+              <el-form :model="pwdForm" label-width="100px">
+                <el-form-item label="原密码">
+                  <el-input v-model="pwdForm.old_password" type="password" show-password />
+                </el-form-item>
+                <el-form-item label="新密码">
+                  <el-input v-model="pwdForm.new_password" type="password" show-password />
+                </el-form-item>
+                <el-form-item label="确认密码">
+                  <el-input v-model="pwdForm.confirm_password" type="password" show-password />
+                </el-form-item>
+                <el-form-item label="邮箱验证码">
+                  <div style="display: flex; gap: 8px; width: 100%">
+                    <el-input v-model="pwdForm.code" placeholder="6 位验证码" style="flex: 1" />
+                    <el-button @click="sendCode('password')" :loading="codeLoading">发送验证码</el-button>
+                  </div>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="changePassword">修改密码</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </div>
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -160,25 +216,26 @@ const groupedPermissions = computed(() => {
 
 const form = ref({
   name: '',
-  email: '',
-  phone: '',
   birthday: '',
   gender: 'male',
 })
 
+const phoneForm = ref({ phone: '', code: '' })
+const emailForm = ref({ email: '', code: '' })
 const pwdForm = ref({
   old_password: '',
   new_password: '',
   confirm_password: '',
+  code: '',
 })
+
+const codeLoading = ref(false)
 
 onMounted(async () => {
   const info = await userStore.fetchUserInfo()
   if (info) {
     form.value = {
       name: info.name || '',
-      email: info.email || '',
-      phone: info.phone || '',
       birthday: info.birthday || '',
       gender: info.gender || 'male',
     }
@@ -186,21 +243,53 @@ onMounted(async () => {
     permissions.value = info.permissions || []
     permissionList.value = info.permission_list || []
   }
-  // 加载通知偏好
   try {
     const res = await request.get('/profile/notification-preferences')
     preferenceEvents.value = res.data.events
-  } catch (e) {
-    // ignore
-  }
-  // 加载接收人
+  } catch (e) { /* ignore */ }
   try {
     const res = await request.get('/profile/notification-recipients')
     recipients.value = res.data.items
-  } catch (e) {
-    // ignore
-  }
+  } catch (e) { /* ignore */ }
 })
+
+async function sendCode(_target: string) {
+  codeLoading.value = true
+  try {
+    await request.post('/profile/send-verify-code')
+    ElMessage.success('验证码已发送至邮箱，5 分钟内有效')
+  } catch (e) {
+    // 错误已处理
+  } finally {
+    codeLoading.value = false
+  }
+}
+
+async function updatePhone() {
+  if (!phoneForm.value.phone) {
+    ElMessage.warning('请输入新手机号')
+    return
+  }
+  try {
+    await request.post('/profile/update-phone', phoneForm.value)
+    ElMessage.success('手机号修改成功')
+    phoneForm.value = { phone: '', code: '' }
+    userStore.fetchUserInfo()
+  } catch (e) { /* 错误已处理 */ }
+}
+
+async function updateEmail() {
+  if (!emailForm.value.email) {
+    ElMessage.warning('请输入新邮箱')
+    return
+  }
+  try {
+    await request.post('/profile/update-email', emailForm.value)
+    ElMessage.success('邮箱修改成功')
+    emailForm.value = { email: '', code: '' }
+    userStore.fetchUserInfo()
+  } catch (e) { /* 错误已处理 */ }
+}
 
 async function toggleChannel(event: string, channel: string, enabled: boolean) {
   try {
@@ -208,9 +297,7 @@ async function toggleChannel(event: string, channel: string, enabled: boolean) {
       [event]: { [channel]: enabled },
     })
     ElMessage.success('已更新')
-  } catch (e) {
-    // 错误已处理
-  }
+  } catch (e) { /* 错误已处理 */ }
 }
 
 async function addRecipient() {
@@ -224,18 +311,14 @@ async function addRecipient() {
     newRecipient.value = { channel: 'email', recipient: '', label: '' }
     const res = await request.get('/profile/notification-recipients')
     recipients.value = res.data.items
-  } catch (e) {
-    // 错误已处理
-  }
+  } catch (e) { /* 错误已处理 */ }
 }
 
 async function toggleRecipient(row: any, enabled: boolean) {
   try {
     await request.put(`/profile/notification-recipients/${row.id}`, { enabled })
     row.enabled = enabled
-  } catch (e) {
-    // 错误已处理
-  }
+  } catch (e) { /* 错误已处理 */ }
 }
 
 async function removeRecipient(row: any) {
@@ -243,9 +326,7 @@ async function removeRecipient(row: any) {
     await request.delete(`/profile/notification-recipients/${row.id}`)
     ElMessage.success('已删除')
     recipients.value = recipients.value.filter((r: any) => r.id !== row.id)
-  } catch (e) {
-    // 错误已处理
-  }
+  } catch (e) { /* 错误已处理 */ }
 }
 
 async function saveInfo() {
@@ -253,9 +334,7 @@ async function saveInfo() {
     await request.put('/profile/me', form.value)
     ElMessage.success('保存成功')
     userStore.fetchUserInfo()
-  } catch (e) {
-    // 错误已处理
-  }
+  } catch (e) { /* 错误已处理 */ }
 }
 
 async function changePassword() {
@@ -267,11 +346,10 @@ async function changePassword() {
     await request.post('/profile/change-password', {
       old_password: pwdForm.value.old_password,
       new_password: pwdForm.value.new_password,
+      code: pwdForm.value.code,
     })
     ElMessage.success('密码修改成功')
-    pwdForm.value = { old_password: '', new_password: '', confirm_password: '' }
-  } catch (e) {
-    // 错误已处理
-  }
+    pwdForm.value = { old_password: '', new_password: '', confirm_password: '', code: '' }
+  } catch (e) { /* 错误已处理 */ }
 }
 </script>

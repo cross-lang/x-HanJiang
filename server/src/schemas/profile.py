@@ -12,3 +12,4 @@ class UpdateMeRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
+    code: str = ""

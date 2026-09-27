@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """业务枚举定义。
 
 集中定义项目通用枚举类型，供 schemas / services / repositories 复用。
@@ -129,7 +129,7 @@ class HttpMediaType(Enum):
 class SystemRoleCode(BaseEnum):
     """系统内置角色编码（种子数据中固定存在，不可删除）。"""
 
-    SUPER_ADMIN = ("super_admin", "超级管理员")
+    SUPER_ADMIN = ("superadmin", "超级管理员")
     ADMIN = ("admin", "管理员")
     USER = ("user", "普通用户")
 

@@ -43,18 +43,18 @@
         <template #default="{ row }">
           <template v-if="canOperate(row)">
             <el-button
-              v-if="row.status !== 'active'"
+              v-if="row.status !== 'active' && row.username !== 'superadmin'"
               size="small"
               type="success"
               @click="handleToggleStatus(row, 'active')"
             >启用</el-button>
             <el-button
-              v-if="row.status === 'active'"
+              v-if="row.status === 'active' && row.username !== 'superadmin'"
               size="small"
               type="warning"
               @click="handleToggleStatus(row, 'inactive')"
             >禁用</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-if="row.username !== 'superadmin'" size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button v-if="row.id !== userStore.userInfo?.id" size="small" @click="handleResetPassword(row)">重置密码</el-button>
           </template>
         </template>

@@ -90,7 +90,8 @@ async def lifespan(app: FastAPI):
                 existing.perm_name = perm["perm_name"]
                 existing.module = perm["module"]
                 existing.operation = perm["operation"]
-                existing.description = (perm["description"] or "")[:250]
+                if perm["description"]:
+                    existing.description = (perm["description"] or "")[:250]
                 existing.is_deprecated = False
             else:
                 p = dict(perm)
@@ -120,17 +121,20 @@ async def lifespan(app: FastAPI):
         scope_session = get_cached_database_provider().get_session_factory()()
         active_scope_codes = {s["scope_code"] for s in collected_scopes}
 
-        for sc in collected_scopes:
+        for idx, sc in enumerate(collected_scopes, start=1):
             existing = scope_session.query(OpenApiScopeEntity).filter_by(scope_code=sc["scope_code"]).first()
             if existing:
                 existing.scope_name = sc["scope_name"]
                 existing.module = sc["module"]
                 existing.operation = sc["operation"]
-                existing.description = (sc["description"] or "")[:250]
+                if sc["description"]:
+                    existing.description = (sc["description"] or "")[:250]
+                existing.sort_order = idx
                 existing.is_deprecated = False
             else:
                 s = dict(sc)
                 s["description"] = (s.get("description") or "")[:250]
+                s["sort_order"] = idx
                 scope_session.add(OpenApiScopeEntity(**s, is_deprecated=False))
 
         deprecated_scopes = scope_session.query(OpenApiScopeEntity).filter(

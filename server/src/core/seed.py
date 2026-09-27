@@ -72,6 +72,7 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("openapi_app:create", "创建开放平台应用", "openapi_app", "create", "创建开放平台应用", 61),
     ("openapi_app:edit", "编辑开放平台应用", "openapi_app", "edit", "编辑开放平台应用", 62),
     ("openapi_app:delete", "删除开放平台应用", "openapi_app", "delete", "删除开放平台应用", 63),
+    ("openapi_scope:view", "查看开放平台权限", "openapi_scope", "view", "查看开放平台 scope 列表", 64),
     ("dashboard:view", "查看仪表盘", "dashboard", "view", "获取仪表盘关键指标", 70),
     ("swagger:view", "查看Swagger文档", "swagger", "view", "查看API Swagger文档", 80),
 ]
@@ -188,11 +189,15 @@ def init_seed_data() -> None:
             select(UserEntity).where(UserEntity.username == _SEED_ADMIN_USERNAME)
         ).scalars().first()
         if admin is None:
+            from datetime import date
             admin = UserEntity(
                 username=_SEED_ADMIN_USERNAME,
+                name="超级管理员",
                 email=_SEED_ADMIN_EMAIL,
                 password_hash=hash_password(_SEED_ADMIN_PASSWORD),
                 phone=None,
+                gender="male",
+                birthday=date(1970, 1, 1),
                 avatar_url=None,
                 status="active",
             )
