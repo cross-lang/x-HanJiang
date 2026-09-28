@@ -65,6 +65,7 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("notification:view", "查看通知", "notification", "view", "查看通知记录", 40),
     ("notification:create", "创建通知", "notification", "create", "手动发送通知", 41),
     ("alert:broadcast", "广播告警", "alert", "broadcast", "向全体用户广播告警", 50),
+    ("alert:send", "发送告警", "alert", "send", "向指定用户或全体用户发送告警", 50),
     ("maintenance:notify", "发送维护通知", "maintenance", "notify", "向全体用户发送维护通知", 51),
     ("notification:config", "通知配置管理", "notification", "config", "系统通知渠道配置管理", 52),
     ("openapi_app:view", "查看开放平台应用", "openapi_app", "view", "查看开放平台应用列表", 60),

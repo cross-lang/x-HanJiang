@@ -53,7 +53,7 @@
             <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px">
               <div v-for="group in groupedPermissions" :key="group.module" style="background: #f8f9fa; border-radius: 8px; padding: 16px">
                 <div style="font-weight: 600; color: #409eff; margin-bottom: 12px; font-size: 14px">
-                  {{ moduleNameMap[group.module] || group.module }}
+                  {{ group.module_label || group.module }}
                 </div>
                 <div v-for="p in group.items" :key="p.code" style="padding: 4px 0; font-size: 13px; color: #555">
                   {{ p.name }} <span style="color: #aaa; font-size: 12px">({{ p.code }})</span>
@@ -190,20 +190,6 @@ const channelList = [
   { code: 'feishu', name: '飞书' },
 ]
 
-const moduleNameMap: Record<string, string> = {
-  user: '用户管理',
-  role: '角色管理',
-  file: '文件管理',
-  audit_log: '审计日志',
-  login_log: '登录日志',
-  notification: '通知管理',
-  alert: '告警管理',
-  maintenance: '维护管理',
-  openapi_app: '开放平台应用',
-  openapi_scope: '开放平台权限',
-  dashboard: '仪表盘',
-  swagger: 'Swagger文档',
-}
 
 const groupedPermissions = computed(() => {
   const map: Record<string, any[]> = {}
@@ -211,7 +197,11 @@ const groupedPermissions = computed(() => {
     if (!map[p.module]) map[p.module] = []
     map[p.module].push(p)
   }
-  return Object.entries(map).map(([module, items]) => ({ module, items }))
+  return Object.entries(map).map(([module, items]) => ({
+    module,
+    module_label: items[0]?.module_label || module,
+    items,
+  }))
 })
 
 const form = ref({

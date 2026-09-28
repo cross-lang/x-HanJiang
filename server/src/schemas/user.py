@@ -54,6 +54,21 @@ class UserCreateRequest(BaseModel):
             raise ValueError("邮箱格式不正确")
         return v
 
+    @field_validator("birthday", mode="before")
+    @classmethod
+    def parse_birthday(cls, v: object) -> str | None:
+        """将 ISO datetime / date / datetime 字符串规范化为 YYYY-MM-DD。
+
+        Args:
+            v: birthday 原始输入（前端可能传 ISO 格式如 2000-01-01T16:00:00.000Z）
+
+        Returns:
+            str | None: 归一化为 YYYY-MM-DD 的字符串；输入为 None 时返回 None
+        """
+        if v is None:
+            return None
+        return str(v)[:10]
+
 
 class UserUpdateRequest(BaseModel):
     """用户更新请求模型。
@@ -94,6 +109,21 @@ class UserUpdateRequest(BaseModel):
         if not re.match(email_pattern, v):
             raise ValueError("邮箱格式不正确")
         return v
+
+    @field_validator("birthday", mode="before")
+    @classmethod
+    def parse_birthday(cls, v: object) -> str | None:
+        """将 ISO datetime / date / datetime 字符串规范化为 YYYY-MM-DD。
+
+        Args:
+            v: birthday 原始输入（前端可能传 ISO 格式如 2000-01-01T16:00:00.000Z）
+
+        Returns:
+            str | None: 归一化为 YYYY-MM-DD 的字符串；输入为 None 时返回 None
+        """
+        if v is None:
+            return None
+        return str(v)[:10]
 
 
 class AdminResetPasswordRequest(BaseModel):

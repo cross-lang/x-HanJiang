@@ -31,7 +31,7 @@ from src.constants.constants import (
     VERIFY_CODE_MIN,
     VERIFY_CODE_TTL_SECONDS,
 )
-from src.constants.enums import NotificationChannel, NotificationEvent
+from src.constants.enums import ApiModuleCode, NotificationChannel, NotificationEvent
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.cache import CacheProvider, get_cached_cache_provider
@@ -105,7 +105,16 @@ class ProfileService:
         if "*" not in current_user.permissions:
             role_ids = [r.id for r in roles]
             perms = self._user_repository.get_permissions_by_role_ids(role_ids)
-            data["permission_list"] = [{"code": p.perm_code, "name": p.perm_name, "module": p.module} for p in perms]
+            module_label_map = {m.mark: m.desc for m in ApiModuleCode}
+            data["permission_list"] = [
+                {
+                    "code": p.perm_code,
+                    "name": p.perm_name,
+                    "module": p.module,
+                    "module_label": module_label_map.get(p.module, p.module),
+                }
+                for p in perms
+            ]
         else:
             data["permission_list"] = []
         return data
