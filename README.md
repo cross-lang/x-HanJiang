@@ -181,9 +181,10 @@ sequenceDiagram
     participant L as 大模型（openai_compat）
 
     U->>F: 输入消息
-    F->>A: POST /assistant/chat（SSE 连接）
-    A->>S: 校验登录与会话归属
-    S->>S: 记忆管理 / 知识库检索 / 工具编排
+    F->>A: POST /assistant/chat（SSE 连接，Bearer JWT）
+    Note over A: Depends(get_current_user) 校验 JWT<br/>解析出 current_user（端点层完成，不经过 Service）
+    A->>S: chat_stream(current_user, conversation_id, message)
+    S->>S: 会话归属校验 / 记忆管理 / 知识库检索 / 工具编排
     S->>L: 组装上下文调用大模型
     L-->>S: 流式输出
     S-->>A: token / navigate / done 事件
