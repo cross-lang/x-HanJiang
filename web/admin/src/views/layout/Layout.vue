@@ -107,11 +107,11 @@
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 4px">
           <div style="display: flex; align-items: center; gap: 10px">
-            <img
-              :src="xiaoJiangLogo"
-              alt="小江"
-              style="width: 24px; height: 24px; object-fit: contain; flex-shrink: 0"
-            />
+            <div
+              style="width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0"
+            >
+              <el-icon size="16" color="#fff"><MagicStick /></el-icon>
+            </div>
             <span style="font-size: 16px; font-weight: 600">小江</span>
           </div>
           <el-button text size="small" @click="toggleConvPanel">
