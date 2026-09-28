@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import delete, desc, func, select
 
 from src.models.entities.assistant_entity import (
@@ -25,8 +27,23 @@ class AssistantConversationRepository(BaseRepository[AssistantConversationEntity
 
     model_class = AssistantConversationEntity
 
+    def get_by_id(self, entity_id: int) -> AssistantConversationEntity | None:
+        """按ID查询未软删除的会话。
+
+        Args:
+            entity_id: 会话ID
+
+        Returns:
+            AssistantConversationEntity | None: 会话实体；不存在或已软删除返回 None
+        """
+        stmt = select(self.model_class).where(
+            self.model_class.id == entity_id,
+            self.model_class.deleted_at.is_(None),
+        )
+        return self.session.execute(stmt).scalars().first()
+
     def list_by_user(self, user_id: int, limit: int = 20) -> list[AssistantConversationEntity]:
-        """查询指定用户的会话列表（按更新时间倒序）。
+        """查询指定用户未软删除的会话列表（置顶优先，同组内按更新时间倒序）。
 
         Args:
             user_id: 用户ID
@@ -37,11 +54,42 @@ class AssistantConversationRepository(BaseRepository[AssistantConversationEntity
         """
         stmt = (
             select(self.model_class)
-            .where(self.model_class.user_id == user_id)
-            .order_by(desc(self.model_class.updated_at))
+            .where(
+                self.model_class.user_id == user_id,
+                self.model_class.deleted_at.is_(None),
+            )
+            .order_by(
+                desc(self.model_class.is_pinned),
+                desc(self.model_class.updated_at),
+            )
             .limit(limit)
         )
         return list(self.session.execute(stmt).scalars().all())
+
+    def soft_delete(self, conversation_id: int) -> None:
+        """软删除会话（deleted_at 置当前时间，消息与反馈物理保留留档）。
+
+        Args:
+            conversation_id: 会话ID
+        """
+        entity = self.get_by_id(conversation_id)
+        if entity is None:
+            return
+        entity.deleted_at = datetime.now()
+        self.session.flush()
+
+    def update_pinned(self, conversation_id: int, pinned: bool) -> None:
+        """设置会话置顶状态。
+
+        Args:
+            conversation_id: 会话ID
+            pinned: True 置顶 / False 取消置顶
+        """
+        entity = self.get_by_id(conversation_id)
+        if entity is None:
+            return
+        entity.is_pinned = pinned
+        self.session.flush()
 
     def update_summary(self, conversation_id: int, summary: str) -> None:
         """更新会话滚动摘要（第 2 层记忆）。

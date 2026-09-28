@@ -44,6 +44,7 @@ class ConversationResponse(BaseModel):
         id: 会话ID
         user_id: 所属用户ID
         summary: 滚动摘要（可空）
+        is_pinned: 是否置顶
         created_at: 创建时间
         updated_at: 更新时间
     """
@@ -51,9 +52,20 @@ class ConversationResponse(BaseModel):
     id: int = Field(description="会话ID")
     user_id: int = Field(description="所属用户ID")
     summary: str | None = Field(default=None, description="滚动摘要")
+    is_pinned: bool = Field(default=False, description="是否置顶")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="更新时间")
     model_config = ConfigDict(from_attributes=True)
+
+
+class ConversationPinRequest(BaseModel):
+    """会话置顶请求。
+
+    Attributes:
+        pinned: True 置顶 / False 取消置顶
+    """
+
+    pinned: bool = Field(description="是否置顶：true 置顶 / false 取消置顶")
 
 
 class MessageResponse(BaseModel):

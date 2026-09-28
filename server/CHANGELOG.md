@@ -2,6 +2,24 @@
 
 本文件记录 汉江（HanJiang）后端服务 的版本迭代变更，格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-09-28
+
+### 新增
+
+- **AI 助手模块**
+  - SSE 流式对话接口（`POST /api/v1/assistant/chat`），事件类型 token / navigate / denied / error / done，仅要求登录
+  - 会话管理：创建会话、会话列表、会话消息列表（校验归属）、消息反馈（👍👎，提示词调优数据源）
+  - 对话编排：记忆管理（近 N 轮原文 + token 预算压缩，可配摘要模型）、知识库检索（默认关闭，可对接向量检索）、工具调用（多轮工具编排，含导航跳转）
+  - LLM 集成（`infras/llm.py`）：openai_compat 兼容协议，base_url 可切换 DeepSeek / 火山方舟 / 通义 / vLLM 等，默认对接小米 MiMo（`mimo-v2.5-pro`，可切图片理解模型）
+- **数据表**：新增 `assistant_conversations` / `assistant_messages` / `assistant_feedbacks` 三张表迁移（0008_create_assistant）
+- **权限**：`assistant:chat`（对话与会话管理，实际仅要求登录）、`assistant:feedback`（消息反馈），启动时自动注册
+- **依赖**：新增 `openai>=3.19.2`
+- **前端配套**：管理后台顶栏 AI 助手入口 + 右侧抽屉，SSE 流式渲染（loading 占位）、会话历史恢复、👍👎 反馈选中态（`web/admin/src/api/assistant.ts`）
+
+### 变更
+
+- 前端品牌化：新增 Logo 图标与 All Rights Reserved 版权声明，清理无用代码
+
 ## [0.2.0] - 2026-09-28
 
 ### 新增

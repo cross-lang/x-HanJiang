@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterator
 from typing import cast
 
@@ -26,6 +27,7 @@ from src.assistant.retriever import RetrieverProvider, get_retriever_provider
 from src.assistant.tools import ToolArgs, ToolRegistry
 from src.constants.assistant import (
     ASSISTANT_ENTITY_TYPE,
+    ASSISTANT_ENTRY_CATALOG,
     ASSISTANT_FALLBACK_MESSAGE,
     ASSISTANT_MESSAGE_LIST_LIMIT,
     ASSISTANT_ROLL_CHUNK_SIZE,
@@ -49,6 +51,24 @@ from src.repositories.assistant_repository import (
 from src.schemas.assistant import FeedbackRequest
 from src.schemas.auth import CurrentUser
 from src.utils.text import estimate_tokens
+
+
+def _page_of_path(path: str) -> str | None:
+    """入口路由路径 → 页面码（供文本工具调用兜底映射）。
+
+    NavigateTool 入参使用入口页面码（page），而模型文本形式的工具调用
+    常写出路由路径（path），需要在此换算。
+
+    Args:
+        path: 入口路由路径（如 /roles）
+
+    Returns:
+        str | None: 对应的页面码；不在入口目录中返回 None
+    """
+    for item in ASSISTANT_ENTRY_CATALOG:
+        if item["path"] == path:
+            return item["page"]
+    return None
 
 
 class AssistantService:
@@ -162,6 +182,49 @@ class AssistantService:
         if conversation is None or conversation.user_id != user_id:
             raise NotFoundException(message="会话不存在")
         return self._message_repository.list_by_conversation(conversation_id, ASSISTANT_MESSAGE_LIST_LIMIT)
+
+    def update_pinned(
+        self,
+        user_id: int,
+        conversation_id: int,
+        pinned: bool,
+    ) -> AssistantConversationEntity:
+        """置顶 / 取消置顶会话（校验归属）。
+
+        Args:
+            user_id: 当前用户ID
+            conversation_id: 会话ID
+            pinned: True 置顶 / False 取消置顶
+
+        Returns:
+            AssistantConversationEntity: 更新后的会话实体
+
+        Raises:
+            NotFoundException: 会话不存在或不属于当前用户
+        """
+        conversation = self._conversation_repository.get_by_id(conversation_id)
+        if conversation is None or conversation.user_id != user_id:
+            raise NotFoundException(message="会话不存在")
+        self._conversation_repository.update_pinned(conversation_id, pinned)
+        conversation.is_pinned = pinned
+        self._conversation_repository.commit()
+        return conversation
+
+    def delete_conversation(self, user_id: int, conversation_id: int) -> None:
+        """删除会话（软删除：校验归属后标记 deleted_at，消息与反馈物理保留留档）。
+
+        Args:
+            user_id: 当前用户ID
+            conversation_id: 会话ID
+
+        Raises:
+            NotFoundException: 会话不存在或不属于当前用户
+        """
+        conversation = self._conversation_repository.get_by_id(conversation_id)
+        if conversation is None or conversation.user_id != user_id:
+            raise NotFoundException(message="会话不存在")
+        self._conversation_repository.soft_delete(conversation_id)
+        self._conversation_repository.commit()
 
     def save_feedback(self, user_id: int, feedback: FeedbackRequest) -> None:
         """保存用户对消息的反馈（校验归属）。
@@ -294,6 +357,32 @@ class AssistantService:
                         if tool_result.event_type is AssistantEventType.NAVIGATE:
                             self._audit_navigate(user, conversation.id, tool_result.event_data or {})
                 continue
+            # 兜底：推理模型偶发把工具调用写成正文文本（JSON / XML），
+            # 识别并转成真实动作，避免把内部 JSON 原样透传给用户
+            text_call = self._extract_text_tool_call(result.content)
+            if text_call is not None:
+                text_args = self._safe_parse_args(text_call)
+                text_result = self._tool_registry.dispatch(text_call.name, text_args, user)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": text_call.id,
+                        "content": text_result.content,
+                    }
+                )
+                if text_result.event_type is not None:
+                    yield {
+                        "type": text_result.event_type.mark,
+                        **(text_result.event_data or {}),
+                    }
+                    if text_result.event_type is AssistantEventType.NAVIGATE:
+                        self._audit_navigate(user, conversation.id, text_result.event_data or {})
+                reply = self._build_navigate_reply(query, text_result.event_data or {})
+                yield {"type": AssistantEventType.TOKEN.mark, "content": reply}
+                saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, reply)
+                self._maybe_roll_summary(conversation)
+                yield self._done_event(conversation.id, saved.id)
+                return
             answer_chunks: list[str] = []
             for chunk in llm_provider.chat_stream(
                 messages=cast(ChatMessage, messages),
@@ -334,7 +423,9 @@ class AssistantService:
         """
         memory_cfg = settings.ai.memory
         retriever_context = self._retrieve_context(query)
-        system_prompt = self._knowledge_base.build_system_prompt(user_id, retriever_context=retriever_context)
+        system_prompt = self._knowledge_base.build_system_prompt(
+            user_id, retriever_context=retriever_context, user_question=query
+        )
         budget = max(memory_cfg.token_budget - estimate_tokens(system_prompt), 0)
         messages: list[dict[str, object]] = [{"role": "system", "content": system_prompt}]
         if conversation.summary:
@@ -393,6 +484,108 @@ class AssistantService:
             return parsed if isinstance(parsed, dict) else {"raw": tool_call.arguments}
         except json.JSONDecodeError:
             return {"raw": tool_call.arguments}
+
+    @staticmethod
+    def _extract_text_tool_call(content: str | None) -> ToolCall | None:
+        """从回复正文中识别模型以文本形式输出的工具调用（兜底）。
+
+        部分推理模型（如 mimo-v2.5-pro）偶发把函数调用写进正文而非结构化
+        tool_calls，常见两种形式：
+            - XML：<tool_call><tool_name>navigate</tool_name><path>/roles</path></tool_call>
+            - JSON：{"action": "navigate", "path": "/roles"}
+            或 OpenAI 文本形式：{"tool_calls": [{"function": {"name": ..., "arguments": ...}}]}
+        识别后转为 ToolCall，交由 agent 循环正常执行，避免把内部结构
+        作为回复正文展示给用户。
+
+        Args:
+            content: 模型回复正文（可空）
+
+        Returns:
+            ToolCall | None: 识别出的工具调用；非工具调用文本返回 None
+        """
+        if not content or not content.strip():
+            return None
+        text = content.strip()
+        # 形式 A：XML 标签
+        xml_match = re.search(
+            r"<tool_call>\s*<tool_name>(\w+)</tool_name>(.*?)</tool_call>",
+            text,
+            re.DOTALL,
+        )
+        if xml_match is not None:
+            name: str = xml_match.group(1)
+            args_xml: str = xml_match.group(2)
+            args: dict[str, str] = {}
+            for tag, value in re.findall(r"<(\w+)>([^<]+)</\1>", args_xml):
+                args[tag] = value.strip()
+            return ToolCall(id="text-call", name=name, arguments=json.dumps(args, ensure_ascii=False))
+        # 形式 B：JSON 对象（navigate 动作 或 tool_calls 数组）
+        try:
+            payload: object = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(payload, dict):
+            action = payload.get("action")
+            page = payload.get("page")
+            path = payload.get("path")
+            if isinstance(action, str) and action == "navigate":
+                if isinstance(page, str) and page:
+                    return ToolCall(
+                        id="text-call",
+                        name="navigate",
+                        arguments=json.dumps({"page": page}, ensure_ascii=False),
+                    )
+                if isinstance(path, str) and path:
+                    mapped = _page_of_path(path)
+                    if mapped is not None:
+                        return ToolCall(
+                            id="text-call",
+                            name="navigate",
+                            arguments=json.dumps({"page": mapped}, ensure_ascii=False),
+                        )
+                    return ToolCall(
+                        id="text-call",
+                        name="navigate",
+                        arguments=json.dumps({"page": ""}, ensure_ascii=False),
+                    )
+            calls = payload.get("tool_calls")
+            if isinstance(calls, list) and calls:
+                first: object = calls[0]
+                if isinstance(first, dict):
+                    fn = first.get("function")
+                    if isinstance(fn, dict):
+                        fn_name: object = fn.get("name")
+                        fn_args: object = fn.get("arguments")
+                        if isinstance(fn_name, str) and isinstance(fn_args, str):
+                            return ToolCall(
+                                id=str(first.get("id") or "text-call"),
+                                name=fn_name,
+                                arguments=fn_args,
+                            )
+        return None
+
+    def _build_navigate_reply(self, query: str, event_data: dict[str, object]) -> str:
+        """为文本工具调用兜底生成自然语言收尾回复。
+
+        优先返回 FAQ 命中条目的标准答案（给用户真实操作步骤）；
+        未命中时基于入口目录描述给出跳转引导语。
+
+        Args:
+            query: 用户本轮提问
+            event_data: 工具事件数据（含 path）
+
+        Returns:
+            str: 自然语言回复（不包含任何工具调用 JSON / XML 文本）
+        """
+        hit = self._knowledge_base.match_faq(query)
+        if hit is not None:
+            return hit.answer
+        path = str(event_data.get("path") or "")
+        if not path:
+            return "抱歉，暂时无法为你跳转该页面；如需操作步骤可以继续问我。"
+        entry = next((item for item in ASSISTANT_ENTRY_CATALOG if item["path"] == path), None)
+        desc = str(entry["description"]) if entry is not None else "相关页面"
+        return f"已为你打开「{desc}」页面，你可以在这里完成相关操作；需要更具体的步骤可以继续问我。"
 
     def _get_or_create_conversation(
         self,

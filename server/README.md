@@ -16,6 +16,7 @@
 - 系统通知广播：面向全体活跃用户发布普通通知 / 系统维护通知，站内信广播产生未读红点，维护通知按用户渠道配置推送多渠道
 - 公告管理：首页板块 / 横幅展示位，草稿 → 发布 → 下架全生命周期，支持有效期、排序与 Markdown / 富文本正文
 - 健康检查联动告警：数据库 / 缓存故障自动触发通知（带节流，避免重复告警）
+- AI 助手：SSE 流式对话（token / navigate / done 事件）、会话管理、记忆压缩、知识库检索与工具编排，openai_compat 协议可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等
 - 统一存储抽象（本地 / S3 兼容），业务代码零改动切换
 - 生产级安全（密码 bcrypt 哈希、常量时间比对、防重放、邮箱验证码二次认证）
 
@@ -105,6 +106,11 @@ cp config.yaml.example config.yaml
 | `REDIS_PORT` | `REDIS_PORT` | Redis 端口，默认 `6379` |
 | `STORAGE_PROVIDER` | `STORAGE_PROVIDER` | 存储后端：`local` / `s3` |
 | `NOTIFICATION_ENABLED` | `NOTIFICATION_ENABLED` | 是否启用通知子系统，默认 `true` |
+| `AI_ENABLED` | `AI_ENABLED` | 是否启用 AI 助手，默认 `true` |
+| `AI_LLM_PROVIDER` | `AI_LLM_PROVIDER` | 大模型供应商：`openai_compat`（OpenAI 兼容协议） |
+| `AI_LLM_BASE_URL` | `AI_LLM_BASE_URL` | 大模型 API 地址（可对接 DeepSeek / 火山方舟 / 通义 / vLLM） |
+| `AI_LLM_API_KEY` | `AI_LLM_API_KEY` | 大模型密钥（敏感信息走环境变量注入） |
+| `AI_LLM_MODEL` | `AI_LLM_MODEL` | 模型名称，默认 `mimo-v2.5-pro`（可切换图片理解模型） |
 
 > **生产环境**：建议通过环境变量注入 `AUTH_SECRET_KEY`、数据库密码、Redis 密码等敏感配置，避免写入版本库。
 
@@ -196,7 +202,7 @@ server/
 ├── config.yaml.example       # YAML 配置文件模板
 ├── alembic/                  # 数据库迁移管理
 │   ├── env.py                # 迁移运行环境
-│   └── versions/             # 迁移版本脚本（当前 7 个版本）
+│   └── versions/             # 迁移版本脚本（当前 8 个版本）
 ├── docs/                     # 项目文档（建表 SQL、Postman OpenAPI 集合）
 ├── examples/                 # 使用示例脚本
 │   ├── basic_usage.py        # 基础用法示例
@@ -224,6 +230,7 @@ server/
 │   │   │   ├── station.py    # 站内信（未读数 / 列表 / 已读）
 │   │   │   ├── openapi_app.py # 开放平台应用管理
 │   │   │   ├── global_search.py # 全局搜索
+│   │   │   ├── assistant.py # AI 助手（SSE 对话 / 会话 / 反馈）
 │   │   │   └── health.py     # 健康检查与版本信息
 │   │   ├── open/             # 开放平台路由（AppId/AppKey 鉴权，/api/open/v1/...）
 │   │   │   └── v1/
@@ -235,6 +242,7 @@ server/
 │   │   ├── dependencies.py   # DI 依赖函数
 │   │   ├── response.py       # 统一响应封装
 │   │   └── router.py         # 路由聚合注册
+│   ├── assistant/           # AI 助手子系统（对话编排 / 记忆 / 检索 / 工具）
 │   ├── constants/            # 业务常量与枚举（ModuleCode、BaseEnum 等）
 │   ├── core/                 # 核心支撑模块
 │   │   ├── config.py         # 配置加载（env / yaml 合并）
@@ -249,6 +257,7 @@ server/
 │   │   ├── email.py          # 邮件发送
 │   │   ├── http.py           # HTTP 客户端
 │   │   ├── notification.py   # 通知渠道 Provider 注册中心
+│   │   ├── llm.py            # 大模型客户端（openai_compat 协议）
 │   │   └── storage.py        # 存储抽象层（本地 / S3）
 │   ├── models/               # SQLAlchemy ORM 实体
 │   │   └── entities/         # 实体定义（用户 / 角色 / 权限 / 审计 / 通知 / 应用等）
@@ -374,6 +383,28 @@ flowchart TD
   D -->|管理操作| I[下架 unpublished<br/>仅已发布可下架]
 ```
 
+#### AI 助手对话流程
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant F as 前端（AI 助手抽屉）
+    participant A as /assistant/chat（SSE）
+    participant S as AssistantService
+    participant L as 大模型（openai_compat）
+
+    U->>F: 输入消息
+    F->>A: POST /assistant/chat（SSE 连接）
+    A->>S: 校验登录与会话归属
+    S->>S: 记忆管理 / 知识库检索 / 工具编排
+    S->>L: 组装上下文调用大模型
+    L-->>S: 流式输出
+    S-->>A: token / navigate / done 事件
+    A-->>F: SSE data 帧逐条下发
+    F-->>U: 流式渲染回复
+    F->>A: POST /assistant/feedback（👍👎）
+```
+
 #### 权限自动注册流程
 
 ```mermaid
@@ -420,6 +451,7 @@ graph LR
 | **加密** | cryptography (Fernet) | AppKey 加密存储、HMAC 签名 |
 | **限流** | SlowAPI | 请求限流中间件 |
 | **HTTP 客户端** | httpx | 异步 HTTP（通知渠道调用） |
+| **AI 集成** | openai SDK | openai_compat 兼容协议（DeepSeek / 火山方舟 / 通义 / vLLM） |
 | **配置管理** | pydantic-settings | 基于 Pydantic 的配置加载 |
 | **包管理器** | uv | 高性能 Python 包管理器 |
 | **代码检查** | Ruff | 代码检查与格式化 |
@@ -605,6 +637,16 @@ graph LR
 |------|------|------|
 | GET | `/api/v1/search?keyword=` | 全局搜索（用户/角色/权限/开放应用/文件，按权限过滤分类） |
 
+**AI 助手：**
+
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| POST | `/api/v1/assistant/chat` | AI 助手对话（SSE 流式，token / navigate / done 事件） | 登录即可 |
+| POST | `/api/v1/assistant/conversations` | 创建会话 | 登录即可 |
+| GET | `/api/v1/assistant/conversations` | 会话列表 | 登录即可 |
+| GET | `/api/v1/assistant/conversations/{id}/messages` | 会话消息列表（校验归属） | 登录即可 |
+| POST | `/api/v1/assistant/feedback` | 消息反馈（👍👎，提示词调优数据源） | 登录即可 |
+
 **开放平台接口（AppId/AppKey 鉴权）：**
 
 | 方法 | 路径 | 说明 | Scope |
@@ -622,6 +664,7 @@ graph LR
 
 - **用户态接口**：JWT Bearer Token + `@permission` 装饰器自动注册权限 + 角色/权限校验；权限声明变更在服务启动时自动同步（失效权限标记 `is_deprecated`）
 - **核心权限项**：公告管理 `announcement:view / create / edit / delete / publish`；通知管理 `notification:view / create / config`（发布/撤回系统通知、渠道配置管理）
+- **AI 助手**：`assistant:chat`（对话与会话管理，自动注册，实际仅要求登录）、`assistant:feedback`（消息反馈）
 - **开放平台接口**：AppId + AppKey（明文模式）或 HanJiang-1 HMAC 签名认证，通过 `@app_scope` 声明的 scope 控制接口访问范围；scope 同样在启动时自动同步
 
 ## 存储配置说明

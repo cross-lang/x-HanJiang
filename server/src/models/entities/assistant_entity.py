@@ -24,6 +24,12 @@ class AssistantConversationEntity(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="所属用户ID")
     summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="滚动摘要（第2层记忆，压缩远历史）")
+    is_pinned: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("0"), default=False, comment="是否置顶"
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None, comment="软删除时间（NULL 表示未删除）"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

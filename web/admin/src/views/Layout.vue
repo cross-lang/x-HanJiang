@@ -103,9 +103,132 @@
     </el-container>
 
     <!-- AI 助手聊天弹窗 -->
-    <el-drawer v-model="aiVisible" title="AI 助手" size="420px" direction="rtl">
+    <el-drawer v-model="aiVisible" size="420px" direction="rtl">
+      <template #header>
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 4px">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <img
+              :src="xiaoJiangLogo"
+              alt="小江"
+              style="width: 24px; height: 24px; object-fit: contain; flex-shrink: 0"
+            />
+            <span style="font-size: 16px; font-weight: 600">小江</span>
+          </div>
+          <el-popover
+            v-model:visible="aiConvPopVisible"
+            placement="bottom-end"
+            :width="380"
+            trigger="click"
+            :show-arrow="false"
+            popper-class="ai-conv-popper"
+          >
+            <template #reference>
+              <el-button text size="small">
+                <el-icon><ChatDotRound /></el-icon>&nbsp;会话
+              </el-button>
+            </template>
+            <div style="width: 100%; box-sizing: border-box">
+              <!-- 头部：标题 + 新建会话（紫色渐变） -->
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px">
+                <span style="font-size: 15px; font-weight: 600; color: #1f2329">会话列表</span>
+                <button
+                  type="button"
+                  style="display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border: none; border-radius: 10px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 500; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); transition: filter 0.15s; outline: none"
+                  @mouseenter="($event.target as HTMLElement).style.filter = 'brightness(1.08)'"
+                  @mouseleave="($event.target as HTMLElement).style.filter = 'none'"
+                  @click="createNewConversation"
+                >
+                  <el-icon size="13"><Plus /></el-icon>新建会话
+                </button>
+              </div>
+              <!-- 列表区：置顶分组 + 最近分组 + 空态 -->
+              <div style="max-height: 420px; overflow-y: auto; padding: 0 6px 12px">
+                <div
+                  v-for="item in aiConversations"
+                  :key="item.id"
+                  style="margin-bottom: 2px"
+                >
+                  <!-- 分组标签：置顶组首条 / 最近组首条 -->
+                  <div
+                    v-if="item.is_pinned && item.id === pinnedConvs[0]?.id"
+                    style="display: flex; align-items: center; gap: 4px; padding: 6px 10px 4px; font-size: 12px; color: #9a9aa6"
+                  >
+                    <el-icon size="12"><Top /></el-icon>置顶
+                  </div>
+                  <div
+                    v-else-if="!item.is_pinned && item.id === recentConvs[0]?.id"
+                    style="padding: 8px 10px 4px; font-size: 12px; color: #9a9aa6"
+                  >
+                    最近
+                  </div>
+                  <!-- 会话行 -->
+                  <div
+                    style="display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; cursor: pointer; transition: background 0.15s"
+                    :style="
+                      item.id === aiConversationId
+                        ? 'background: linear-gradient(90deg, rgba(139,92,246,0.10), rgba(99,102,241,0.05))'
+                        : aiConvHoverId === item.id
+                          ? 'background: #f6f5fc'
+                          : ''
+                    "
+                    @mouseenter="aiConvHoverId = item.id"
+                    @mouseleave="aiConvHoverId = null"
+                    @click="switchConversation(item.id)"
+                  >
+                    <!-- 当前会话指示条 -->
+                    <div
+                      :style="
+                        item.id === aiConversationId
+                          ? 'width: 3px; height: 22px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #6366f1); flex-shrink: 0'
+                          : 'width: 3px; height: 22px; flex-shrink: 0'
+                      "
+                    ></div>
+                    <!-- 会话图标 -->
+                    <div
+                      style="width: 32px; height: 32px; border-radius: 9px; background: #f0eeff; display: flex; align-items: center; justify-content: center; flex-shrink: 0"
+                    >
+                      <el-icon color="#6d5ef1" size="15"><ChatLineRound /></el-icon>
+                    </div>
+                    <!-- 标题 + 时间 -->
+                    <div style="flex: 1; min-width: 0">
+                      <div style="font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500">
+                        {{ convTitle(item) }}
+                      </div>
+                      <div style="font-size: 11px; color: #a3a3ad; margin-top: 2px">{{ convTime(item) }}</div>
+                    </div>
+                    <!-- 操作：置顶 / 删除 -->
+                    <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0">
+                      <el-icon
+                        :color="item.is_pinned ? '#8b5cf6' : '#c0c4cc'"
+                        :title="item.is_pinned ? '取消置顶' : '置顶'"
+                        style="cursor: pointer; padding: 3px"
+                        @click.stop="togglePin(item)"
+                      >
+                        <Top />
+                      </el-icon>
+                      <el-icon
+                        title="删除"
+                        style="cursor: pointer; padding: 3px; color: #c0c4cc"
+                        @click.stop="deleteConversationItem(item.id)"
+                      >
+                        <Delete />
+                      </el-icon>
+                    </div>
+                  </div>
+                </div>
+                <!-- 空态 -->
+                <div v-if="aiConversations.length === 0" style="text-align: center; padding: 28px 12px 22px">
+                  <el-icon size="36" color="#d5d3e8"><ChatDotRound /></el-icon>
+                  <p style="margin: 10px 0 2px; font-size: 13px; color: #8f8f99">还没有会话</p>
+                  <p style="font-size: 12px; color: #b9b9c4">点击上方「新建会话」开始对话</p>
+                </div>
+              </div>
+            </div>
+          </el-popover>
+        </div>
+      </template>
       <div style="display: flex; flex-direction: column; height: 100%">
-        <div style="flex: 1; overflow-y: auto; padding: 12px; background: #f8f9fb; border-radius: 8px; margin-bottom: 12px">
+        <div ref="chatScrollRef" style="flex: 1; overflow-y: auto; padding: 12px; background: #f8f9fb; border-radius: 8px; margin-bottom: 12px">
           <div v-if="aiMessages.length === 0" style="text-align: center; color: #666; padding: 24px 12px">
             <el-icon size="40" color="#409eff"><MagicStick /></el-icon>
             <p style="margin: 12px 0 4px; font-size: 15px; font-weight: 600; color: #333">你好！我是小江，汉江管理系统的 AI 导览助手</p>
@@ -173,16 +296,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import GlobalSearch from '@/components/GlobalSearch.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
+import xiaoJiangLogo from '@/assets/xiaojiang-logo.png'
 import {
   chatSSE,
+  createConversation,
+  deleteConversation,
   getConversationMessages,
+  listConversations,
+  pinConversation,
   submitFeedback,
+  type ConversationItem,
   type MessageItem,
 } from '@/api/assistant'
 
@@ -211,14 +340,72 @@ interface AiMsg {
   feedback?: 'up' | 'down' | null
 }
 const aiMessages = ref<AiMsg[]>([])
+// 会话管理：会话列表 / 会话管理弹层显隐
+const aiConversations = ref<ConversationItem[]>([])
+const aiConvPopVisible = ref(false)
+const aiConvHoverId = ref<number | null>(null)
+// 会话分组：置顶优先，其余为最近
+const pinnedConvs = computed(() => aiConversations.value.filter((c) => c.is_pinned))
+const recentConvs = computed(() => aiConversations.value.filter((c) => !c.is_pinned))
 
-/** 打开 AI 助手抽屉：恢复最近会话的历史消息 */
-async function openAiDrawer() {
-  aiVisible.value = true
-  if (aiMessages.value.length > 0) return
-  if (aiConversationId.value === null) return // 无会话：显示欢迎引导语
+// 聊天滚动：消息变化时自动滚到底部（用户主动上翻查看历史时暂停跟随）
+const chatScrollRef = ref<HTMLElement | null>(null)
+
+/** 当前视口是否处于消息列表底部附近（±80px 容差） */
+function isNearBottom(): boolean {
+  const el = chatScrollRef.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 80
+}
+
+/** 将消息列表滚动到底部（用户新消息、助手流式输出持续跟随） */
+function scrollToBottom(): void {
+  const el = chatScrollRef.value
+  if (el) el.scrollTop = el.scrollHeight
+}
+
+watch(
+  aiMessages,
+  async () => {
+    if (isNearBottom()) {
+      await nextTick()
+      scrollToBottom()
+    }
+  },
+  { deep: true },
+)
+
+/** 刷新当前用户的会话列表 */
+async function refreshConversations() {
   try {
-    const res: any = await getConversationMessages(aiConversationId.value)
+    const res: any = await listConversations()
+    aiConversations.value = (res?.data ?? []) as ConversationItem[]
+  } catch {
+    aiConversations.value = []
+  }
+}
+
+/** 会话列表标题：优先滚动摘要，否则会话序号 */
+function convTitle(item: ConversationItem): string {
+  return item.summary || `会话 #${item.id}`
+}
+
+/** 会话列表时间（MM-DD HH:mm） */
+function convTime(item: ConversationItem): string {
+  const d = new Date(item.updated_at)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** 加载指定会话的历史消息并设为当前会话 */
+async function loadConversation(id: number | null) {
+  if (id === null) {
+    aiMessages.value = []
+    return
+  }
+  try {
+    const res: any = await getConversationMessages(id)
     const items: MessageItem[] = res?.data ?? []
     aiMessages.value = items.map((item) => ({
       role: item.role === 'user' ? 'user' : 'assistant',
@@ -226,11 +413,82 @@ async function openAiDrawer() {
       messageId: item.id,
       feedback: null,
     }))
+    aiConversationId.value = id
+    localStorage.setItem('ai_conversation_id', String(id))
   } catch {
     // 加载历史失败（如会话已失效）：重置会话，从欢迎引导开始
     aiConversationId.value = null
     localStorage.removeItem('ai_conversation_id')
+    aiMessages.value = []
   }
+}
+
+/** 切换会话 */
+async function switchConversation(id: number) {
+  aiConvPopVisible.value = false
+  await loadConversation(id)
+}
+
+/** 新建会话 */
+async function createNewConversation() {
+  aiConvPopVisible.value = false
+  try {
+    const res: any = await createConversation()
+    const conv: ConversationItem = res?.data
+    if (conv?.id) {
+      aiConversations.value = [conv, ...aiConversations.value.filter((c) => c.id !== conv.id)]
+      await loadConversation(conv.id)
+    }
+  } catch {
+    ElMessage.error('新建会话失败')
+  }
+}
+
+/** 置顶 / 取消置顶会话（成功后刷新列表，后端按置顶优先排序） */
+async function togglePin(item: ConversationItem) {
+  try {
+    await pinConversation(item.id, !item.is_pinned)
+    await refreshConversations()
+  } catch {
+    ElMessage.error('操作失败，请稍后再试')
+  }
+}
+
+/** 删除会话（确认后级联清理其消息与反馈） */
+async function deleteConversationItem(id: number) {
+  try {
+    await ElMessageBox.confirm('删除后该会话及其消息记录将无法恢复，确定删除？', '删除会话', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return // 用户取消
+  }
+  aiConvPopVisible.value = false
+  try {
+    await deleteConversation(id)
+    aiConversations.value = aiConversations.value.filter((c) => c.id !== id)
+    if (aiConversationId.value === id) {
+      if (aiConversations.value.length > 0) {
+        await loadConversation(aiConversations.value[0].id)
+      } else {
+        aiConversationId.value = null
+        localStorage.removeItem('ai_conversation_id')
+        aiMessages.value = []
+      }
+    }
+  } catch {
+    ElMessage.error('删除会话失败')
+  }
+}
+
+/** 打开 AI 助手抽屉：刷新会话列表并恢复最近会话历史 */
+async function openAiDrawer() {
+  aiVisible.value = true
+  await refreshConversations()
+  if (aiMessages.value.length > 0) return
+  await loadConversation(aiConversationId.value)
 }
 
 async function sendAiMessage() {
@@ -268,6 +526,7 @@ async function sendAiMessage() {
         }
         assistantMsg.loading = false
         assistantMsg.messageId = messageId // 供 👍👎 反馈定位
+        refreshConversations()
       },
     })
   } catch (err: any) {
@@ -413,5 +672,15 @@ function handleCommand(cmd: string) {
   color: #909399;
   font-size: 12px;
   user-select: none;
+}
+</style>
+
+<style>
+/* 会话管理弹层：圆角 + 阴影 + 去默认内边距（对齐 AI 助手紫色主题） */
+.ai-conv-popper.el-popper {
+  padding: 0;
+  border-radius: 14px;
+  border: none;
+  box-shadow: 0 8px 28px rgba(31, 35, 41, 0.12);
 }
 </style>

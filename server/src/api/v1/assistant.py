@@ -33,6 +33,7 @@ from src.models.entities.assistant_entity import (
 )
 from src.schemas.assistant import (
     ChatRequest,
+    ConversationPinRequest,
     ConversationResponse,
     FeedbackRequest,
     MessageResponse,
@@ -218,6 +219,62 @@ def list_conversation_messages(
         [_to_message_response(item) for item in messages],
         request,
     )
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    summary="删除会话",
+    description="软删除指定会话（标记 deleted_at，消息与反馈保留留档；校验归属）",
+)
+@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+def delete_conversation(
+    conversation_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    service: AssistantService = Depends(get_assistant_service),
+) -> JSONResponse:
+    """删除会话接口。
+
+    Args:
+        conversation_id: 会话ID
+        request: 当前请求对象
+        current_user: 当前登录用户
+        service: AI 助手编排服务
+
+    Returns:
+        统一响应结构，data 为空
+    """
+    service.delete_conversation(current_user.id, conversation_id)
+    return success_response(None, request)
+
+
+@router.post(
+    "/conversations/{conversation_id}/pin",
+    summary="置顶 / 取消置顶会话",
+    description="设置会话置顶状态（校验归属）",
+)
+@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+def pin_conversation(
+    conversation_id: int,
+    body: ConversationPinRequest,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    service: AssistantService = Depends(get_assistant_service),
+) -> JSONResponse:
+    """置顶会话接口。
+
+    Args:
+        conversation_id: 会话ID
+        body: 置顶请求体
+        request: 当前请求对象
+        current_user: 当前登录用户
+        service: AI 助手编排服务
+
+    Returns:
+        统一响应结构，data 为更新后的会话详情
+    """
+    entity = service.update_pinned(current_user.id, conversation_id, body.pinned)
+    return success_response(_to_conversation_response(entity), request)
 
 
 @router.post(

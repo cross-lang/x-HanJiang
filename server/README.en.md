@@ -16,6 +16,7 @@ HanJiang backend is a production-grade Python web application framework deeply b
 - System notice broadcast: publish normal / maintenance notices to all active users, station message broadcast with unread badges, maintenance notices additionally fan out per user channel configs
 - Announcement management: board / banner home placements, full lifecycle draft → published → unpublished, with validity period, ordering and Markdown / rich-text content
 - Health check integrated alerting: database / cache failures trigger notifications automatically (throttled)
+- AI assistant: SSE streaming chat (token / navigate / done events), conversation management, memory compaction, knowledge retrieval and tool orchestration; openai_compat protocol works with DeepSeek / Volcano Ark / Qwen / vLLM and more
 - Unified storage abstraction (local / S3-compatible), zero code changes to switch backends
 - Production-grade security (bcrypt password hashing, constant-time comparison, replay protection, email verification code for sensitive operations)
 
@@ -105,6 +106,11 @@ cp config.yaml.example config.yaml
 | `REDIS_PORT` | `REDIS_PORT` | Redis port, default `6379` |
 | `STORAGE_PROVIDER` | `STORAGE_PROVIDER` | Storage backend: `local` / `s3` |
 | `NOTIFICATION_ENABLED` | `NOTIFICATION_ENABLED` | Enable the notification subsystem, default `true` |
+| `AI_ENABLED` | `AI_ENABLED` | Enable the AI assistant, default `true` |
+| `AI_LLM_PROVIDER` | `AI_LLM_PROVIDER` | LLM provider: `openai_compat` (OpenAI-compatible protocol) |
+| `AI_LLM_BASE_URL` | `AI_LLM_BASE_URL` | LLM API base URL (DeepSeek / Volcano Ark / Qwen / vLLM etc.) |
+| `AI_LLM_API_KEY` | `AI_LLM_API_KEY` | LLM API key (inject sensitive values via environment variables) |
+| `AI_LLM_MODEL` | `AI_LLM_MODEL` | Model name, default `mimo-v2.5-pro` (switchable to vision-capable models) |
 
 > **Production**: inject sensitive configuration such as `AUTH_SECRET_KEY`, database password and Redis password via environment variables; never commit them to the repository.
 
@@ -196,7 +202,7 @@ server/
 ├── config.yaml.example       # YAML configuration template
 ├── alembic/                  # Database migration management
 │   ├── env.py                # Migration runtime environment
-│   └── versions/             # Migration version scripts (7 versions currently)
+│   └── versions/             # Migration version scripts (8 versions currently)
 ├── docs/                     # Project docs (DDL SQL, Postman OpenAPI collection)
 ├── examples/                 # Usage examples
 │   ├── basic_usage.py        # Basic usage
@@ -224,6 +230,7 @@ server/
 │   │   │   ├── station.py    # Station messages (unread count / list / read)
 │   │   │   ├── openapi_app.py # Open platform app management
 │   │   │   ├── global_search.py # Global search
+│   │   │   ├── assistant.py # AI assistant (SSE chat / conversations / feedback)
 │   │   │   └── health.py     # Health check & version info
 │   │   ├── open/             # Open platform routes (AppId/AppKey auth, /api/open/v1/...)
 │   │   │   └── v1/
@@ -235,6 +242,7 @@ server/
 │   │   ├── dependencies.py   # DI dependency functions
 │   │   ├── response.py       # Unified response wrapper
 │   │   └── router.py         # Route aggregation & registration
+│   ├── assistant/           # AI assistant subsystem (chat orchestration / memory / retrieval / tools)
 │   ├── constants/            # Business constants & enums (ModuleCode, BaseEnum, etc.)
 │   ├── core/                 # Core support modules
 │   │   ├── config.py         # Config loading (env / yaml merged)
@@ -249,6 +257,7 @@ server/
 │   │   ├── email.py          # Email sending
 │   │   ├── http.py           # HTTP client
 │   │   ├── notification.py   # Notification channel provider registry
+│   │   ├── llm.py            # LLM client (openai_compat protocol)
 │   │   └── storage.py        # Storage abstraction (local / S3)
 │   ├── models/               # SQLAlchemy ORM entities
 │   │   └── entities/         # Entity definitions (users / roles / permissions / audit / notifications / apps, etc.)
@@ -374,6 +383,28 @@ flowchart TD
   D -->|Admin action| I[Unpublished<br/>only published can be unpublished]
 ```
 
+#### AI Assistant Conversation Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (AI drawer)
+    participant A as /assistant/chat (SSE)
+    participant S as AssistantService
+    participant L as LLM (openai_compat)
+
+    U->>F: Enter message
+    F->>A: POST /assistant/chat (SSE connection)
+    A->>S: Verify login & conversation ownership
+    S->>S: Memory management / knowledge retrieval / tool orchestration
+    S->>L: Call LLM with assembled context
+    L-->>S: Streamed output
+    S-->>A: token / navigate / done events
+    A-->>F: SSE data frames delivered one by one
+    F-->>U: Stream-render reply
+    F->>A: POST /assistant/feedback (👍👎)
+```
+
 #### Permission Auto-Registration
 
 ```mermaid
@@ -420,6 +451,7 @@ graph LR
 | **Encryption** | cryptography (Fernet) | AppKey encryption, HMAC signing |
 | **Rate Limiting** | SlowAPI | Request rate limiting |
 | **HTTP Client** | httpx | Async HTTP (notification channels) |
+| **AI Integration** | openai SDK | openai_compat protocol (DeepSeek / Volcano Ark / Qwen / vLLM) |
 | **Config** | pydantic-settings | Pydantic-based config loading |
 | **Package Manager** | uv | High-performance Python package manager |
 | **Lint** | Ruff | Linting & formatting |
@@ -605,6 +637,16 @@ Once the backend is running:
 |--------|------|-------------|
 | GET | `/api/v1/search?keyword=` | Global search (users/roles/permissions/apps/files, permission-filtered) |
 
+**AI Assistant:**
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/api/v1/assistant/chat` | AI assistant chat (SSE streaming, token / navigate / done events) | Login only |
+| POST | `/api/v1/assistant/conversations` | Create conversation | Login only |
+| GET | `/api/v1/assistant/conversations` | Conversation list | Login only |
+| GET | `/api/v1/assistant/conversations/{id}/messages` | Conversation messages (ownership checked) | Login only |
+| POST | `/api/v1/assistant/feedback` | Message feedback (👍👎, tuning data source) | Login only |
+
 **Open Platform Endpoints (AppId/AppKey auth):**
 
 | Method | Path | Description | Scope |
@@ -622,6 +664,7 @@ Once the backend is running:
 
 - **User endpoints**: JWT Bearer Token + `@permission` decorator auto-registration + role/permission checks; permission changes are auto-synced on startup (stale permissions marked `is_deprecated`)
 - **Key permission items**: announcements `announcement:view / create / edit / delete / publish`; notifications `notification:view / create / config` (publish/withdraw system notifications, channel config management)
+- **AI assistant**: `assistant:chat` (chat & conversation management, auto-registered, login-only in practice), `assistant:feedback` (message feedback)
 - **Open platform endpoints**: AppId + AppKey (plain mode) or HanJiang-1 HMAC signature, access controlled by scopes declared via `@app_scope`; scopes are also auto-synced on startup
 
 ## Storage

@@ -18,6 +18,7 @@ HanJiang is a full-stack rapid development platform built on FastAPI + Vue 3 + T
 - Production-grade security (constant-time comparison, replay protection, password hashing, email verification code for sensitive operations)
 - Built-in dashboard (user/role/app stats + login trend + audit trend + ECharts)
 - File management (local / S3-compatible storage), global search, profile center, system alerts, announcement management (homepage board / banner)
+- AI assistant: SSE streaming chat (token / navigate / done events), conversation management, memory compaction, knowledge retrieval and tool orchestration; openai_compat protocol works with DeepSeek / Volcano Ark / Qwen / vLLM and more
 - Great developer experience (Swagger docs, Alembic migrations, unified error handling, GitHub Actions CI)
 
 **Use Cases:**
@@ -55,9 +56,10 @@ x-HanJiang/
 ├── server/                  # Backend (FastAPI)
 │   ├── src/
 │   │   ├── api/              # Routes (v1 user + open/v1 open platform)
+│   │   ├── assistant/        # AI assistant (chat orchestration/memory/retrieval/tools)
 │   │   ├── constants/        # Constants & enums (ModuleCode, BaseEnum)
 │   │   ├── core/             # Core (config/middleware/exceptions/security)
-│   │   ├── infras/           # Infrastructure (database/cache/storage/notification channels)
+│   │   ├── infras/           # Infrastructure (database/cache/storage/notification channels/LLM)
 │   │   ├── models/           # SQLAlchemy data models (models/entities)
 │   │   ├── notification/     # Notification subsystem (dispatcher/templates/retry)
 │   │   ├── repositories/     # Data access layer
@@ -167,6 +169,28 @@ flowchart TD
     I -->|Yes| L[Done]
 ```
 
+### AI Assistant Conversation Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (AI drawer)
+    participant A as /assistant/chat (SSE)
+    participant S as AssistantService
+    participant L as LLM (openai_compat)
+
+    U->>F: Enter message
+    F->>A: POST /assistant/chat (SSE connection)
+    A->>S: Verify login & conversation ownership
+    S->>S: Memory management / knowledge retrieval / tool orchestration
+    S->>L: Call LLM with assembled context
+    L-->>S: Streamed output
+    S-->>A: token / navigate / done events
+    A-->>F: SSE data frames delivered one by one
+    F-->>U: Stream-render reply
+    F->>A: POST /assistant/feedback (👍👎)
+```
+
 ## Tech Stack
 
 | Category | Technology |
@@ -184,6 +208,7 @@ flowchart TD
 | **Cache** | Redis |
 | **Logging** | Loguru |
 | **Auth** | JWT + HMAC Signature |
+| **AI Integration** | OpenAI SDK (openai_compat protocol; DeepSeek / Volcano Ark / Qwen / vLLM etc.) |
 | **Package Manager** | uv |
 | **Deployment** | Docker / docker-compose |
 
@@ -195,88 +220,9 @@ Once the backend is running:
 - **ReDoc**: http://localhost:8000/redoc
 - **OpenAPI JSON**: http://localhost:8000/openapi.json
 
-### Core Endpoints
-
-| Module | Endpoint | Description |
-|---|---|---|
-| Auth | `POST /api/v1/auth/login` | User login |
-| Auth | `POST /api/v1/auth/refresh` | Refresh tokens |
-| Auth | `POST /api/v1/auth/logout` | Logout |
-| Profile | `GET /api/v1/profile/me` | Current user info |
-| Profile | `GET /api/v1/profile/menus` | Current user menu tree |
-| Profile | `POST /api/v1/profile/change-password` | Change password (verification code) |
-| Users | `GET /api/v1/users` | User list (multi-role) |
-| Users | `POST /api/v1/users` | Create user |
-| Users | `GET /api/v1/users/export` | Export users (CSV) |
-| Users | `POST /api/v1/users/import` | Bulk import users (CSV) |
-| Users | `POST /api/v1/users/{id}/update` | Update user |
-| Roles | `GET /api/v1/roles` | Role list |
-| Roles | `GET /api/v1/roles/{id}/permissions` | Role permissions |
-| Roles | `POST /api/v1/roles/{id}/permissions` | Bind permission |
-| Permissions | `GET /api/v1/permissions` | Permission list |
-| Audit Logs | `GET /api/v1/audit/logs` | Business audit log list |
-| Login Logs | `GET /api/v1/audit/login-logs` | Login log list |
-| Files | `POST /api/v1/files/upload` | Upload file |
-| Files | `GET /api/v1/files` | File list |
-| Notifications | `POST /api/v1/notifications/publish` | Publish system notification (normal / maintenance, broadcast to all users) |
-| Notifications | `GET /api/v1/notifications/published` | System notice list |
-| Notifications | `GET /api/v1/notifications` | Notification list |
-| Station | `GET /api/v1/station/messages` | My message list |
-| Station | `GET /api/v1/station/messages/unread-count` | Unread message count |
-| Announcements | `GET /api/v1/announcements/active` | Active homepage announcements |
-| Announcements | `POST /api/v1/announcements` | Create announcement (draft) |
-| Announcements | `POST /api/v1/announcements/{id}/publish` | Publish announcement |
-| Announcements | `POST /api/v1/announcements/{id}/unpublish` | Unpublish announcement |
-| Dashboard | `GET /api/v1/dashboard/stats` | Dashboard stats |
-| Global Search | `GET /api/v1/search` | Global search (users/roles/permissions/apps/files) |
-| Open API Apps | `POST /api/v1/admin/apps` | Create open app (returns AppId + AppKey) |
-| Open API Apps | `POST /api/v1/admin/apps/{app_id}/rotate-key` | Rotate AppKey |
-| Open API | `GET /api/open/v1/me` | Current app info |
-| Open API | `GET /api/open/v1/users` | Open platform user query |
-
-### Authorization
-
-- **User endpoints**: JWT Bearer Token + `@permission` decorator auto-registration + role/permission check
-- **Open platform endpoints**: AppId + AppKey (plain) or HanJiang-1 HMAC signature, scope-based access control
-
-## Storage
-
-### Database
-
-- **Type**: MySQL 8.0+
-- **Config**: via `.env` (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, etc.)
-- **Migrations**: Alembic
-
-### Cache
-
-- **Type**: Redis
-- **Usage**: rate limiting, login state cache, notification retry queue
-- **Config**: via `.env` (`REDIS_HOST`, `REDIS_PORT`)
-
-### File Storage
-
-Two modes, switch via `STORAGE_PROVIDER` in `.env`:
-
-| Mode | Config | Use Case |
-|---|---|---|
-| `local` | `STORAGE_LOCAL_BASE_DIR=static` | Local dev, small deployments |
-| `s3` | `STORAGE_S3_ENDPOINT_URL` etc. | Production, object storage (Qiniu/AWS S3/MinIO) |
-
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
-## References
-
-- [FastAPI Docs](https://fastapi.tiangolo.com/)
-- [uv Docs](https://docs.astral.sh/uv/)
-- [SQLAlchemy Docs](https://docs.sqlalchemy.org/)
-- [Vue 3 Docs](https://vuejs.org/)
-- [Vite Docs](https://vitejs.dev/)
-- [Element Plus Docs](https://element-plus.org/)
-- [ECharts Docs](https://echarts.apache.org/)
-- [Loguru Docs](https://loguru.readthedocs.io/)
-- [Docker Docs](https://docs.docker.com/)
 
 ## Contact
 

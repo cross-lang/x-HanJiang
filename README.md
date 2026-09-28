@@ -18,6 +18,7 @@
 - 生产级安全设计（常量时间比对、防重放、密码哈希、邮箱验证码二次认证）
 - 内置仪表盘（用户/角色/应用统计 + 登录趋势 + 操作日志趋势 + ECharts 可视化）
 - 文件管理（本地 / S3 兼容存储）、全局搜索、个人中心、系统告警、公告管理（首页板块 / 横幅）
+- AI 助手：SSE 流式对话（token / navigate / done 事件）、会话管理、记忆压缩、知识库检索与工具编排，openai_compat 协议可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等
 - 完善的开发者体验（Swagger 文档、Alembic 迁移、统一异常处理、GitHub Actions CI）
 
 **适用场景：**
@@ -56,9 +57,10 @@ x-HanJiang/
 ├── server/                  # 后端（FastAPI）
 │   ├── src/
 │   │   ├── api/              # 路由层（v1 用户态 + open/v1 开放平台）
+│   │   ├── assistant/        # AI 助手（对话编排/记忆/检索/工具）
 │   │   ├── constants/        # 常量与枚举（ModuleCode、BaseEnum）
 │   │   ├── core/             # 核心（配置/中间件/异常/安全）
-│   │   ├── infras/           # 基础设施（数据库/缓存/存储/通知渠道）
+│   │   ├── infras/           # 基础设施（数据库/缓存/存储/通知渠道/LLM）
 │   │   ├── models/           # SQLAlchemy 数据模型（models/entities）
 │   │   ├── notification/     # 通知子系统（分发器/模板/重试）
 │   │   ├── repositories/     # 数据访问层
@@ -168,6 +170,28 @@ flowchart TD
     I -->|成功| L[完成]
 ```
 
+### AI 助手对话流程
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant F as 前端（AI 助手抽屉）
+    participant A as /assistant/chat（SSE）
+    participant S as AssistantService
+    participant L as 大模型（openai_compat）
+
+    U->>F: 输入消息
+    F->>A: POST /assistant/chat（SSE 连接）
+    A->>S: 校验登录与会话归属
+    S->>S: 记忆管理 / 知识库检索 / 工具编排
+    S->>L: 组装上下文调用大模型
+    L-->>S: 流式输出
+    S-->>A: token / navigate / done 事件
+    A-->>F: SSE data 帧逐条下发
+    F-->>U: 流式渲染回复
+    F->>A: POST /assistant/feedback（👍👎）
+```
+
 ## 技术栈
 
 | 分类 | 技术 |
@@ -185,6 +209,7 @@ flowchart TD
 | **缓存** | Redis |
 | **日志** | Loguru |
 | **认证** | JWT + HMAC 签名 |
+| **AI 集成** | OpenAI SDK（openai_compat 兼容协议，可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等） |
 | **包管理** | uv |
 | **部署** | Docker / docker-compose |
 
@@ -196,88 +221,9 @@ flowchart TD
 - **ReDoc**：http://localhost:8000/redoc
 - **OpenAPI JSON**：http://localhost:8000/openapi.json
 
-### 核心接口清单
-
-| 模块 | 接口 | 说明 |
-|---|---|---|
-| 认证 | `POST /api/v1/auth/login` | 用户登录 |
-| 认证 | `POST /api/v1/auth/refresh` | 刷新令牌 |
-| 认证 | `POST /api/v1/auth/logout` | 退出登录 |
-| 个人中心 | `GET /api/v1/profile/me` | 当前用户信息 |
-| 个人中心 | `GET /api/v1/profile/menus` | 当前用户菜单树 |
-| 个人中心 | `POST /api/v1/profile/change-password` | 修改密码（验证码二次认证） |
-| 用户管理 | `GET /api/v1/users` | 用户列表（支持多角色） |
-| 用户管理 | `POST /api/v1/users` | 创建用户 |
-| 用户管理 | `GET /api/v1/users/export` | 导出用户（CSV） |
-| 用户管理 | `POST /api/v1/users/import` | 批量导入用户（CSV） |
-| 用户管理 | `POST /api/v1/users/{id}/update` | 更新用户 |
-| 角色管理 | `GET /api/v1/roles` | 角色列表 |
-| 角色管理 | `GET /api/v1/roles/{id}/permissions` | 角色权限列表 |
-| 角色管理 | `POST /api/v1/roles/{id}/permissions` | 绑定权限 |
-| 权限管理 | `GET /api/v1/permissions` | 权限列表 |
-| 审计日志 | `GET /api/v1/audit/logs` | 业务审计日志列表 |
-| 登录日志 | `GET /api/v1/audit/login-logs` | 登录日志列表 |
-| 文件管理 | `POST /api/v1/files/upload` | 上传文件 |
-| 文件管理 | `GET /api/v1/files` | 文件列表 |
-| 通知管理 | `POST /api/v1/notifications/publish` | 发布系统通知（普通 / 维护，全体用户广播） |
-| 通知管理 | `GET /api/v1/notifications/published` | 系统通知列表 |
-| 通知管理 | `GET /api/v1/notifications` | 通知列表 |
-| 站内信 | `GET /api/v1/station/messages` | 我的消息列表 |
-| 站内信 | `GET /api/v1/station/messages/unread-count` | 未读消息数 |
-| 公告管理 | `GET /api/v1/announcements/active` | 首页生效公告 |
-| 公告管理 | `POST /api/v1/announcements` | 创建公告（草稿） |
-| 公告管理 | `POST /api/v1/announcements/{id}/publish` | 发布公告 |
-| 公告管理 | `POST /api/v1/announcements/{id}/unpublish` | 下架公告 |
-| 仪表盘 | `GET /api/v1/dashboard/stats` | 仪表盘统计数据 |
-| 全局搜索 | `GET /api/v1/search` | 全局搜索（用户/角色/权限/应用/文件） |
-| 开放平台应用 | `POST /api/v1/admin/apps` | 创建开放应用（返回 AppId + AppKey） |
-| 开放平台应用 | `POST /api/v1/admin/apps/{app_id}/rotate-key` | 重置 AppKey |
-| 开放平台 | `GET /api/open/v1/me` | 当前应用信息 |
-| 开放平台 | `GET /api/open/v1/users` | 开放平台用户查询 |
-
-### 权限控制
-
-- **用户态接口**：JWT Bearer Token + `@permission` 装饰器自动注册权限 + 角色/权限校验
-- **开放平台接口**：AppId + AppKey（明文）或 HanJiang-1 HMAC 签名认证，通过 scope 控制访问范围
-
-## 存储配置说明
-
-### 数据库
-
-- **类型**：MySQL 8.0+
-- **配置**：通过 `.env` 文件配置 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE` 等
-- **迁移**：使用 Alembic 管理版本
-
-### 缓存
-
-- **类型**：Redis
-- **用途**：限流计数、登录态缓存、通知重试队列
-- **配置**：通过 `.env` 文件配置 `REDIS_HOST`、`REDIS_PORT`
-
-### 文件存储
-
-支持两种模式，通过 `.env` 中 `STORAGE_PROVIDER` 切换：
-
-| 模式 | 配置 | 适用场景 |
-|---|---|---|
-| `local` | `STORAGE_LOCAL_BASE_DIR=static` | 本地开发、小型部署 |
-| `s3` | `STORAGE_S3_ENDPOINT_URL` 等 | 生产环境、对象存储（七牛/AWS S3/MinIO） |
-
 ## 许可证
 
 本项目采用 [MIT License](LICENSE) 开源协议。
-
-## 参考资料
-
-- [FastAPI 官方文档](https://fastapi.tiangolo.com/)
-- [uv 官方文档](https://docs.astral.sh/uv/)
-- [SQLAlchemy 官方文档](https://docs.sqlalchemy.org/)
-- [Vue 3 官方文档](https://cn.vuejs.org/)
-- [Vite 官方文档](https://cn.vitejs.dev/)
-- [Element Plus 官方文档](https://element-plus.org/zh-CN/)
-- [ECharts 官方文档](https://echarts.apache.org/zh/)
-- [Loguru 官方文档](https://loguru.readthedocs.io/)
-- [Docker 官方文档](https://docs.docker.com/)
 
 ## 联系方式
 

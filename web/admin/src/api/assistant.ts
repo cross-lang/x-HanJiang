@@ -12,6 +12,7 @@ export interface ConversationItem {
   id: number
   user_id: number
   summary: string | null
+  is_pinned: boolean
   created_at: string
   updated_at: string
 }
@@ -51,6 +52,16 @@ export function getConversationMessages(conversationId: number) {
 /** 创建新会话 */
 export function createConversation() {
   return request.post('/assistant/conversations')
+}
+
+/** 删除会话（级联删除其消息与反馈） */
+export function deleteConversation(conversationId: number) {
+  return request.delete(`/assistant/conversations/${conversationId}`)
+}
+
+/** 置顶 / 取消置顶会话 */
+export function pinConversation(conversationId: number, pinned: boolean) {
+  return request.post(`/assistant/conversations/${conversationId}/pin`, { pinned })
 }
 
 /** 消息反馈（👍👎） */

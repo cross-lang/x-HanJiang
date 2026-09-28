@@ -107,7 +107,7 @@ class NotificationChannel(BaseEnum):
 class NotificationEvent(BaseEnum):
     """通知事件类型。
     按业务域分组，格式：{domain}.{action}
-    所有事件类型必须在 config/notification_templates/ 下有对应模板。
+    所有事件类型必须在 templates/notification_templates/ 下有对应模板。
     """
 
     # ── 用户域 ──────────────────────────────────
