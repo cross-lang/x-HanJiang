@@ -1,9 +1,8 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 告警接口
-
-供外部监控系统（Prometheus Alertmanager、Sentry 等）通过 Webhook 调用，
-以及管理员手动发送系统告警。
+发送系统告警到指定接收人，以及向全体活跃用户广播系统告警。
+所有端点均需登录态与对应权限（alert:send / alert:broadcast）。
 
 Endpoints:
     POST   /alerts:          发送系统告警（指定接收人）
@@ -11,50 +10,35 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.orm import Session
 
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
-    get_current_user,
+    get_alert_service,
     require_user_permission,
-    get_db_session,
-    get_notification_dispatcher,
 )
 from src.api.response import success_response
-from src.core.exceptions import ValidationException
-from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import AlertSendRequest
-from src.schemas.auth import CurrentUser
 from src.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["系统告警"])
 
 
-def _get_alert_service(
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
-    db_session: Session = Depends(get_db_session),
-) -> AlertService:
-    """获取告警服务实例。"""
-    return AlertService(dispatcher=dispatcher, session=db_session)
-
-
 @router.post(
     "",
     summary="发送系统告警",
-    description="发送系统告警到指定接收人（供外部监控 Webhook 调用）",
+    description="发送系统告警到指定接收人（需登录态与 alert:send 权限）",
+    dependencies=[Depends(require_user_permission("alert:send"))],
 )
-async def send_alert(
+@permission("alert:send", "发送告警", "alert", "send")
+def send_alert(
     body: AlertSendRequest,
     request: Request,
-    service: AlertService = Depends(_get_alert_service),
+    service: AlertService = Depends(get_alert_service),
 ):
     """发送系统告警接口。
 
-    外部监控系统（Prometheus Alertmanager、Sentry 等）可通过 Webhook
-    调用此接口发送告警通知。
-
-    此端点需要 API Key 认证（通过 metadata 中的 source 字段标识来源），
-    不依赖用户登录态。
+    向指定接收人发送告警通知，需 alert:send 权限。
+    原外部监控 Webhook 直调场景如有需要，可改用 API Key / 开放平台鉴权通道接入。
     """
     records = service.send(
         subject=body.subject,
@@ -79,13 +63,12 @@ async def send_alert(
     dependencies=[Depends(require_user_permission("alert:broadcast"))],
 )
 @permission("alert:broadcast", "广播告警", "alert", "broadcast")
-async def broadcast_alert(
+def broadcast_alert(
     body: AlertSendRequest,
     request: Request,
-    service: AlertService = Depends(_get_alert_service),
+    service: AlertService = Depends(get_alert_service),
 ):
     """广播系统告警接口。
-
     仅管理员可调用，向全体活跃用户发送系统告警通知。
     """
     sent_count = service.broadcast(

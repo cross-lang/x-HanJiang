@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 用户业务逻辑实现
-
 提供用户 CRUD、登录凭据校验、登录信息记录。
 
 Classes:
@@ -13,15 +12,16 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from src.constants.constants import SUPERADMIN_USERNAME
 from src.constants.enums import NotificationEvent, UserStatus
-from src.core.exceptions import ConflictException, AuthorizationException, NotFoundException, ValidationException
+from src.core.exceptions import AuthorizationException, ConflictException, NotFoundException
 from src.core.logger import logger
-from src.utils.security import hash_password, verify_password
-from src.models.entities.user_entity import UserEntity, UserRoleEntity, RoleEntity
+from src.models.entities.user_entity import UserEntity
+from src.notification.notification_decorators import notify
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.base_service import BaseService
-from src.notification.notification_decorators import notify
+from src.utils.security import hash_password, verify_password
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
@@ -29,10 +29,8 @@ if TYPE_CHECKING:
 
 class UserService(BaseService[UserResponse, int, UserRepository]):
     """用户业务逻辑实现。
-
     继承 BaseService 提供的通用能力：
         - get_by_id / get_all / _commit / _audit / _log_action
-
     本类负责：
         - 用户特有的业务校验（邮箱/用户名唯一性）
         - Entity → UserResponse 转换
@@ -59,9 +57,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
     ) -> dict[str, Any]:
         """按条件搜索用户（分页）。"""
         skip = (page - 1) * page_size
-        entities, total = self._repository.search(
-            keyword=keyword, status=status, skip=skip, limit=page_size
-        )
+        entities, total = self._repository.search(keyword=keyword, status=status, skip=skip, limit=page_size)
         return {
             "items": [self._to_response(e) for e in entities],
             "total": total,
@@ -71,18 +67,15 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
 
     def create(self, data: dict[str, Any], operator: dict[str, Any] | None = None) -> UserResponse:
         """创建新用户.
-
         业务校验：
             1. 邮箱全局唯一
             2. 用户名全局唯一
         """
         request = UserCreateRequest(**data)
-
         if self._find_by_email(request.email) is not None:
             raise ConflictException(message=f"邮箱 {request.email} 已被注册")
         if self._find_by_username(request.username) is not None:
             raise ConflictException(message=f"用户名 {request.username} 已存在")
-
         entity = UserEntity(
             username=request.username,
             email=request.email,
@@ -97,16 +90,15 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             entity.gender = request.gender
         if getattr(request, "birthday", None) is not None:
             from datetime import datetime
+
             entity.birthday = datetime.strptime(request.birthday, "%Y-%m-%d")
         created = self._repository.create(entity)
         self._commit()
-
         # 绑定多角色（经仓库）
         role_ids = list(dict.fromkeys([rid for rid in (request.role_ids or []) if rid]))
         if role_ids:
             self._repository.replace_user_roles(created.id, role_ids)
             self._commit()
-
         self._audit(
             entity_id=created.id,
             action="create",
@@ -115,36 +107,32 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             after_data={"username": created.username, "email": created.email},
             remarks=f"创建用户{created.username}（{created.name or '-'}）",
         )
-
         result = self._to_response(created)
         logger.info(f"User created: id={result.id} username={result.username}")
         return result
 
-    def update(
-        self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None
-    ) -> UserResponse:
+    def update(self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None) -> UserResponse:
         """更新用户信息（密码提供时重新哈希）。"""
         request = UserUpdateRequest(**data)
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
-
         # 超级管理员保护：非 superadmin 不能修改 superadmin
-        if existing.username == "superadmin" and operator and operator.get("operator_name") != "superadmin":
+        if (
+            existing.username == SUPERADMIN_USERNAME
+            and operator
+            and operator.get("operator_name") != SUPERADMIN_USERNAME
+        ):
             raise AuthorizationException(message="不能修改超级管理员账号")
-
         patch_dict = request.model_dump(exclude_unset=True)
-
         if "email" in patch_dict and patch_dict["email"] != existing.email:
             other = self._find_by_email(patch_dict["email"])
             if other is not None and other.id != id:
                 raise ConflictException(message=f"邮箱 {patch_dict['email']} 已被其他用户占用")
-
         if "password" in patch_dict and patch_dict["password"]:
             patch_dict["password_hash"] = hash_password(patch_dict.pop("password"))
         else:
             patch_dict.pop("password", None)
-
         patch = UserEntity(
             id=id,
             username=existing.username,
@@ -158,29 +146,23 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         for k in ("birthday", "phone", "email", "name"):
             if patch_dict.get(k) == "":
                 patch_dict[k] = None
-
         if patch_dict.get("birthday") and isinstance(patch_dict["birthday"], str):
             from datetime import datetime
-            patch_dict["birthday"] = datetime.strptime(patch_dict["birthday"], "%Y-%m-%d")
 
+            patch_dict["birthday"] = datetime.strptime(patch_dict["birthday"], "%Y-%m-%d")
         for key, value in patch_dict.items():
             if hasattr(patch, key):
                 setattr(patch, key, value)
         if "name" in patch_dict:
-            setattr(patch, "name", patch_dict["name"])
-
+            patch.name = patch_dict["name"]
         # 更新角色关联（经仓库）
-        role_changed = False
         if "role_ids" in patch_dict:
-            role_changed = True
             role_ids = patch_dict.pop("role_ids")
             self._repository.replace_user_roles(id, role_ids)
-
         updated = self._repository.update(id, patch)
         if updated is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
         self._commit()
-
         self._audit(
             entity_id=updated.id,
             action="update",
@@ -189,12 +171,9 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             after_data={"username": updated.username, "email": updated.email},
             remarks=f"更新用户{updated.username}的信息",
         )
-
         result = self._to_response(updated)
         logger.info(f"User updated: id={result.id} username={result.username}")
-
         # 角色变更通知由 @notify 装饰器处理
-
         # ── 通知：密码变更 ──
         if "password_hash" in patch_dict:
             self._dispatch_notification(
@@ -211,7 +190,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                     NotificationEvent.USER_PROFILE_UPDATED,
                     {"username": updated.username, "updated_fields": "、".join(changed_keys)},
                 )
-
         # ── 通知：状态变更 ──
         if "status" in patch_dict and patch_dict["status"] != existing.status:
             self._dispatch_notification(
@@ -223,7 +201,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                     "reason": "管理员操作",
                 },
             )
-
         return result
 
     @notify(NotificationEvent.USER_DELETED, target="self")
@@ -232,11 +209,13 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
-
         # 超级管理员保护
-        if existing.username == "superadmin" and operator and operator.get("operator_name") != "superadmin":
+        if (
+            existing.username == SUPERADMIN_USERNAME
+            and operator
+            and operator.get("operator_name") != SUPERADMIN_USERNAME
+        ):
             raise AuthorizationException(message="不能删除超级管理员账号")
-
         deleted = self._repository.delete(id)
         if deleted:
             self._commit()
@@ -251,21 +230,20 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             logger.info(f"User deleted: id={id} username={existing.username}")
         return deleted
 
-    def reset_password(
-        self, id: int, new_password: str, operator: dict[str, Any] | None = None
-    ) -> bool:
+    def reset_password(self, id: int, new_password: str, operator: dict[str, Any] | None = None) -> bool:
         """管理员重置用户密码。"""
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
-
         # 超级管理员保护
-        if existing.username == "superadmin" and operator and operator.get("operator_name") != "superadmin":
+        if (
+            existing.username == SUPERADMIN_USERNAME
+            and operator
+            and operator.get("operator_name") != SUPERADMIN_USERNAME
+        ):
             raise AuthorizationException(message="不能重置超级管理员密码")
-
         existing.password_hash = hash_password(new_password)
         self._commit()
-
         self._audit(
             entity_id=id,
             action="update",
@@ -275,27 +253,20 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             remarks=f"管理员重置用户{existing.username}的密码",
         )
         logger.info(f"Password reset by admin: user_id={id}")
-
         # ── 通知：密码变更 ──
         self._dispatch_notification(
             id,
             NotificationEvent.USER_PASSWORD_CHANGED,
             {"username": existing.username, "changed_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M")},
         )
-
         return True
 
     def verify_credentials(self, account: str, password: str) -> UserEntity | None:
         """校验登录凭据（供 AuthService 调用）。
-
         支持用户名或邮箱匹配；LOCKED 用户拒绝登录。
         """
         user: UserEntity | None
-        if "@" in account:
-            user = self._repository.get_by_email(account)
-        else:
-            user = self._repository.get_by_username(account)
-
+        user = self._repository.get_by_email(account) if "@" in account else self._repository.get_by_username(account)
         if user is None:
             return None
         if user.status == UserStatus.LOCKED.value:

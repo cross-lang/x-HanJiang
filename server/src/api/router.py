@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
 中央路由注册模块
-
 本模块只负责顶层路由分组，不关心具体版本号：
 - /api/v1/...       → 用户态业务接口（JWT 鉴权），版本聚合在 src/api/v1/__init__.py
 - /api/open/v1/...  → 开放平台接口（AppId/AppKey 鉴权），版本聚合在 src/api/open/v1/__init__.py
-
 未来加 v2 时，只需新建 src/api/v2/ 或 src/api/open/v2/，在对应 __init__.py
 里建一个带 prefix="/v2" 的聚合 router，再在本文件 include 即可。
 """

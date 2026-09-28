@@ -92,3 +92,15 @@ class AuditService:
     def get_by_id(self, log_id: int) -> AuditLogEntity | None:
         """根据日志 ID 查询单条审计日志。"""
         return self._repository.get_by_id(log_id)
+
+    def get_operator_names(self, user_ids: list[int]) -> dict[int, dict[str, str]]:
+        """批量查询操作人用户名与真实姓名。
+
+        Args:
+            user_ids: 操作人用户 ID 列表
+
+        Returns:
+            dict[int, dict[str, str]]: {user_id: {"username": ..., "name": ...}}
+        """
+        user_map = self._repository.get_user_map_by_ids(user_ids)
+        return {uid: {"username": u.username, "name": u.name} for uid, u in user_map.items()}

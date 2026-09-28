@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
 缓存基础设施模块
-
 本模块提供缓存提供者抽象和 Redis 实现，支持连接管理和序列化。
-
 功能特性：
     - CacheProvider 抽象接口
     - RedisCacheProvider 实现
@@ -11,7 +9,6 @@
 
 Usage:
     from src.infras.cache import get_cached_cache_provider
-
     provider = get_cached_cache_provider()
     provider.set("key", "value", ttl=3600)
     value = provider.get("key")
@@ -35,10 +32,8 @@ except ImportError:
 # ============================================================
 # 抽象基类
 # ============================================================
-
 class CacheProvider(ABC):
     """缓存提供者抽象接口。
-
     所有缓存后端必须实现此接口。业务层仅依赖此抽象，
     切换缓存实现只需修改配置，无需改动任何业务代码。
     """
@@ -86,15 +81,14 @@ class CacheProvider(ABC):
         """从有序集合移除成员，返回移除数量。"""
 
     @abstractmethod
-    def zrangebyscore(
-        self, key: str, min_score: float, max_score: float, start: int = 0, num: int = 0
-    ) -> list[str]:
+    def zrangebyscore(self, key: str, min_score: float, max_score: float, start: int = 0, num: int = 0) -> list[str]:
         """按分数范围获取有序集合成员。"""
 
 
 # ============================================================
 # Redis 实现
 # ============================================================
+
 
 class RedisCacheProvider(CacheProvider):
     """Redis 缓存实现。"""
@@ -193,9 +187,7 @@ class RedisCacheProvider(CacheProvider):
             logger.warning(f"Cache zrem failed for key '{key}': {e}")
             return 0
 
-    def zrangebyscore(
-        self, key: str, min_score: float, max_score: float, start: int = 0, num: int = 0
-    ) -> list[str]:
+    def zrangebyscore(self, key: str, min_score: float, max_score: float, start: int = 0, num: int = 0) -> list[str]:
         try:
             return self._client.zrangebyscore(key, min_score, max_score, start=start, num=num)
         except Exception as e:
@@ -211,6 +203,7 @@ class RedisCacheProvider(CacheProvider):
 # ============================================================
 # 工厂函数
 # ============================================================
+
 
 def get_cache_provider() -> CacheProvider:
     """根据配置创建缓存实例。"""

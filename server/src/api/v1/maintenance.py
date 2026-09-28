@@ -1,7 +1,6 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 系统维护接口
-
 管理员触发系统维护通知，广播给全体活跃用户。
 
 Endpoints:
@@ -9,30 +8,19 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.orm import Session
 
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
+    get_maintenance_service,
     require_user_permission,
-    get_db_session,
-    get_notification_dispatcher,
 )
 from src.api.response import success_response
-from src.notification.dispatcher import NotificationDispatcher
 from src.schemas.alert import MaintenanceNotifyRequest
 from src.schemas.auth import CurrentUser
 from src.services.maintenance_service import MaintenanceService
 
 router = APIRouter(prefix="/maintenance", tags=["系统维护"])
-
-
-def _get_maintenance_service(
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
-    db_session: Session = Depends(get_db_session),
-) -> MaintenanceService:
-    """获取维护通知服务实例。"""
-    return MaintenanceService(dispatcher=dispatcher, session=db_session)
 
 
 @router.post(
@@ -42,15 +30,24 @@ def _get_maintenance_service(
     dependencies=[Depends(require_user_permission("maintenance:notify"))],
 )
 @permission("maintenance:notify", "发送维护通知", "maintenance", "notify")
-async def notify_maintenance(
+def notify_maintenance(
     body: MaintenanceNotifyRequest,
     request: Request,
-    service: MaintenanceService = Depends(_get_maintenance_service),
+    current_user: CurrentUser = Depends(get_current_user),
+    service: MaintenanceService = Depends(get_maintenance_service),
 ):
     """发送系统维护通知接口。
-
     管理员填写维护时间和预计时长后，系统自动向全体活跃用户
     发送维护通知（走用户配置的通知渠道）。
+
+    Args:
+        body: 维护通知请求体
+        request: 当前请求对象
+        current_user: 当前登录用户（记录操作人）
+        service: 维护通知业务服务
+
+    Returns:
+        统一响应结构，包含发送数量与维护时间信息
     """
     sent_count = service.notify_all(
         maintenance_time=body.maintenance_time,

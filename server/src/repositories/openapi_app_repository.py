@@ -3,10 +3,10 @@
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 
 from src.core.exceptions import ConflictException
-from src.models.entities.app_entity import OpenApiAppEntity
+from src.models.entities.app_entity import OpenApiAppEntity, OpenApiScopeEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.base_repository import BaseRepository
 
@@ -16,7 +16,12 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
 
     model_class = OpenApiAppEntity
 
-    def _base_query(self):
+    def _base_query(self) -> Select[tuple[OpenApiAppEntity]]:
+        """构造不含已软删除应用的基础查询。
+
+        Returns:
+            Select[tuple[OpenApiAppEntity]]: 过滤 deleted_at 为空的查询语句
+        """
         return select(OpenApiAppEntity).where(OpenApiAppEntity.deleted_at.is_(None))
 
     def _handle_integrity_error(self, error, entity):
@@ -30,9 +35,7 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         stmt = self._base_query().where(OpenApiAppEntity.app_id == app_id)
         return self.session.execute(stmt).scalars().first()
 
-    def search_by_keyword(
-        self, keyword: str | None = None, limit: int = 100
-    ) -> list[OpenApiAppEntity]:
+    def search_by_keyword(self, keyword: str | None = None, limit: int = 100) -> list[OpenApiAppEntity]:
         """按名称关键字查询应用（不含已软删除）。"""
         stmt = self._base_query()
         if keyword:
@@ -43,6 +46,14 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         """查询应用所属用户（跨实体只读查询，用于组装 owner 名称）。"""
         return self.session.get(UserEntity, user_id)
 
+    def list_active_scopes(self) -> list[OpenApiScopeEntity]:
+        """查询全部未废弃的开放平台 scope（按排序号与主键升序）。"""
+        stmt = (
+            select(OpenApiScopeEntity)
+            .where(OpenApiScopeEntity.is_deprecated.is_(False))
+            .order_by(OpenApiScopeEntity.sort_order, OpenApiScopeEntity.id)
+        )
+        return list(self.session.execute(stmt).scalars().all())
 
     def touch_last_used(self, app_id: str) -> None:
         """更新最近鉴权时间（异步、失败不影响主流程）。"""

@@ -17,16 +17,9 @@ class NotificationRepository(BaseRepository[NotificationRecordEntity, int]):
     def __init__(self, session: Session | None = None) -> None:
         super().__init__(session)
 
-    def get_by_event_type(
-        self, event_type: str, skip: int = 0, limit: int = 100
-    ) -> list[NotificationRecordEntity]:
+    def get_by_event_type(self, event_type: str, skip: int = 0, limit: int = 100) -> list[NotificationRecordEntity]:
         """按事件类型查询通知记录。"""
-        stmt = (
-            self._base_query()
-            .where(self.model_class.event_type == event_type)
-            .offset(skip)
-            .limit(limit)
-        )
+        stmt = self._base_query().where(self.model_class.event_type == event_type).offset(skip).limit(limit)
         return list(self.session.execute(stmt).scalars().all())
 
     def get_pending_retry(self, limit: int = 50) -> list[NotificationRecordEntity]:
@@ -66,13 +59,9 @@ class NotificationRepository(BaseRepository[NotificationRecordEntity, int]):
             conditions.append(self.model_class.channel == channel)
         if status:
             conditions.append(self.model_class.status == status)
-
         total = (
             self.session.execute(
-                select(func.count())
-                .select_from(
-                    select(self.model_class).where(*conditions).subquery()
-                )
+                select(func.count()).select_from(select(self.model_class).where(*conditions).subquery())
             ).scalar()
             or 0
         )

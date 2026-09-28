@@ -9,8 +9,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.main import app
-
 
 def _ensure_root_tags(schema: dict) -> None:
     """Ensure the schema includes explicit tag metadata for Postman folder names."""
@@ -27,6 +25,8 @@ def _ensure_root_tags(schema: dict) -> None:
 
 def main() -> None:
     """Write the current application schema to docs/x-HanJiang.postman-openapi.json."""
+    from src.main import app
+
     output_path = Path(__file__).resolve().parent.parent / "docs" / "x-HanJiang.postman-openapi.json"
     schema = app.openapi()
     _ensure_root_tags(schema)

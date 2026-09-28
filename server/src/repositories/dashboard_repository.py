@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 仪表盘数据访问实现
-
 本模块提供仪表盘统计查询 Repository，跨多张实体表做只读聚合查询。
 仅负责数据查询（依赖实体模型），统计口径与结果组装由 Service 层负责。
-
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
     Entity → Schema 的转换由 Service 层完成。
@@ -18,6 +16,8 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.constants.constants import LOGIN_STATUS_FAILED
+from src.constants.enums import CommonStatus, UserStatus
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.file_entity import FileEntity
@@ -39,7 +39,7 @@ class DashboardRepository:
         user_count = (
             self._session.execute(
                 select(func.count(UserEntity.id)).where(
-                    UserEntity.status == "active",
+                    UserEntity.status == UserStatus.ACTIVE.value,
                     UserEntity.deleted_at.is_(None),
                 )
             ).scalar()
@@ -48,7 +48,7 @@ class DashboardRepository:
         role_count = (
             self._session.execute(
                 select(func.count(RoleEntity.id)).where(
-                    RoleEntity.status == "enabled",
+                    RoleEntity.status == CommonStatus.ENABLED.value,
                     RoleEntity.deleted_at.is_(None),
                 )
             ).scalar()
@@ -57,7 +57,7 @@ class DashboardRepository:
         app_count = (
             self._session.execute(
                 select(func.count(OpenApiAppEntity.id)).where(
-                    OpenApiAppEntity.status == "active",
+                    OpenApiAppEntity.status == UserStatus.ACTIVE.value,
                     OpenApiAppEntity.deleted_at.is_(None),
                 )
             ).scalar()
@@ -69,9 +69,7 @@ class DashboardRepository:
         """统计指定日期登录次数。"""
         return (
             self._session.execute(
-                select(func.count(LoginLogEntity.id)).where(
-                    func.date(LoginLogEntity.created_at) == day
-                )
+                select(func.count(LoginLogEntity.id)).where(func.date(LoginLogEntity.created_at) == day)
             ).scalar()
             or 0
         )
@@ -110,7 +108,7 @@ class DashboardRepository:
                 func.count(LoginLogEntity.id).label("count"),
             )
             .where(func.date(LoginLogEntity.created_at) >= start_date)
-            .where(LoginLogEntity.status == "failed")
+            .where(LoginLogEntity.status == LOGIN_STATUS_FAILED)
             .group_by(func.date(LoginLogEntity.created_at))
         ).all()
 
@@ -156,8 +154,7 @@ class DashboardRepository:
     def user_status_distribution(self) -> list:
         """用户状态分布。"""
         return self._session.execute(
-            select(UserEntity.status, func.count(UserEntity.id).label("count"))
-            .group_by(UserEntity.status)
+            select(UserEntity.status, func.count(UserEntity.id).label("count")).group_by(UserEntity.status)
         ).all()
 
     def notify_channel_distribution(self) -> list:
@@ -188,8 +185,7 @@ class DashboardRepository:
                 .outerjoin(UserEntity, UserEntity.id == AuditLogEntity.operator_id)
                 .order_by(AuditLogEntity.created_at.desc())
                 .limit(limit)
-            )
-            .all()
+            ).all()
         )
 
     def my_logins(self, user_id: int, limit: int = 10) -> list[LoginLogEntity]:

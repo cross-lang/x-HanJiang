@@ -1,16 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 时间日期工具模块
-
 提供常用的日期时间生成、格式校验、时间戳与日期互转、区间计算、周/月/季度边界计算等工具方法。
 """
 
-import time
 import datetime
 import random
-from typing import Any, Optional
+import time
+from typing import Any
 
 
 def gen_random_today_date() -> str:
@@ -18,9 +15,8 @@ def gen_random_today_date() -> str:
     random_hour = str(random.randint(0, 23))
     random_min = str(random.randint(0, 59))
     random_second = str(random.randint(0, 59))
-
-    today = datetime.datetime.now().strftime('%Y-%m-%d')
-    today_time = '%s %s:%s:%s' % (today, random_hour, random_min, random_second)
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today_time = f"{today} {random_hour}:{random_min}:{random_second}"
     return today_time
 
 
@@ -53,20 +49,20 @@ def timestamp_to_day(ts: int) -> str:
 
 def date_to_timestamp(date_str: str) -> int:
     """将日期转换为时间戳，date_str 格式为 '%Y-%m-%d %H:%M:%S'。"""
-    return int(time.mktime(time.strptime(date_str, '%Y-%m-%d %H:%M:%S')))
+    return int(time.mktime(time.strptime(date_str, "%Y-%m-%d %H:%M:%S")))
 
 
 def day_to_timestamp(day_str: str) -> int:
     """将天转换为时间戳，day_str 格式为 '%Y-%m-%d'。"""
-    return int(time.mktime(time.strptime(day_str, '%Y-%m-%d')))
+    return int(time.mktime(time.strptime(day_str, "%Y-%m-%d")))
 
 
-def datetime_to_str(dt: datetime.datetime, format_str: str = '%Y-%m-%d %H:%M:%S') -> str:
+def datetime_to_str(dt: datetime.datetime, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
     """将 datetime 类型转换为字符串类型。"""
     return dt.strftime(format_str)
 
 
-def datetime_to_datetime(dt: datetime.datetime, format_str: str = '%Y-%m-%d %H:%M:%S') -> datetime.datetime:
+def datetime_to_datetime(dt: datetime.datetime, format_str: str = "%Y-%m-%d %H:%M:%S") -> datetime.datetime:
     """将 datetime 转为字符串再转回 datetime（用于截断秒等）。"""
     dt_str = dt.strftime(format_str)
     return datetime.datetime.strptime(dt_str, format_str)
@@ -151,7 +147,7 @@ def is_weekday(date: Any = None) -> bool:
     """判断是工作日还是周末。"""
     if not date:
         date = datetime.datetime.now()
-    return True if date.weekday() <= 4 else False
+    return date.weekday() <= 4
 
 
 def is_today(ts: int) -> bool:
@@ -161,6 +157,7 @@ def is_today(ts: int) -> bool:
     today_start_ts = int(time.mktime(time.strptime(today_str, "%Y-%m-%d")))
     today_end_ts = today_start_ts + 86400
     return today_start_ts <= ts < today_end_ts
+
 
 def is_lastday(ts: int) -> bool:
     """时间戳对应的日期是不是昨天。"""
@@ -176,7 +173,7 @@ def is_between_start_and_end_ts(ts: int, start_ts: int, end_ts: int) -> bool:
     return start_ts <= ts <= end_ts
 
 
-def get_week_start_day(current_datetime: Optional[datetime.date] = None) -> datetime.date:
+def get_week_start_day(current_datetime: datetime.date | None = None) -> datetime.date:
     """获取本周周一的日期。"""
     if current_datetime is None:
         current_datetime = datetime.datetime.now().date()
@@ -184,7 +181,7 @@ def get_week_start_day(current_datetime: Optional[datetime.date] = None) -> date
     return current_datetime - datetime.timedelta(days=current_week_num)
 
 
-def get_week_end_day(current_datetime: Optional[datetime.date] = None) -> datetime.date:
+def get_week_end_day(current_datetime: datetime.date | None = None) -> datetime.date:
     """获取本周周日的日期。"""
     if current_datetime is None:
         current_datetime = datetime.datetime.now().date()
@@ -227,7 +224,6 @@ def get_last_quarter_start_day() -> datetime.date:
     """获取上个季度第一天的日期。"""
     today = datetime.date.today()
     month = today.month
-
     if month in [1, 2, 3]:
         year = today.year - 1
         return datetime.date(year, 10, 1)
@@ -238,14 +234,13 @@ def get_last_quarter_start_day() -> datetime.date:
     elif month in [10, 11, 12]:
         return datetime.date(today.year, 7, 1)
     else:
-        raise Exception('month error')
+        raise Exception("month error")
 
 
 def get_last_quarter_end_day() -> datetime.date:
     """获取上个季度最后一天的日期。"""
     today = datetime.date.today()
     month = today.month
-
     if month in [1, 2, 3]:
         year = today.year - 1
         return datetime.date(year, 12, 31)
@@ -256,7 +251,7 @@ def get_last_quarter_end_day() -> datetime.date:
     elif month in [10, 11, 12]:
         return datetime.date(today.year, 9, 30)
     else:
-        raise Exception('month error')
+        raise Exception("month error")
 
 
 def get_datetime_range(start: Any, end: Any, step: int = 86400) -> list[int]:
@@ -307,8 +302,5 @@ def get_ts_end(ts: int) -> int:
     return get_ts_start(ts) + 86400 - 1
 
 
-if __name__ == '__main__':
-    print(get_weekday_list_by_week_range(
-        get_last_week_start_day(),
-        get_last_week_end_day()
-    ))
+if __name__ == "__main__":
+    print(get_weekday_list_by_week_range(get_last_week_start_day(), get_last_week_end_day()))

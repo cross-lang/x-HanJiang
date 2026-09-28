@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """文件管理接口。"""
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/files", tags=["文件管理"])
     dependencies=[Depends(require_user_permission("file:create"))],
 )
 @permission("file:create", "上传文件", "file", "create")
-async def upload_file(
+def upload_file(
     request: Request,
     file: UploadFile = File(...),
     folder: str = Query(default="general"),
@@ -35,7 +35,7 @@ async def upload_file(
     dependencies=[Depends(require_user_permission("file:view"))],
 )
 @permission("file:view", "查看文件", "file", "view")
-async def list_files(
+def list_files(
     request: Request,
     folder: str | None = Query(default=None),
     keyword: str | None = Query(default=None),
@@ -47,23 +47,6 @@ async def list_files(
     # 普通用户只能看自己上传的文件
     uploaded_by = None if is_admin_user(current_user) else current_user.id
     result = service.list_files(folder=folder, keyword=keyword, page=page, page_size=page_size, uploaded_by=uploaded_by)
-    # 补上传者姓名
-    items = result.get("items", [])
-    user_ids = list({i.get("uploaded_by") for i in items if i.get("uploaded_by")})
-    name_map = {}
-    if user_ids:
-        from src.models.entities.user_entity import UserEntity
-        from src.infras.database import get_cached_database_provider
-        db = get_cached_database_provider().get_session_factory()()
-        users = db.query(UserEntity).filter(UserEntity.id.in_(user_ids)).all()
-        user_map = {u.id: {"name": u.name, "username": u.username} for u in users}
-    for i in items:
-        uid = i.get("uploaded_by")
-        if uid and uid in user_map:
-            u = user_map[uid]
-            i["uploader_display"] = f'{u["name"]}（{u["username"]}）'
-        else:
-            i["uploader_display"] = str(uid or "")
     return success_response(result, request)
 
 
@@ -73,7 +56,7 @@ async def list_files(
     dependencies=[Depends(require_user_permission("file:view"))],
 )
 @permission("file:view", "查看文件", "file", "view")
-async def get_file(
+def get_file(
     file_path: str = Path(...),
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
@@ -88,7 +71,7 @@ async def get_file(
     dependencies=[Depends(require_user_permission("file:delete"))],
 )
 @permission("file:delete", "删除文件", "file", "delete")
-async def delete_file(
+def delete_file(
     file_id: int,
     request: Request,
     service: FileStorageService = Depends(get_file_service),

@@ -7,16 +7,20 @@
 汉江（HanJiang）是一个基于 FastAPI + Vue 3 + TypeScript 的全栈快速开发平台，深度封装企业级 Web 应用的通用能力，让开发者聚焦业务本身。
 
 **核心特征：**
+
 - 前后端分离：FastAPI 后端 + Vue 3 + Element Plus 前端，全栈 TypeScript 类型安全
 - 内置 JWT 认证 + RBAC 权限模型 + 操作审计 + 登录日志，开箱即用
 - 装饰器自动扫描路由注册权限，启动时自动同步到 permissions 表
-- 开放平台 HanJiang-1 HMAC 签名鉴权，支持明文与签名双模式
+- 开放平台 HanJiang-1 HMAC 签名鉴权，支持明文与签名双模式，内置应用管理（AppId/AppKey 生命周期、scope 授权、密钥轮换）
+- 事件驱动多渠道通知系统（站内信 / 邮件 / 钉钉 / 飞书 / 短信），支持用户级偏好与失败自动重试
 - 分层架构：API 路由 → 业务逻辑 → 数据访问，职责清晰
-- 生产级安全设计（常量时间比对、防重放、密码哈希）
+- 生产级安全设计（常量时间比对、防重放、密码哈希、邮箱验证码二次认证）
 - 内置仪表盘（用户/角色/应用统计 + 登录趋势 + 操作日志趋势 + ECharts 可视化）
-- 完善的开发者体验（Swagger 文档、Alembic 迁移、统一异常处理）
+- 文件管理（本地 / S3 兼容存储）、全局搜索、个人中心、系统告警与维护通知
+- 完善的开发者体验（Swagger 文档、Alembic 迁移、统一异常处理、GitHub Actions CI）
 
 **适用场景：**
+
 - 企业内部管理系统快速搭建
 - SaaS 产品后端基座
 - 开放平台 / API 服务网关
@@ -53,22 +57,28 @@ x-HanJiang/
 │   │   ├── api/              # 路由层（v1 用户态 + open/v1 开放平台）
 │   │   ├── constants/        # 常量与枚举（ModuleCode、BaseEnum）
 │   │   ├── core/             # 核心（配置/中间件/异常/安全）
-│   │   ├── infras/           # 基础设施（数据库连接）
-│   │   ├── models/           # SQLAlchemy 数据模型
+│   │   ├── infras/           # 基础设施（数据库/缓存/存储/通知渠道）
+│   │   ├── models/           # SQLAlchemy 数据模型（models/entities）
+│   │   ├── notification/     # 通知子系统（分发器/模板/重试）
 │   │   ├── repositories/     # 数据访问层
+│   │   ├── scheduling/       # 调度任务（通知重试 Worker）
 │   │   ├── schemas/          # Pydantic Schema
 │   │   ├── services/         # 业务逻辑层
-│   │   ├── utils/             # 工具函数
+│   │   ├── utils/            # 工具函数
 │   │   └── main.py           # 应用入口
 │   ├── alembic/              # 数据库迁移
 │   ├── config/               # 配置文件
+│   ├── docs/                 # 项目文档（建表 SQL、Postman 集合）
+│   ├── examples/             # 使用示例
 │   ├── logs/                 # 日志输出
+│   ├── scripts/              # 工程脚本
+│   ├── static/               # 本地文件存储目录
+│   ├── tests/                # 单元测试
 │   └── pyproject.toml
 ├── web/                      # 前端
 │   ├── admin/                # 管理后台（Vue3 + TS + Element Plus + ECharts）
 │   └── open/                 # 开放平台门户（待开发）
-├── docker-compose.yml         # Docker 编排
-├── CHANGELOG.md              # 版本变更记录
+├── docker-compose.yml        # Docker 编排
 └── README.md
 ```
 
@@ -92,6 +102,7 @@ graph TB
     subgraph 基础设施
         F[(MySQL)]
         G[(Redis)]
+        H[(本地/S3 存储)]
     end
 
     A -->|HTTP /api/v1| C
@@ -100,6 +111,7 @@ graph TB
     D --> E
     E --> F
     D --> G
+    D --> H
 ```
 
 ### 核心业务流程：用户登录
@@ -134,6 +146,27 @@ flowchart LR
     D --> E[表里有但路由里没有 → is_deprecated=True]
 ```
 
+### 通知发送流程
+
+```mermaid
+flowchart TD
+    A[业务事件触发<br/>如 user.password_changed] --> B[通知分发器]
+    B --> C[查询用户通知偏好与接收人]
+    C --> D[站内信]
+    C --> E[邮件]
+    C --> F[钉钉]
+    C --> G[飞书]
+    D --> H[写入通知记录]
+    E --> H
+    F --> H
+    G --> H
+    H --> I{发送成功?}
+    I -->|失败| J[Redis 重试队列]
+    J --> K[重试 Worker]
+    K --> D
+    I -->|成功| L[完成]
+```
+
 ## 技术栈
 
 | 分类 | 技术 |
@@ -146,11 +179,12 @@ flowchart LR
 | **前端构建** | Vite 6 |
 | **UI 组件库** | Element Plus |
 | **状态管理** | Pinia |
-| **图表** | ECharts + vue-echarts |
+| **图表** | ECharts 6 + vue-echarts |
 | **数据库** | MySQL |
 | **缓存** | Redis |
 | **日志** | Loguru |
 | **认证** | JWT + HMAC 签名 |
+| **包管理** | uv |
 | **部署** | Docker / docker-compose |
 
 ## API 文档
@@ -166,9 +200,15 @@ flowchart LR
 | 模块 | 接口 | 说明 |
 |---|---|---|
 | 认证 | `POST /api/v1/auth/login` | 用户登录 |
-| 认证 | `GET /api/v1/auth/me` | 当前用户信息 |
+| 认证 | `POST /api/v1/auth/refresh` | 刷新令牌 |
+| 认证 | `POST /api/v1/auth/logout` | 退出登录 |
+| 个人中心 | `GET /api/v1/profile/me` | 当前用户信息 |
+| 个人中心 | `GET /api/v1/profile/menus` | 当前用户菜单树 |
+| 个人中心 | `POST /api/v1/profile/change-password` | 修改密码（邮箱验证码二次认证） |
 | 用户管理 | `GET /api/v1/users` | 用户列表（支持多角色） |
 | 用户管理 | `POST /api/v1/users` | 创建用户 |
+| 用户管理 | `GET /api/v1/users/export` | 导出用户（CSV） |
+| 用户管理 | `POST /api/v1/users/import` | 批量导入用户（CSV） |
 | 用户管理 | `POST /api/v1/users/{id}/update` | 更新用户 |
 | 角色管理 | `GET /api/v1/roles` | 角色列表 |
 | 角色管理 | `GET /api/v1/roles/{id}/permissions` | 角色权限列表 |
@@ -176,14 +216,22 @@ flowchart LR
 | 权限管理 | `GET /api/v1/permissions` | 权限列表 |
 | 审计日志 | `GET /api/v1/audit/logs` | 业务审计日志列表 |
 | 登录日志 | `GET /api/v1/audit/login-logs` | 登录日志列表 |
+| 文件管理 | `POST /api/v1/files/upload` | 上传文件 |
+| 文件管理 | `GET /api/v1/files` | 文件列表 |
+| 通知管理 | `GET /api/v1/notifications` | 通知列表 |
+| 站内信 | `GET /api/v1/station/messages` | 我的消息列表 |
+| 站内信 | `GET /api/v1/station/messages/unread-count` | 未读消息数 |
 | 仪表盘 | `GET /api/v1/dashboard/stats` | 仪表盘统计数据 |
+| 全局搜索 | `GET /api/v1/search` | 全局搜索（用户/角色/权限/应用/文件） |
+| 开放平台应用 | `POST /api/v1/admin/apps` | 创建开放应用（返回 AppId + AppKey） |
+| 开放平台应用 | `POST /api/v1/admin/apps/{app_id}/rotate-key` | 重置 AppKey |
+| 开放平台 | `GET /api/open/v1/me` | 当前应用信息 |
 | 开放平台 | `GET /api/open/v1/users` | 开放平台用户查询 |
-| 开放平台 | `GET /api/open/v1/apps/me` | 当前应用信息 |
 
 ### 权限控制
 
 - **用户态接口**：JWT Bearer Token + `@permission` 装饰器自动注册权限 + 角色/权限校验
-- **开放平台接口**：AppId + AppKey（明文）或 HanJiang-1 HMAC 签名认证
+- **开放平台接口**：AppId + AppKey（明文）或 HanJiang-1 HMAC 签名认证，通过 scope 控制访问范围
 
 ## 存储配置说明
 
@@ -196,7 +244,7 @@ flowchart LR
 ### 缓存
 
 - **类型**：Redis
-- **用途**：限流计数、会话缓存
+- **用途**：限流计数、登录态缓存、通知重试队列
 - **配置**：通过 `.env` 文件配置 `REDIS_HOST`、`REDIS_PORT`
 
 ### 文件存储
@@ -215,6 +263,7 @@ flowchart LR
 ## 参考资料
 
 - [FastAPI 官方文档](https://fastapi.tiangolo.com/)
+- [uv 官方文档](https://docs.astral.sh/uv/)
 - [SQLAlchemy 官方文档](https://docs.sqlalchemy.org/)
 - [Vue 3 官方文档](https://cn.vuejs.org/)
 - [Vite 官方文档](https://cn.vitejs.dev/)
@@ -227,6 +276,6 @@ flowchart LR
 
 - **作者**：John Young（夜雨诗来）
 - **邮箱**：john.young@foxmail.com
-- **Gitee**：https://gitee.com/cross-lang/x-HanJiang
-- **GitHub**：https://github.com/cross-lang/x-HanJiang
+- **Gitee**：https://gitee.com/yeyushilai
+- **GitHub**：https://github.com/yeyushilai
 - **项目地址**：https://github.com/cross-lang/x-HanJiang

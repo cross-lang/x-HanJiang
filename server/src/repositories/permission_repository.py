@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 权限数据访问实现
-
 本模块提供权限 Repository 的 SQLAlchemy 数据库实现。
 支持按模块、操作类型等条件查询。
-
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
     Entity → Schema 的转换由 Service 层完成。
@@ -47,13 +45,10 @@ class PermissionRepository(BaseRepository[PermissionEntity, int]):
         limit: int = 100,
     ) -> tuple[list[PermissionEntity], int]:
         """按关键字/模块/操作类型搜索权限（分页）。"""
-        conditions = [PermissionEntity.is_deprecated == False]
+        conditions = [PermissionEntity.is_deprecated.is_(False)]
         if keyword:
             like = f"%{keyword}%"
-            conditions.append(
-                (PermissionEntity.perm_name.like(like))
-                | (PermissionEntity.perm_code.like(like))
-            )
+            conditions.append((PermissionEntity.perm_name.like(like)) | (PermissionEntity.perm_code.like(like)))
         if module:
             conditions.append(PermissionEntity.module == module)
         if operation:
@@ -62,21 +57,15 @@ class PermissionRepository(BaseRepository[PermissionEntity, int]):
 
     def get_all_modules(self) -> list[str]:
         """返回所有去重的模块列表。"""
-        rows = self.session.execute(
-            select(PermissionEntity.module).distinct()
-        ).all()
+        rows = self.session.execute(select(PermissionEntity.module).distinct()).all()
         return sorted([r[0] for r in rows])
 
     def get_all_operations(self) -> list[str]:
         """返回所有去重的操作类型列表。"""
-        rows = self.session.execute(
-            select(PermissionEntity.operation).distinct()
-        ).all()
+        rows = self.session.execute(select(PermissionEntity.operation).distinct()).all()
         return sorted([r[0] for r in rows])
 
-    def exists_permission_in(
-        self, permission_ids: list[int], perm_code: str
-    ) -> bool:
+    def exists_permission_in(self, permission_ids: list[int], perm_code: str) -> bool:
         """判断指定权限编码是否存在于权限 ID 集合中（用于权限判断）。"""
         if not permission_ids:
             return False

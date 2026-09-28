@@ -6,8 +6,6 @@
 """
 
 
-
-
 class TestSettings:
     """Settings 配置类测试。"""
 

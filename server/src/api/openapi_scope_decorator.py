@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """开放平台 scope 装饰器。
-
 用法：
     @router.get("/users", dependencies=[Depends(require_app_scope("user:read"))])
     @app_scope("user:read", "读取用户列表", "user", "read")
     async def list_users():
         ...
-
 启动时自动扫描开放平台路由的 _scope_code 属性，upsert 到 openapi_scopes 表。
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 from src.core.logger import logger
 
@@ -44,13 +42,15 @@ def collect_scopes_from_app(app) -> list[dict]:
             path = getattr(route, "path", "?")
             if hasattr(endpoint, "_scope_code"):
                 logger.debug(f"Found app scope: {endpoint._scope_code} at {path}")
-                scopes.append({
-                    "scope_code": endpoint._scope_code,
-                    "scope_name": endpoint._scope_name or endpoint._scope_code,
-                    "module": endpoint._scope_module or "",
-                    "operation": endpoint._scope_operation or "",
-                    "description": (endpoint.__doc__ or "")[:250],
-                })
+                scopes.append(
+                    {
+                        "scope_code": endpoint._scope_code,
+                        "scope_name": endpoint._scope_name or endpoint._scope_code,
+                        "module": endpoint._scope_module or "",
+                        "operation": endpoint._scope_operation or "",
+                        "description": (endpoint.__doc__ or "")[:250],
+                    }
+                )
     # 按 scope_code 去重
     seen = set()
     unique = []

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 通用工具函数模块
-
 本模块提供项目中常用的通用工具函数，包括：
     - UUID 生成
     - 客户端 IP 提取
@@ -20,7 +19,6 @@ from fastapi import Request
 
 def generate_request_id() -> str:
     """生成唯一请求 ID。
-
     使用 UUID4 算法生成全局唯一的请求标识符。
 
     Returns:
@@ -31,7 +29,6 @@ def generate_request_id() -> str:
 
 def get_client_ip(request: Request) -> str:
     """从请求中提取客户端真实 IP 地址。
-
     按优先级依次检查代理头和直接连接地址：
         1. X-Forwarded-For（第一个地址）
         2. X-Real-IP
@@ -46,20 +43,16 @@ def get_client_ip(request: Request) -> str:
     forwarded: str | None = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()
-
     real_ip: str | None = request.headers.get("X-Real-IP")
     if real_ip:
         return real_ip.strip()
-
     if request.client:
         return request.client.host
-
     return "unknown"
 
 
 def mask_sensitive(data: dict[str, Any], keys: list[str] | None = None) -> dict[str, Any]:
     """对字典中的敏感字段进行脱敏处理。
-
     将指定键的值替换为 "****"，用于安全日志输出。
     默认脱敏字段：password、secret、token、key、authorization。
 
@@ -72,7 +65,6 @@ def mask_sensitive(data: dict[str, Any], keys: list[str] | None = None) -> dict[
     """
     default_keys: list[str] = ["password", "secret", "token", "key", "authorization"]
     sensitive_keys: set[str] = {k.lower() for k in (keys or default_keys)}
-
     masked: dict[str, Any] = {}
     for k, v in data.items():
         if k.lower() in sensitive_keys:
@@ -81,7 +73,6 @@ def mask_sensitive(data: dict[str, Any], keys: list[str] | None = None) -> dict[
             masked[k] = mask_sensitive(v, keys)
         else:
             masked[k] = v
-
     return masked
 
 
@@ -98,7 +89,6 @@ def datetime_now_iso() -> str:
 
 def find_project_root(marker: str = "pyproject.toml") -> Path:
     """从当前文件位置向上查找项目根目录。
-
     逐级向上遍历父目录，返回第一个包含 *marker* 文件的目录；
     若未找到，则回退到 ``<当前文件>/../../``（即 src 的上两级）。
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """通知重试 Handler。
-
 从 Redis 重试队列取出失败通知，重新调用 Provider 发送。
 由 scheduling.RetryWorker 驱动。
 """
@@ -26,18 +25,15 @@ def handle_notification_retry(data: dict[str, Any]) -> bool:
     """
     registry = get_registry()
     channel = data["channel"]
-
     provider = registry.get(channel)
     if provider is None:
         logger.warning("No provider for channel={}, dropping retry task", channel)
         return True  # 没有 provider，直接丢弃
-
     message = NotificationMessage(
         recipient=data["recipient"],
         subject=data.get("subject", ""),
         content=data.get("content", ""),
     )
-
     success = provider.send(message)
     if success:
         logger.info(

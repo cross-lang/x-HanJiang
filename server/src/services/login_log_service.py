@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 登录日志业务逻辑实现
-
 提供登录日志查询能力（登录日志为只读流水，不支持创建/更新/删除的对外接口）。
 
 Classes:
@@ -20,14 +19,11 @@ from src.services.base_service import BaseService
 
 class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):
     """登录日志业务逻辑实现。
-
     继承 BaseService 提供的通用能力：
         - get_by_id / get_all / _log_action
-
     本类负责：
         - Entity → LoginLogResponse 转换
         - 按条件搜索登录日志
-
     注意：登录日志为只读流水，不暴露 create/update/delete 接口。
     """
 

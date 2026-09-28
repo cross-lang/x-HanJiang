@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """系统告警服务。
-
 委托 NotificationDispatcher 发送告警，复用通知系统的：
 - 模板渲染
 - 多渠道发送
@@ -14,7 +13,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.constants.enums import NotificationEvent
+from src.constants.constants import MAX_BROADCAST_USER_LIMIT
+from src.constants.enums import NotificationEvent, UserStatus
 from src.core.logger import logger
 from src.models.entities.notification_entity import NotificationRecordEntity
 from src.notification.dispatcher import NotificationDispatcher
@@ -23,7 +23,6 @@ from src.repositories.user_repository import UserRepository
 
 class AlertService:
     """统一系统告警服务。
-
     支持两种发送模式：
     - send(): 指定接收人发送（供外部监控 Webhook 调用）
     - broadcast(): 广播给全体活跃用户（供健康检查等内部场景调用）
@@ -85,10 +84,8 @@ class AlertService:
         if self._session is None:
             logger.warning("Alert broadcast skipped: no database session")
             return 0
-
         repo = UserRepository(session=self._session)
-        users, _ = repo.search(status="active", skip=0, limit=10000)
-
+        users, _ = repo.search(status=UserStatus.ACTIVE.value, skip=0, limit=MAX_BROADCAST_USER_LIMIT)
         sent_count = 0
         for user in users:
             try:
@@ -103,12 +100,11 @@ class AlertService:
                 )
                 sent_count += 1
             except Exception as e:
-                logger.warning(
-                    f"Alert broadcast failed for user={user.id}: {e}"
-                )
-
+                logger.warning(f"Alert broadcast failed for user={user.id}: {e}")
         logger.info(
             "Alert broadcast completed: subject=%s users=%d/%d",
-            subject, sent_count, len(users),
+            subject,
+            sent_count,
+            len(users),
         )
         return sent_count

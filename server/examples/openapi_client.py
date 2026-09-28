@@ -12,7 +12,6 @@
 
 import hashlib
 import hmac
-from datetime import datetime, timezone
 from email.utils import formatdate
 
 import requests
@@ -27,6 +26,7 @@ AUTH_MODE = "hmac"
 
 
 # ── HMAC 签名工具 ────────────────────────────────────
+
 
 def _sha256_hex(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -48,14 +48,16 @@ def build_headers(method: str, uri: str, body: bytes = b"", content_type: str = 
     date_str = formatdate(timeval=None, usegmt=True)  # 如 "Sun, 27 Sep 2026 08:00:00 GMT"
 
     body_hash = _sha256_hex(body.decode("utf-8")) if body else ""
-    signing_string = "".join([
-        "HanJiang-1",
-        method.upper(),
-        uri,
-        content_type,
-        date_str,
-        body_hash,
-    ])
+    signing_string = "".join(
+        [
+            "HanJiang-1",
+            method.upper(),
+            uri,
+            content_type,
+            date_str,
+            body_hash,
+        ]
+    )
 
     signature = hmac.new(
         APP_KEY.encode("utf-8"),
@@ -76,6 +78,7 @@ def call(method: str, path: str, body: dict | None = None):
 
     if body is not None:
         import json
+
         body_bytes = json.dumps(body).encode("utf-8")
         content_type = "application/json"
 
@@ -90,6 +93,7 @@ def call(method: str, path: str, body: dict | None = None):
 
 
 # ── 主流程 ────────────────────────────────────────────
+
 
 def main():
     print("=" * 60)

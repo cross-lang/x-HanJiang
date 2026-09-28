@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
 存储抽象层（Storage Abstraction Layer）
-
 提供统一的文件存储接口，业务代码不关心底层存储实现。
 支持的后端：
     - LocalStorage：本地文件系统（开发环境默认）
     - S3CompatibleStorage：S3 兼容对象存储（七牛 Kodo / AWS S3 / MinIO，生产环境推荐）
-
 通过配置切换实现，业务代码零改动：
 
     storage:
       provider: "local"        # local | s3
+
       local:
-        base_dir: "static"
+        base_dir: "statics"
       s3:
         endpoint_url: "https://s3.cn-south-1.qiniucs.com"
         access_key: ""
@@ -25,7 +24,6 @@
 
 Usage:
     from src.infras.storage import get_storage_provider
-
     provider = get_storage_provider()       # 从配置自动创建
     result = provider.upload_file(file_bytes, "avatars/user.png", content_type="image/png")
     url = provider.get_download_url("avatars/user.png")
@@ -35,9 +33,8 @@ from __future__ import annotations
 
 import hashlib
 import os
-import urllib.parse
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, BinaryIO
 
@@ -47,7 +44,6 @@ from src.core.logger import logger
 # ============================================================
 # 统一返回结构
 # ============================================================
-
 class UploadResult:
     """上传结果，所有 provider 返回同一结构。"""
 
@@ -78,12 +74,14 @@ class UploadResult:
 
 
 # ============================================================
+
 # 抽象基类
+
 # ============================================================
+
 
 class StorageProvider(ABC):
     """存储提供者抽象接口。
-
     所有存储后端必须实现此接口。业务层仅依赖此抽象，
     切换存储实现只需修改配置，无需改动任何业务代码。
     """
@@ -110,7 +108,6 @@ class StorageProvider(ABC):
     @abstractmethod
     def get_download_url(self, key: str, *, expires: int = 3600) -> str:
         """获取文件下载 URL。
-
         本地存储返回相对路径；七牛等云存储返回带签名的完整 URL。
 
         Args:
@@ -145,7 +142,6 @@ class StorageProvider(ABC):
 
     def make_object_key(self, folder: str, filename: str) -> str:
         """生成唯一的对象存储键。
-
         使用 时间戳+SHA1 保证唯一性，避免文件名冲突。
 
         Args:
@@ -157,11 +153,8 @@ class StorageProvider(ABC):
         """
         safe_name = os.path.basename(filename)
         stem, ext = os.path.splitext(safe_name)
-        digest = hashlib.sha1(
-            f"{datetime.now(timezone.utc).isoformat()}:{safe_name}".encode("utf-8")
-        ).hexdigest()[:12]
+        digest = hashlib.sha1(f"{datetime.now(UTC).isoformat()}:{safe_name}".encode()).hexdigest()[:12]
         unique_name = f"{stem}-{digest}{ext}"
-
         folder_clean = folder.strip("/")
         if folder_clean:
             return f"{folder_clean}/{unique_name}"
@@ -169,17 +162,19 @@ class StorageProvider(ABC):
 
 
 # ============================================================
+
 # 本地文件系统实现
+
 # ============================================================
+
 
 class LocalStorage(StorageProvider):
     """本地文件系统存储。
-
-    文件保存在项目 static 目录下，适合开发和测试环境。
+    文件保存在项目 statics 目录下，适合开发和测试环境。
     通过 FastAPI 的 StaticFiles 中间件提供静态文件服务。
     """
 
-    def __init__(self, base_dir: str = "static", public_prefix: str = "/files") -> None:
+    def __init__(self, base_dir: str = "statics", public_prefix: str = "/files") -> None:
         self.base_dir = Path(base_dir).resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.public_prefix = public_prefix.rstrip("/")
@@ -193,15 +188,12 @@ class LocalStorage(StorageProvider):
         content_type: str = "application/octet-stream",
     ) -> UploadResult:
         target = (self.base_dir / key).resolve()
-
         # 安全检查：防止路径穿越
         try:
             target.relative_to(self.base_dir)
         except ValueError as exc:
             raise ValueError(f"非法的存储路径: {key}") from exc
-
         target.parent.mkdir(parents=True, exist_ok=True)
-
         if isinstance(data, bytes):
             target.write_bytes(data)
             size = len(data)
@@ -209,7 +201,6 @@ class LocalStorage(StorageProvider):
             content = data.read()
             target.write_bytes(content)
             size = len(content)
-
         url = f"{self.public_prefix}/{key.lstrip('/')}"
         logger.info(f"LocalStorage upload: key={key} size={size}")
         return UploadResult(key=key, url=url, size=size, storage="local", content_type=content_type)
@@ -240,16 +231,17 @@ class LocalStorage(StorageProvider):
 
 
 # ============================================================
+
 # S3 兼容存储实现（七牛 Kodo S3 API / AWS S3 / MinIO）
+
 # ============================================================
+
 
 class S3CompatibleStorage(StorageProvider):
     """S3 兼容对象存储。
-
     通过 boto3 调用 S3 兼容 API，支持七牛 Kodo、AWS S3、MinIO 等。
     需要安装 boto3：
         uv pip install boto3
-
     配置项：
         endpoint_url: S3 兼容服务地址（七牛格式：https://s3.<region>.qiniucs.com）
         access_key:   AccessKey
@@ -276,15 +268,11 @@ class S3CompatibleStorage(StorageProvider):
             import boto3
             from botocore.config import Config as BotoConfig
         except ImportError as exc:
-            raise ImportError(
-                "S3 兼容存储需要 boto3，请执行: uv pip install boto3"
-            ) from exc
-
+            raise ImportError("S3 兼容存储需要 boto3，请执行: uv pip install boto3") from exc
         self._bucket_name = bucket
         self._region = region
         self._prefix = prefix.strip("/")
         self._public_url = public_url.rstrip("/") if public_url else ""
-
         # 构建 S3 客户端
         s3_config = BotoConfig(
             signature_version="s3v4",
@@ -299,10 +287,7 @@ class S3CompatibleStorage(StorageProvider):
             use_ssl=use_ssl,
             config=s3_config,
         )
-        logger.info(
-            f"S3CompatibleStorage initialized: bucket={bucket} "
-            f"endpoint={endpoint_url} region={region}"
-        )
+        logger.info(f"S3CompatibleStorage initialized: bucket={bucket} endpoint={endpoint_url} region={region}")
 
     def _full_key(self, key: str) -> str:
         """拼接 prefix。"""
@@ -326,10 +311,8 @@ class S3CompatibleStorage(StorageProvider):
         content_type: str = "application/octet-stream",
     ) -> UploadResult:
         full_key = self._full_key(key)
-
         if not isinstance(data, bytes):
             data = data.read()
-
         extra_args: dict[str, str] = {"ContentType": content_type}
         self._client.put_object(
             Bucket=self._bucket_name,
@@ -337,7 +320,6 @@ class S3CompatibleStorage(StorageProvider):
             Body=data,
             **extra_args,
         )
-
         url = self._get_public_url(full_key)
         logger.info(f"S3CompatibleStorage upload: key={full_key} size={len(data)}")
         return UploadResult(
@@ -378,12 +360,14 @@ class S3CompatibleStorage(StorageProvider):
 
 
 # ============================================================
+
 # 工厂函数
+
 # ============================================================
+
 
 def get_storage_provider() -> StorageProvider:
     """根据配置创建存储提供者实例。
-
     从 Settings 读取 storage 配置，自动选择对应的实现。
     全局单例——通过模块级缓存避免重复创建。
 
@@ -393,15 +377,11 @@ def get_storage_provider() -> StorageProvider:
     from src.core.config import settings
 
     storage_cfg = settings.storage
-
     if storage_cfg.provider == "s3":
         s3 = storage_cfg.s3
         if not all([s3.endpoint_url, s3.access_key, s3.secret_key, s3.bucket]):
-            logger.warning(
-                "S3 storage selected but credentials incomplete, falling back to local"
-            )
+            logger.warning("S3 storage selected but credentials incomplete, falling back to local")
             return LocalStorage(base_dir=storage_cfg.local.base_dir)
-
         return S3CompatibleStorage(
             endpoint_url=s3.endpoint_url,
             access_key=s3.access_key,
@@ -412,12 +392,12 @@ def get_storage_provider() -> StorageProvider:
             public_url=s3.public_url,
             use_ssl=s3.use_ssl,
         )
-
     # 默认本地存储
     return LocalStorage(base_dir=storage_cfg.local.base_dir)
 
 
 # 模块级缓存，避免每次请求都重新创建
+
 _provider: StorageProvider | None = None
 
 

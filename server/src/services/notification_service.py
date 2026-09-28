@@ -1,8 +1,6 @@
 """通知业务逻辑层。
-
 作为 API 层与通知子系统之间的门面（Facade），
 封装通知发送、查询、统计等业务操作。
-
 调用链路：API → NotificationService → NotificationDispatcher → Provider
 """
 
@@ -10,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.constants.enums import NotificationStatus
 from src.models.entities.notification_entity import NotificationRecordEntity
 from src.notification.dispatcher import NotificationDispatcher
 from src.repositories.notification_repository import NotificationRepository
@@ -19,7 +18,6 @@ from src.schemas.notification import NotificationRecordResponse
 
 class NotificationService:
     """通知业务逻辑层。
-
     内部委托 NotificationDispatcher 完成实际调度。
     数据查询仅通过 NotificationRepository，不直接操作数据库会话。
     """
@@ -85,7 +83,6 @@ class NotificationService:
             skip=skip,
             limit=page_size,
         )
-
         return PaginatedResponse[NotificationRecordResponse](
             items=[NotificationRecordResponse.model_validate(r) for r in items],
             total=total,
@@ -109,7 +106,7 @@ class NotificationService:
         """查询通知发送统计。"""
         return {
             "total": self._repository.count(),
-            "success": self._repository.count_by_status("success"),
-            "failed": self._repository.count_by_status("failed"),
+            "success": self._repository.count_by_status(NotificationStatus.SUCCESS.value),
+            "failed": self._repository.count_by_status(NotificationStatus.FAILED.value),
             "pending": self._repository.count_by_status("pending"),
         }

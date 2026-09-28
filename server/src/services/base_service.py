@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """
 业务逻辑层抽象基类
-
 本模块定义了业务逻辑层的标准接口契约，所有标准 CRUD 业务服务必须继承此基类。
 提供通用的业务操作实现，消除子类中的重复代码。
-
 设计原则：
     1. 单一职责：只负责协调 Repository 和 AuditService
     2. 开闭原则：通用逻辑在基类实现，业务差异在子类覆盖
     3. 依赖倒置：依赖 Repository 抽象而非具体实现
-
 继承体系：
     BaseService[T, ID, RepoType]
     ├── UserService(BaseService[UserResponse, int, UserRepository])
     ├── RoleService(BaseService[RoleResponse, int, RoleRepository])
     └── PermissionService(BaseService[PermissionResponse, int, PermissionRepository])
-
     不继承 BaseService 的服务（有特殊职责）：
     ├── AuthService        # 认证流程，非实体 CRUD
     ├── FileStorageService # 文件存储，非数据库实体
@@ -25,16 +21,12 @@
 Usage:
     from src.services.base_service import BaseService
     from src.schemas.user import UserResponse
-
     class UserService(BaseService[UserResponse, int, UserRepository]):
         entity_type = "user"  # 用于审计日志
-
         def _to_response(self, entity):
             return UserResponse.model_validate(entity)
-
         # get_by_id, get_all, create, update, delete 已在基类实现
         # 如需自定义逻辑，覆盖对应方法即可
-
 类型参数：
     T: DTO 响应类型（如 UserResponse）
     ID: 主键类型（如 int）
@@ -54,7 +46,6 @@ RepoType = TypeVar("RepoType", bound=BaseRepository)
 
 class BaseService(ABC, Generic[T, ID, RepoType]):
     """业务逻辑层抽象基类。
-
     提供标准 CRUD 业务操作的通用实现，子类只需：
         1. 定义 entity_type 类属性（用于审计日志和日志输出）
         2. 实现 _to_response() 方法（Entity → DTO 转换）
@@ -67,26 +58,21 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
     Example:
         class UserService(BaseService[UserResponse, int, UserRepository]):
             entity_type = "user"
-
             def __init__(self, user_repository: UserRepository):
                 self._repository = user_repository
-
             def _to_response(self, entity: UserEntity) -> UserResponse:
                 return UserResponse.model_validate(entity)
     """
 
     entity_type: str = "unknown"  # 子类必须覆盖
-
     _repository: RepoType  # 子类在 __init__ 中赋值
 
     # ----------------------------------------------------------
     # 抽象方法（子类必须实现）
     # ----------------------------------------------------------
-
     @abstractmethod
     def _to_response(self, entity: Any) -> T:
         """将实体对象转换为响应 DTO。
-
         这是 Entity → DTO 的唯一转换点，确保数据格式统一。
 
         Args:
@@ -138,7 +124,6 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
 
     def create(self, data: dict[str, Any], operator: dict[str, Any] | None = None) -> T:
         """创建实体。
-
         默认实现直接创建实体，子类应覆盖此方法添加：
             - 请求参数校验（如 Pydantic Request 模型）
             - 业务规则校验（如唯一性检查）
@@ -155,7 +140,6 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
 
     def update(self, id: ID, data: dict[str, Any], operator: dict[str, Any] | None = None) -> T:
         """更新实体。
-
         默认实现直接更新实体，子类应覆盖此方法添加：
             - 请求参数校验
             - 业务规则校验（如唯一性检查、权限校验）
@@ -173,7 +157,6 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
 
     def delete(self, id: ID, operator: dict[str, Any] | None = None) -> bool:
         """删除实体（软删除）。
-
         默认实现直接删除，子类应覆盖此方法添加：
             - 存在性检查
             - 级联删除逻辑
@@ -194,10 +177,8 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
 
     def _commit(self) -> None:
         """提交当前数据库事务。
-
         统一的事务提交逻辑，失败时自动回滚并抛出异常。
         子类在 create/update/delete 中调用此方法。
-
         测试用的内存 Repository 没有 SQLAlchemy session，此方法安全跳过。
 
         Raises:
@@ -206,7 +187,6 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
         commit = getattr(self._repository, "commit", None)
         if commit is None:
             return
-
         try:
             commit()
         except Exception as e:
@@ -226,7 +206,6 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
         remarks: str | None = None,
     ) -> None:
         """记录审计日志。
-
         调用 AuditService 记录数据变更，失败不影响主流程。
 
         Args:

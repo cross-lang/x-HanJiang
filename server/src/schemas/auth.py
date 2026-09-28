@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 认证数据模型
-
 本模块定义认证（登录/刷新令牌/当前用户）相关的请求和响应 DTO。
 
 Classes:
@@ -18,7 +17,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class LoginRequest(BaseModel):
     """登录请求模型。
-
     支持用户名或邮箱 + 密码登录。
 
     Attributes:
@@ -28,7 +26,6 @@ class LoginRequest(BaseModel):
 
     username: str = Field(min_length=3, max_length=100, description="用户名或邮箱")
     password: str = Field(min_length=1, max_length=64, description="密码")
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -46,7 +43,6 @@ class TokenResponse(BaseModel):
     refresh_token: str = Field(description="刷新令牌")
     token_type: str = Field(default="Bearer", description="令牌类型")
     expires_in: int = Field(description="访问令牌有效期（秒）")
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -58,7 +54,6 @@ class RefreshTokenRequest(BaseModel):
     """
 
     refresh_token: str = Field(min_length=10, description="刷新令牌")
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -90,5 +85,4 @@ class CurrentUser(BaseModel):
     gender: str | None = Field(default=None, description="性别")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
     permissions: list[str] = Field(default_factory=list, description="当前用户拥有的权限码列表")
-
     model_config = ConfigDict(from_attributes=True)

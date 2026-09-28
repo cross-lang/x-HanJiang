@@ -1,7 +1,6 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 权限接口
-
 提供权限管理的 RESTful API 端点（CRUD）。
 
 Endpoints:
@@ -24,7 +23,7 @@ from src.api.dependencies import (
 from src.api.response import success_response
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
-from src.schemas.role import PermissionResponse
+from src.schemas.role import PermissionCreateRequest, PermissionResponse, PermissionUpdateRequest
 from src.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/permissions", tags=["权限管理"])
@@ -37,7 +36,7 @@ router = APIRouter(prefix="/permissions", tags=["权限管理"])
     dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
-async def permission_meta(
+def permission_meta(
     request: Request,
     service: PermissionService = Depends(get_permission_service),
 ):
@@ -54,7 +53,7 @@ async def permission_meta(
     dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
-async def list_permissions(
+def list_permissions(
     request: Request,
     page: int = 1,
     page_size: int = 20,
@@ -77,9 +76,7 @@ async def list_permissions(
         page=result["page"],
         page_size=result["page_size"],
         total_pages=(
-            (result["total"] + result["page_size"] - 1) // result["page_size"]
-            if result["page_size"] > 0
-            else 0
+            (result["total"] + result["page_size"] - 1) // result["page_size"] if result["page_size"] > 0 else 0
         ),
     )
     return success_response(page_result.model_dump(), request)
@@ -93,14 +90,14 @@ async def list_permissions(
     dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
-async def create_permission(
-    body: dict,
+def create_permission(
+    body: PermissionCreateRequest,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """创建权限接口。"""
-    result = service.create(body, operator=get_user_operator_context(current_user, request))
+    result = service.create(body.model_dump(), operator=get_user_operator_context(current_user, request))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -111,7 +108,7 @@ async def create_permission(
     dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
-async def get_permission(
+def get_permission(
     perm_id: int,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
@@ -132,9 +129,9 @@ async def get_permission(
     dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
-async def update_permission(
+def update_permission(
     perm_id: int,
-    body: dict,
+    body: PermissionUpdateRequest,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
     current_user: CurrentUser = Depends(get_current_user),
@@ -142,7 +139,7 @@ async def update_permission(
     """更新权限接口。"""
     result = service.update(
         perm_id,
-        body,
+        body.model_dump(exclude_unset=True),
         operator=get_user_operator_context(current_user, request),
     )
     return success_response(result.model_dump(), request)
@@ -155,7 +152,7 @@ async def update_permission(
     dependencies=[Depends(require_user_permission("role:delete"))],
 )
 @permission("role:delete", "删除角色", "role", "delete")
-async def delete_permission(
+def delete_permission(
     perm_id: int,
     request: Request,
     service: PermissionService = Depends(get_permission_service),

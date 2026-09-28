@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 自定义 API 端点示例
 
@@ -21,10 +20,9 @@ Usage:
     uv run python examples/custom_api.py
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ============================================================
 # Schemas
@@ -36,7 +34,7 @@ class ProductCreateRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=200, description="产品名称")
     price: float = Field(gt=0, description="产品价格")
-    description: Optional[str] = Field(default=None, description="产品描述")
+    description: str | None = Field(default=None, description="产品描述")
 
 
 class ProductResponse(BaseModel):
@@ -45,7 +43,7 @@ class ProductResponse(BaseModel):
     id: int = Field(description="产品 ID")
     name: str = Field(description="产品名称")
     price: float = Field(description="产品价格")
-    description: Optional[str] = Field(default=None, description="产品描述")
+    description: str | None = Field(default=None, description="产品描述")
 
 
 # ============================================================
@@ -60,7 +58,7 @@ class ProductRepository:
         self._storage: dict[int, dict[str, Any]] = {}
         self._next_id: int = 1
 
-    def get_by_id(self, id: int) -> Optional[dict[str, Any]]:
+    def get_by_id(self, id: int) -> dict[str, Any] | None:
         return self._storage.get(id)
 
     def get_all(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
@@ -97,7 +95,7 @@ class ProductService:
         record = self._repo.create(request)
         return ProductResponse(**record)
 
-    def get_by_id(self, id: int) -> Optional[ProductResponse]:
+    def get_by_id(self, id: int) -> ProductResponse | None:
         record = self._repo.get_by_id(id)
         return ProductResponse(**record) if record else None
 
@@ -122,9 +120,7 @@ def main() -> None:
     repo = ProductRepository()
     service = ProductService(repo)
 
-    product = service.create(
-        {"name": "Widget", "price": 9.99, "description": "A useful widget"}
-    )
+    product = service.create({"name": "Widget", "price": 9.99, "description": "A useful widget"})
     print(f"Created product: id={product.id} name={product.name}")
 
     found = service.get_by_id(product.id)

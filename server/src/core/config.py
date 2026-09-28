@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 应用配置管理模块
-
 支持从环境变量和 YAML 配置文件读取配置，使用 dataclass 描述各配置段。
 配置优先级：环境变量 > 环境特定配置(config.{env}.yaml) > 默认配置(config.yaml) > 代码默认值。
 
@@ -24,24 +22,21 @@ from src.constants import (
     ENV_PRODUCTION,
     ENV_TESTING,
 )
+from src.core.logger import logger
 from src.utils.convert import to_bool, to_float, to_int
 from src.utils.helpers import find_project_root
-
 
 # ============================================================
 # 辅助函数（已迁移至 src.utils，此处保留向后兼容别名）
 # ============================================================
-
 _to_bool = to_bool
 _to_int = to_int
 _to_float = to_float
 _find_project_root = find_project_root
 
-
 # ============================================================
 # 明确禁止使用的弱密钥
 # ============================================================
-
 _FORBIDDEN_SECRET_KEYS: frozenset[str] = frozenset(
     {
         "change-me-in-production",
@@ -58,10 +53,10 @@ _FORBIDDEN_SECRET_KEYS: frozenset[str] = frozenset(
 # ============================================================
 # Dataclass 配置段
 # ============================================================
-
 @dataclass
 class ServerConfig:
     """服务器配置。"""
+
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = True
@@ -76,6 +71,7 @@ class LoggingConfig:
         "json"    — 结构化 JSON 日志，适合 Loki / ELK 收集（生产默认）
         "console" — 彩色人可读格式，适合本地开发
     """
+
     level: str = "INFO"
     format: str = "json"
     file_path: str = "logs/x-HanJiang-{time:YYYYMMDDHH}.log"
@@ -88,6 +84,7 @@ class LoggingConfig:
 @dataclass
 class CORSConfig:
     """跨域配置。"""
+
     enabled: bool = True
     origins: list[str] = field(default_factory=lambda: ["*"])
     allow_credentials: bool = True
@@ -98,6 +95,7 @@ class CORSConfig:
 @dataclass
 class RateLimitConfig:
     """限流配置。"""
+
     enabled: bool = True
     per_minute: int = 60
     per_hour: int = 1000
@@ -106,6 +104,7 @@ class RateLimitConfig:
 @dataclass
 class AuthConfig:
     """认证 / JWT 配置。"""
+
     secret_key: str = "dev-only-change-me-in-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080
@@ -115,6 +114,7 @@ class AuthConfig:
 @dataclass
 class DatabaseConfig:
     """数据库配置。"""
+
     enabled: bool = True
     host: str = "localhost"
     port: int = 3306
@@ -142,6 +142,7 @@ class DatabaseConfig:
 @dataclass
 class RedisConfig:
     """Redis 配置。"""
+
     enabled: bool = True
     host: str = "localhost"
     port: int = 6379
@@ -156,26 +157,24 @@ class RedisConfig:
     @property
     def url(self) -> str:
         """根据结构化 Redis 配置生成连接串。"""
-        if self.password:
-            credentials = f"{quote_plus(self.user)}:{quote_plus(self.password)}@"
-        else:
-            credentials = ""
+        credentials = f"{quote_plus(self.user)}:{quote_plus(self.password)}@" if self.password else ""
         return f"redis://{credentials}{self.host}:{self.port}/{self.db}"
 
 
 @dataclass
 class LocalStorageConfig:
     """本地文件存储配置。"""
-    base_dir: str = "static"
+
+    base_dir: str = "statics"
 
 
 @dataclass
 class S3StorageConfig:
     """S3 兼容存储配置（七牛 Kodo S3 API / AWS S3 / MinIO 等）。
-
     通过 endpoint_url 指定 S3 兼容服务地址，region 使用标准 S3 区域标识。
     七牛 Kodo S3 兼容 endpoint 格式：https://s3.<region>.qiniucs.com
     """
+
     endpoint_url: str = ""
     access_key: str = ""
     secret_key: str = ""
@@ -189,11 +188,11 @@ class S3StorageConfig:
 @dataclass
 class StorageConfig:
     """统一存储配置。
-
     provider: "local" | "s3"
         - local:  本地文件系统（开发环境默认）
         - s3:     S3 兼容对象存储（七牛 Kodo / AWS S3 / MinIO，生产环境推荐）
     """
+
     provider: str = "local"
     local: LocalStorageConfig = field(default_factory=LocalStorageConfig)
     s3: S3StorageConfig = field(default_factory=S3StorageConfig)
@@ -202,6 +201,7 @@ class StorageConfig:
 @dataclass
 class SmtpConfig:
     """SMTP 邮件服务器配置。"""
+
     host: str = "smtp.gmail.com"
     port: int = 587
     username: str = ""
@@ -214,20 +214,21 @@ class SmtpConfig:
 @dataclass
 class NotificationConfig:
     """通知渠道配置。"""
+
     enabled: bool = True
     retry_interval_seconds: int = 60
     alert_email: str = ""
     # 钉钉
-    dingtalk_webhook: str = ""       # 群机器人 Webhook（降级模式）
-    dingtalk_secret: str = ""        # 群机器人加签密钥
-    dingtalk_app_key: str = ""       # 企业内部应用 AppKey（工作通知模式）
-    dingtalk_app_secret: str = ""    # 企业内部应用 AppSecret
-    dingtalk_agent_id: str = ""      # 应用 AgentId
+    dingtalk_webhook: str = ""  # 群机器人 Webhook（降级模式）
+    dingtalk_secret: str = ""  # 群机器人加签密钥
+    dingtalk_app_key: str = ""  # 企业内部应用 AppKey（工作通知模式）
+    dingtalk_app_secret: str = ""  # 企业内部应用 AppSecret
+    dingtalk_agent_id: str = ""  # 应用 AgentId
     # 飞书
-    feishu_webhook: str = ""         # 群机器人 Webhook（降级模式）
-    feishu_secret: str = ""          # 群机器人加签密钥
-    feishu_app_id: str = ""          # 自建应用 AppId（应用消息模式）
-    feishu_app_secret: str = ""      # 自建应用 AppSecret
+    feishu_webhook: str = ""  # 群机器人 Webhook（降级模式）
+    feishu_secret: str = ""  # 群机器人加签密钥
+    feishu_app_id: str = ""  # 自建应用 AppId（应用消息模式）
+    feishu_app_secret: str = ""  # 自建应用 AppSecret
     # 短信
     sms_access_key: str = ""
     sms_secret_key: str = ""
@@ -246,17 +247,44 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "rate_limit": ("RATE_LIMIT_", ["enabled", "per_minute", "per_hour"]),
     "auth": ("AUTH_", ["secret_key", "algorithm", "access_token_expire_minutes", "refresh_token_expire_days"]),
     "database": ("DATABASE_", ["enabled", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
-    "redis": ("REDIS_", ["enabled", "host", "port", "user", "password", "db", "pool_size", "max_connections", "decode_responses", "socket_timeout"]),
+    "redis": (
+        "REDIS_",
+        [
+            "enabled",
+            "host",
+            "port",
+            "user",
+            "password",
+            "db",
+            "pool_size",
+            "max_connections",
+            "decode_responses",
+            "socket_timeout",
+        ],
+    ),
     "storage": ("STORAGE_", ["provider"]),
     "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
-    "notification": ("NOTIFICATION_", [
-        "enabled", "retry_interval_seconds", "alert_email",
-        "dingtalk_webhook", "dingtalk_secret",
-        "dingtalk_app_key", "dingtalk_app_secret", "dingtalk_agent_id",
-        "feishu_webhook", "feishu_secret",
-        "feishu_app_id", "feishu_app_secret",
-        "sms_access_key", "sms_secret_key", "sms_sign_name", "sms_template_code",
-    ]),
+    "notification": (
+        "NOTIFICATION_",
+        [
+            "enabled",
+            "retry_interval_seconds",
+            "alert_email",
+            "dingtalk_webhook",
+            "dingtalk_secret",
+            "dingtalk_app_key",
+            "dingtalk_app_secret",
+            "dingtalk_agent_id",
+            "feishu_webhook",
+            "feishu_secret",
+            "feishu_app_id",
+            "feishu_app_secret",
+            "sms_access_key",
+            "sms_secret_key",
+            "sms_sign_name",
+            "sms_template_code",
+        ],
+    ),
 }
 
 
@@ -264,9 +292,9 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
 # 核心配置类
 # ============================================================
 
+
 class Settings:
     """应用全局配置类。
-
     配置加载优先级（从高到低）：
         1. 环境变量
         2. 环境特定 YAML 配置（config.{env}.yaml）
@@ -367,7 +395,7 @@ class Settings:
             "storage": {
                 "provider": "local",
                 "local": {
-                    "base_dir": "static",
+                    "base_dir": "statics",
                 },
                 "s3": {
                     "endpoint_url": "",
@@ -417,15 +445,12 @@ class Settings:
             else:
                 base[key] = value
 
-
     def _load_from_yaml(self, config: dict[str, Any]) -> None:
         """从 YAML 文件加载配置。
-
         先加载默认 config.yaml，再加载 config.{env}.yaml 进行深度覆盖。
         """
         project_root = _find_project_root()
         config_dir = project_root / DEFAULT_CONFIG_DIR
-
         # 先加载项目根目录的 .env，使其中的 APP_ENV 可用于选择环境配置。
         env_dot_file = project_root / ".env"
         if env_dot_file.exists():
@@ -434,8 +459,7 @@ class Settings:
 
                 load_dotenv(env_dot_file, override=False)
             except Exception as e:
-                print(f"Warning: Cannot load .env file {env_dot_file}: {e}")
-
+                logger.warning(f"Cannot load .env file {env_dot_file}: {e}")
         # 1. 加载默认配置
         default_file = config_dir / "config.yaml"
         if default_file.exists():
@@ -445,8 +469,7 @@ class Settings:
                 if isinstance(default_cfg, dict):
                     self._merge_config(config, default_cfg)
             except Exception as e:
-                print(f"Warning: Cannot load config file {default_file}: {e}")
-
+                logger.warning(f"Cannot load config file {default_file}: {e}")
         # 2. 加载环境特定配置（覆盖默认配置）
         app_env = os.environ.get("APP_ENV", config.get("app_env", ENV_DEVELOPMENT))
         env_file = config_dir / f"config.{app_env}.yaml"
@@ -457,11 +480,10 @@ class Settings:
                 if isinstance(env_cfg, dict):
                     self._merge_config(config, env_cfg)
             except Exception as e:
-                print(f"Warning: Cannot load config file {env_file}: {e}")
+                logger.warning(f"Cannot load config file {env_file}: {e}")
 
     def _load_from_env(self, config: dict[str, Any]) -> None:
         """从环境变量加载配置，覆盖 YAML 和默认值。
-
         映射规则：
             APP_ENV       → app_env
             SERVER_HOST   → server.host
@@ -470,7 +492,6 @@ class Settings:
         # 顶层 app_env
         if value := os.environ.get("APP_ENV"):
             config["app_env"] = value
-
         # 各配置段
         for section_name, (prefix, keys) in _ENV_SECTION_MAP.items():
             if section_name not in config:
@@ -493,7 +514,6 @@ class Settings:
                     section[key] = [v.strip() for v in value.split(",")]
                 else:
                     section[key] = value
-
         # 数据库连接字段（MYSQL_* 前缀，与 DATABASE_* 配置字段区分）
         database = config["database"]
         if v := os.environ.get("MYSQL_HOST"):
@@ -510,12 +530,10 @@ class Settings:
             database["database"] = v
         if v := os.environ.get("MYSQL_POOL_SIZE"):
             database["pool_size"] = _to_int(v, database["pool_size"])
-
         # 嵌套存储配置的环境变量
         storage = config.setdefault("storage", {})
         storage_local = storage.setdefault("local", {})
         storage_s3 = storage.setdefault("s3", {})
-
         if value := os.environ.get("STORAGE_LOCAL_BASE_DIR"):
             storage_local["base_dir"] = value
         if value := os.environ.get("STORAGE_S3_ENDPOINT_URL"):
@@ -534,7 +552,6 @@ class Settings:
             storage_s3["public_url"] = value
         if value := os.environ.get("STORAGE_S3_USE_SSL"):
             storage_s3["use_ssl"] = _to_bool(value)
-
         # SMTP 邮件配置的环境变量
         smtp = config.setdefault("smtp", {})
         if value := os.environ.get("SMTP_HOST"):
@@ -559,7 +576,6 @@ class Settings:
     def _parse_config(self) -> None:
         """将原始配置字典解析为 dataclass 实例。"""
         self.app_env: str = self._config.get("app_env", ENV_DEVELOPMENT)
-
         self.server = ServerConfig(**self._config.get("server", {}))
         self.logging = LoggingConfig(**self._config.get("logging", {}))
         self.cors = CORSConfig(**self._config.get("cors", {}))
@@ -567,7 +583,6 @@ class Settings:
         self.auth = AuthConfig(**self._config.get("auth", {}))
         self.database = DatabaseConfig(**self._config.get("database", {}))
         self.redis = RedisConfig(**self._config.get("redis", {}))
-
         # 存储抽象层配置（嵌套 dataclass）
         storage_raw = self._config.get("storage", {})
         local_raw = storage_raw.pop("local", {})
@@ -577,11 +592,9 @@ class Settings:
             local=LocalStorageConfig(**local_raw),
             s3=S3StorageConfig(**s3_raw),
         )
-
         # SMTP 邮件配置
         smtp_raw = self._config.get("smtp", {})
         self.smtp = SmtpConfig(**smtp_raw)
-
         # 通知渠道配置
         notification_raw = self._config.get("notification", {})
         self.notification = NotificationConfig(**notification_raw)
@@ -611,7 +624,6 @@ class Settings:
 
     def validate(self) -> None:
         """验证配置合法性，配置错误直接阻断程序启动。
-
         生产环境额外校验：
             - 调试模式必须关闭
             - AUTH_SECRET_KEY 不能是占位符，且长度 ≥ 32
@@ -624,41 +636,27 @@ class Settings:
         # 通用校验：密钥最小长度
         if len(self.auth.secret_key) < 16:
             raise ValueError("AUTH_SECRET_KEY 长度至少 16 个字符")
-
         if self.is_production:
             if self.server.debug:
                 raise ValueError("DEBUG mode must be disabled in production")
-
             key = self.auth.secret_key
-            if (
-                key.lower() in _FORBIDDEN_SECRET_KEYS
-                or key.startswith("dev-only-")
-                or len(key) < 32
-            ):
+            if key.lower() in _FORBIDDEN_SECRET_KEYS or key.startswith("dev-only-") or len(key) < 32:
                 raise ValueError(
                     "AUTH_SECRET_KEY 在生产环境必须配置为至少 32 字符的随机字符串，"
-                    "可通过 `python -c \"from src.utils.security import "
-                    "generate_secret_key; print(generate_secret_key())\"` 生成"
+                    '可通过 `python -c "from src.utils.security import '
+                    'generate_secret_key; print(generate_secret_key())"` 生成'
                 )
-
             if "*" in self.cors.origins:
-                raise ValueError(
-                    "CORS origins 在生产环境禁止配置为 '*'，请指定可信来源列表"
-                )
-
+                raise ValueError("CORS origins 在生产环境禁止配置为 '*'，请指定可信来源列表")
             if not self.database.url:
                 raise ValueError("DATABASE_URL 在生产环境必须配置")
-
             if not self.redis.url:
                 raise ValueError("REDIS_URL 在生产环境必须配置")
-
         # 数据库协议校验
         if self.database.url and not self.database.url.startswith(
             ("mysql://", "mysql+pymysql://", "postgresql://", "sqlite://")
         ):
-            raise ValueError(
-                "Unsupported database type, only MySQL, PostgreSQL and SQLite are supported"
-            )
+            raise ValueError("Unsupported database type, only MySQL, PostgreSQL and SQLite are supported")
 
     # ----------------------------------------------------------
     # 热重载
@@ -674,6 +672,5 @@ class Settings:
 # ============================================================
 # 全局单例
 # ============================================================
-
 settings: Final[Settings] = Settings()
 settings.validate()

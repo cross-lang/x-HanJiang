@@ -1,7 +1,6 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 用户接口
-
 提供用户管理的 RESTful API 端点。
 
 Endpoints:
@@ -29,6 +28,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.core.exceptions import ValidationException
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import (
@@ -50,7 +50,7 @@ router = APIRouter(prefix="/users", tags=["用户管理"])
     dependencies=[Depends(require_user_permission("user:create"))],
 )
 @permission("user:create", "创建用户", "user", "create")
-async def create_user(
+def create_user(
     body: UserCreateRequest,
     request: Request,
     service: UserService = Depends(get_user_service),
@@ -67,7 +67,7 @@ async def create_user(
     dependencies=[Depends(require_user_permission("user:view"))],
 )
 @permission("user:view", "查看用户", "user", "view")
-async def list_users(
+def list_users(
     request: Request,
     page: int = 1,
     page_size: int = 20,
@@ -83,9 +83,7 @@ async def list_users(
         page=result["page"],
         page_size=result["page_size"],
         total_pages=(
-            (result["total"] + result["page_size"] - 1) // result["page_size"]
-            if result["page_size"] > 0
-            else 0
+            (result["total"] + result["page_size"] - 1) // result["page_size"] if result["page_size"] > 0 else 0
         ),
     )
     return success_response(page_result.model_dump(), request)
@@ -98,22 +96,38 @@ async def list_users(
     dependencies=[Depends(require_user_permission("user:export"))],
 )
 @permission("user:export", "导出用户", "user", "export")
-async def export_users(
+def export_users(
     keyword: str | None = None,
     status: str | None = None,
     service: UserService = Depends(get_user_service),
 ):
     rows = service.search(keyword=keyword, status=status, page=1, page_size=100000)["items"]
-
     fieldnames = [
-        "id", "username", "name", "email", "phone", "gender", "birthday", "roles", "status", "last_login_at", "created_at",
+        "id",
+        "username",
+        "name",
+        "email",
+        "phone",
+        "gender",
+        "birthday",
+        "roles",
+        "status",
+        "last_login_at",
+        "created_at",
     ]
     headers_cn = {
-        "id": "ID", "username": "用户名", "name": "姓名", "email": "邮箱", "phone": "手机号",
-        "gender": "性别", "birthday": "生日", "roles": "角色",
-        "status": "状态", "last_login_at": "最后登录", "created_at": "创建时间",
+        "id": "ID",
+        "username": "用户名",
+        "name": "姓名",
+        "email": "邮箱",
+        "phone": "手机号",
+        "gender": "性别",
+        "birthday": "生日",
+        "roles": "角色",
+        "status": "状态",
+        "last_login_at": "最后登录",
+        "created_at": "创建时间",
     }
-
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames)
     writer.writerow(headers_cn)
@@ -122,7 +136,6 @@ async def export_users(
         if isinstance(data.get("roles"), list):
             data["roles"] = ";".join(r.get("role_name", "") for r in data["roles"])
         writer.writerow({k: data.get(k, "") for k in fieldnames})
-
     content = buf.getvalue().encode("utf-8-sig")
     return StreamingResponse(
         iter([content]),
@@ -138,7 +151,7 @@ async def export_users(
     dependencies=[Depends(require_user_permission("user:view"))],
 )
 @permission("user:view", "查看用户", "user", "view")
-async def get_user(
+def get_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
@@ -158,7 +171,7 @@ async def get_user(
     dependencies=[Depends(require_user_permission("user:edit"))],
 )
 @permission("user:edit", "编辑用户", "user", "edit")
-async def update_user(
+def update_user(
     user_id: int,
     body: UserUpdateRequest,
     request: Request,
@@ -178,7 +191,7 @@ async def update_user(
     dependencies=[Depends(require_user_permission("user:edit"))],
 )
 @permission("user:edit", "编辑用户", "user", "edit")
-async def reset_user_password(
+def reset_user_password(
     user_id: int,
     body: AdminResetPasswordRequest,
     request: Request,
@@ -196,7 +209,7 @@ async def reset_user_password(
     dependencies=[Depends(require_user_permission("user:delete"))],
 )
 @permission("user:delete", "删除用户", "user", "delete")
-async def delete_user(
+def delete_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
@@ -213,18 +226,16 @@ async def delete_user(
     dependencies=[Depends(require_user_permission("user:import"))],
 )
 @permission("user:import", "导入用户", "user", "import")
-async def import_users(
+def import_users(
     request: Request,
     file: UploadFile = File(...),
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     if not file.filename or not file.filename.lower().endswith(".csv"):
-        raise ValueError("仅支持 CSV 文件导入")
-
-    csv_content = (await file.read()).decode("utf-8-sig")
+        raise ValidationException(message="仅支持 CSV 文件导入")
+    csv_content = file.file.read().decode("utf-8-sig")
     rows = list(csv.DictReader(csv_content.splitlines()))
-
     imported = 0
     operator_ctx = get_user_operator_context(current_user, request)
     for row in rows:
@@ -241,5 +252,4 @@ async def import_users(
         }
         service.create(payload, operator=operator_ctx)
         imported += 1
-
     return success_response({"imported": imported, "filename": file.filename}, request)

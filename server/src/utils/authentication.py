@@ -1,28 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 接口鉴权模块
-
 提供基于时间窗口与共享密钥的简单 token 生成与校验能力，适用于轻量级接口鉴权场景。
 """
-
 
 import datetime
 import hashlib
 import hmac
-
 
 AUTH_API_SECRETKEY: str = ""
 
 
 def _calc_token(timestr: str) -> str:
     """token 计算方式，使用 HMAC-SHA256。"""
-    return hmac.new(
-        AUTH_API_SECRETKEY.encode("utf-8"),
-        timestr.encode("utf-8"),
-        hashlib.sha256
-    ).hexdigest()
+    return hmac.new(AUTH_API_SECRETKEY.encode("utf-8"), timestr.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def gen_token() -> str:
@@ -33,7 +24,6 @@ def gen_token() -> str:
 
 def verify_token(token: str) -> bool:
     """验证 token。
-
     上一小时的 token 在这一小时的前 5 分钟内仍然有效。
     """
     token_expire_delay = 5

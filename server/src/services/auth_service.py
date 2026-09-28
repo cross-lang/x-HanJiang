@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 认证业务逻辑实现
-
 提供登录、令牌刷新、当前用户解析、退出登录能力。
 登录态依赖 Redis 维护（login:{user_id} 记录当前有效的访问令牌 jti），
 令牌本身使用 JWT（access/refresh）。登录成功/失败写入 login_logs 表。
@@ -13,22 +12,21 @@ Classes:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-
 from typing import TYPE_CHECKING
 
-from src.constants.enums import NotificationEvent, UserStatus
+from src.constants.constants import LOGIN_STATUS_FAILED, LOGIN_STATUS_SUCCESS, TOKEN_TTL_SECONDS
+from src.constants.enums import NotificationEvent, SystemRoleCode, UserStatus
 from src.core.exceptions import AuthenticationException
 from src.core.logger import logger
-from src.utils.security import verify_password
 from src.core.tokens import (
     REFRESH_TOKEN_TYPE,
     create_access_token,
     create_refresh_token,
     decode_token,
 )
-from src.notification.dispatcher import NotificationDispatcher
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.user_entity import UserEntity
+from src.notification.dispatcher import NotificationDispatcher
 from src.repositories.login_log_repository import LoginLogRepository
 from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
@@ -36,14 +34,16 @@ from src.schemas.auth import (
     CurrentUser,
     TokenResponse,
 )
+from src.utils.security import verify_password
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
 
 # Redis 登录态键前缀：login:{user_id} -> 当前生效的 access token jti
 _LOGIN_KEY_PREFIX = "login:"
+
 # 登录态默认过期时间（秒），与 access token 有效期对齐
-_LOGIN_STATE_TTL = 60 * 60 * 24 * 7
+_LOGIN_STATE_TTL = TOKEN_TTL_SECONDS
 
 
 class AuthService:
@@ -57,12 +57,8 @@ class AuthService:
         dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         self._user_repository: UserRepository = user_repository
-        self._role_repository = role_repository or RoleRepository(
-            session=user_repository.session
-        )
-        self._login_log_repository = login_log_repository or LoginLogRepository(
-            session=user_repository.session
-        )
+        self._role_repository = role_repository or RoleRepository(session=user_repository.session)
+        self._login_log_repository = login_log_repository or LoginLogRepository(session=user_repository.session)
         self._dispatcher = dispatcher
 
     def login(
@@ -72,30 +68,39 @@ class AuthService:
         ip_address: str | None = None,
     ) -> TokenResponse:
         """用户登录。
-
         校验用户名/邮箱 + 密码，成功后签发 access/refresh 令牌并写入 Redis 登录态。
         无论成功失败均记录 login_logs。
         """
         user = self._find_account(account)
-
         success = False
         if user is not None and user.status != UserStatus.LOCKED.value:
             success = verify_password(password, user.password_hash or "")
-
         self._write_login_log(
             user_id=user.id if user else None,
             login_type="password",
-            status="success" if success else "failed",
+            status=LOGIN_STATUS_SUCCESS if success else LOGIN_STATUS_FAILED,
             ip_address=ip_address,
         )
-
         if not success or user is None:
             # ── 连续登录失败告警 ──
             if user is not None:
                 self._check_login_failures(user, ip_address)
             raise AuthenticationException(message="用户名/邮箱或密码错误")
-
         return self._issue_tokens(user, ip_address=ip_address)
+
+    def detect_new_device_login(self, user_id: int, current_ip: str) -> bool:
+        """判断本次登录是否来自新设备。
+        与上一次成功登录（排除本次记录）的 IP 对比，不一致视为新设备。
+
+        Args:
+            user_id: 用户 ID
+            current_ip: 本次登录 IP
+
+        Returns:
+            bool: 是否为新设备登录
+        """
+        last = self._login_log_repository.get_previous_success(user_id=user_id, skip=1)
+        return last is not None and last.ip_address != current_ip
 
     def refresh(self, refresh_token: str) -> TokenResponse:
         """使用刷新令牌换取新的令牌对。"""
@@ -105,22 +110,15 @@ class AuthService:
             payload = decode_token(refresh_token, expected_type=REFRESH_TOKEN_TYPE)
         except Exception as e:  # noqa: BLE001
             raise AuthenticationException(message=f"刷新令牌无效: {e}") from e
-
         user_id = int(payload.get("sub", 0))
         user = self._user_repository.get_by_id(user_id)
         if user is None:
             raise AuthenticationException(message="用户不存在")
         if user.status == UserStatus.LOCKED.value:
             raise AuthenticationException(message="用户已被锁定")
-
-        access_token = create_access_token(
-            user.id, extra_claims={"username": user.username}
-        )
-        new_refresh_token = create_refresh_token(
-            user.id, extra_claims={"username": user.username}
-        )
+        access_token = create_access_token(user.id, extra_claims={"username": user.username})
+        new_refresh_token = create_refresh_token(user.id, extra_claims={"username": user.username})
         access_jti = decode_token(access_token).get("jti")
-
         try:
             provider = get_cached_cache_provider()
             provider.set(
@@ -130,12 +128,11 @@ class AuthService:
             )
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态写入失败（刷新仍成功）: {e}")
-
         return TokenResponse(
             access_token=access_token,
             refresh_token=new_refresh_token,
             token_type="Bearer",
-            expires_in=60 * 60 * 24 * 7,
+            expires_in=TOKEN_TTL_SECONDS,
         )
 
     def get_current_user(self, authorization: str | None) -> CurrentUser:
@@ -144,26 +141,18 @@ class AuthService:
 
         if not authorization or not authorization.strip():
             raise AuthenticationException(message="缺少或格式错误的 Authorization 头")
-
         auth_value = authorization.strip()
-        if auth_value.lower().startswith("bearer "):
-            token = auth_value[len("bearer ") :].strip()
-        else:
-            token = auth_value
-
+        token = auth_value[len("bearer ") :].strip() if auth_value.lower().startswith("bearer ") else auth_value
         if not token:
             raise AuthenticationException(message="缺少或格式错误的 Authorization 头")
-
         try:
             payload = decode_token(token, expected_type="access")
         except Exception as e:  # noqa: BLE001
             raise AuthenticationException(message=f"令牌无效: {e}") from e
-
         user_id = int(payload.get("sub", 0))
         user = self._user_repository.get_by_id(user_id)
         if user is None:
             raise AuthenticationException(message="用户不存在")
-
         # 校验 Redis 登录态
         try:
             provider = get_cached_cache_provider()
@@ -176,21 +165,18 @@ class AuthService:
             raise
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态校验失败（放行）: {e}")
-
         # 从 user_roles 查用户角色（经仓库）
         roles = self._role_repository.get_by_user_id(user.id)
         role_codes = [r.role_code for r in roles]
         role_code = role_codes[0] if role_codes else None
         role_ids = [r.id for r in roles]
-
         # 查用户所有权限码（经仓库）
         permissions: list[str] = []
         if role_ids:
             permissions = self._user_repository.get_perm_codes_by_role_ids(role_ids)
         # 超管自动拥有所有权限标记
-        if "super_admin" in role_codes:
+        if SystemRoleCode.SUPERADMIN.mark in role_codes:
             permissions = ["*"]
-
         return CurrentUser(
             id=user.id,
             username=user.username,
@@ -200,9 +186,9 @@ class AuthService:
             role_code=role_code,
             status=user.status or UserStatus.ACTIVE.value,
             avatar_url=user.avatar_url,
-            phone=getattr(user, 'phone', None),
+            phone=getattr(user, "phone", None),
             birthday=user.birthday.strftime("%Y-%m-%d") if user.birthday else None,
-            gender=getattr(user, 'gender', None),
+            gender=getattr(user, "gender", None),
             last_login_at=user.last_login_at,
             permissions=permissions,
         )
@@ -232,9 +218,7 @@ class AuthService:
         if self._dispatcher is None:
             return
         try:
-            fail_count = self._login_log_repository.count_recent_failures(
-                user_id=user.id, minutes=30
-            )
+            fail_count = self._login_log_repository.count_recent_failures(user_id=user.id, minutes=30)
             if fail_count >= 3:
                 self._dispatcher.dispatch_for_user(
                     user_id=user.id,
@@ -275,14 +259,9 @@ class AuthService:
         """为用户签发令牌并维护 Redis 登录态。"""
         from src.infras.cache import get_cached_cache_provider
 
-        access_token = create_access_token(
-            user.id, extra_claims={"username": user.username}
-        )
-        refresh_token = create_refresh_token(
-            user.id, extra_claims={"username": user.username}
-        )
+        access_token = create_access_token(user.id, extra_claims={"username": user.username})
+        refresh_token = create_refresh_token(user.id, extra_claims={"username": user.username})
         access_jti = decode_token(access_token).get("jti")
-
         try:
             provider = get_cached_cache_provider()
             provider.set(
@@ -292,7 +271,6 @@ class AuthService:
             )
         except Exception as e:
             logger.warning(f"Redis 登录态写入失败: {e}")
-
         # 更新最后登录信息（经仓库）
         try:
             self._user_repository.update_last_login(
@@ -304,10 +282,9 @@ class AuthService:
         except Exception as e:
             self._user_repository.rollback()
             logger.warning(f"更新最后登录信息失败: {e}")
-
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
             token_type="Bearer",
-            expires_in=60 * 60 * 24 * 7,
+            expires_in=TOKEN_TTL_SECONDS,
         )

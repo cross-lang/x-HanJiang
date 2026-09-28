@@ -9,12 +9,9 @@ from pydantic import BaseModel, Field
 
 class AlertSendRequest(BaseModel):
     """系统告警发送请求。
-
     供外部监控系统（Prometheus Alertmanager、Sentry 等）通过 Webhook 调用。
     必须提供 recipients 指定接收人。
-
     示例::
-
         {
             "subject": "CPU 使用率超过 90%",
             "message": "服务器 node-1 CPU 使用率达到 95%，请及时处理。",
@@ -47,11 +44,8 @@ class AlertSendRequest(BaseModel):
 
 class MaintenanceNotifyRequest(BaseModel):
     """系统维护通知请求。
-
     管理员手动触发，通知全体用户即将进行的系统维护。
-
     示例::
-
         {
             "maintenance_time": "2026-09-25 02:00",
             "duration": "约 2 小时",

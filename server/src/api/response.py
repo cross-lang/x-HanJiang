@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 API 响应工具
-
 提供统一的 JSONResponse 构造函数，避免各路由模块重复样板代码。
 
 Functions:

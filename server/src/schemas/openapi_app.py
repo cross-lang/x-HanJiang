@@ -48,7 +48,6 @@ class OpenApiAppResponse(BaseModel):
     owner_name: str | None = None
     last_used_at: datetime | None
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
 

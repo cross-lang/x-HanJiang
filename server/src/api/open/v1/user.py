@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """开放平台用户管理接口。
-
 将用户管理核心能力暴露给外部服务，通过 AppId/AppKey + scope 鉴权。
 operator 上下文记录为调用方应用，而非终端用户。
 """
@@ -29,7 +28,7 @@ router = APIRouter(prefix="/users", tags=["开放平台：用户管理"])
     dependencies=[Depends(require_app_scope("user:write"))],
 )
 @app_scope("user:write", "创建用户", "user", "write")
-async def create_user(
+def create_user(
     body: UserCreateRequest,
     request: Request,
     app: CurrentApp = Depends(get_current_app),
@@ -46,7 +45,7 @@ async def create_user(
     dependencies=[Depends(require_app_scope("user:read"))],
 )
 @app_scope("user:read", "查询用户列表", "user", "read")
-async def list_users(
+def list_users(
     request: Request,
     page: int = 1,
     page_size: int = 20,
@@ -63,9 +62,7 @@ async def list_users(
         page=result["page"],
         page_size=result["page_size"],
         total_pages=(
-            (result["total"] + result["page_size"] - 1) // result["page_size"]
-            if result["page_size"] > 0
-            else 0
+            (result["total"] + result["page_size"] - 1) // result["page_size"] if result["page_size"] > 0 else 0
         ),
     )
     return success_response(page_result.model_dump(), request)
@@ -77,7 +74,7 @@ async def list_users(
     dependencies=[Depends(require_app_scope("user:read"))],
 )
 @app_scope("user:read", "查询用户详情", "user", "read")
-async def get_user(
+def get_user(
     user_id: int,
     request: Request,
     app: CurrentApp = Depends(get_current_app),
@@ -98,7 +95,7 @@ async def get_user(
     dependencies=[Depends(require_app_scope("user:write"))],
 )
 @app_scope("user:write", "更新用户", "user", "write")
-async def update_user(
+def update_user(
     user_id: int,
     body: UserUpdateRequest,
     request: Request,
@@ -106,9 +103,7 @@ async def update_user(
     service: UserService = Depends(get_user_service),
 ):
     """更新用户信息（需 `user:write` scope）。"""
-    result = service.update(
-        user_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app)
-    )
+    result = service.update(user_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app))
     return success_response(result.model_dump(), request)
 
 
@@ -118,7 +113,7 @@ async def update_user(
     dependencies=[Depends(require_app_scope("user:write"))],
 )
 @app_scope("user:write", "删除用户", "user", "write")
-async def delete_user(
+def delete_user(
     user_id: int,
     request: Request,
     app: CurrentApp = Depends(get_current_app),

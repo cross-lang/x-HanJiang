@@ -22,5 +22,4 @@ class AuditLogResponse(BaseModel):
     ip_address: str | None = Field(default=None, description="操作来源IP地址")
     created_at: datetime | None = Field(default=None, description="记录创建时间")
     remarks: str | None = Field(default=None, description="备注")
-
     model_config = ConfigDict(from_attributes=True)

@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 角色权限关联数据访问实现
-
 本模块提供角色权限关联 Repository 的 SQLAlchemy 数据库实现。
 核心职责：根据角色 ID 查询其拥有的权限列表，以及维护角色与权限的绑定关系。
-
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
     Entity → Schema 的转换由 Service 层完成。
@@ -29,12 +27,9 @@ class RolePermissionRepository(BaseRepository[RolePermissionEntity, int]):
     model_class = RolePermissionEntity
 
     # ── 业务查询 ──────────────────────────────────────────
-
     def get_permission_ids_by_role(self, role_id: int) -> list[int]:
         """查询某角色绑定的全部权限 ID 列表。"""
-        stmt = select(RolePermissionEntity.permission_id).where(
-            RolePermissionEntity.role_id == role_id
-        )
+        stmt = select(RolePermissionEntity.permission_id).where(RolePermissionEntity.role_id == role_id)
         return list(self.session.execute(stmt).scalars().all())
 
     def get_permissions_by_role(self, role_id: int) -> list[PermissionEntity]:

@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 文件数据访问实现
-
 本模块提供文件 Repository 的 SQLAlchemy 数据库实现。
 支持软删除（is_deleted）、按条件分页查询、存储用量统计。
-
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
     Entity → Schema 的转换由 Service 层完成。
@@ -13,10 +11,7 @@ Classes:
     FileRepository: 文件数据访问 SQLAlchemy 实现
 """
 
-from datetime import datetime
-
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from src.core.exceptions import DatabaseException
 from src.models.entities.file_entity import FileEntity
@@ -55,13 +50,7 @@ class FileRepository(BaseRepository[FileEntity, int]):
             conditions.append(FileEntity.uploaded_by == uploaded_by)
         if keyword:
             conditions.append(FileEntity.original_name.like(f"%{keyword}%"))
-
-        total = (
-            self.session.execute(
-                select(func.count(FileEntity.id)).where(*conditions)
-            ).scalar()
-            or 0
-        )
+        total = self.session.execute(select(func.count(FileEntity.id)).where(*conditions)).scalar() or 0
         stmt = (
             select(FileEntity, UserEntity)
             .outerjoin(UserEntity, UserEntity.id == FileEntity.uploaded_by)

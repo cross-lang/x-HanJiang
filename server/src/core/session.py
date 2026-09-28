@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """
 登录会话管理模块（有状态 JWT / 混合会话）
-
 JWT 仍作为令牌载体，真正的"是否登录"判据来自 Redis，从而实现即时登出。
 """
-
-from typing import Any
 
 from src.core.config import settings
 from src.core.logger import logger
@@ -25,7 +22,6 @@ def _key(user_id: int) -> str:
 
 def set_login_status(user_id: int, token: str, ttl_seconds: int) -> None:
     """写入用户登录态（覆盖式，天然支持单设备登录）。
-
     存储当前有效的访问令牌；新登录/刷新会覆盖该值，
     使旧令牌在下次校验时因不匹配而失效。对标 Go 的 SetLoginStatus。
 
@@ -64,7 +60,6 @@ def get_login_status(user_id: int) -> str | None:
 
 def is_logged_in(user_id: int) -> bool:
     """判断用户是否处于登录态（key 存在即为登录）。
-
     对标 Go 的 GetLoginStatus：登出删除 key 后返回 False，令牌立即失效。
     Redis 未配置或不可用时降级放行（返回 True），不阻断登录态校验。
 

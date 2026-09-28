@@ -1,17 +1,14 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 FastAPI 依赖注入模块
-
 本模块定义了 API 层通用的 FastAPI Depends 依赖项工厂函数，
 用于在路由处理函数中通过参数注入公共依赖。
 """
 
 from __future__ import annotations
 
-from collections.abc import Generator
-from functools import lru_cache
-from time import time
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from fastapi import Depends, Request
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
@@ -25,10 +22,10 @@ from src.constants.constants import (
 )
 from src.constants.enums import SystemRoleCode
 from src.core.exceptions import AuthorizationException
-from src.infras.database import get_cached_database_provider, get_db_session
+from src.infras.database import get_db_session
 from src.schemas.auth import CurrentUser
-from src.schemas.openapi_app import CurrentApp
 from src.schemas.common import PaginatedRequest
+from src.schemas.openapi_app import CurrentApp
 from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
@@ -36,21 +33,25 @@ from src.services.file_service import FileStorageService
 from src.services.maintenance_service import MaintenanceService
 from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
-from src.utils.helpers import get_client_ip
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
-    from src.repositories.audit_log_repository import AuditLogRepository
     from src.repositories.login_log_repository import LoginLogRepository
-    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.repositories.menu_repository import MenuRepository
+    from src.repositories.notification_preference_repository import NotificationPreferenceRepository
+    from src.repositories.notification_recipient_repository import NotificationRecipientRepository
     from src.repositories.permission_repository import PermissionRepository
     from src.repositories.role_permission_repository import RolePermissionRepository
     from src.repositories.role_repository import RoleRepository
     from src.repositories.user_repository import UserRepository
+    from src.services.dashboard_service import DashboardService
     from src.services.global_search_service import GlobalSearchService
     from src.services.login_log_service import LoginLogService
     from src.services.openapi_app_service import OpenApiAppService
+    from src.services.profile_service import ProfileService
     from src.services.role_service import RoleService
+    from src.services.station_service import StationMessageService
+    from src.services.system_notification_service import SystemNotificationService
     from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -58,8 +59,11 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 # 开放平台 API Key 认证方案（Swagger UI 右上角会出现 Authorize 按钮）
 _app_id_scheme = APIKeyHeader(name=OPENAPI_HEADER_APP_ID, scheme_name="OpenAppId", auto_error=False)
+
 _app_key_scheme = APIKeyHeader(name=OPENAPI_HEADER_APP_KEY, scheme_name="OpenAppKey", auto_error=False)
+
 _app_date_scheme = APIKeyHeader(name=OPENAPI_HEADER_DATE, scheme_name="OpenAppDate", auto_error=False)
+
 _app_auth_scheme = APIKeyHeader(name=OPENAPI_HEADER_AUTHORIZATION, scheme_name="OpenAppAuthorization", auto_error=False)
 
 
@@ -143,6 +147,14 @@ def get_alert_service(
     return AlertService(dispatcher=dispatcher, session=db_session)
 
 
+def get_maintenance_service(
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+    db_session: Session = Depends(get_db_session),
+) -> MaintenanceService:
+    """获取维护通知服务实例。"""
+    return MaintenanceService(dispatcher=dispatcher, session=db_session)
+
+
 def get_audit_service(
     db_session: Session = Depends(get_db_session),
 ) -> AuditService:
@@ -167,7 +179,7 @@ def get_file_service(
 
 def get_dashboard_service(
     db_session: Session = Depends(get_db_session),
-) -> "DashboardService":
+) -> DashboardService:
     """获取仪表盘统计服务。"""
     from src.repositories.dashboard_repository import DashboardRepository
     from src.services.dashboard_service import DashboardService
@@ -177,16 +189,14 @@ def get_dashboard_service(
 
 def get_system_notification_service(
     db_session: Session = Depends(get_db_session),
-) -> "SystemNotificationService":
+) -> SystemNotificationService:
     """获取系统通知配置服务。"""
     from src.repositories.system_notification_config_repository import (
         SystemNotificationConfigRepository,
     )
     from src.services.system_notification_service import SystemNotificationService
 
-    return SystemNotificationService(
-        repository=SystemNotificationConfigRepository(session=db_session)
-    )
+    return SystemNotificationService(repository=SystemNotificationConfigRepository(session=db_session))
 
 
 def get_role_repository(
@@ -295,9 +305,7 @@ def get_global_search_service(
     from src.repositories.global_search_repository import GlobalSearchRepository
     from src.services.global_search_service import GlobalSearchService
 
-    return GlobalSearchService(
-        repository=GlobalSearchRepository(session=db_session)
-    )
+    return GlobalSearchService(repository=GlobalSearchRepository(session=db_session))
 
 
 def get_current_user(
@@ -309,21 +317,35 @@ def get_current_user(
     return auth_service.get_current_user(token)
 
 
-def require_user_role(role_code: str):
-    """要求当前用户必须属于指定角色。"""
+def require_user_role(role_code: str) -> Callable[..., CurrentUser]:
+    """要求当前用户必须属于指定角色。
+
+    Args:
+        role_code: 目标角色编码
+
+    Returns:
+        依赖项函数，校验通过后返回当前用户
+    """
 
     def dependency(
         current_user: CurrentUser = Depends(get_current_user),
     ) -> CurrentUser:
-        if current_user.role_code != role_code and current_user.role_code != SystemRoleCode.SUPER_ADMIN.mark:
+        if current_user.role_code != role_code and current_user.role_code != SystemRoleCode.SUPERADMIN.mark:
             raise AuthorizationException(message=f"需要角色 {role_code}")
         return current_user
 
     return dependency
 
 
-def require_user_permission(permission_code: str):
-    """要求当前用户必须拥有指定权限。权限结果按角色缓存。"""
+def require_user_permission(permission_code: str) -> Callable[..., CurrentUser]:
+    """要求当前用户必须拥有指定权限。权限结果按角色缓存。
+
+    Args:
+        permission_code: 目标权限编码
+
+    Returns:
+        依赖项函数，校验通过后返回当前用户
+    """
 
     def dependency(
         current_user: CurrentUser = Depends(get_current_user),
@@ -352,7 +374,9 @@ def get_user_operator_context(current_user: CurrentUser, request: Request | None
 
 
 # ============================================================
+
 # 面向应用（开放平台）鉴权
+
 # ============================================================
 
 
@@ -380,23 +404,79 @@ async def get_current_app(
 
 def is_admin_user(user: CurrentUser) -> bool:
     """判断当前用户是否为管理员或超管（可查看全部数据）。"""
-    return "*" in user.permissions or user.role_code in ("super_admin", "admin")
+    return "*" in user.permissions or user.role_code in (
+        SystemRoleCode.SUPERADMIN.mark,
+        SystemRoleCode.ADMIN.mark,
+    )
 
 
 def get_station_service(
     db_session: Session = Depends(get_db_session),
-) -> "StationMessageService":
+) -> StationMessageService:
     """创建站内信服务。"""
     from src.repositories.station_message_repository import StationMessageRepository
     from src.services.station_service import StationMessageService
 
-    return StationMessageService(
-        repository=StationMessageRepository(session=db_session)
+    return StationMessageService(repository=StationMessageRepository(session=db_session))
+
+
+def get_menu_repository(
+    db_session: Session = Depends(get_db_session),
+) -> MenuRepository:
+    """获取菜单仓库实例。"""
+    from src.repositories.menu_repository import MenuRepository
+
+    return MenuRepository(session=db_session)
+
+
+def get_notification_preference_repository(
+    db_session: Session = Depends(get_db_session),
+) -> NotificationPreferenceRepository:
+    """获取通知偏好仓库实例。"""
+    from src.repositories.notification_preference_repository import NotificationPreferenceRepository
+
+    return NotificationPreferenceRepository(session=db_session)
+
+
+def get_notification_recipient_repository(
+    db_session: Session = Depends(get_db_session),
+) -> NotificationRecipientRepository:
+    """获取通知接收人仓库实例。"""
+    from src.repositories.notification_recipient_repository import NotificationRecipientRepository
+
+    return NotificationRecipientRepository(session=db_session)
+
+
+def get_profile_service(
+    user_repository: UserRepository = Depends(get_user_repository),
+    menu_repository: MenuRepository = Depends(get_menu_repository),
+    preference_repository: NotificationPreferenceRepository = Depends(get_notification_preference_repository),
+    recipient_repository: NotificationRecipientRepository = Depends(get_notification_recipient_repository),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+    station_service: StationMessageService = Depends(get_station_service),
+) -> ProfileService:
+    """创建个人中心业务服务。"""
+    from src.services.profile_service import ProfileService
+
+    return ProfileService(
+        user_repository=user_repository,
+        menu_repository=menu_repository,
+        preference_repository=preference_repository,
+        recipient_repository=recipient_repository,
+        dispatcher=dispatcher,
+        station_service=station_service,
     )
 
 
-def require_app_scope(scope: str):
-    """要求当前应用必须拥有指定 scope。"""
+def require_app_scope(scope: str) -> Callable[..., CurrentApp]:
+    """要求当前应用必须拥有指定 scope。
+
+    Args:
+        scope: 目标 scope 编码
+
+    Returns:
+        依赖项函数，校验通过后返回当前应用
+    """
 
     def dependency(app: CurrentApp = Depends(get_current_app)) -> CurrentApp:
         if scope not in app.scopes:

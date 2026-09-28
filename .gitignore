@@ -141,7 +141,10 @@ cython_debug/
 server/logs/
 
 # Uploaded files
-server/static/
+server/statics/
+
+# Temporary runtime artifacts
+server/tmp/
 
 # Ruff cache
 .ruff_cache/
@@ -154,4 +157,3 @@ web/**/*.local
 
 # UV
 .python-version
-uv.lock

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 健康检查接口
-
 本模块提供应用健康检查和版本信息查询接口，
 用于服务监控、负载均衡健康探测和部署验证。
 健康检查发现故障时，自动触发 system.alert 告警（带节流，避免重复告警）。
@@ -34,36 +33,28 @@ _ALERT_COOLDOWN_SECONDS = 300  # 同一组件 5 分钟内不重复告警
     summary="健康检查",
     description="返回服务健康状态信息，包含数据库、缓存连通状态",
 )
-async def health_check(request: Request) -> JSONResponse:
+def health_check(request: Request) -> JSONResponse:
     """健康检查接口。
-
-    返回服务当前运行状态、版本号、环境信息，以及数据库和缓存的连通状态。
+    返回服务当前运行状态、环境信息，以及数据库和缓存的连通状态。
     当检测到故障时，自动触发告警通知（带节流）。
     """
     database_status = _check_database()
     cache_status = _check_cache()
-
     overall_status = "ok"
     if database_status == "error" or cache_status == "error":
         overall_status = "error"
-
     # ── 故障时自动触发告警 ──
     if database_status == "error":
         _trigger_alert("database", "数据库连接异常")
     if cache_status == "error":
         _trigger_alert("cache", "Redis 缓存连接异常")
-
     body = HealthResponse(
         status=overall_status,
         app=APP_NAME,
-        version=settings.app_env and "",  # 占位，下行覆盖
         environment=settings.app_env,
         database=database_status,
         cache=cache_status,
     )
-    # 注入应用版本
-    from src.constants import APP_VERSION
-    body = body.model_copy(update={"version": APP_VERSION})
     return success_response(body.model_dump(), request)
 
 
@@ -74,7 +65,6 @@ def _trigger_alert(component: str, message: str) -> None:
     if now - last_alert < _ALERT_COOLDOWN_SECONDS:
         return
     _alert_throttle[component] = now
-
     try:
         from src.infras.notification import get_registry
         from src.notification.dispatcher import NotificationDispatcher
@@ -84,7 +74,6 @@ def _trigger_alert(component: str, message: str) -> None:
         if not alert_email:
             logger.warning("Health check alert skipped: notification.alert_email not configured")
             return
-
         dispatcher = NotificationDispatcher(registry=get_registry(), session=None)
         service = AlertService(dispatcher=dispatcher, session=None)
         service.send(
@@ -100,7 +89,6 @@ def _check_database() -> str:
     """检查数据库连接状态。"""
     if not settings.database.url:
         return "disabled"
-
     try:
         from sqlalchemy import text
 
@@ -121,7 +109,6 @@ def _check_cache() -> str:
     """检查缓存连接状态。"""
     if not settings.redis.url:
         return "disabled"
-
     try:
         from src.infras.cache import get_cached_cache_provider
 

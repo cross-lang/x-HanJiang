@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
 健康检查数据模型
-
 本模块定义了健康检查接口的请求和响应数据模型。
 
 Classes:
     HealthResponse: 健康检查响应模型
     VersionResponse: 版本信息响应模型
 """
-
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +16,6 @@ class HealthResponse(BaseModel):
 
     Attributes:
         status: 服务状态（"ok" 表示正常，"error" 表示异常）
-        version: 应用版本号
         app: 应用名称
         environment: 运行环境
         database: 数据库连接状态
@@ -26,7 +23,6 @@ class HealthResponse(BaseModel):
     """
 
     status: str = Field(default="ok", description="服务状态")
-    version: str = Field(description="应用版本号")
     app: str = Field(description="应用名称")
     environment: str = Field(description="运行环境")
     database: str | None = Field(default=None, description="数据库连接状态")
@@ -47,7 +43,6 @@ class VersionResponse(BaseModel):
     @classmethod
     def current(cls) -> "VersionResponse":
         """构造当前版本响应。
-
         health 接口挂在用户态 v1 路由下，api_version 固定为 v1；
         开放平台有自己的版本号，不在此响应范围内。
         """

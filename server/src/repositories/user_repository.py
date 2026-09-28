@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 用户数据访问实现
-
 本模块提供用户 Repository 的 SQLAlchemy 数据库实现。
 支持软删除（deleted_at）与按关键字/状态过滤查询。
-
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
     Entity → Schema 的转换由 Service 层完成。
@@ -16,8 +14,9 @@ Classes:
 from datetime import datetime
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import SQLAlchemyError
 
-from src.core.exceptions import ConflictException
+from src.core.exceptions import ConflictException, DatabaseException
 from src.models.entities.user_entity import (
     PermissionEntity,
     RoleEntity,
@@ -30,7 +29,6 @@ from src.repositories.base_repository import BaseRepository
 
 class UserRepository(BaseRepository[UserEntity, int]):
     """用户数据访问 SQLAlchemy 实现。
-
     使用 SQLAlchemy ORM 进行数据库操作，支持连接池和事务管理。
     实现了 BaseRepository 定义的全部 CRUD 接口，并扩展查询方法。
     异常处理：唯一约束冲突转换为 ConflictException（HTTP 409）。
@@ -108,13 +106,10 @@ class UserRepository(BaseRepository[UserEntity, int]):
 
     def replace_user_roles(self, user_id: int, role_ids: list[int]) -> None:
         """整体替换用户角色关联（先删后插）。"""
-        self.session.execute(
-            delete(UserRoleEntity).where(UserRoleEntity.user_id == user_id)
-        )
+        self.session.execute(delete(UserRoleEntity).where(UserRoleEntity.user_id == user_id))
         for rid in role_ids:
             self.session.add(UserRoleEntity(user_id=user_id, role_id=rid))
         self.session.flush()
-
 
     def search(
         self,
@@ -137,9 +132,7 @@ class UserRepository(BaseRepository[UserEntity, int]):
         conditions = [UserEntity.deleted_at.is_(None)]
         if keyword:
             like = f"%{keyword}%"
-            conditions.append(
-                (UserEntity.username.like(like)) | (UserEntity.email.like(like))
-            )
+            conditions.append((UserEntity.username.like(like)) | (UserEntity.email.like(like)))
         if status:
             conditions.append(UserEntity.status == status)
         return self._paginate(conditions, skip, limit)
@@ -153,7 +146,7 @@ class UserRepository(BaseRepository[UserEntity, int]):
         try:
             self.session.flush()
             return True
-        except Exception as e:
+        except SQLAlchemyError as e:
             self.session.rollback()
             raise DatabaseException(message=f"删除用户失败: {e}") from e
 

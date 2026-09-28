@@ -1,7 +1,6 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 角色接口
-
 提供角色管理与角色权限查询的 RESTful API 端点。
 
 Endpoints:
@@ -20,9 +19,9 @@ from fastapi import APIRouter, Depends, Request
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
-    get_user_operator_context,
     get_permission_service,
     get_role_service,
+    get_user_operator_context,
     require_user_permission,
 )
 from src.api.response import success_response
@@ -30,7 +29,6 @@ from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.schemas.role import (
     BindPermissionRequest,
-    PermissionResponse,
     RoleCreateRequest,
     RoleResponse,
     RoleUpdateRequest,
@@ -48,7 +46,7 @@ router = APIRouter(prefix="/roles", tags=["角色管理"])
     dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
-async def list_roles(
+def list_roles(
     request: Request,
     page: int = 1,
     page_size: int = 20,
@@ -71,9 +69,7 @@ async def list_roles(
         page=result["page"],
         page_size=result["page_size"],
         total_pages=(
-            (result["total"] + result["page_size"] - 1) // result["page_size"]
-            if result["page_size"] > 0
-            else 0
+            (result["total"] + result["page_size"] - 1) // result["page_size"] if result["page_size"] > 0 else 0
         ),
     )
     return success_response(page_result.model_dump(), request)
@@ -87,7 +83,7 @@ async def list_roles(
     dependencies=[Depends(require_user_permission("role:create"))],
 )
 @permission("role:create", "创建角色", "role", "create")
-async def create_role(
+def create_role(
     body: RoleCreateRequest,
     request: Request,
     service: RoleService = Depends(get_role_service),
@@ -105,7 +101,7 @@ async def create_role(
     dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
-async def get_role(
+def get_role(
     role_id: int,
     request: Request,
     service: RoleService = Depends(get_role_service),
@@ -126,7 +122,7 @@ async def get_role(
     dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
-async def update_role(
+def update_role(
     role_id: int,
     body: RoleUpdateRequest,
     request: Request,
@@ -149,7 +145,7 @@ async def update_role(
     dependencies=[Depends(require_user_permission("role:delete"))],
 )
 @permission("role:delete", "删除角色", "role", "delete")
-async def delete_role(
+def delete_role(
     role_id: int,
     request: Request,
     service: RoleService = Depends(get_role_service),
@@ -167,7 +163,7 @@ async def delete_role(
     dependencies=[Depends(require_user_permission("role:view"))],
 )
 @permission("role:view", "查看角色", "role", "view")
-async def get_role_permissions(
+def get_role_permissions(
     role_id: int,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
@@ -185,7 +181,7 @@ async def get_role_permissions(
     dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
-async def bind_permission(
+def bind_permission(
     role_id: int,
     body: BindPermissionRequest,
     request: Request,
@@ -208,7 +204,7 @@ async def bind_permission(
     dependencies=[Depends(require_user_permission("role:edit"))],
 )
 @permission("role:edit", "编辑角色", "role", "edit")
-async def unbind_permission(
+def unbind_permission(
     role_id: int,
     permission_id: int,
     request: Request,

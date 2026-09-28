@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""全局搜索接口 — 跨实体关键字搜索（用户/角色/权限/开放平台应用/文件）。
-"""
+"""全局搜索接口 — 跨实体关键字搜索（用户/角色/权限/开放平台应用/文件）。"""
 
 from fastapi import APIRouter, Depends, Request
 
+from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     get_global_search_service,
     get_permission_service,
+    require_user_permission,
 )
 from src.api.response import success_response
 from src.schemas.auth import CurrentUser
@@ -30,8 +31,10 @@ _CATEGORY_PERMS: dict[str, str] = {
     "",
     summary="全局搜索",
     description="按关键字搜索用户/角色/权限/开放平台应用/文件，按分类返回前 N 条",
+    dependencies=[Depends(require_user_permission("global_search:search"))],
 )
-async def global_search(
+@permission("global_search:search", "全局搜索", "global_search", "search")
+def global_search(
     request: Request,
     keyword: str,
     limit: int = 5,
@@ -42,17 +45,12 @@ async def global_search(
     kw = (keyword or "").strip()
     if not kw:
         return success_response({}, request)
-
     limit = max(1, min(limit, 20))
-
     if "*" in (current_user.permissions or []):
         categories = list(_CATEGORY_PERMS.keys())
     else:
         categories = [
-            cat
-            for cat, perm in _CATEGORY_PERMS.items()
-            if permission_service.has_permission(current_user.id, perm)
+            cat for cat, perm in _CATEGORY_PERMS.items() if permission_service.has_permission(current_user.id, perm)
         ]
-
     result = service.search(keyword=kw, limit=limit, categories=categories)
     return success_response(result, request)

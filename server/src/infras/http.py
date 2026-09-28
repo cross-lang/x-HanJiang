@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
 HTTP 客户端基础设施模块
-
 本模块提供通用的 HTTP 请求客户端封装，支持 GET、POST、PUT、DELETE 等方法。
-
 功能特性：
     - 统一的 HTTP 请求封装
     - 超时配置
@@ -13,7 +11,6 @@ HTTP 客户端基础设施模块
 
 Usage:
     from src.infras.http import get_cached_http_provider
-
     client = get_cached_http_provider()
     response = client.get("https://api.example.com/users")
 """
@@ -34,10 +31,8 @@ from src.core.logger import logger
 # ============================================================
 # 抽象基类
 # ============================================================
-
 class HttpProvider(ABC):
     """HTTP 客户端抽象接口。
-
     所有 HTTP 客户端后端必须实现此接口。业务层仅依赖此抽象，
     切换 HTTP 实现只需修改配置，无需改动任何业务代码。
     """
@@ -47,11 +42,15 @@ class HttpProvider(ABC):
         """发送 GET 请求。"""
 
     @abstractmethod
-    def post(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+    def post(
+        self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any
+    ) -> Any:
         """发送 POST 请求。"""
 
     @abstractmethod
-    def put(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+    def put(
+        self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any
+    ) -> Any:
         """发送 PUT 请求。"""
 
     @abstractmethod
@@ -63,9 +62,9 @@ class HttpProvider(ABC):
 # requests 实现
 # ============================================================
 
+
 class RequestsHttpProvider(HttpProvider):
     """基于 requests 库的 HTTP 客户端实现。
-
     提供统一的 HTTP 请求封装，支持常见的 HTTP 方法和错误处理。
 
     Attributes:
@@ -126,12 +125,9 @@ class RequestsHttpProvider(HttpProvider):
         """
         full_url: str = self._build_url(url)
         headers: dict[str, str] = kwargs.get("headers", {})
-
         if "Content-Type" not in headers and kwargs.get("json") is not None:
             headers["Content-Type"] = "application/json"
-
         kwargs["headers"] = headers
-
         for attempt in range(self.retries):
             try:
                 logger.debug(f"HTTP {method} request: {full_url}, attempt: {attempt + 1}")
@@ -147,10 +143,9 @@ class RequestsHttpProvider(HttpProvider):
             except requests.RequestException as e:
                 logger.warning(f"HTTP {method} request failed: {full_url}, attempt: {attempt + 1}, error: {e}")
                 if attempt < self.retries - 1:
-                    time.sleep(2 ** attempt)
+                    time.sleep(2**attempt)
                 else:
                     raise
-
         raise requests.RequestException(f"HTTP {method} request failed after {self.retries} attempts: {full_url}")
 
     def get(self, url: str, params: dict[str, Any] | None = None, **kwargs: Any) -> Any:
@@ -173,7 +168,9 @@ class RequestsHttpProvider(HttpProvider):
         except json.JSONDecodeError:
             return response.text
 
-    def post(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+    def post(
+        self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any
+    ) -> Any:
         """发送 POST 请求。
 
         Args:
@@ -194,7 +191,9 @@ class RequestsHttpProvider(HttpProvider):
         except json.JSONDecodeError:
             return response.text
 
-    def put(self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+    def put(
+        self, url: str, data: dict[str, Any] | None = None, json: dict[str, Any] | None = None, **kwargs: Any
+    ) -> Any:
         """发送 PUT 请求。
 
         Args:
@@ -242,6 +241,7 @@ class RequestsHttpProvider(HttpProvider):
 # ============================================================
 # 工厂函数
 # ============================================================
+
 
 def get_http_provider(**kwargs: Any) -> HttpProvider:
     """创建 HTTP 客户端实例。"""

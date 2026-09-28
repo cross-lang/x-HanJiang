@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 Redis 分布式锁模块
-
 提供基于 Redis 的分布式锁实现，支持单锁与批量锁（msetnx）两种使用方式，并包含超时自动释放策略。
 """
 
 import time
-import redis as redis_db
 from typing import Any
+
+import redis as redis_db
 
 _pool_db0 = redis_db.ConnectionPool(host="", port=0, password="", db=0)
 _redis_client = redis_db.StrictRedis(connection_pool=_pool_db0)
@@ -40,17 +38,15 @@ class MRedisLock:
             return True, ""
         if self.ex <= 0:
             raise ValueError("ex must be > 0")
-
         while True:
             curr_time = int(time.time())
             mapping: dict[str, int] = {f"{self.prefix}:{suffix}": curr_time for suffix in suffix_ls}
             if self._redis.msetnx(**mapping):
-                for k in mapping.keys():
+                for k in mapping:
                     self._redis.expire(k, self.ex)
                 return True, ""
-
             # 抢锁失败时，尝试通过时间解锁，成功解锁时重新抢锁
-            ex_release = any(self.release_by_ex(curr_time=curr_time, key=k) for k in mapping.keys())
+            ex_release = any(self.release_by_ex(curr_time=curr_time, key=k) for k in mapping)
             if not ex_release:
                 return False, self.err_msg
 
@@ -60,7 +56,7 @@ class MRedisLock:
         成功解锁了超时的key时返回True
         """
         val = self._redis.get(key)
-        if val and ((curr_time - int(val.decode('utf-8'))) >= self.ex):
+        if val and ((curr_time - int(val.decode("utf-8"))) >= self.ex):
             self._redis.delete(key)
             return True
         return False
@@ -77,7 +73,6 @@ class MRedisLock:
 
 class RedisLock:
     """使用setnx实现的redis分布式锁
-
     :param key_prefix: str, 加锁前缀, 对应某个功能, 形如`supplier_clearing`
     :param error_message: str, 加锁失败的报错消息
     :param lock_period: int, 占锁时间
@@ -97,12 +92,10 @@ class RedisLock:
 
     def acquire(self, key_suffix: str) -> tuple[bool, str]:
         """抢锁, 如果抢锁失败返回对应的报错信息
-
         :param key_suffix: 加锁后缀, 传递给单例的参数
         """
         if self.lock_period <= 0:
             raise ValueError("lock_period must be > 0")
-
         key = f"{self.key_prefix}:{key_suffix}"
         # if not redis.setnx(key, 1):
         #     return False, self.error_message
@@ -112,7 +105,7 @@ class RedisLock:
         return True, ""
 
     def release(self, key_suffix: str) -> None:
-        """ 手动释放锁 """
+        """手动释放锁"""
         self._redis.delete(f"{self.key_prefix}:{key_suffix}")
 
     def check(self, key_suffix: str) -> bool:
@@ -121,7 +114,7 @@ class RedisLock:
         return bool(self._redis.get(key))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sale_order_lock = RedisLock("sale_order", "已开票，请勿重复提交", 120)
 
     # 加锁
@@ -130,6 +123,5 @@ if __name__ == '__main__':
         raise Exception
 
     # 业务处理
-
     # 释放锁
     sale_order_lock.release("xxxx")

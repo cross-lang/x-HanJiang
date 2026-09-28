@@ -5,6 +5,7 @@ Revises: 0001_create_user
 Create Date: 2026-09-23 15:00:00.000000
 
 """
+
 import sqlalchemy as sa
 from alembic import op
 

@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
 数据库基础设施模块
-
 本模块提供数据库连接池管理和会话工厂，确保数据库连接的高效复用和生命周期管理。
-
 功能特性：
     - 基于 SQLAlchemy 2.0 的同步支持
     - MySQL 连接池管理和配置
@@ -11,7 +9,6 @@
 
 Usage:
     from src.infras.database import get_cached_database_provider, Base
-
     provider = get_cached_database_provider()
     with provider.session() as session:
         result = session.execute(select(User))
@@ -35,10 +32,8 @@ Base = declarative_base()
 # ============================================================
 # 抽象基类
 # ============================================================
-
 class DatabaseProvider(ABC):
     """数据库提供者抽象接口。
-
     所有数据库后端必须实现此接口。业务层仅依赖此抽象，
     切换数据库实现只需修改配置，无需改动任何业务代码。
     """
@@ -65,8 +60,11 @@ class DatabaseProvider(ABC):
 
 
 # ============================================================
+
 # MySQL (SQLAlchemy) 实现
+
 # ============================================================
+
 
 class MySqlProvider(DatabaseProvider):
     """MySQL 数据库实现（基于 SQLAlchemy）。"""
@@ -81,10 +79,8 @@ class MySqlProvider(DatabaseProvider):
     ) -> None:
         if not database_url:
             raise ValueError("DATABASE_URL 配置不能为空，请在配置文件或环境变量中设置")
-
         if database_url.startswith("mysql://"):
             database_url = database_url.replace("mysql://", "mysql+pymysql://")
-
         self._engine = create_engine(
             database_url,
             pool_size=pool_size,
@@ -138,8 +134,11 @@ class MySqlProvider(DatabaseProvider):
 
 
 # ============================================================
+
 # 工厂函数
+
 # ============================================================
+
 
 def get_database_provider() -> DatabaseProvider:
     """根据配置创建数据库提供者实例。"""
@@ -151,6 +150,7 @@ def get_database_provider() -> DatabaseProvider:
 
 
 # 模块级缓存实例
+
 _db_provider: DatabaseProvider | None = None
 
 
@@ -180,10 +180,6 @@ def drop_db() -> None:
 
 def get_db_session():
     """FastAPI 依赖：每个请求一个数据库会话，请求结束自动 commit/rollback/close。"""
-    from collections.abc import Generator
-
-    from sqlalchemy.orm import Session
-
     session = get_cached_database_provider().get_session_factory()()
     try:
         yield session

@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """通用重试 Worker。
-
 从 Redis ZSET 消费到期的失败任务，调用用户提供的 handler 重新执行。
 支持多个队列，每个队列对应一个 RetryWorker 实例。
 
 Usage:
     from src.scheduling.retry_worker import RetryWorker
-
     async def my_handler(data: dict) -> bool:
         # 处理任务，返回 True=成功, False=失败
         return True
-
     worker = RetryWorker(
         queue_key="my:retry_queue",
         handler=my_handler,
@@ -36,7 +33,6 @@ RetryHandler = Callable[[dict[str, Any]], Any]
 
 class RetryWorker:
     """通用 Redis ZSET 重试 Worker。
-
     从指定的 Redis ZSET 队列中取出到期任务，调用 handler 执行重试。
     任务数据为 JSON 字符串，score 为下次重试时间戳（Unix 时间戳）。
 
@@ -90,7 +86,6 @@ class RetryWorker:
                 raise
             except Exception as exc:
                 logger.error("RetryWorker error: queue={}, error={}", self._queue_key, exc)
-
             await asyncio.sleep(self._interval)
 
     async def _process_batch(self) -> None:
@@ -99,12 +94,10 @@ class RetryWorker:
 
         redis = get_cached_cache_provider()
         now = time.time()
-
         items = redis.zrangebyscore(self._queue_key, 0, now, start=0, num=self._batch_size)
         for raw in items:
             data: dict[str, Any] = json.loads(raw)
             retry_count = data.get("retry_count", 1)
-
             try:
                 success = self._handler(data)
                 if success:

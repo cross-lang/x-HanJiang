@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 登录日志数据访问实现
-
 本模块提供登录日志 Repository 的 SQLAlchemy 数据库实现。
 支持按用户、登录结果、时间范围等条件查询（登录日志为只读流水，不提供更新/删除）。
-
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
     Entity → Schema 的转换由 Service 层完成。
@@ -17,6 +15,7 @@ from datetime import datetime
 
 from sqlalchemy import func, select
 
+from src.constants.constants import LOGIN_STATUS_FAILED, LOGIN_STATUS_SUCCESS
 from src.core.exceptions import DatabaseException
 from src.models.entities.log_entity import LoginLogEntity
 from src.repositories.base_repository import BaseRepository
@@ -83,11 +82,38 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
             .select_from(LoginLogEntity)
             .where(
                 LoginLogEntity.user_id == user_id,
-                LoginLogEntity.status == "failed",
+                LoginLogEntity.status == LOGIN_STATUS_FAILED,
                 LoginLogEntity.created_at >= cutoff,
             )
         )
         return int(self.session.execute(stmt).scalar() or 0)
+
+    def get_previous_success(
+        self,
+        user_id: int,
+        skip: int = 1,
+    ) -> LoginLogEntity | None:
+        """查询指定用户最近一次成功登录记录（默认跳过最新一条）。
+        新设备登录检测用：排除本次登录刚写入的记录，取上一次成功登录。
+
+        Args:
+            user_id: 用户 ID
+            skip: 跳过的成功登录记录条数（默认 1，即排除最新一条）
+
+        Returns:
+            LoginLogEntity | None: 上一次成功登录记录，不存在返回 None
+        """
+        stmt = (
+            select(LoginLogEntity)
+            .where(
+                LoginLogEntity.user_id == user_id,
+                LoginLogEntity.status == LOGIN_STATUS_SUCCESS,
+            )
+            .order_by(LoginLogEntity.created_at.desc())
+            .offset(skip)
+            .limit(1)
+        )
+        return self.session.execute(stmt).scalars().first()
 
     def update(self, id: int, entity: LoginLogEntity) -> LoginLogEntity | None:
         """登录日志不可变更，仅回读。"""

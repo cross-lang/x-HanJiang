@@ -1,58 +1,54 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 文本处理模块
-
 提供字符串检索（KMP）、中文字符检测、哈希计算、CRC32 计算、汉字转拼音等常用文本工具方法。
 """
 
-import re
-import zlib
 import difflib
 import hashlib
-
-from pypinyin import Style, pinyin
+import re
+import zlib
 from typing import Any
 
+from pypinyin import Style, pinyin
 
 NUM_ARABIC_TO_CH_MAP: dict[int, str] = {
-    0: '零',
-    1: '一',
-    2: '二',
-    3: '三',
-    4: '四',
-    5: '五',
-    6: '六',
-    7: '七',
-    8: '八',
-    9: '九'
+    0: "零",
+    1: "一",
+    2: "二",
+    3: "三",
+    4: "四",
+    5: "五",
+    6: "六",
+    7: "七",
+    8: "八",
+    9: "九",
 }
 
 NUM_CH_TO_ARABIC_MAP: dict[str, int] = {
-    '零': 0,
-    '一': 1,
-    '二': 2,
-    '三': 3,
-    '四': 4,
-    '五': 5,
-    '六': 6,
-    '七': 7,
-    '八': 8,
-    '九': 9
+    "零": 0,
+    "一": 1,
+    "二": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
 }
 
 NUM_ARABIC_TO_TRA_CH_MAP: dict[int, str] = {
-    0: '零',
-    1: '壹',
-    2: '贰',
-    3: '叁',
-    4: '肆',
-    5: '伍',
-    6: '陆',
-    7: '柒',
-    8: '捌',
-    9: '玖'
+    0: "零",
+    1: "壹",
+    2: "贰",
+    3: "叁",
+    4: "肆",
+    5: "伍",
+    6: "陆",
+    7: "柒",
+    8: "捌",
+    9: "玖",
 }
 
 
@@ -60,10 +56,8 @@ def get_same_start_end(pattern: str) -> list[int]:
     """获取最长前后缀相同的字符位数。"""
     n = len(pattern)
     result_list: list[int] = [0] * n
-
     if n <= 1:
         return result_list
-
     i = 2
     while i < n:
         if pattern[i - 1] == pattern[result_list[i - 1]]:
@@ -101,18 +95,12 @@ def is_str(value: Any) -> bool:
 
 def is_all_chinese(value: str) -> bool:
     """检验是否全是中文字符。"""
-    for _char in value:
-        if not u'\u4e00' <= _char <= u'\u9fff':
-            return False
-    return True
+    return all("\u4e00" <= _char <= "\u9fff" for _char in value)
 
 
 def is_contains_chinese(value: str) -> bool:
     """检验是否含有中文字符。"""
-    for _char in value:
-        if u'\u4e00' <= _char <= u'\u9fff':
-            return True
-    return False
+    return any("\u4e00" <= _char <= "\u9fff" for _char in value)
 
 
 def is_md5_value(value: str) -> bool:
@@ -171,65 +159,36 @@ def string_similar(str1: str, str2: str) -> float:
 
 def convert_ch_to_arabic(text: str) -> str:
     """将文本中的汉字数字转换为阿拉伯数字。"""
-    return (
-        "".join(
-            (
-                str(NUM_CH_TO_ARABIC_MAP.get(_))
-                if _ in NUM_CH_TO_ARABIC_MAP.keys() else _
-                for _ in text
-            )
-        )
-    )
+    return "".join(str(NUM_CH_TO_ARABIC_MAP.get(_)) if _ in NUM_CH_TO_ARABIC_MAP else _ for _ in text)
 
 
 def hanzi_to_pinyin(hanzi_name: str) -> str:
     """汉字转为拼音（基础版）。"""
-    return (
-        "".join(
-            (
-                pinyin_ls[0]
-                for pinyin_ls
-                in pinyin(
-                    hanzi_name,
-                    style=Style.NORMAL,
-                    errors='ignore',
-                    strict=False,
-                    heteronym=True
-                )
-            )
-        )
+    return "".join(
+        pinyin_ls[0]
+        for pinyin_ls in pinyin(hanzi_name, style=Style.NORMAL, errors="ignore", strict=False, heteronym=True)
     )
 
 
 def advanced_hanzi_to_pinyin(hanzi_name: str) -> str:
     """汉字转为拼音（高级版，阿拉伯数字先转汉字再转拼音）。"""
-    str_arabic_list = [str(_) for _ in NUM_ARABIC_TO_TRA_CH_MAP.keys()]
-
-    return (
-        "".join(
-            (
-                pinyin_ls[0]
-                for pinyin_ls
-                in pinyin(
-                    "".join(
-                        (
-                            NUM_ARABIC_TO_TRA_CH_MAP[int(_)]
-                            if _.isdigit() and _ in str_arabic_list else _
-                            for _ in hanzi_name
-                        )
-                    ),
-                    style=Style.NORMAL,
-                    errors='ignore',
-                    strict=False,
-                    heteronym=True
-                )
-            )
+    str_arabic_list = [str(_) for _ in NUM_ARABIC_TO_TRA_CH_MAP]
+    return "".join(
+        pinyin_ls[0]
+        for pinyin_ls in pinyin(
+            "".join(
+                NUM_ARABIC_TO_TRA_CH_MAP[int(_)] if _.isdigit() and _ in str_arabic_list else _ for _ in hanzi_name
+            ),
+            style=Style.NORMAL,
+            errors="ignore",
+            strict=False,
+            heteronym=True,
         )
     )
 
 
-if __name__ == '__main__':
-    print(is_str(u"xxx"))
+if __name__ == "__main__":
+    print(is_str("xxx"))
     print(is_contains_chinese("我们中国ss"))
     print(is_all_chinese("我们中国ss"))
     print(is_contains_chinese("ss"))

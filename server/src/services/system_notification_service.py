@@ -1,5 +1,4 @@
 """系统级通知配置服务。
-
 仅调用 SystemNotificationConfigRepository 存取数据，不直接操作数据库会话。
 """
 
@@ -9,7 +8,6 @@ from typing import Any
 
 import psutil
 
-from src.core.logger import logger
 from src.repositories.system_notification_config_repository import (
     SystemNotificationConfigRepository,
 )
@@ -42,12 +40,15 @@ class SystemNotificationService:
 
     def list_configs(self) -> list[dict[str, Any]]:
         rows = self._repository.list_all()
-        return [{
-            "channel": r.channel,
-            "config_json": r.config_json,
-            "enabled": r.enabled,
-            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
-        } for r in rows]
+        return [
+            {
+                "channel": r.channel,
+                "config_json": r.config_json,
+                "enabled": r.enabled,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            }
+            for r in rows
+        ]
 
     def update_config(self, channel: str, config_json: str, enabled: bool) -> None:
         self._repository.upsert(channel=channel, config_json=config_json, enabled=enabled)
@@ -65,7 +66,6 @@ class SystemNotificationService:
     # ── CPU ──────────────────────────────────────────────
     def _cpu_info(self) -> dict[str, Any]:
         percent = psutil.cpu_percent(interval=0.3)
-        per_core = psutil.cpu_percent(interval=0.3, percpu=True)
         freq = psutil.cpu_freq()
         return {
             "percent": round(percent, 1),
@@ -106,7 +106,6 @@ class SystemNotificationService:
         now = time.time()
         prev_ts = _last_net_counters["ts"]
         interval = now - prev_ts if prev_ts else 0.0
-
         if interval > 0.1:
             sent_rate = (counters.bytes_sent - _last_net_counters["bytes_sent"]) / interval
             recv_rate = (counters.bytes_recv - _last_net_counters["bytes_recv"]) / interval
@@ -124,7 +123,6 @@ class SystemNotificationService:
                     "bytes_sent": float(counters.bytes_sent),
                     "bytes_recv": float(counters.bytes_recv),
                 }
-
         return {
             "bytes_sent_total_mb": round(counters.bytes_sent / 1024**2, 1),
             "bytes_recv_total_mb": round(counters.bytes_recv / 1024**2, 1),

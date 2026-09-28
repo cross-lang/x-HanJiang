@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """可描述枚举基类。
-
 为枚举成员附加 mark（唯一标识）和 desc（描述信息），
 使枚举可直接与 str/int 比较，并兼容 Pydantic 序列化。
 """
@@ -10,7 +9,6 @@ from enum import Enum
 
 class BaseEnum(Enum):
     """可描述枚举基类。
-
     每个成员持有两个属性：
         mark: 唯一标识（int 或 str），用于数据库存储和序列化
         desc: 人类可读的描述信息

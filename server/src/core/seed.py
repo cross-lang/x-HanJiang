@@ -1,13 +1,11 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 种子数据管理模块
-
 应用启动时检测并自动创建系统内置种子数据：
-    1. 超级管理员角色（roles 表，role_type=system，role_code=super_admin）
+    1. 超级管理员角色（roles 表，role_type=system，role_code=SUPERADMIN）
     2. 超级管理员用户（users 表，username=superadmin，绑定上述角色）
     3. 内置权限（permissions 表）
     4. 角色权限关联（role_permissions 表，将全部权限绑定到超级管理员角色）
-
 若数据已存在则跳过，保证幂等。
 
 Functions:
@@ -16,11 +14,10 @@ Functions:
 
 from sqlalchemy import select
 
+from src.constants.constants import SUPERADMIN_USERNAME
 from src.constants.enums import SystemRoleCode
 from src.core.logger import logger
-from src.utils.security import hash_password
 from src.infras.database import get_cached_database_provider
-from src.infras.database import MySqlProvider
 from src.models.entities.menu_entity import MenuEntity
 from src.models.entities.user_entity import (
     PermissionEntity,
@@ -28,9 +25,10 @@ from src.models.entities.user_entity import (
     RolePermissionEntity,
     UserEntity,
 )
+from src.utils.security import hash_password
 
 # ── 超级管理员 ──────────────────────────────────────────────
-_SEED_ROLE_CODE = SystemRoleCode.SUPER_ADMIN.mark
+_SEED_ROLE_CODE = SystemRoleCode.SUPERADMIN.mark
 _SEED_ROLE_NAME = "超级管理员"
 
 # ── 管理员 ──────────────────────────────────────────────────
@@ -40,7 +38,7 @@ _SEED_ADMIN_ROLE_NAME = "管理员"
 # ── 普通用户 ────────────────────────────────────────────────
 _SEED_USER_ROLE_CODE = "user"
 _SEED_USER_ROLE_NAME = "普通用户"
-_SEED_ADMIN_USERNAME = "superadmin"
+_SEED_ADMIN_USERNAME = SUPERADMIN_USERNAME
 _SEED_ADMIN_PASSWORD = "admin@123456"
 _SEED_ADMIN_EMAIL = "superadmin@system.local"
 
@@ -68,12 +66,19 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("notification:create", "创建通知", "notification", "create", "手动发送通知", 41),
     ("alert:broadcast", "广播告警", "alert", "broadcast", "向全体用户广播告警", 50),
     ("maintenance:notify", "发送维护通知", "maintenance", "notify", "向全体用户发送维护通知", 51),
+    ("notification:config", "通知配置管理", "notification", "config", "系统通知渠道配置管理", 52),
     ("openapi_app:view", "查看开放平台应用", "openapi_app", "view", "查看开放平台应用列表", 60),
     ("openapi_app:create", "创建开放平台应用", "openapi_app", "create", "创建开放平台应用", 61),
     ("openapi_app:edit", "编辑开放平台应用", "openapi_app", "edit", "编辑开放平台应用", 62),
     ("openapi_app:delete", "删除开放平台应用", "openapi_app", "delete", "删除开放平台应用", 63),
     ("openapi_scope:view", "查看开放平台权限", "openapi_scope", "view", "查看开放平台 scope 列表", 64),
     ("dashboard:view", "查看仪表盘", "dashboard", "view", "获取仪表盘关键指标", 70),
+    ("profile:view", "查看个人中心", "profile", "view", "查看个人资料与通知设置", 71),
+    ("profile:edit", "编辑个人中心", "profile", "edit", "修改个人资料与通知设置", 72),
+    ("profile:password", "修改密码", "profile", "password", "修改个人登录密码", 73),
+    ("station:view", "查看站内信", "station", "view", "查看站内信列表与未读数", 74),
+    ("station:edit", "管理站内信", "station", "edit", "标记站内信已读", 75),
+    ("global_search:search", "全局搜索", "global_search", "search", "跨模块关键字搜索", 76),
     ("swagger:view", "查看Swagger文档", "swagger", "view", "查看API Swagger文档", 80),
 ]
 
@@ -92,7 +97,7 @@ _SEED_MENUS = [
     ("系统管理", "审计日志", "/audit", "Document", "audit_log:view", 4, "menu"),
     ("系统管理", "登录日志", "/audit/login", "User", "login_log:view", 5, "menu"),
     ("系统管理", "文件管理", "/files", "Folder", "file:view", 6, "menu"),
-    ("系统管理", "通知管理", "/system-notification", "Bell", "alert:broadcast", 7, "menu"),
+    ("系统管理", "通知管理", "/system-notification", "Bell", "notification:config", 7, "menu"),
     # 接口管理
     (0, "接口管理", "/apis", "Link", None, 4, "directory"),
     ("接口管理", "Swagger文档", "/apis/swagger", "Document", "swagger:view", 1, "menu"),
@@ -103,7 +108,6 @@ _SEED_MENUS = [
 ]
 
 
-
 def init_seed_data() -> None:
     """初始化系统种子数据（幂等，可重复调用）。"""
     session = get_cached_database_provider().get_session_factory()()
@@ -111,9 +115,7 @@ def init_seed_data() -> None:
         # 1. 权限
         perm_map: dict[str, PermissionEntity] = {}
         for code, name, module, op, desc, sort in _SEED_PERMISSIONS:
-            perm = session.execute(
-                select(PermissionEntity).where(PermissionEntity.perm_code == code)
-            ).scalars().first()
+            perm = session.execute(select(PermissionEntity).where(PermissionEntity.perm_code == code)).scalars().first()
             if perm is None:
                 perm = PermissionEntity(
                     perm_code=code,
@@ -127,11 +129,8 @@ def init_seed_data() -> None:
                 session.flush()
                 logger.info(f"Seed permission created: perm_code={code}")
             perm_map[code] = perm
-
         # 2. 超级管理员角色
-        role = session.execute(
-            select(RoleEntity).where(RoleEntity.role_code == _SEED_ROLE_CODE)
-        ).scalars().first()
+        role = session.execute(select(RoleEntity).where(RoleEntity.role_code == _SEED_ROLE_CODE)).scalars().first()
         if role is None:
             role = RoleEntity(
                 role_name=_SEED_ROLE_NAME,
@@ -143,15 +142,13 @@ def init_seed_data() -> None:
             session.add(role)
             session.flush()
             logger.info(f"Seed role created: role_code={_SEED_ROLE_CODE}")
-
         # 3. 超级管理员角色 → 绑定全部权限
         for perm in perm_map.values():
             _ensure_role_permission(session, role.id, perm.id)
-
         # 3.5 管理员角色（除不能管理超级管理员外，其余权限相同）
-        admin_role = session.execute(
-            select(RoleEntity).where(RoleEntity.role_code == _SEED_ADMIN_ROLE_CODE)
-        ).scalars().first()
+        admin_role = (
+            session.execute(select(RoleEntity).where(RoleEntity.role_code == _SEED_ADMIN_ROLE_CODE)).scalars().first()
+        )
         if admin_role is None:
             admin_role = RoleEntity(
                 role_name=_SEED_ADMIN_ROLE_NAME,
@@ -163,15 +160,13 @@ def init_seed_data() -> None:
             session.add(admin_role)
             session.flush()
             logger.info(f"Seed role created: role_code={_SEED_ADMIN_ROLE_CODE}")
-
         # 管理员角色 → 绑定全部权限（幂等，无论角色是否新建都执行）
         for perm in perm_map.values():
             _ensure_role_permission(session, admin_role.id, perm.id)
-
-        # 3.6 普通用户角色（只能查看首页，无额外权限）
-        user_role = session.execute(
-            select(RoleEntity).where(RoleEntity.role_code == _SEED_USER_ROLE_CODE)
-        ).scalars().first()
+        # 3.6 普通用户角色（绑定个人基础功能权限，无管理权限）
+        user_role = (
+            session.execute(select(RoleEntity).where(RoleEntity.role_code == _SEED_USER_ROLE_CODE)).scalars().first()
+        )
         if user_role is None:
             user_role = RoleEntity(
                 role_name=_SEED_USER_ROLE_NAME,
@@ -183,13 +178,25 @@ def init_seed_data() -> None:
             session.add(user_role)
             session.flush()
             logger.info(f"Seed role created: role_code={_SEED_USER_ROLE_CODE}")
-
+        # 3.7 普通用户角色 → 绑定个人基础功能权限（幂等）
+        user_basic_codes = [
+            "profile:view",
+            "profile:edit",
+            "profile:password",
+            "station:view",
+            "station:edit",
+            "dashboard:view",
+            "global_search:search",
+        ]
+        for code in user_basic_codes:
+            target_perm = perm_map.get(code)
+            if target_perm is not None:
+                _ensure_role_permission(session, user_role.id, target_perm.id)
         # 4. 超级管理员用户
-        admin = session.execute(
-            select(UserEntity).where(UserEntity.username == _SEED_ADMIN_USERNAME)
-        ).scalars().first()
+        admin = session.execute(select(UserEntity).where(UserEntity.username == _SEED_ADMIN_USERNAME)).scalars().first()
         if admin is None:
             from datetime import date
+
             admin = UserEntity(
                 username=_SEED_ADMIN_USERNAME,
                 name="超级管理员",
@@ -204,17 +211,18 @@ def init_seed_data() -> None:
             session.add(admin)
             session.flush()
             # 绑定超级管理员角色
-            session.add(RolePermissionEntity.__class__ if False else __import__('src.models.entities.user_entity', fromlist=['UserRoleEntity']).UserRoleEntity(
-                user_id=admin.id, role_id=role.id
-            ))
+            session.add(
+                RolePermissionEntity.__class__
+                if False
+                else __import__("src.models.entities.user_entity", fromlist=["UserRoleEntity"]).UserRoleEntity(
+                    user_id=admin.id, role_id=role.id
+                )
+            )
             logger.info(f"Seed admin user created: username={_SEED_ADMIN_USERNAME}")
-
         # 5. 菜单数据
         _seed_menus(session)
-
         # 6. 通知渠道配置（把 .env 里的 SMTP 等配置初始化进数据库）
         _seed_notification_configs(session)
-
         session.commit()
         logger.info("Seed data initialization completed")
     except Exception as e:  # noqa: BLE001
@@ -226,12 +234,16 @@ def init_seed_data() -> None:
 
 def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:
     """确保角色权限关联存在，不存在则创建。"""
-    relation = session.execute(
-        select(RolePermissionEntity).where(
-            RolePermissionEntity.role_id == role_id,
-            RolePermissionEntity.permission_id == permission_id,
+    relation = (
+        session.execute(
+            select(RolePermissionEntity).where(
+                RolePermissionEntity.role_id == role_id,
+                RolePermissionEntity.permission_id == permission_id,
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if relation is None:
         relation = RolePermissionEntity(
             role_id=role_id,
@@ -240,16 +252,15 @@ def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:
         session.add(relation)
         session.flush()
 
+
 def _seed_menus(session) -> None:
     """初始化菜单数据（幂等）。"""
     # 先查已有菜单，按 title 建索引
     existing = session.execute(select(MenuEntity)).scalars().all()
     title_map = {m.title: m for m in existing}
-
     parent_map: dict[str, MenuEntity] = {}
     for item in existing:
         parent_map[item.title] = item
-
     for parent_title, title, path, icon, perm_code, sort_order, mtype in _SEED_MENUS:
         if title in title_map:
             continue
@@ -276,7 +287,6 @@ def _seed_menus(session) -> None:
 
 def _seed_notification_configs(session) -> None:
     """初始化通知渠道配置（幂等）。
-
     把 .env / config.yaml 里已有的 SMTP 配置写入 system_notification_configs 表，
     这样管理后台就能看到并编辑；表已有记录则跳过。
     """
@@ -289,7 +299,6 @@ def _seed_notification_configs(session) -> None:
 
     existing = session.execute(select(SystemNotificationConfigEntity)).scalars().all()
     existing_channels = {r.channel for r in existing}
-
     # 邮件：从 .env 的 SMTP 配置导入
     if "email" not in existing_channels and settings.smtp.host:
         email_cfg = {
@@ -301,13 +310,14 @@ def _seed_notification_configs(session) -> None:
             "from_name": settings.smtp.from_name,
             "from_address": settings.smtp.from_address,
         }
-        session.add(SystemNotificationConfigEntity(
-            channel="email",
-            config_json=json.dumps(email_cfg, ensure_ascii=False),
-            enabled=True,
-        ))
+        session.add(
+            SystemNotificationConfigEntity(
+                channel="email",
+                config_json=json.dumps(email_cfg, ensure_ascii=False),
+                enabled=True,
+            )
+        )
         logger.info("Seed notification config created: channel=email")
-
     # 钉钉：从 .env 导入（如果有配置）
     if "dingtalk" not in existing_channels:
         n = settings.notification
@@ -319,13 +329,14 @@ def _seed_notification_configs(session) -> None:
                 "app_secret": n.dingtalk_app_secret or "",
                 "agent_id": n.dingtalk_agent_id or "",
             }
-            session.add(SystemNotificationConfigEntity(
-                channel="dingtalk",
-                config_json=json.dumps(dt_cfg, ensure_ascii=False),
-                enabled=True,
-            ))
+            session.add(
+                SystemNotificationConfigEntity(
+                    channel="dingtalk",
+                    config_json=json.dumps(dt_cfg, ensure_ascii=False),
+                    enabled=True,
+                )
+            )
             logger.info("Seed notification config created: channel=dingtalk")
-
     # 飞书：从 .env 导入（如果有配置）
     if "feishu" not in existing_channels:
         n = settings.notification
@@ -336,9 +347,11 @@ def _seed_notification_configs(session) -> None:
                 "app_id": n.feishu_app_id or "",
                 "app_secret": n.feishu_app_secret or "",
             }
-            session.add(SystemNotificationConfigEntity(
-                channel="feishu",
-                config_json=json.dumps(fs_cfg, ensure_ascii=False),
-                enabled=True,
-            ))
+            session.add(
+                SystemNotificationConfigEntity(
+                    channel="feishu",
+                    config_json=json.dumps(fs_cfg, ensure_ascii=False),
+                    enabled=True,
+                )
+            )
             logger.info("Seed notification config created: channel=feishu")

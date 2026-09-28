@@ -1,7 +1,6 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 角色业务逻辑实现
-
 提供角色查询、创建、更新、删除，以及角色权限绑定关系维护。
 
 Classes:
@@ -15,8 +14,6 @@ from src.core.logger import logger
 from src.models.entities.user_entity import (
     PermissionEntity,
     RoleEntity,
-    RolePermissionEntity,
-    UserRoleEntity,
 )
 from src.repositories.permission_repository import PermissionRepository
 from src.repositories.role_permission_repository import RolePermissionRepository
@@ -32,10 +29,8 @@ from src.services.base_service import BaseService
 
 class RoleService(BaseService[RoleResponse, int, RoleRepository]):
     """角色业务逻辑实现。
-
     继承 BaseService 提供的通用能力：
         - get_by_id / get_all / _commit / _audit / _log_action
-
     本类负责：
         - 角色特有的业务校验（编码/名称唯一性）
         - Entity → RoleResponse 转换
@@ -52,12 +47,8 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
     ) -> None:
         """初始化角色服务。"""
         self._repository: RoleRepository = role_repository
-        self._rp_repository = role_permission_repository or RolePermissionRepository(
-            session=role_repository.session
-        )
-        self._permission_repository = permission_repository or PermissionRepository(
-            session=role_repository.session
-        )
+        self._rp_repository = role_permission_repository or RolePermissionRepository(session=role_repository.session)
+        self._permission_repository = permission_repository or PermissionRepository(session=role_repository.session)
 
     def search(
         self,
@@ -90,7 +81,6 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
             raise ConflictException(message=f"角色编码 {request.role_code} 已存在")
         if self._repository.get_by_name(request.role_name) is not None:
             raise ConflictException(message=f"角色名称 {request.role_name} 已存在")
-
         entity = RoleEntity(
             role_name=request.role_name,
             role_code=request.role_code,
@@ -106,7 +96,7 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
             operator=operator,
             before_data=None,
             after_data={"role_name": created.role_name, "role_code": created.role_code},
-            remarks=f"创建角色{existing.role_name}",
+            remarks=f"创建角色{created.role_name}",
         )
         result = self._to_response(created)
         logger.info(f"Role created: id={result.id} code={result.role_code}")
@@ -118,7 +108,6 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
-
         patch = RoleEntity(
             id=id,
             role_name=existing.role_name,
@@ -131,7 +120,6 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         for key, value in patch_dict.items():
             if hasattr(patch, key):
                 setattr(patch, key, value)
-
         updated = self._repository.update(id, patch)
         if updated is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
@@ -153,14 +141,10 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
-
         # 检查是否有关联用户（经仓库）
         user_count = self._repository.count_user_links(id)
         if user_count > 0:
-            raise ConflictException(
-                message=f"该角色已关联 {user_count} 个用户，请先解除角色关联后再删除"
-            )
-
+            raise ConflictException(message=f"该角色已关联 {user_count} 个用户，请先解除角色关联后再删除")
         deleted = self._repository.delete(id)
         if deleted:
             self._commit()
@@ -168,7 +152,11 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
                 entity_id=id,
                 action="delete",
                 operator=operator,
-                before_data={"role_name": existing.role_name, "role_code": existing.role_code, "status": existing.status},
+                before_data={
+                    "role_name": existing.role_name,
+                    "role_code": existing.role_code,
+                    "status": existing.status,
+                },
                 after_data=None,
                 remarks=f"删除角色{existing.role_name}",
             )

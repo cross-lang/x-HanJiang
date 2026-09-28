@@ -6,7 +6,6 @@
 """
 
 
-
 class TestLogger:
     """日志模块测试。"""
 

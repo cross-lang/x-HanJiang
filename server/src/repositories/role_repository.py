@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 角色数据访问实现
-
 本模块提供角色 Repository 的 SQLAlchemy 数据库实现。
 支持按角色编码、角色名称等条件查询。
-
 分层约束：
     Repository 仅依赖 ORM Entity 与异常体系，不依赖任何 API Schema；
     Entity → Schema 的转换由 Service 层完成。
@@ -62,9 +60,7 @@ class RoleRepository(BaseRepository[RoleEntity, int]):
         """统计角色关联的用户数。"""
         return (
             self.session.execute(
-                select(func.count(UserRoleEntity.user_id)).where(
-                    UserRoleEntity.role_id == role_id
-                )
+                select(func.count(UserRoleEntity.user_id)).where(UserRoleEntity.role_id == role_id)
             ).scalar()
             or 0
         )
@@ -81,9 +77,7 @@ class RoleRepository(BaseRepository[RoleEntity, int]):
         conditions = [RoleEntity.deleted_at.is_(None)]
         if keyword:
             like = f"%{keyword}%"
-            conditions.append(
-                (RoleEntity.role_name.like(like)) | (RoleEntity.role_code.like(like))
-            )
+            conditions.append((RoleEntity.role_name.like(like)) | (RoleEntity.role_code.like(like)))
         if role_type:
             conditions.append(RoleEntity.role_type == role_type)
         if status:

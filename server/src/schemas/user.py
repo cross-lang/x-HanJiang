@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 用户数据模型
-
 本模块定义用户管理相关的请求和响应数据传输对象（DTO）。
 
 Classes:
@@ -44,7 +43,6 @@ class UserCreateRequest(BaseModel):
     role_name: str | None = Field(default=None, description="角色名称")
     roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="状态")
-
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     @field_validator("email")
@@ -59,7 +57,6 @@ class UserCreateRequest(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     """用户更新请求模型。
-
     所有字段均为可选，仅更新提供的字段。
 
     Attributes:
@@ -85,7 +82,6 @@ class UserUpdateRequest(BaseModel):
     role_name: str | None = Field(default=None, description="角色名称")
     roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: UserStatus | None = Field(default=None, description="状态")
-
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     @field_validator("email")
@@ -118,7 +114,6 @@ class AdminResetPasswordRequest(BaseModel):
         max_length=64,
         description="确认密码",
     )
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -162,9 +157,9 @@ class UserResponse(BaseModel):
         if isinstance(v, str):
             return v[:10]
         return str(v)[:10]
+
     created_at: datetime | None = Field(default=None, description="创建时间")
     updated_at: datetime | None = Field(default=None, description="更新时间")
-
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator("last_login_at", "created_at", "updated_at", mode="before")

@@ -7,19 +7,23 @@
 HanJiang is a full-stack rapid development platform built on FastAPI + Vue 3 + TypeScript, deeply packaging the common capabilities of enterprise-grade web applications so developers can focus on business logic.
 
 **Key Features:**
+
 - Frontend-backend separation: FastAPI + Vue 3 + Element Plus, full-stack TypeScript
 - Built-in JWT auth + RBAC + audit logging + login logs, out-of-the-box
 - Auto-register permissions via `@permission` decorator, synced to DB on startup
-- Open platform HanJiang-1 HMAC signature, supporting plain and signed modes
+- Open platform HanJiang-1 HMAC signature, supporting plain and signed modes, with built-in app management (AppId/AppKey lifecycle, scope authorization, key rotation)
+- Event-driven multi-channel notification system (station / email / DingTalk / Feishu / SMS) with per-user preferences and automatic retry
 - Layered architecture: API routes → Business logic → Data access
-- Production-grade security (constant-time comparison, replay protection, password hashing)
+- Production-grade security (constant-time comparison, replay protection, password hashing, email verification code for sensitive operations)
 - Built-in dashboard (user/role/app stats + login trend + audit trend + ECharts)
-- Great developer experience (Swagger docs, Alembic migrations, unified error handling)
+- File management (local / S3-compatible storage), global search, profile center, system alerts & maintenance notices
+- Great developer experience (Swagger docs, Alembic migrations, unified error handling, GitHub Actions CI)
 
 **Use Cases:**
+
 - Enterprise internal admin systems
 - SaaS product backend foundation
-- Open platform / API service gateway
+- Open platform / API gateway
 - Full-stack project boilerplate
 
 ## Quick Start
@@ -52,22 +56,28 @@ x-HanJiang/
 │   │   ├── api/              # Routes (v1 user + open/v1 open platform)
 │   │   ├── constants/        # Constants & enums (ModuleCode, BaseEnum)
 │   │   ├── core/             # Core (config/middleware/exceptions/security)
-│   │   ├── infras/           # Infrastructure (database)
-│   │   ├── models/           # SQLAlchemy data models
+│   │   ├── infras/           # Infrastructure (database/cache/storage/notification channels)
+│   │   ├── models/           # SQLAlchemy data models (models/entities)
+│   │   ├── notification/     # Notification subsystem (dispatcher/templates/retry)
 │   │   ├── repositories/     # Data access layer
+│   │   ├── scheduling/       # Scheduled tasks (notification retry worker)
 │   │   ├── schemas/          # Pydantic schemas
 │   │   ├── services/         # Business logic layer
-│   │   ├── utils/             # Utilities
+│   │   ├── utils/            # Utilities
 │   │   └── main.py           # Application entry
 │   ├── alembic/              # Database migrations
 │   ├── config/               # Configuration
+│   ├── docs/                 # Project docs (DDL SQL, Postman collection)
+│   ├── examples/             # Usage examples
 │   ├── logs/                 # Log output
+│   ├── scripts/              # Engineering scripts
+│   ├── static/               # Local file storage directory
+│   ├── tests/                # Unit tests
 │   └── pyproject.toml
 ├── web/                      # Frontend
 │   ├── admin/                # Admin dashboard (Vue3 + TS + Element Plus + ECharts)
 │   └── open/                 # Open platform portal (TBD)
-├── docker-compose.yml         # Docker orchestration
-├── CHANGELOG.md              # Changelog
+├── docker-compose.yml        # Docker orchestration
 └── README.md
 ```
 
@@ -91,6 +101,7 @@ graph TB
     subgraph Infrastructure
         F[(MySQL)]
         G[(Redis)]
+        H[(Local/S3 Storage)]
     end
 
     A -->|HTTP /api/v1| C
@@ -99,6 +110,7 @@ graph TB
     D --> E
     E --> F
     D --> G
+    D --> H
 ```
 
 ### Core Flow: User Login
@@ -133,6 +145,27 @@ flowchart LR
     D --> E[In DB but not in Routes → is_deprecated=True]
 ```
 
+### Notification Dispatch Flow
+
+```mermaid
+flowchart TD
+    A[Business Event<br/>e.g. user.password_changed] --> B[Notification Dispatcher]
+    B --> C[Resolve User Preferences & Recipients]
+    C --> D[Station]
+    C --> E[Email]
+    C --> F[DingTalk]
+    C --> G[Feishu]
+    D --> H[Write Notification Record]
+    E --> H
+    F --> H
+    G --> H
+    H --> I{Sent Successfully?}
+    I -->|No| J[Redis Retry Queue]
+    J --> K[Retry Worker]
+    K --> D
+    I -->|Yes| L[Done]
+```
+
 ## Tech Stack
 
 | Category | Technology |
@@ -145,11 +178,12 @@ flowchart LR
 | **Build Tool** | Vite 6 |
 | **UI Library** | Element Plus |
 | **State Management** | Pinia |
-| **Charts** | ECharts + vue-echarts |
+| **Charts** | ECharts 6 + vue-echarts |
 | **Database** | MySQL |
 | **Cache** | Redis |
 | **Logging** | Loguru |
 | **Auth** | JWT + HMAC Signature |
+| **Package Manager** | uv |
 | **Deployment** | Docker / docker-compose |
 
 ## API Documentation
@@ -165,9 +199,15 @@ Once the backend is running:
 | Module | Endpoint | Description |
 |---|---|---|
 | Auth | `POST /api/v1/auth/login` | User login |
-| Auth | `GET /api/v1/auth/me` | Current user info |
+| Auth | `POST /api/v1/auth/refresh` | Refresh tokens |
+| Auth | `POST /api/v1/auth/logout` | Logout |
+| Profile | `GET /api/v1/profile/me` | Current user info |
+| Profile | `GET /api/v1/profile/menus` | Current user menu tree |
+| Profile | `POST /api/v1/profile/change-password` | Change password (email code verification) |
 | Users | `GET /api/v1/users` | User list (multi-role) |
 | Users | `POST /api/v1/users` | Create user |
+| Users | `GET /api/v1/users/export` | Export users (CSV) |
+| Users | `POST /api/v1/users/import` | Bulk import users (CSV) |
 | Users | `POST /api/v1/users/{id}/update` | Update user |
 | Roles | `GET /api/v1/roles` | Role list |
 | Roles | `GET /api/v1/roles/{id}/permissions` | Role permissions |
@@ -175,14 +215,22 @@ Once the backend is running:
 | Permissions | `GET /api/v1/permissions` | Permission list |
 | Audit Logs | `GET /api/v1/audit/logs` | Business audit log list |
 | Login Logs | `GET /api/v1/audit/login-logs` | Login log list |
+| Files | `POST /api/v1/files/upload` | Upload file |
+| Files | `GET /api/v1/files` | File list |
+| Notifications | `GET /api/v1/notifications` | Notification list |
+| Station | `GET /api/v1/station/messages` | My message list |
+| Station | `GET /api/v1/station/messages/unread-count` | Unread message count |
 | Dashboard | `GET /api/v1/dashboard/stats` | Dashboard stats |
+| Global Search | `GET /api/v1/search` | Global search (users/roles/permissions/apps/files) |
+| Open API Apps | `POST /api/v1/admin/apps` | Create open app (returns AppId + AppKey) |
+| Open API Apps | `POST /api/v1/admin/apps/{app_id}/rotate-key` | Rotate AppKey |
+| Open API | `GET /api/open/v1/me` | Current app info |
 | Open API | `GET /api/open/v1/users` | Open platform user query |
-| Open API | `GET /api/open/v1/apps/me` | Current app info |
 
 ### Authorization
 
 - **User endpoints**: JWT Bearer Token + `@permission` decorator auto-registration + role/permission check
-- **Open platform endpoints**: AppId + AppKey (plain) or HanJiang-1 HMAC signature
+- **Open platform endpoints**: AppId + AppKey (plain) or HanJiang-1 HMAC signature, scope-based access control
 
 ## Storage
 
@@ -195,7 +243,7 @@ Once the backend is running:
 ### Cache
 
 - **Type**: Redis
-- **Usage**: rate limiting, session cache
+- **Usage**: rate limiting, login state cache, notification retry queue
 - **Config**: via `.env` (`REDIS_HOST`, `REDIS_PORT`)
 
 ### File Storage
@@ -214,6 +262,7 @@ This project is licensed under the [MIT License](LICENSE).
 ## References
 
 - [FastAPI Docs](https://fastapi.tiangolo.com/)
+- [uv Docs](https://docs.astral.sh/uv/)
 - [SQLAlchemy Docs](https://docs.sqlalchemy.org/)
 - [Vue 3 Docs](https://vuejs.org/)
 - [Vite Docs](https://vitejs.dev/)

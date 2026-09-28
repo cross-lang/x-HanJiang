@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 统一日志管理模块
-
 本模块提供全局唯一日志实例，基于 loguru 实现，支持：
     - **JSON 结构化日志**（默认）：扁平 JSON 格式，适合 Loki / ELK / Datadog 收集
     - **彩色控制台格式**（开发环境）：LOGGING_FORMAT=console 切换
@@ -13,13 +12,10 @@
 
 Usage:
     from src.core.logger import logger, setup_logging
-
     # 在应用启动时调用一次
     setup_logging()
-
     # 在任意模块中使用（request_id 由中间件自动注入，无需手动 bind）
     logger.info("Application started")
-
     # 手动绑定额外上下文（仍然有效）
     logger.bind(user_id="u123").info("User action")
 """
@@ -40,13 +36,11 @@ _configured: bool = False
 # ============================================================
 # 常量
 # ============================================================
-
 _DEFAULT_REQUEST_ID: str = "-"
 
 # ============================================================
 # 彩色控制台格式（开发环境人可读）
 # ============================================================
-
 _CONSOLE_FORMAT: str = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
     "<level>{level: <8}</level> | "
@@ -59,12 +53,9 @@ _CONSOLE_FORMAT: str = (
 # ============================================================
 # JSON 序列化（生产环境结构化日志）
 # ============================================================
-
 def _json_serializer(record: dict) -> str:
     """将 loguru 日志记录序列化为扁平 JSON 字符串。
-
     输出格式示例::
-
         {
             "timestamp": "2026-09-14T10:30:00.123456+00:00",
             "level": "INFO",
@@ -74,9 +65,7 @@ def _json_serializer(record: dict) -> str:
             "message": "Application started",
             "request_id": "550e8400-e29b-41d4-a716-446655440000"
         }
-
     当存在异常时额外附加 exception 字段::
-
         {
             ...
             "exception": {
@@ -110,7 +99,6 @@ def _json_serializer(record: dict) -> str:
 
 def _json_formatter(record: dict) -> str:
     """loguru format 回调：将日志记录格式化为 JSON 行。
-
     loguru 允许 format 参数为一个可调用对象，该对象接收 record 字典，
     返回一个 format 字符串。这里我们把 JSON 存入 extra，再通过
     ``{extra[json_output]}`` 引用。
@@ -129,6 +117,7 @@ def _json_formatter(record: dict) -> str:
 # 初始化
 # ============================================================
 
+
 def setup_logging(
     level: str | None = None,
     file_path: str | None = None,
@@ -137,13 +126,10 @@ def setup_logging(
     log_format: str | None = None,
 ) -> None:
     """初始化日志配置，全局只能调用一次。
-
     控制台输出格式由 ``log_format`` 决定：
         - ``"json"``    → JSON 结构化（生产默认，适合 Loki / ELK）
         - ``"console"`` → 彩色人可读（开发环境）
-
     文件输出**始终**为 JSON 格式，便于日志采集和分析。
-
     参数为 None 时从 Settings 加载默认值。在应用 lifespan 中调用。
 
     Args:
@@ -154,10 +140,8 @@ def setup_logging(
         log_format: 控制台日志格式，"json" 或 "console"
     """
     global _configured
-
     if _configured:
         return
-
     from src.core.config import settings
 
     log_level: str = level or settings.logging.level
@@ -166,14 +150,11 @@ def setup_logging(
     log_retention: str = retention or settings.logging.retention
     fmt: str = (log_format or settings.logging.format).lower()
     use_json_console: bool = fmt == "json"
-
     # 确保日志目录存在
     log_dir: str = os.path.dirname(log_file_path)
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
-
     _logger.remove()
-
     # ----------------------------------------------------------
     # 控制台输出
     # ----------------------------------------------------------
@@ -194,7 +175,6 @@ def setup_logging(
             colorize=True,
             enqueue=True,
         )
-
     # ----------------------------------------------------------
     # 文件输出（始终 JSON，便于后续分析）
     # ----------------------------------------------------------
@@ -207,18 +187,12 @@ def setup_logging(
         compression="zip",
         enqueue=True,
     )
-
     # ----------------------------------------------------------
     # 兜底：确保所有日志记录都有 request_id 字段
     # middleware 的 contextualize 会在请求作用域内注入真实 ID，
     # 非请求上下文的日志使用默认 "-"
     # ----------------------------------------------------------
-    _logger.configure(
-        patcher=lambda record: record["extra"].setdefault(
-            "request_id", _DEFAULT_REQUEST_ID
-        )
-    )
-
+    _logger.configure(patcher=lambda record: record["extra"].setdefault("request_id", _DEFAULT_REQUEST_ID))
     _configured = True
 
 

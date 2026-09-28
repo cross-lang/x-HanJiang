@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
 业务审计日志仓库。
-
 审计日志为只追加流水，不提供更新操作。
 
 Classes:
     AuditLogRepository: 审计日志数据访问 SQLAlchemy 实现
 """
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from sqlalchemy import or_, select
 
-from src.core.exceptions import DatabaseException
 from src.models.entities.audit_entity import AuditLogEntity
+from src.models.entities.user_entity import UserEntity
 from src.repositories.base_repository import BaseRepository
 
 
@@ -25,6 +25,21 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
     def _base_query(self):
         """默认按创建时间倒序。"""
         return select(AuditLogEntity).order_by(AuditLogEntity.created_at.desc())
+
+    def get_user_map_by_ids(self, user_ids: Iterable[int]) -> dict[int, UserEntity]:
+        """按用户 ID 批量查询用户（用于组装操作人姓名）。
+
+        Args:
+            user_ids: 用户 ID 集合
+
+        Returns:
+            dict[int, UserEntity]: 用户 ID → 用户实体
+        """
+        ids = list(user_ids)
+        if not ids:
+            return {}
+        stmt = select(UserEntity).where(UserEntity.id.in_(ids))
+        return {u.id: u for u in self.session.execute(stmt).scalars().all()}
 
     # ── 业务查询 ──────────────────────────────────────────
 
@@ -55,14 +70,19 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
             kw = keyword.strip()
             # 操作人关键字：先在 users 表匹配用户名/姓名，再按 operator_id 过滤
             from src.models.entities.user_entity import UserEntity
-            matching_ids = self.session.execute(
-                select(UserEntity.id).where(
-                    or_(
-                        UserEntity.username.contains(kw),
-                        UserEntity.name.contains(kw),
+
+            matching_ids = (
+                self.session.execute(
+                    select(UserEntity.id).where(
+                        or_(
+                            UserEntity.username.contains(kw),
+                            UserEntity.name.contains(kw),
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             conditions.append(
                 or_(
                     AuditLogEntity.entity_type.contains(kw),

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """文件存储和管理服务。
-
 通过 StorageProvider 抽象层实现，业务代码不关心底层存储是本地还是七牛。
 切换存储实现只需修改配置文件，无需改动任何业务代码。
 上传时同步记录文件元数据到 files 表。
@@ -25,7 +24,6 @@ from src.repositories.file_repository import FileRepository
 
 class FileStorageService:
     """文件存储服务（业务层）。
-
     仅调用 FileRepository 存取数据，不直接操作数据库会话。
     """
 
@@ -51,9 +49,7 @@ class FileStorageService:
         content_type = file.content_type or "application/octet-stream"
         key = self._provider.make_object_key(folder, file_name)
         data = file.file.read()
-
         result = self._provider.upload_file(data, key, content_type=content_type)
-
         # 记录到数据库
         ext = Path(file_name).suffix.lstrip(".")
         uploaded_by = operator.get("operator_id") if operator else None
@@ -71,12 +67,7 @@ class FileStorageService:
         )
         self._repository.create(entity)
         self._repository.commit()
-
-        logger.info(
-            f"File uploaded: key={result.key} size={result.size} "
-            f"operator_id={uploaded_by} file_id={entity.id}"
-        )
-
+        logger.info(f"File uploaded: key={result.key} size={result.size} operator_id={uploaded_by} file_id={entity.id}")
         return {
             "id": entity.id,
             "filename": file_name,
@@ -108,7 +99,6 @@ class FileStorageService:
             skip=skip,
             limit=page_size,
         )
-
         return {
             "items": [
                 {
@@ -122,6 +112,7 @@ class FileStorageService:
                     "url": r[0].url,
                     "uploaded_by": r[0].uploaded_by,
                     "uploader_name": r[1].name if r[1] else None,
+                    "uploader_display": f"{r[1].name}（{r[1].username}）" if r[1] else str(r[0].uploaded_by or ""),
                     "is_public": r[0].is_public,
                     "created_at": r[0].created_at.strftime("%Y-%m-%d %H:%M:%S") if r[0].created_at else None,
                 }
@@ -141,17 +132,14 @@ class FileStorageService:
         normalized_path = file_path.strip("/")
         if not normalized_path or ".." in Path(normalized_path).parts:
             raise ValidationException(message="文件路径无效")
-
         filename = Path(normalized_path).name
         media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-
         provider_name = type(self._provider).__name__
         if provider_name != "LocalStorage":
             if not self._provider.file_exists(normalized_path):
                 raise NotFoundException(message="文件不存在")
             download_url = self._provider.get_download_url(normalized_path, expires=3600)
             return RedirectResponse(url=download_url, status_code=302)
-
         from src.core.config import settings
 
         base_dir = Path(settings.storage.local.base_dir).resolve()
@@ -162,11 +150,9 @@ class FileStorageService:
             raise ValidationException(message="文件路径无效") from exc
         if not file_full_path.is_file():
             raise NotFoundException(message="文件不存在")
-
         encoded_filename = urllib.parse.quote(filename, safe="")
         content_disposition = (
-            f'attachment; filename="download{Path(filename).suffix}"; '
-            f"filename*=UTF-8''{encoded_filename}"
+            f"attachment; filename=\"download{Path(filename).suffix}\"; filename*=UTF-8''{encoded_filename}"
         )
         return FileResponse(
             path=file_full_path,
@@ -187,12 +173,12 @@ class FileStorageService:
         filename = entity.original_name
         self._repository.commit()
         logger.info(f"File soft-deleted: id={file_id} key={entity.file_key}")
-
         # 文件删除通知给上传者
         if uploaded_by:
             try:
                 from src.api.dependencies import get_notification_dispatcher
                 from src.constants.enums import NotificationEvent
+
                 get_notification_dispatcher().dispatch_for_user(
                     user_id=uploaded_by,
                     event_type=NotificationEvent.FILE_DELETED,
@@ -210,7 +196,5 @@ class FileStorageService:
         return {
             "total_size_bytes": total_size,
             "total_count": total_count,
-            "by_folder": [
-                {"folder": r[0], "count": r[1], "size_bytes": r[2]} for r in by_folder
-            ],
+            "by_folder": [{"folder": r[0], "count": r[1], "size_bytes": r[2]} for r in by_folder],
         }

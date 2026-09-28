@@ -12,19 +12,14 @@ from src.constants.enums import NotificationChannel, NotificationEvent
 
 class NotificationSendRequest(BaseModel):
     """通知发送请求。
-
     默认根据当前登录用户的通知渠道配置自动发送。
     也可通过 recipients 手动指定接收人（调试用）。
-
     示例（自动发送，从用户配置获取渠道）::
-
         {
             "event_type": "user.password_changed",
             "variables": { "username": "张三" }
         }
-
     示例（手动指定接收人，调试用）::
-
         {
             "event_type": "user.password_changed",
             "recipients": {
@@ -71,7 +66,6 @@ class NotificationRecordResponse(BaseModel):
     """通知记录响应。"""
 
     model_config = ConfigDict(from_attributes=True)
-
     id: int = Field(description="记录ID")
     event_type: str = Field(description="事件类型")
     channel: str = Field(description="发送渠道")
@@ -101,7 +95,6 @@ class UserNotificationConfigResponse(BaseModel):
     """用户通知渠道配置响应。"""
 
     model_config = ConfigDict(from_attributes=True)
-
     id: int = Field(description="配置ID")
     user_id: int = Field(description="用户ID")
     channel: str = Field(description="通知渠道（email/sms/dingtalk/feishu）")
@@ -113,23 +106,27 @@ class UserNotificationConfigResponse(BaseModel):
 
 class UserNotificationConfigCreateRequest(BaseModel):
     """创建/更新用户通知渠道配置请求。
-
     如果该用户+渠道已存在则更新，不存在则创建（upsert 语义）。
     """
 
     channel: NotificationChannel = Field(
         description="通知渠道",
     )
-    recipient: str = Field(
-        min_length=1, max_length=256, description="渠道接收人标识"
-    )
+    recipient: str = Field(min_length=1, max_length=256, description="渠道接收人标识")
     enabled: bool = Field(default=True, description="是否启用")
 
 
 class UserNotificationConfigUpdateRequest(BaseModel):
     """更新用户通知渠道配置请求（部分更新）。"""
 
-    recipient: str | None = Field(
-        default=None, min_length=1, max_length=256, description="渠道接收人标识"
-    )
+    recipient: str | None = Field(default=None, min_length=1, max_length=256, description="渠道接收人标识")
     enabled: bool | None = Field(default=None, description="是否启用")
+
+
+class UpdateNotificationConfigRequest(BaseModel):
+    """更新系统通知渠道配置请求。
+    对应 system_notification_configs 表的 config_json 与 enabled 字段。
+    """
+
+    config_json: str = Field(default="{}", description="渠道配置 JSON 字符串")
+    enabled: bool = Field(default=True, description="是否启用该渠道")

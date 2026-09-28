@@ -26,7 +26,6 @@ class TestHealthEndpoints:
 
         data = body["data"]
         assert data["status"] in ("ok", "error")
-        assert "version" in data
         assert "app" in data
         assert "environment" in data
         assert "database" in data

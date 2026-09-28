@@ -5,9 +5,8 @@ Revises: 0003_create_user_notification_configs
 Create Date: 2026-09-23 21:50:00.000000
 
 """
-from alembic import op
-import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0004_add_permissions"
@@ -52,7 +51,7 @@ def upgrade() -> None:
         INSERT INTO role_permissions (role_id, permission_id)
         SELECT r.id, p.id
         FROM roles r, permissions p
-        WHERE r.role_code = 'super_admin'
+        WHERE r.role_code = 'superadmin'
           AND NOT EXISTS (
               SELECT 1 FROM role_permissions rp
               WHERE rp.role_id = r.id AND rp.permission_id = p.id

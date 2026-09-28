@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """站内信服务。
-
 仅调用 StationMessageRepository 存取数据，不直接操作数据库会话。
 """
 
+from src.constants.constants import NOTIFICATION_EVENT_STATION_MESSAGE
+from src.constants.enums import NotificationChannel, StationMessageStatus
 from src.models.entities.notification_entity import NotificationRecordEntity
 from src.repositories.station_message_repository import StationMessageRepository
 
@@ -19,15 +20,13 @@ class StationMessageService:
 
     def list_messages(self, user_id: int, page: int, page_size: int) -> dict:
         skip = (page - 1) * page_size
-        rows, total = self._repository.list_messages(
-            user_id=user_id, skip=skip, limit=page_size
-        )
+        rows, total = self._repository.list_messages(user_id=user_id, skip=skip, limit=page_size)
         items = [
             {
                 "id": r.id,
                 "title": r.subject,
                 "content": r.content,
-                "is_read": r.status == "read",
+                "is_read": r.status == StationMessageStatus.READ.value,
                 "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",
             }
             for r in rows
@@ -47,12 +46,12 @@ class StationMessageService:
     def send_station(self, user_id: int, title: str, content: str) -> None:
         """发送站内信给指定用户（经仓库）。"""
         msg = NotificationRecordEntity(
-            event_type="station.message",
-            channel="station",
+            event_type=NOTIFICATION_EVENT_STATION_MESSAGE,
+            channel=NotificationChannel.STATION.value,
             recipient=f"user:{user_id}",
             subject=title,
             content=content,
-            status="unread",
+            status=StationMessageStatus.UNREAD.value,
             retry_count=0,
             max_retries=0,
         )

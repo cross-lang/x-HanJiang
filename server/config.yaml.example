@@ -62,7 +62,7 @@ redis:
 storage:
   provider: "local"
   local:
-    base_dir: "static"
+    base_dir: "statics"
   s3:
     # S3 兼容服务地址（七牛 Kodo 格式：https://s3.<region>.qiniucs.com）
     endpoint_url: "https://s3.cn-south-1.qiniucs.com"

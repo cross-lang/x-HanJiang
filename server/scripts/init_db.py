@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 数据库初始化脚本
 
@@ -10,16 +9,22 @@ Usage:
     uv run python scripts/init_db.py
 """
 
+import re
 import sys
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.config import settings
-from src.core.logger import logger, setup_logging
-from src.infras.database import Base, get_cached_database_provider, init_db
-from src.models.entities.user_entity import UserEntity  # noqa: F401  确保模型被注册
+from src.core.config import settings  # noqa: E402
+from src.core.logger import logger, setup_logging  # noqa: E402
+from src.infras.database import Base, init_db  # noqa: E402
+from src.models.entities.user_entity import UserEntity  # noqa: E402,F401  确保模型被注册
+
+
+def _mask_database_url(url: str) -> str:
+    """脱敏数据库连接串：隐藏密码部分，避免凭证泄露到日志。"""
+    return re.sub(r"(://[^:/@]+:)[^@/]+(@)", r"\1***\2", url)
 
 
 def main() -> None:
@@ -34,13 +39,12 @@ def main() -> None:
         logger.error("DATABASE_URL 配置不能为空，请在配置文件或环境变量中设置")
         sys.exit(1)
 
-    logger.info(f"数据库地址: {settings.database.url}")
+    logger.info(f"数据库地址: {_mask_database_url(settings.database.url)}")
     logger.info(f"连接池大小: {settings.database.pool_size}")
 
     try:
         init_db()
 
-        engine = get_cached_database_provider().get_engine()
         tables = Base.metadata.tables.keys()
 
         logger.info("=" * 60)
@@ -56,8 +60,7 @@ def main() -> None:
                 logger.info(f"    - {column.name}: {column.type} (主键: {column.primary_key})")
 
     except Exception as e:
-        logger.error(f"数据库初始化失败: {e}")
-        logger.exception(e)
+        logger.exception(f"数据库初始化失败: {e}")
         sys.exit(1)
 
 

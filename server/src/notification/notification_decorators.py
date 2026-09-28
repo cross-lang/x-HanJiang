@@ -4,15 +4,16 @@ Usage:
     @notify(NotificationEvent.USER_CREATED, target="owner")
     def create(self, data):
         ...
-
     target="owner" → 从返回值.owner_user_id 取接收人
     target="self"  → 从返回值.id 取接收人（通知自己）
     target=1       → 固定通知 user_id=1
 """
+
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 from src.constants.enums import NotificationEvent
 from src.core.logger import logger
@@ -53,11 +54,11 @@ def notify(
                 int=固定 user_id; callable(result)->int
         vars_extractor: 从返回值提取模板变量
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             result = func(self, *args, **kwargs)
-
             # 异步发通知，不阻塞主流程
             try:
                 dispatcher = getattr(self, "_dispatcher", None)
@@ -75,5 +76,7 @@ def notify(
             except Exception as exc:
                 logger.debug("notify decorator skipped: {}", exc)
             return result
+
         return wrapper
+
     return decorator

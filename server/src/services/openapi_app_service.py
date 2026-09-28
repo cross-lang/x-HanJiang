@@ -1,25 +1,20 @@
 #!/usr/bin/env python3
 """开放平台应用业务逻辑。
-
 包含两部分：
 1. 管理员侧的应用 CRUD、密钥生成与重置（OpenApiAppService）；
 2. 开放平台协议相关的私有函数：AppId 生成规则、签名串拼装、scope 解析。
-
 通用加密原语（SHA256、Fernet、HMAC）在 src/utils/security.py。
 """
 
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 
 from fastapi import Request
 
-from src.core.config import settings
-from src.core.exceptions import AuthenticationException, NotFoundException
-from src.core.logger import logger
 from src.constants.constants import (
     OPENAPI_ALGORITHM,
     OPENAPI_HEADER_APP_ID,
@@ -29,24 +24,22 @@ from src.constants.constants import (
     OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
 from src.constants.enums import AppAuthMode, NotificationEvent
-from src.utils.security import generate_secret_key
+from src.core.exceptions import AuthenticationException, NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
+from src.notification.notification_decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
 from src.services.base_service import BaseService
-from src.notification.notification_decorators import notify
 from src.utils import security
+from src.utils.security import generate_secret_key
+
 
 # ── 开放平台鉴权协议常量 ─────────────────────────────────
-
-
 # ============================================================
 # 开放平台协议：AppId 生成
 # ============================================================
-
 def generate_app_id() -> str:
     """生成对外 AppId。
-
     前缀 = 项目缩写 hj + 环境标识：
         - 生产环境：hj_live_xxxxxxxx
         - 其他环境：hj_test_xxxxxxxx
@@ -56,8 +49,11 @@ def generate_app_id() -> str:
 
 
 # ============================================================
+
 # 开放平台协议：HanJiang-1 签名串拼装（参考 WPS-4 风格）
+
 # ============================================================
+
 
 def build_signing_string(
     *,
@@ -68,19 +64,20 @@ def build_signing_string(
     body: bytes,
 ) -> str:
     """构造 HanJiang-1 待签名串（与外部调用方的协议约定，勿随意改）。
-
     格式：Ver + METHOD + URI + Content-Type + Date + SHA256(body)
     直接拼接，无分隔符（参考 WPS-4）。
     """
     body_hash = security.sha256_hex(body.decode("utf-8")) if body else ""
-    return "".join([
-        OPENAPI_ALGORITHM,
-        method.upper(),
-        uri,
-        content_type,
-        date,
-        body_hash,
-    ])
+    return "".join(
+        [
+            OPENAPI_ALGORITHM,
+            method.upper(),
+            uri,
+            content_type,
+            date,
+            body_hash,
+        ]
+    )
 
 
 def verify_request_signature(
@@ -96,9 +93,7 @@ def verify_request_signature(
     """校验请求签名。"""
     expected = security.hmac_sha256_hex(
         app_key_plain,
-        build_signing_string(
-            method=method, uri=uri, content_type=content_type, date=date, body=body
-        ),
+        build_signing_string(method=method, uri=uri, content_type=content_type, date=date, body=body),
     )
     return security.constant_time_equals(expected, signature)
 
@@ -116,15 +111,18 @@ def _parse_http_date(date_str: str) -> datetime | None:
     try:
         dt = parsedate_to_datetime(date_str)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except (TypeError, ValueError):
         return None
 
 
 # ============================================================
+
 # scope 解析
+
 # ============================================================
+
 
 def parse_scopes(scopes: str | None) -> list[str]:
     """库中逗号分隔的 scopes 字段 → list[str]，去空。"""
@@ -134,8 +132,11 @@ def parse_scopes(scopes: str | None) -> list[str]:
 
 
 # ============================================================
+
 # 管理员侧 CRUD
+
 # ============================================================
+
 
 class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepository]):
     """开放应用管理。"""
@@ -146,9 +147,9 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self._repository = repo
 
     # ── 鉴权（每请求调用）──────────────────────────────
+
     async def authenticate(self, request: Request) -> CurrentApp:
         """解析开放平台应用身份。
-
         鉴权逻辑按 app.auth_mode 分流：
             - plain：仅接受 X-App-Key 明文比对 SHA256；
             - hmac：  仅接受 HanJiang-1 签名（时间窗 + 重算签名）；
@@ -157,50 +158,35 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         app_id = request.headers.get(OPENAPI_HEADER_APP_ID)
         if not app_id:
             raise AuthenticationException(message="缺少请求头 X-App-Id")
-
         app = self._repository.get_by_app_id(app_id)
         if app is None or app.status != "active":
             raise AuthenticationException(message="App 无效或已停用")
-
         try:
             mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)
         except ValueError:
             mode = AppAuthMode.PLAIN
-
         plain_key = request.headers.get(OPENAPI_HEADER_APP_KEY)
         authorization = request.headers.get(OPENAPI_HEADER_AUTHORIZATION, "")
         date = request.headers.get(OPENAPI_HEADER_DATE, "")
-
         authenticated = False
-
         # 分支 1：明文 AppKey 校验
         if mode in (AppAuthMode.PLAIN, AppAuthMode.BOTH) and plain_key:
-            authenticated = security.constant_time_equals(
-                security.sha256_hex(plain_key), app.app_key_hash
-            )
-
+            authenticated = security.constant_time_equals(security.sha256_hex(plain_key), app.app_key_hash)
         # 分支 2：HanJiang-1 签名校验
-        if (
-            not authenticated
-            and mode in (AppAuthMode.HMAC, AppAuthMode.BOTH)
-            and authorization
-        ):
+        if not authenticated and mode in (AppAuthMode.HMAC, AppAuthMode.BOTH) and authorization:
             authenticated = await self._verify_hmac_signature(
                 request=request,
                 app_encrypted=app.app_key_encrypted,
                 date=date,
                 authorization=authorization,
             )
-
         if not authenticated:
             raise AuthenticationException(message="应用鉴权失败")
-
         # 更新 last_used_at（失败不阻断主流程）
         try:
             self._repository.touch_last_used(app_id)
         except Exception:
             self._repository.rollback()
-
         return CurrentApp(
             app_id=app.app_id,
             name=app.name,
@@ -224,32 +210,27 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         request_time = _parse_http_date(date)
         if request_time is None:
             return False
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if abs((now - request_time).total_seconds()) > OPENAPI_SIGNATURE_WINDOW_SECONDS:
             return False
-
         # 2. 解密取回明文 secret
         secret = security.decrypt_text(app_encrypted)
         if not secret:
             return False
-
         # 3. 提取 Authorization 中的签名值
         # 格式：HanJiang-1 {app_id}:{signature}
         parts = authorization.split(":", 1)
         if len(parts) != 2 or not parts[1]:
             return False
         signature = parts[1].strip()
-
         # 4. 取请求体
         body = b""
         try:
             body = await request.body()
         except Exception:
             body = b""
-
         # 5. Content-Type
         content_type = request.headers.get("content-type", "")
-
         # 6. 重算签名并比对
         return verify_request_signature(
             app_key_plain=secret,
@@ -262,6 +243,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         )
 
     # ── 创建 ────────────────────────────────────────────
+
     def create_app(
         self,
         *,
@@ -275,7 +257,6 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         app_id = generate_app_id()
         while self._repository.get_by_app_id(app_id) is not None:
             app_id = generate_app_id()
-
         app_key_plain = generate_secret_key()
         entity = OpenApiAppEntity(
             app_id=app_id,
@@ -294,6 +275,35 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         return self._to_response(created), app_key_plain
 
     # ── 查询 ────────────────────────────────────────────
+
+    def list_scopes(self) -> list[dict[str, Any]]:
+        """查询全部可用（未废弃）的开放平台 scope，供前端创建应用时勾选。
+
+        Returns:
+            list[dict[str, Any]]: scope 列表，含模块中文名映射
+        """
+        from src.constants.enums import OpenApiModuleCode
+
+        entities = self._repository.list_active_scopes()
+        result: list[dict[str, Any]] = []
+        for e in entities:
+            module_label = next(
+                (m.desc for m in OpenApiModuleCode if m.mark == e.module),
+                e.module,
+            )
+            result.append(
+                {
+                    "id": e.id,
+                    "scope_code": e.scope_code,
+                    "scope_name": e.scope_name,
+                    "module": e.module,
+                    "module_label": module_label,
+                    "operation": e.operation,
+                    "description": e.description,
+                }
+            )
+        return result
+
     def list_apps(self, keyword: str | None = None, limit: int = 100) -> list[OpenApiAppResponse]:
         rows = self._repository.search_by_keyword(keyword=keyword, limit=limit)
         return [self._to_response(r) for r in rows]
@@ -306,6 +316,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         return self._to_response(e)
 
     # ── 更新 ────────────────────────────────────────────
+
     @notify(
         NotificationEvent.OPENAPI_APP_UPDATED,
         target="owner",
@@ -327,6 +338,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         return self._to_response(e)
 
     # ── 重置 AppKey（轮换）────────────────────────────
+
     def rotate_key(self, id: int) -> tuple[OpenApiAppResponse, str]:
         """重置 AppKey：旧 key 立即失效，返回新明文（仅一次）。"""
         e = self._repository.get_by_id(id)
@@ -341,6 +353,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         return self._to_response(e), new_plain
 
     # ── 删除 ────────────────────────────────────────────
+
     def delete(self, id: int) -> bool:
         ok = self._repository.soft_delete(id)
         self._commit()
@@ -348,6 +361,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         return ok
 
     # ── Entity → DTO ────────────────────────────────────
+
     def _to_response(self, e: OpenApiAppEntity) -> OpenApiAppResponse:
         owner_name = None
         if e.owner_user_id:

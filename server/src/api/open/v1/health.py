@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""开放平台健康管理接口。
-
-"""
+"""开放平台健康管理接口。"""
 
 from fastapi import APIRouter, Depends, Request
 

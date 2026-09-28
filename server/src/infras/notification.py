@@ -1,11 +1,9 @@
 """通知渠道 Provider 抽象层。
-
 采用 Strategy 模式：每个渠道一个 Provider 实现。
 新增渠道只需：实现 BaseNotificationProvider → register_provider()。
 
 Usage:
     from src.infras.notification import get_registry
-
     registry = get_registry()
     registry.send("email", NotificationMessage(...))
 """
@@ -18,11 +16,10 @@ from typing import Any
 
 from src.core.logger import logger
 
+
 # ============================================================
 # 消息体
 # ============================================================
-
-
 @dataclass(frozen=True, slots=True)
 class NotificationMessage:
     """统一的通知消息体。"""
@@ -35,7 +32,9 @@ class NotificationMessage:
 
 
 # ============================================================
+
 # 抽象基类
+
 # ============================================================
 
 
@@ -52,9 +51,10 @@ class BaseNotificationProvider(ABC):
         """渠道标识，如 'email', 'dingtalk', 'feishu', 'sms'。"""
 
 
-
 # ============================================================
+
 # Station（站内信，直接写数据库）
+
 # ============================================================
 
 
@@ -71,7 +71,9 @@ class StationNotificationProvider(BaseNotificationProvider):
 
 
 # ============================================================
+
 # Email（复用已有 SmtpEmailProvider）
+
 # ============================================================
 
 
@@ -83,6 +85,7 @@ class EmailNotificationProvider(BaseNotificationProvider):
             self._email = email_provider
         else:
             from src.infras.email import get_cached_email_provider
+
             self._email = get_cached_email_provider()
 
     @property
@@ -99,13 +102,14 @@ class EmailNotificationProvider(BaseNotificationProvider):
 
 
 # ============================================================
+
 # 钉钉（支持工作通知 per-user + Webhook 群聊降级）
+
 # ============================================================
 
 
 class DingTalkNotificationProvider(BaseNotificationProvider):
     """钉钉通知渠道。
-
     双模式：
     - 工作通知模式（推荐）：配置 app_key + app_secret + agent_id，
       通过钉钉 OpenAPI 向指定 userid 发送工作通知，实现 per-user 投递。
@@ -145,7 +149,6 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
 
         if self._access_token and time.time() < self._token_expires_at:
             return self._access_token
-
         resp = requests.post(
             "https://api.dingtalk.com/v1.0/oauth2/accessToken",
             json={"appKey": self._app_key, "appSecret": self._app_secret},
@@ -159,20 +162,13 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         return self._access_token
 
     def send(self, message: NotificationMessage) -> bool:
-        import requests
-
         # 有应用凭证且有接收人 → 工作通知
         if self._use_work_notification and message.recipient:
             return self._send_work_notification(message)
-
         # 降级到 Webhook 群聊
         if self._webhook_url:
             return self._send_webhook(message)
-
-        logger.error(
-            "DingTalk send skipped: neither work-notification credentials "
-            "nor webhook_url configured"
-        )
+        logger.error("DingTalk send skipped: neither work-notification credentials nor webhook_url configured")
         return False
 
     def _send_work_notification(self, message: NotificationMessage) -> bool:
@@ -180,10 +176,7 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         import requests
 
         token = self._get_access_token()
-        url = (
-            "https://api.dingtalk.com/v1.0/org/corpversations/"
-            "messages/sendToConversation"
-        )
+        url = "https://api.dingtalk.com/v1.0/org/corpversations/messages/sendToConversation"
         headers = {"x-acs-dingtalk-access-token": token}
         payload = {
             "agentId": self._agent_id,
@@ -221,7 +214,6 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
             ).digest()
             sign = base64.b64encode(hmac_code).decode("utf-8")
             url = f"{url}&timestamp={timestamp}&sign={sign}"
-
         payload = {
             "msgtype": "text",
             "text": {"content": message.content},
@@ -236,13 +228,14 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
 
 
 # ============================================================
+
 # 飞书（支持应用消息 per-user + Webhook 群聊降级）
+
 # ============================================================
 
 
 class FeishuNotificationProvider(BaseNotificationProvider):
     """飞书通知渠道。
-
     双模式：
     - 应用消息模式（推荐）：配置 app_id + app_secret，
       通过飞书 OpenAPI 向指定 open_id 发送应用消息，实现 per-user 投递。
@@ -280,7 +273,6 @@ class FeishuNotificationProvider(BaseNotificationProvider):
 
         if self._tenant_token and time.time() < self._token_expires_at:
             return self._tenant_token
-
         resp = requests.post(
             "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
             json={"app_id": self._app_id, "app_secret": self._app_secret},
@@ -295,20 +287,13 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         return self._tenant_token
 
     def send(self, message: NotificationMessage) -> bool:
-        import requests
-
         # 有应用凭证且有接收人 → 应用消息
         if self._use_app_message and message.recipient:
             return self._send_app_message(message)
-
         # 降级到 Webhook 群聊
         if self._webhook_url:
             return self._send_webhook(message)
-
-        logger.error(
-            "Feishu send skipped: neither app credentials "
-            "nor webhook_url configured"
-        )
+        logger.error("Feishu send skipped: neither app credentials nor webhook_url configured")
         return False
 
     def _send_app_message(self, message: NotificationMessage) -> bool:
@@ -322,11 +307,9 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         payload = {
             "receive_id": message.recipient,
             "msg_type": "text",
-            "content": '{"text": ' + f'"{message.content}"' + '}',
+            "content": '{"text": ' + f'"{message.content}"' + "}",
         }
-        resp = requests.post(
-            url, json=payload, headers=headers, params=params, timeout=10
-        )
+        resp = requests.post(url, json=payload, headers=headers, params=params, timeout=10)
         resp.raise_for_status()
         result = resp.json()
         if result.get("code", 0) != 0:
@@ -347,12 +330,9 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         if self._secret:
             timestamp = str(int(time.time()))
             string_to_sign = f"{timestamp}\n{self._secret}"
-            hmac_code = hmac.new(
-                string_to_sign.encode("utf-8"), digestmod=hashlib.sha256
-            ).digest()
+            hmac_code = hmac.new(string_to_sign.encode("utf-8"), digestmod=hashlib.sha256).digest()
             sign = base64.b64encode(hmac_code).decode("utf-8")
             extra = {"timestamp": timestamp, "sign": sign}
-
         payload = {
             "msg_type": "text",
             "content": {"text": message.content},
@@ -368,7 +348,9 @@ class FeishuNotificationProvider(BaseNotificationProvider):
 
 
 # ============================================================
+
 # SMS（骨架）
+
 # ============================================================
 
 
@@ -397,13 +379,14 @@ class SmsNotificationProvider(BaseNotificationProvider):
 
 
 # ============================================================
+
 # Provider 注册表
+
 # ============================================================
 
 
 class NotificationProviderRegistry:
     """通知渠道 Provider 注册表。
-
     线程安全的单例，管理所有已注册的渠道 Provider。
     """
 
@@ -437,8 +420,11 @@ class NotificationProviderRegistry:
 
 
 # ============================================================
+
 # 模块级单例
+
 # ============================================================
+
 
 _registry: NotificationProviderRegistry | None = None
 
@@ -453,20 +439,16 @@ def get_registry() -> NotificationProviderRegistry:
 
 def register_default_providers() -> NotificationProviderRegistry:
     """根据配置注册所有已配置的通知渠道 Provider。
-
     邮件渠道始终注册（复用 SMTP 配置）；钉钉/飞书/短信按配置存在与否决定。
     """
     from src.core.config import settings
 
     registry = get_registry()
     cfg = settings.notification
-
     # 站内信渠道始终注册（直接写数据库）
     registry.register(StationNotificationProvider())
-
     # 邮件渠道始终注册（复用 SMTP 配置）
     registry.register(EmailNotificationProvider())
-
     # 钉钉（webhook 或应用凭证，任一配置即启用）
     if cfg.dingtalk_webhook or cfg.dingtalk_app_key:
         registry.register(
@@ -478,7 +460,6 @@ def register_default_providers() -> NotificationProviderRegistry:
                 agent_id=cfg.dingtalk_agent_id,
             )
         )
-
     # 飞书（webhook 或应用凭证，任一配置即启用）
     if cfg.feishu_webhook or cfg.feishu_app_id:
         registry.register(
@@ -489,7 +470,6 @@ def register_default_providers() -> NotificationProviderRegistry:
                 app_secret=cfg.feishu_app_secret,
             )
         )
-
     # 短信
     if cfg.sms_access_key:
         registry.register(
@@ -500,18 +480,19 @@ def register_default_providers() -> NotificationProviderRegistry:
                 template_code=cfg.sms_template_code,
             )
         )
-
     logger.info("Notification providers: {}", registry.list_channels())
     return registry
 
 
 # ============================================================
+
 # 动态从数据库加载渠道配置
+
 # ============================================================
+
 
 def reload_providers_from_db() -> NotificationProviderRegistry:
     """从 system_notification_configs 表读取配置，重建 provider registry。
-
     在应用启动时和管理员修改渠道配置后调用，实现改完即生效、无需重启。
     数据库中未配置的渠道回退到 .env 配置。
     """
@@ -526,15 +507,11 @@ def reload_providers_from_db() -> NotificationProviderRegistry:
 
     registry = get_registry()
     registry._providers.clear()
-
     # 站内信始终注册
     registry.register(StationNotificationProvider())
-
     session = get_cached_database_provider().get_session_factory()()
     try:
-        rows = session.execute(
-            select(SystemNotificationConfigEntity)
-        ).scalars().all()
+        rows = session.execute(select(SystemNotificationConfigEntity)).scalars().all()
         db_configs = {r.channel: r for r in rows}
     finally:
         session.close()
@@ -552,48 +529,55 @@ def reload_providers_from_db() -> NotificationProviderRegistry:
     email_cfg = _cfg("email")
     if email_cfg:
         from src.infras.email import SmtpEmailProvider
-        registry.register(EmailNotificationProvider(SmtpEmailProvider(
-            host=email_cfg.get("host", ""),
-            port=int(email_cfg.get("port", 465)),
-            username=email_cfg.get("username", ""),
-            password=email_cfg.get("password", ""),
-            use_tls=email_cfg.get("use_tls", False),
-            from_name=email_cfg.get("from_name", ""),
-            from_address=email_cfg.get("from_address", ""),
-        )))
+
+        registry.register(
+            EmailNotificationProvider(
+                SmtpEmailProvider(
+                    host=email_cfg.get("host", ""),
+                    port=int(email_cfg.get("port", 465)),
+                    username=email_cfg.get("username", ""),
+                    password=email_cfg.get("password", ""),
+                    use_tls=email_cfg.get("use_tls", False),
+                    from_name=email_cfg.get("from_name", ""),
+                    from_address=email_cfg.get("from_address", ""),
+                )
+            )
+        )
     else:
         registry.register(EmailNotificationProvider())
-
     # 钉钉
     dt = _cfg("dingtalk")
     if dt:
-        registry.register(DingTalkNotificationProvider(
-            webhook_url=dt.get("webhook", ""),
-            secret=dt.get("secret", ""),
-            app_key=dt.get("app_key", ""),
-            app_secret=dt.get("app_secret", ""),
-            agent_id=dt.get("agent_id", ""),
-        ))
-
+        registry.register(
+            DingTalkNotificationProvider(
+                webhook_url=dt.get("webhook", ""),
+                secret=dt.get("secret", ""),
+                app_key=dt.get("app_key", ""),
+                app_secret=dt.get("app_secret", ""),
+                agent_id=dt.get("agent_id", ""),
+            )
+        )
     # 飞书
     fs = _cfg("feishu")
     if fs:
-        registry.register(FeishuNotificationProvider(
-            webhook_url=fs.get("webhook", ""),
-            secret=fs.get("secret", ""),
-            app_id=fs.get("app_id", ""),
-            app_secret=fs.get("app_secret", ""),
-        ))
-
+        registry.register(
+            FeishuNotificationProvider(
+                webhook_url=fs.get("webhook", ""),
+                secret=fs.get("secret", ""),
+                app_id=fs.get("app_id", ""),
+                app_secret=fs.get("app_secret", ""),
+            )
+        )
     # 短信
     sms = _cfg("sms")
     if sms:
-        registry.register(SmsNotificationProvider(
-            access_key=sms.get("access_key", ""),
-            secret_key=sms.get("secret_key", ""),
-            sign_name=sms.get("sign_name", ""),
-            template_code=sms.get("template_code", ""),
-        ))
-
+        registry.register(
+            SmsNotificationProvider(
+                access_key=sms.get("access_key", ""),
+                secret_key=sms.get("secret_key", ""),
+                sign_name=sms.get("sign_name", ""),
+                template_code=sms.get("template_code", ""),
+            )
+        )
     logger.info("Notification providers reloaded from DB: {}", registry.list_channels())
     return registry

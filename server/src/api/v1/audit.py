@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """审计日志接口。"""
 
 import csv
@@ -9,7 +9,13 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 
 from src.api.api_permission_decorator import permission
-from src.api.dependencies import get_audit_service, get_current_user, get_login_log_service, is_admin_user, require_user_permission
+from src.api.dependencies import (
+    get_audit_service,
+    get_current_user,
+    get_login_log_service,
+    is_admin_user,
+    require_user_permission,
+)
 from src.api.response import success_response
 from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
@@ -23,8 +29,6 @@ router = APIRouter(prefix="/audit", tags=["审计日志"])
 # ============================================================
 # 业务审计日志（audit_logs 表）
 # ============================================================
-
-
 @router.get(
     "/logs",
     summary="业务审计日志列表",
@@ -32,7 +36,7 @@ router = APIRouter(prefix="/audit", tags=["审计日志"])
     dependencies=[Depends(require_user_permission("audit_log:view"))],
 )
 @permission("audit_log:view", "查看审计日志", "audit_log", "view")
-async def list_audit_logs(
+def list_audit_logs(
     request: Request,
     entity_type: str | None = Query(
         default=None,
@@ -78,20 +82,13 @@ async def list_audit_logs(
     )
     items = [AuditLogResponse.model_validate(i).model_dump() for i in result["items"]]
     user_ids = list({i["operator_id"] for i in items if i.get("operator_id")})
-    user_map = {}
-    if user_ids:
-        from src.models.entities.user_entity import UserEntity
-        users = audit_service._repository.session.query(UserEntity).filter(
-            UserEntity.id.in_(user_ids)
-        ).all()
-        user_map = {u.id: u for u in users}
+    user_map = audit_service.get_operator_names(user_ids)
     for i in items:
         u = user_map.get(i.get("operator_id"))
-        i["operator_username"] = u.username if u else ""
-        i["operator_real_name"] = u.name if u else ""
+        i["operator_username"] = u["username"] if u else ""
+        i["operator_real_name"] = u["name"] if u else ""
     result["items"] = items
     return success_response(result, request)
-
 
 
 @router.get(
@@ -101,7 +98,7 @@ async def list_audit_logs(
     dependencies=[Depends(require_user_permission("audit_log:export"))],
 )
 @permission("audit_log:export", "导出审计日志", "audit_log", "export")
-async def export_audit_logs(
+def export_audit_logs(
     entity_type: str | None = None,
     action: str | None = None,
     operator_id: int | None = None,
@@ -110,34 +107,44 @@ async def export_audit_logs(
     audit_service: AuditService = Depends(get_audit_service),
 ):
     result = audit_service.search(
-        entity_type=entity_type, action=action, operator_id=operator_id,
-        start_time=start_time, end_time=end_time, page=1, page_size=100000,
+        entity_type=entity_type,
+        action=action,
+        operator_id=operator_id,
+        start_time=start_time,
+        end_time=end_time,
+        page=1,
+        page_size=100000,
     )
-
     # 批量查用户名
     user_ids = list({i.operator_id for i in result["items"] if i.operator_id})
-    username_map = {}
-    if user_ids:
-        from src.models.entities.user_entity import UserEntity
-        users = audit_service._repository.session.query(UserEntity).filter(
-            UserEntity.id.in_(user_ids)
-        ).all()
-        username_map = {u.id: u.username for u in users}
-
-    fieldnames = ["id", "entity_type", "entity_id", "action", "operator_username", "ip_address", "created_at", "remarks"]
+    username_map = audit_service.get_operator_names(user_ids)
+    fieldnames = [
+        "id",
+        "entity_type",
+        "entity_id",
+        "action",
+        "operator_username",
+        "ip_address",
+        "created_at",
+        "remarks",
+    ]
     headers_cn = {
-        "id": "ID", "entity_type": "实体类型", "entity_id": "实体ID", "action": "操作",
-        "operator_username": "操作人", "ip_address": "IP", "created_at": "时间", "remarks": "备注",
+        "id": "ID",
+        "entity_type": "实体类型",
+        "entity_id": "实体ID",
+        "action": "操作",
+        "operator_username": "操作人",
+        "ip_address": "IP",
+        "created_at": "时间",
+        "remarks": "备注",
     }
-
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames)
     writer.writerow(headers_cn)
     for row in result["items"]:
         data = AuditLogResponse.model_validate(row).model_dump()
-        data["operator_username"] = username_map.get(row.operator_id, "") if row.operator_id else ""
+        data["operator_username"] = username_map.get(row.operator_id, {}).get("username", "") if row.operator_id else ""
         writer.writerow({k: data.get(k, "") for k in fieldnames})
-
     content = buf.getvalue().encode("utf-8-sig")
     return StreamingResponse(
         iter([content]),
@@ -153,7 +160,7 @@ async def export_audit_logs(
     dependencies=[Depends(require_user_permission("audit_log:view"))],
 )
 @permission("audit_log:view", "查看审计日志", "audit_log", "view")
-async def get_audit_log(
+def get_audit_log(
     log_id: int,
     request: Request,
     audit_service: AuditService = Depends(get_audit_service),
@@ -165,19 +172,17 @@ async def get_audit_log(
     data = AuditLogResponse.model_validate(result).model_dump()
     # 关联查用户名
     if result.operator_id:
-        from src.models.entities.user_entity import UserEntity
-        user = audit_service._repository.session.query(UserEntity).filter(
-            UserEntity.id == result.operator_id
-        ).first()
-        if user:
-            data["operator_username"] = user.username
-            data["operator_real_name"] = user.name
+        operator = audit_service.get_operator_names([result.operator_id]).get(result.operator_id)
+        if operator:
+            data["operator_username"] = operator["username"]
+            data["operator_real_name"] = operator["name"]
     return success_response(data, request)
 
 
-
 # ============================================================
+
 # 登录日志（login_logs 表）
+
 # ============================================================
 
 
@@ -188,7 +193,7 @@ async def get_audit_log(
     dependencies=[Depends(require_user_permission("login_log:view"))],
 )
 @permission("login_log:view", "查看登录日志", "login_log", "view")
-async def list_login_logs(
+def list_login_logs(
     request: Request,
     user_id: int | None = Query(default=None, description="用户 ID"),
     status: str | None = Query(default=None, description="登录结果：success / failed"),
@@ -227,7 +232,7 @@ async def list_login_logs(
     dependencies=[Depends(require_user_permission("login_log:export"))],
 )
 @permission("login_log:export", "导出登录日志", "login_log", "export")
-async def export_login_logs(
+def export_login_logs(
     request: Request,
     status: str | None = None,
     login_type: str | None = None,
@@ -238,27 +243,38 @@ async def export_login_logs(
 ):
     user_id = None if is_admin_user(current_user) else current_user.id
     result = login_service.search(
-        user_id=user_id, status=status, login_type=login_type,
-        start_time=start_time, end_time=end_time, page=1, page_size=100000,
+        user_id=user_id,
+        status=status,
+        login_type=login_type,
+        start_time=start_time,
+        end_time=end_time,
+        page=1,
+        page_size=100000,
     )
-
     fieldnames = ["id", "username", "ip_address", "status", "login_type", "created_at", "user_agent"]
     headers_cn = {
-        "id": "ID", "username": "用户名", "ip_address": "IP", "status": "状态",
-        "login_type": "登录方式", "created_at": "时间", "user_agent": "浏览器",
+        "id": "ID",
+        "username": "用户名",
+        "ip_address": "IP",
+        "status": "状态",
+        "login_type": "登录方式",
+        "created_at": "时间",
+        "user_agent": "浏览器",
     }
-
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames)
     writer.writerow(headers_cn)
     for row in result["items"]:
         d = {
-            "id": row.id, "username": row.username, "ip_address": row.ip_address,
-            "status": row.status, "login_type": row.login_type,
-            "created_at": str(row.created_at), "user_agent": row.user_agent or "",
+            "id": row.id,
+            "username": row.username,
+            "ip_address": row.ip_address,
+            "status": row.status,
+            "login_type": row.login_type,
+            "created_at": str(row.created_at),
+            "user_agent": row.user_agent or "",
         }
         writer.writerow({k: d.get(k, "") for k in fieldnames})
-
     content = buf.getvalue().encode("utf-8-sig")
     return StreamingResponse(
         iter([content]),
@@ -274,7 +290,7 @@ async def export_login_logs(
     dependencies=[Depends(require_user_permission("login_log:view"))],
 )
 @permission("login_log:view", "查看登录日志", "login_log", "view")
-async def get_login_log(
+def get_login_log(
     log_id: int,
     request: Request,
     login_service: LoginLogService = Depends(get_login_log_service),

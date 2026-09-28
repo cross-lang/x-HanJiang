@@ -1,5 +1,4 @@
 """API v1 路由包。
-
 在此聚合所有 v1 版本下的业务子路由，统一挂载 /v1 前缀。
 未来出 v2 时新建 v2/ 目录，照搬此文件结构即可，router.py 不用动。
 """
@@ -7,7 +6,6 @@
 from fastapi import APIRouter
 
 from src.api.v1 import (
-    admin_notification,
     alert,
     audit,
     auth,
@@ -52,14 +50,12 @@ v1_router.include_router(audit.router)
 # 注册文件管理路由
 v1_router.include_router(file.router)
 
-# 注册通知管理路由
+# 注册通知管理路由（用户侧通知记录 + 系统通知渠道配置）
 v1_router.include_router(notification.router)
+v1_router.include_router(notification.admin_router)
 
 # 注册告警管理路由
 v1_router.include_router(alert.router)
-
-# 注册系统通知配置路由
-v1_router.include_router(admin_notification.router)
 
 # 注册维护管理路由
 v1_router.include_router(maintenance.router)

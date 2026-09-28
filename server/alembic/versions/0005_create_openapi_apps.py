@@ -7,9 +7,9 @@ Create Date: 2026-09-25 10:00:00.000000
 开放平台应用表：面向服务/第三方应用的 AppId+AppKey 身份。
 表结构已为未来升级 HMAC 签名鉴权预留 auth_mode 与 app_key_encrypted 列。
 """
-from alembic import op
-import sqlalchemy as sa
 
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0005_create_openapi_apps"

@@ -1,15 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 数据格式转换模块
-
 提供 XML/JSON/YAML 之间的常用转换能力，并包含对象/字典互转等辅助方法。
 此外还提供通用的字符串→基本类型转换函数（to_bool / to_int / to_float）。
 """
 
 import json
-
 from typing import Any
 
 import yaml
@@ -18,10 +14,8 @@ import yaml
 # ============================================================
 # 通用字符串 → 基本类型转换（供 config / env 解析等场景复用）
 # ============================================================
-
 def to_bool(value: str | None) -> bool:
     """将字符串转换为布尔值。
-
     仅当值（忽略大小写）为 ``"true"`` 时返回 ``True``，其余一律返回 ``False``。
     """
     return value.lower() == "true" if value else False
@@ -41,7 +35,7 @@ def xml_file_to_json_file(xml_file: str, json_file: str) -> dict[str, Any] | Non
     """将 xml 格式文件转为 json 格式文件（python 对象）。"""
     import xmltodict
 
-    with open(xml_file, mode="r", encoding="utf-8") as f, open(json_file, "w", encoding="utf-8") as f1:
+    with open(xml_file, encoding="utf-8") as f, open(json_file, "w", encoding="utf-8") as f1:
         order_dict = xmltodict.parse(f.read(), encoding="utf-8")
         common_dict: dict[str, Any] = json.loads(json.dumps(order_dict, ensure_ascii=False))
         f1.write(json.dumps(common_dict, ensure_ascii=False))
@@ -82,13 +76,13 @@ def float_to_int(value: float | int | str) -> int:
 
 def dict_to_obj(raw_dict: dict[str, Any]) -> Any:
     """字典转对象（递归，支持嵌套）。"""
+
     class Dict(dict):
         __setattr__ = dict.__setitem__
         __getattr__ = dict.__getitem__
 
     if not isinstance(raw_dict, dict):
         return raw_dict
-
     dt_obj = Dict()
     for k, v in raw_dict.items():
         dt_obj[k] = dict_to_obj(v)
@@ -100,7 +94,7 @@ def obj_to_dict(dict_obj: Any) -> dict[str, Any]:
     return dict_obj.__dict__
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dt_obj = dict_to_obj({"name": "xxx", "age": 18})
     print(dir(dt_obj))
     print(type(dt_obj))

@@ -5,6 +5,7 @@ Revises: 0002_create_notification_records
 Create Date: 2026-09-23 16:00:00.000000
 
 """
+
 import sqlalchemy as sa
 from alembic import op
 

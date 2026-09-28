@@ -22,7 +22,7 @@ router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
     dependencies=[Depends(require_user_permission("dashboard:view"))],
 )
 @permission("dashboard:view", "查看仪表盘", "dashboard", "view")
-async def get_stats(
+def get_stats(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: DashboardService = Depends(get_dashboard_service),
@@ -32,8 +32,13 @@ async def get_stats(
     return success_response(data, request)
 
 
-@router.get("/my-activity", summary="我的最近活动")
-async def get_my_activity(
+@router.get(
+    "/my-activity",
+    summary="我的最近活动",
+    dependencies=[Depends(require_user_permission("dashboard:view"))],
+)
+@permission("dashboard:view", "查看仪表盘", "dashboard", "view")
+def get_my_activity(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: DashboardService = Depends(get_dashboard_service),

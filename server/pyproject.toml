@@ -52,7 +52,7 @@ dev = [
 ]
 
 [project.scripts]
-x-HanJiang = "main:main"
+x-HanJiang = "src.main:main"
 
 [project.optional-dependencies]
 s3 = ["boto3>=1.35.0"]
@@ -72,6 +72,19 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM"]
 
+# 按目录豁免的规则（均为有意的工程决策）：
+#   B008: FastAPI 依赖注入（Depends/Query/File）作为参数默认值是框架惯用法
+#   A002: 数据层 CRUD 的 `id` 参数是 SQLAlchemy 仓储通用命名约定
+#   N818: 项目异常层级统一使用 *Exception 后缀命名（见 core/exceptions.py 文档）
+[tool.ruff.lint.per-file-ignores]
+"src/api/**" = ["B008"]
+"src/repositories/**" = ["A002"]
+"src/services/**" = ["A002"]
+"src/utils/cmd.py" = ["A002"]
+"src/core/exceptions.py" = ["N818"]
+"tests/**" = ["A002", "B008"]
+"examples/**" = ["A002"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
@@ -82,3 +95,20 @@ python_version = "3.11"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+# 无类型存根的第三方库：跳过缺失/未类型化导入检查，仅对这些模块生效
+[[tool.mypy.overrides]]
+module = [
+    "boto3",
+    "botocore.*",
+    "Crypto.*",
+    "scapy.*",
+    "py7zr",
+    "pypinyin",
+    "xmltodict",
+    "netaddr",
+    "psutil",
+    "yaml",
+    "slowapi.*",
+]
+ignore_missing_imports = true

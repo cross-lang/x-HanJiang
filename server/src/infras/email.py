@@ -15,10 +15,8 @@ from src.core.logger import logger
 # ============================================================
 # 抽象基类
 # ============================================================
-
 class EmailProvider(ABC):
     """邮件发送抽象接口。
-
     所有邮件后端必须实现此接口。业务层仅依赖此抽象，
     切换邮件实现只需修改配置，无需改动任何业务代码。
     """
@@ -45,8 +43,11 @@ class EmailProvider(ABC):
 
 
 # ============================================================
+
 # SMTP 实现
+
 # ============================================================
+
 
 class SmtpEmailProvider(EmailProvider):
     """SMTP 邮件发送实现。"""
@@ -92,16 +93,15 @@ class SmtpEmailProvider(EmailProvider):
         if not self._smtp_host or not self._from_address:
             logger.warning("SMTP 配置不完整，跳过邮件发送")
             return False
-
         message = MIMEMultipart("alternative")
         from email.header import Header
+
         message["From"] = f"{Header(self._from_name, 'utf-8').encode()} <{self._from_address}>"
         message["To"] = to_address
         message["Subject"] = subject
         if text_content:
             message.attach(MIMEText(text_content, "plain", "utf-8"))
         message.attach(MIMEText(html_content, "html", "utf-8"))
-
         try:
             smtp = self._create_smtp_connection()
             try:
@@ -122,8 +122,11 @@ class SmtpEmailProvider(EmailProvider):
 
 
 # ============================================================
+
 # 工厂函数
+
 # ============================================================
+
 
 def get_email_provider() -> EmailProvider:
     """根据配置创建邮件提供者实例。"""
@@ -140,6 +143,7 @@ def get_email_provider() -> EmailProvider:
 
 
 # 模块级缓存实例
+
 _email_provider: EmailProvider | None = None
 
 

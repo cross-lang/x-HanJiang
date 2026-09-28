@@ -1,5 +1,4 @@
 """全局搜索服务 — 组合各实体搜索结果。
-
 服务层不接触数据库会话、不编写 SQL，
 仅通过仓库获取实体数据，再负责结果组装。
 """
@@ -34,26 +33,17 @@ class GlobalSearchService:
         """按分类返回各实体前 N 条搜索结果。"""
         result: dict[str, list[dict]] = {}
         if "users" in categories:
-            result["users"] = [
-                self._to_user(r) for r in self._repository.search_users(keyword, limit)
-            ]
+            result["users"] = [self._to_user(r) for r in self._repository.search_users(keyword, limit)]
         if "roles" in categories:
-            result["roles"] = [
-                self._to_role(r) for r in self._repository.search_roles(keyword, limit)
-            ]
+            result["roles"] = [self._to_role(r) for r in self._repository.search_roles(keyword, limit)]
         if "permissions" in categories:
             result["permissions"] = [
-                self._to_permission(r)
-                for r in self._repository.search_permissions(keyword, limit)
+                self._to_permission(r) for r in self._repository.search_permissions(keyword, limit)
             ]
         if "apps" in categories:
-            result["apps"] = [
-                self._to_app(r) for r in self._repository.search_apps(keyword, limit)
-            ]
+            result["apps"] = [self._to_app(r) for r in self._repository.search_apps(keyword, limit)]
         if "files" in categories:
-            result["files"] = [
-                self._to_file(r) for r in self._repository.search_files(keyword, limit)
-            ]
+            result["files"] = [self._to_file(r) for r in self._repository.search_files(keyword, limit)]
         return result
 
     @staticmethod

@@ -1,12 +1,13 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """业务枚举定义。
-
 集中定义项目通用枚举类型，供 schemas / services / repositories 复用。
 枚举值对齐数据库列定义，避免业务代码中出现魔法字符串。
 """
 
 from enum import Enum
+
 from src.constants.base import BaseEnum
+
 
 class CommonStatus(Enum):
     """通用启用/停用状态（对齐 roles、permissions 等表的 status 列）。"""
@@ -25,7 +26,6 @@ class UserStatus(Enum):
 
 class AppAuthMode(Enum):
     """开放平台应用鉴权模式（对齐 api_apps.auth_mode 列）。
-
     PLAIN：仅接受 X-App-Key 明文比对；
     HMAC：  仅接受 HMAC 签名（timestamp + nonce + signature）；
     BOTH：  两种都接受（灰度迁移期用）。
@@ -48,7 +48,6 @@ class NotificationChannel(BaseEnum):
 
 class NotificationEvent(BaseEnum):
     """通知事件类型。
-
     按业务域分组，格式：{domain}.{action}
     所有事件类型必须在 config/notification_templates/ 下有对应模板。
     """
@@ -59,27 +58,76 @@ class NotificationEvent(BaseEnum):
     USER_STATUS_CHANGED = "user.status_changed", "账号状态变更"
     USER_LOGIN_FAILED = "user.login_failed", "连续登录失败告警"
     USER_CREATED = "user.created", "新用户创建"
-    FILE_UPLOADED = "file.uploaded", "文件上传完成"
-    FILE_DELETED = "file.deleted", "文件已删除"
-    FILE_DOWNLOADED = "file.downloaded", "文件被下载"
     USER_DELETED = "user.deleted", "用户已删除"
-    ROLE_DELETED = "role.deleted", "角色已删除"
     LOGIN_NEW_DEVICE = "login.new_device", "新设备登录"
-
     # ── 开放应用域 ──────────────────────────────────
     OPENAPI_APP_CREATED = "openapi_app.created", "开放应用已创建"
     OPENAPI_APP_UPDATED = "openapi_app.updated", "开放应用已更新"
     OPENAPI_APP_DELETED = "openapi_app.deleted", "开放应用已删除"
     OPENAPI_APP_KEY_RESET = "openapi_app.key_reset", "AppKey已重置"
-
     # ── 角色权限域 ──────────────────────────────
     ROLE_ASSIGNED = "role.assigned", "角色变更"
+    ROLE_DELETED = "role.deleted", "角色已删除"
     PERMISSION_GRANTED = "permission.granted", "权限授予"
     PERMISSION_REVOKED = "permission.revoked", "权限回收"
-
     # ── 系统域 ──────────────────────────────────
     SYSTEM_ALERT = "system.alert", "系统告警"
     SYSTEM_MAINTENANCE = "system.maintenance", "系统维护通知"
+    # ── 文件域 ──────────────────────────────────
+    FILE_UPLOADED = "file.uploaded", "文件上传完成"
+    FILE_DELETED = "file.deleted", "文件已删除"
+    FILE_DOWNLOADED = "file.downloaded", "文件被下载"
+
+
+# 默认通知路由表：事件类型 → 默认发送渠道
+# 未显式指定渠道的 dispatch 调用使用该路由表决定发送渠道。
+DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
+    # 用户域
+    NotificationEvent.USER_PASSWORD_CHANGED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_PROFILE_UPDATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_STATUS_CHANGED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK,
+    ],
+    NotificationEvent.USER_LOGIN_FAILED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
+    NotificationEvent.USER_CREATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_DELETED: [NotificationChannel.EMAIL],
+    NotificationEvent.LOGIN_NEW_DEVICE: [NotificationChannel.EMAIL],
+    # 角色权限域
+    NotificationEvent.ROLE_ASSIGNED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK,
+    ],
+    NotificationEvent.PERMISSION_GRANTED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.PERMISSION_REVOKED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK,
+    ],
+    NotificationEvent.ROLE_DELETED: [NotificationChannel.STATION],
+    # 文件域
+    NotificationEvent.FILE_UPLOADED: [NotificationChannel.STATION],
+    NotificationEvent.FILE_DELETED: [NotificationChannel.STATION],
+    NotificationEvent.FILE_DOWNLOADED: [NotificationChannel.STATION],
+    # 开放应用域
+    NotificationEvent.OPENAPI_APP_CREATED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_UPDATED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_DELETED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_KEY_RESET: [NotificationChannel.EMAIL],
+    # 系统域
+    NotificationEvent.SYSTEM_ALERT: [
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK,
+        NotificationChannel.FEISHU,
+    ],
+    NotificationEvent.SYSTEM_MAINTENANCE: [
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK,
+        NotificationChannel.FEISHU,
+    ],
+}
 
 
 class NotificationStatus(BaseEnum):
@@ -91,6 +139,13 @@ class NotificationStatus(BaseEnum):
     RETRYING = "retrying", "重试中"
 
 
+class StationMessageStatus(BaseEnum):
+    """站内信阅读状态（对齐 notification_records.status 列的站内信取值）。"""
+
+    UNREAD = "unread", "未读"
+    READ = "read", "已读"
+
+
 class HttpStatus(BaseEnum):
     """HTTP 状态码"""
 
@@ -98,7 +153,6 @@ class HttpStatus(BaseEnum):
     CREATED = 201, "Created"
     ACCEPTED = 202, "Accepted"
     NO_CONTENT = 204, "No Content"
-
     BAD_REQUEST = 400, "Bad Request"
     UNAUTHORIZED = 401, "Unauthorized"
     FORBIDDEN = 403, "Forbidden"
@@ -107,7 +161,6 @@ class HttpStatus(BaseEnum):
     CONFLICT = 409, "Conflict"
     UNPROCESSABLE_ENTITY = 422, "Unprocessable Entity"
     TOO_MANY_REQUESTS = 429, "Too Many Requests"
-
     INTERNAL_SERVER_ERROR = 500, "Internal Server Error"
     NOT_IMPLEMENTED = 501, "Not Implemented"
     BAD_GATEWAY = 502, "Bad Gateway"
@@ -124,12 +177,10 @@ class HttpMediaType(Enum):
     MULTIPART = "multipart/form-data"
 
 
-
-
 class SystemRoleCode(BaseEnum):
     """系统内置角色编码（种子数据中固定存在，不可删除）。"""
 
-    SUPER_ADMIN = ("superadmin", "超级管理员")
+    SUPERADMIN = ("superadmin", "超级管理员")
     ADMIN = ("admin", "管理员")
     USER = ("user", "普通用户")
 
@@ -149,6 +200,9 @@ class ApiModuleCode(BaseEnum):
     OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
     DASHBOARD = ("dashboard", "仪表盘")
     SWAGGER = ("swagger", "接口文档")
+    PROFILE = ("profile", "个人中心")
+    STATION = ("station", "站内信")
+    GLOBAL_SEARCH = ("global_search", "全局搜索")
 
 
 class OpenApiModuleCode(BaseEnum):

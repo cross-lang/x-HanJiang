@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """权限装饰器。
-
 用法：
     @router.get("", dependencies=[Depends(require_user_permission("user:view"))])
     @permission("user:view", "查看用户", "user", "view")
     async def list_users():
         ...
-
 启动时自动扫描所有路由的 _permission_code 属性，upsert 到 permissions 表。
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 from src.core.logger import logger
 
@@ -44,13 +42,15 @@ def collect_permissions_from_app(app) -> list[dict]:
             path = getattr(route, "path", "?")
             if hasattr(endpoint, "_permission_code"):
                 logger.debug(f"Found permission: {endpoint._permission_code} at {path}")
-                permissions.append({
-                    "perm_code": endpoint._permission_code,
-                    "perm_name": endpoint._permission_name or endpoint._permission_code,
-                    "module": endpoint._permission_module or "",
-                    "operation": endpoint._permission_operation or "",
-                    "description": (endpoint.__doc__ or "")[:250],
-                })
+                permissions.append(
+                    {
+                        "perm_code": endpoint._permission_code,
+                        "perm_name": endpoint._permission_name or endpoint._permission_code,
+                        "module": endpoint._permission_module or "",
+                        "operation": endpoint._permission_operation or "",
+                        "description": (endpoint.__doc__ or "")[:250],
+                    }
+                )
             else:
                 logger.debug(f"No permission decorator: {path} -> {endpoint.__name__}")
     # 按 perm_code 去重（多个路由共用同一权限码时只保留一条）

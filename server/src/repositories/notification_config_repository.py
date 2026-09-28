@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.entities.notification_config_entity import (
@@ -11,9 +10,7 @@ from src.models.entities.notification_config_entity import (
 from src.repositories.base_repository import BaseRepository
 
 
-class UserNotificationConfigRepository(
-    BaseRepository[UserNotificationConfigEntity, int]
-):
+class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEntity, int]):
     """用户通知渠道配置 Repository。"""
 
     model_class = UserNotificationConfigEntity
@@ -21,22 +18,15 @@ class UserNotificationConfigRepository(
     def __init__(self, session: Session | None = None) -> None:
         super().__init__(session)
 
-    def get_enabled_by_user_id(
-        self, user_id: int
-    ) -> list[UserNotificationConfigEntity]:
+    def get_enabled_by_user_id(self, user_id: int) -> list[UserNotificationConfigEntity]:
         """查询用户所有已启用的通知渠道配置。"""
-        stmt = (
-            self._base_query()
-            .where(
-                self.model_class.user_id == user_id,
-                self.model_class.enabled.is_(True),
-            )
+        stmt = self._base_query().where(
+            self.model_class.user_id == user_id,
+            self.model_class.enabled.is_(True),
         )
         return list(self.session.execute(stmt).scalars().all())
 
-    def get_by_user_and_channel(
-        self, user_id: int, channel: str
-    ) -> UserNotificationConfigEntity | None:
+    def get_by_user_and_channel(self, user_id: int, channel: str) -> UserNotificationConfigEntity | None:
         """按用户ID和渠道查询配置。"""
         stmt = self._base_query().where(
             self.model_class.user_id == user_id,
