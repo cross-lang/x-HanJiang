@@ -128,7 +128,7 @@
           style="flex-shrink: 0; max-height: 264px; overflow-y: auto; border-radius: 12px; margin-bottom: 12px; padding: 12px 8px 8px"
         >
           <!-- 标题行 -->
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 2px 8px">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 2px 10px; border-bottom: 1px solid rgba(139, 92, 246, 0.10); margin-bottom: 6px">
             <div style="display: flex; align-items: center; gap: 6px">
               <span style="width: 3px; height: 14px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #6366f1); display: inline-block"></span>
               <span style="font-size: 13px; color: #1f2329; font-weight: 600">会话列表</span>
@@ -216,7 +216,7 @@
         </div>
         </transition>
         <!-- 聊天区 -->
-        <div ref="chatScrollRef" style="flex: 1; overflow-y: auto; padding: 12px; background: #f7f8fd; border-radius: 8px; margin-bottom: 12px">
+        <div ref="chatScrollRef" style="flex: 1; overflow-y: auto; padding: 12px; background: #f7f8fd; border: 1px solid #e6e7f0; border-radius: 8px; margin-bottom: 12px">
           <div v-if="aiMessages.length === 0" style="text-align: center; color: #666; padding: 24px 12px">
             <div
               style="width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 14px; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: center"
@@ -715,9 +715,10 @@ function handleCommand(cmd: string) {
 <style>
 /* AI 助手会话管理面板：紫色渐变氛围 + 柔光 + 动效（与「小江」品牌元素统一） */
 .ai-conv-panel {
-  background: linear-gradient(180deg, #fbfaff 0%, #ffffff 100%);
-  border: 1px solid rgba(139, 92, 246, 0.10);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.05);
+  background: #f4f2fd;
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  border-bottom: 2px solid rgba(139, 92, 246, 0.18);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.10);
   animation: ai-panel-in 0.22s ease-out both;
 }
 @keyframes ai-panel-in {

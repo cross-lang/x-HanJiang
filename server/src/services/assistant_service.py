@@ -531,6 +531,7 @@ class AssistantService:
             action = payload.get("action")
             page = payload.get("page")
             path = payload.get("path")
+            action_input = payload.get("action_input")
             if isinstance(action, str) and action == "navigate":
                 if isinstance(page, str) and page:
                     return ToolCall(
@@ -550,6 +551,19 @@ class AssistantService:
                         id="text-call",
                         name="navigate",
                         arguments=json.dumps({"page": ""}, ensure_ascii=False),
+                    )
+                if isinstance(action_input, str) and action_input:
+                    mapped = _page_of_path(action_input)
+                    if mapped is not None:
+                        return ToolCall(
+                            id="text-call",
+                            name="navigate",
+                            arguments=json.dumps({"page": mapped}, ensure_ascii=False),
+                        )
+                    return ToolCall(
+                        id="text-call",
+                        name="navigate",
+                        arguments=json.dumps({"page": action_input}, ensure_ascii=False),
                     )
             calls = payload.get("tool_calls")
             if isinstance(calls, list) and calls:
