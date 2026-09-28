@@ -171,29 +171,34 @@ function handleSearch() {
   fetchList()
 }
 
-function handleExport() {
+function fileNameFromDisposition(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition)
+  if (star) return decodeURIComponent(star[1].trim())
+  const plain = /filename=([^;]+)/i.exec(disposition)
+  if (plain) return plain[1].trim().replace(/"/g, '')
+  return fallback
+}
+
+async function handleExport() {
   const token = localStorage.getItem('access_token') || ''
   const isLogin = isLoginLog.value
   const api = isLogin ? '/api/v1/audit/login-logs/export' : '/api/v1/audit/logs/export'
-  const filename = isLogin ? 'login_logs_export.csv' : 'audit_logs_export.csv'
-  fetch(api, { headers: { Authorization: `Bearer ${token}` } })
-    .then(async r => {
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}))
-        ElMessage.error(err.message || `导出失败（${r.status}）`)
-        return
-      }
-      return r.blob()
-    })
-    .then(blob => {
-      if (!blob) return
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      link.click()
-      URL.revokeObjectURL(url)
-    })
+  const fallback = isLogin ? 'login_logs_export.csv' : 'audit_logs_export.csv'
+  const r = await fetch(api, { headers: { Authorization: `Bearer ${token}` } })
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}))
+    ElMessage.error(err.message || `导出失败（${r.status}）`)
+    return
+  }
+  const blob = await r.blob()
+  const filename = fileNameFromDisposition(r.headers.get('content-disposition'), fallback)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 onMounted(() => {

@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from src.services.profile_service import ProfileService
     from src.services.role_service import RoleService
     from src.services.station_service import StationMessageService
+    from src.services.system_notification_config_service import SystemNotificationConfigService
     from src.services.system_notification_service import SystemNotificationService
     from src.services.user_service import UserService
 
@@ -210,14 +211,14 @@ def get_dashboard_service(
 
 def get_system_notification_config_service(
     db_session: Session = Depends(get_db_session),
-) -> SystemNotificationService:
+) -> SystemNotificationConfigService:
     """获取系统通知配置服务。"""
     from src.repositories.system_notification_config_repository import (
         SystemNotificationConfigRepository,
     )
-    from src.services.system_notification_service import SystemNotificationService
+    from src.services.system_notification_config_service import SystemNotificationConfigService
 
-    return SystemNotificationService(repository=SystemNotificationConfigRepository(session=db_session))
+    return SystemNotificationConfigService(repository=SystemNotificationConfigRepository(session=db_session))
 
 
 def get_role_repository(

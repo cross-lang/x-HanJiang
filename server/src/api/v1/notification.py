@@ -11,6 +11,7 @@ from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     get_notification_service,
+    get_system_notification_config_service,
     get_system_notification_service,
     require_user_permission,
 )
@@ -24,6 +25,7 @@ from src.schemas.notification import (
     UpdateNotificationConfigRequest,
 )
 from src.services.notification_service import NotificationService
+from src.services.system_notification_config_service import SystemNotificationConfigService
 from src.services.system_notification_service import SystemNotificationService
 
 router = APIRouter(prefix="/notifications", tags=["通知管理"])
@@ -288,7 +290,7 @@ admin_router = APIRouter(prefix="/admin/notification-configs", tags=["通知管�
 @permission("notification:config", "通知配置管理", "notification", "config")
 def list_configs(
     request: Request,
-    service: SystemNotificationService = Depends(get_system_notification_service),
+    service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
 ):
     """获取所有系统通知渠道配置。
 
@@ -299,7 +301,16 @@ def list_configs(
     Returns:
         统一响应，包含全部通知渠道的配置项列表。
     """
-    return success_response({"items": service.list_configs()}, request)
+    items = [
+        {
+            "id": cfg.id,
+            "channel": cfg.channel,
+            "config_json": cfg.config_json,
+            "enabled": cfg.enabled,
+        }
+        for cfg in service.list_configs()
+    ]
+    return success_response({"items": items}, request)
 
 
 @admin_router.put(
@@ -312,7 +323,7 @@ def update_config(
     channel: str,
     request: Request,
     body: UpdateNotificationConfigRequest,
-    service: SystemNotificationService = Depends(get_system_notification_service),
+    service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
 ):
     """更新指定通知渠道的配置。
 
@@ -348,7 +359,7 @@ def update_config(
 @permission("notification:config", "通知配置管理", "notification", "config")
 def system_monitor(
     request: Request,
-    service: SystemNotificationService = Depends(get_system_notification_service),
+    service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
 ):
     """获取系统通知监控状态。
 

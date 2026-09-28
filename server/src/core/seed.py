@@ -192,7 +192,6 @@ def init_seed_data() -> None:
             "profile:password",
             "station:view",
             "station:edit",
-            "dashboard:view",
             "global_search:search",
         ]
         for code in user_basic_codes:

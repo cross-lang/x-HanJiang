@@ -258,7 +258,7 @@ async function handleLogin() {
 .remember-row {
   display: flex;
   justify-content: flex-end;
-  margin: -4px 0 12px;
+  margin: -16px 0 18px;
 }
 .remember-row :deep(.el-checkbox__label) {
   font-size: 13px;

@@ -32,6 +32,8 @@ from src.services.station_service import StationMessageService
 class SystemNotificationService:
     """系统通知业务逻辑实现。"""
 
+    entity_type: str = "system_notification"  # 审计日志实体类型
+
     def __init__(
         self,
         notice_repository: SystemNotificationRepository,
@@ -103,6 +105,13 @@ class SystemNotificationService:
             title=title,
             content=content,
             event_type=SYSTEM_NOTICE_EVENT,
+        )
+        self._audit(
+            entity_id=entity.id,
+            action="publish",
+            operator=operator,
+            after_data={"title": title, "notice_type": entity.notice_type, "status": entity.status},
+            remarks=f"发布通知{title}",
         )
         logger.info(
             "System notice published: id=%s type=%s users=%d operator=%s",
@@ -200,6 +209,14 @@ class SystemNotificationService:
         entity.status = SystemNotificationStatus.WITHDRAWN.value
         entity.withdrawn_at = datetime.now()
         self._notice_repository.commit()
+        self._audit(
+            entity_id=notice_id,
+            action="withdraw",
+            operator=operator,
+            before_data={"status": SystemNotificationStatus.PUBLISHED.value},
+            after_data={"status": SystemNotificationStatus.WITHDRAWN.value},
+            remarks=f"撤回通知{entity.title}",
+        )
         logger.info(
             "System notice withdrawn: id=%s operator=%s",
             notice_id,
@@ -260,3 +277,38 @@ class SystemNotificationService:
         if entity is None:
             raise NotFoundException(message="系统通知不存在")
         return SystemNotificationResponse.model_validate(entity)
+
+    def _audit(
+        self,
+        entity_id: Any,
+        action: str,
+        operator: dict[str, Any] | None,
+        before_data: dict[str, Any] | None = None,
+        after_data: dict[str, Any] | None = None,
+        remarks: str | None = None,
+    ) -> None:
+        """记录审计日志（失败不影响主流程）。
+
+        Args:
+            entity_id: 实体主键
+            action: 操作类型（publish / withdraw 等）
+            operator: 操作人上下文（operator_id / ip_address）
+            before_data: 变更前数据快照
+            after_data: 变更后数据快照
+            remarks: 备注说明
+        """
+        try:
+            from src.services.audit_service import AuditService
+
+            AuditService().log_event(
+                entity_type=self.entity_type,
+                entity_id=entity_id,
+                action=action,
+                operator_id=operator.get("operator_id") if operator else None,
+                before_data=before_data,
+                after_data=after_data,
+                ip_address=operator.get("ip_address") if operator else None,
+                remarks=remarks or f"{self.entity_type} {action}",
+            )
+        except Exception as exc:  # noqa: BLE001 - 审计失败不阻断主流程
+            logger.warning("审计日志写入失败 entity_type=%s action=%s: %s", self.entity_type, action, exc)

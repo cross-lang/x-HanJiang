@@ -25,7 +25,11 @@ def upload_file(
     service: FileStorageService = Depends(get_file_service),
     current_user=Depends(get_current_user),
 ):
-    result = service.save_upload(file, folder, operator={"operator_id": current_user.id})
+    result = service.save_upload(
+        file,
+        folder,
+        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+    )
     return success_response(result, request, code=201)
 
 
@@ -61,7 +65,10 @@ def get_file(
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    result = service.download_file(file_path)
+    result = service.download_file(
+        file_path,
+        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+    )
     return result
 
 
@@ -77,5 +84,8 @@ def delete_file(
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    service.delete_file(file_id, operator_username=current_user.username)
+    service.delete_file(
+        file_id,
+        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+    )
     return success_response({"deleted": True}, request)

@@ -28,7 +28,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="格式" width="100">
+        <el-table-column label="格式" width="130">
           <template #default="{ row }">
             <el-tag type="primary" effect="plain">{{ row.content_type === 'richtext' ? '富文本' : 'Markdown' }}</el-tag>
           </template>
@@ -40,7 +40,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="有效期" width="300">
+        <el-table-column label="有效期" width="240">
           <template #default="{ row }">
             {{ fmtTime(row.start_at) }} ~ {{ fmtTime(row.end_at) }}
           </template>

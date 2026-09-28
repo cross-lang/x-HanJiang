@@ -27,6 +27,8 @@ class FileStorageService:
     仅调用 FileRepository 存取数据，不直接操作数据库会话。
     """
 
+    entity_type: str = "file"  # 审计日志实体类型
+
     def __init__(
         self,
         file_repository: FileRepository,
@@ -67,6 +69,13 @@ class FileStorageService:
         )
         self._repository.create(entity)
         self._repository.commit()
+        self._audit(
+            entity_id=entity.id,
+            action="upload",
+            operator=operator,
+            after_data={"filename": file_name, "key": result.key, "size": result.size, "folder": folder},
+            remarks=f"上传文件{file_name}",
+        )
         logger.info(f"File uploaded: key={result.key} size={result.size} operator_id={uploaded_by} file_id={entity.id}")
         return {
             "id": entity.id,
@@ -128,12 +137,22 @@ class FileStorageService:
     def get_url(self, key: str) -> str:
         return self._provider.get_download_url(key)
 
-    def download_file(self, file_path: str) -> FileResponse | RedirectResponse | StreamingResponse:
+    def download_file(
+        self,
+        file_path: str,
+        operator: dict[str, Any] | None = None,
+    ) -> FileResponse | RedirectResponse | StreamingResponse:
         normalized_path = file_path.strip("/")
         if not normalized_path or ".." in Path(normalized_path).parts:
             raise ValidationException(message="文件路径无效")
         filename = Path(normalized_path).name
         media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        self._audit(
+            entity_id=normalized_path,
+            action="download",
+            operator=operator,
+            remarks=f"下载文件{filename}",
+        )
         provider_name = type(self._provider).__name__
         if provider_name != "LocalStorage":
             if not self._provider.file_exists(normalized_path):
@@ -163,7 +182,7 @@ class FileStorageService:
 
     # ── 删除（软删除）───────────────────────────────────
 
-    def delete_file(self, file_id: int, operator_username: str = "") -> bool:
+    def delete_file(self, file_id: int, operator: dict[str, Any] | None = None) -> bool:
         """软删除文件记录（不真删存储里的文件，经仓库）。"""
         entity = self._repository.soft_delete(file_id)
         if entity is None:
@@ -172,6 +191,13 @@ class FileStorageService:
         uploaded_by = entity.uploaded_by
         filename = entity.original_name
         self._repository.commit()
+        self._audit(
+            entity_id=file_id,
+            action="delete",
+            operator=operator,
+            before_data={"filename": filename, "uploaded_by": uploaded_by},
+            remarks=f"删除文件{filename}",
+        )
         logger.info(f"File soft-deleted: id={file_id} key={entity.file_key}")
         # 文件删除通知给上传者
         if uploaded_by:
@@ -182,7 +208,7 @@ class FileStorageService:
                 get_notification_dispatcher().dispatch_for_user(
                     user_id=uploaded_by,
                     event_type=NotificationEvent.FILE_DELETED,
-                    variables={"filename": filename, "operator": operator_username},
+                    variables={"filename": filename, "operator": operator.get("operator_name") if operator else ""},
                 )
             except Exception:
                 pass
@@ -198,3 +224,38 @@ class FileStorageService:
             "total_count": total_count,
             "by_folder": [{"folder": r[0], "count": r[1], "size_bytes": r[2]} for r in by_folder],
         }
+
+    def _audit(
+        self,
+        entity_id: Any,
+        action: str,
+        operator: dict[str, Any] | None,
+        before_data: dict[str, Any] | None = None,
+        after_data: dict[str, Any] | None = None,
+        remarks: str | None = None,
+    ) -> None:
+        """记录审计日志（失败不影响主流程）。
+
+        Args:
+            entity_id: 实体主键
+            action: 操作类型（upload / download / delete 等）
+            operator: 操作人上下文（operator_id / operator_name / ip_address）
+            before_data: 变更前数据快照
+            after_data: 变更后数据快照
+            remarks: 备注说明
+        """
+        try:
+            from src.services.audit_service import AuditService
+
+            AuditService().log_event(
+                entity_type=self.entity_type,
+                entity_id=entity_id,
+                action=action,
+                operator_id=operator.get("operator_id") if operator else None,
+                before_data=before_data,
+                after_data=after_data,
+                ip_address=operator.get("ip_address") if operator else None,
+                remarks=remarks or f"{self.entity_type} {action}",
+            )
+        except Exception as exc:  # noqa: BLE001 - 审计失败不阻断主流程
+            logger.warning("审计日志写入失败 entity_type=%s action=%s: %s", self.entity_type, action, exc)

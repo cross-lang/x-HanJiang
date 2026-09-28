@@ -412,8 +412,8 @@ async function changePassword() {
 }
 
 .hero-avatar {
-  background: linear-gradient(135deg, #e4edff 0%, #d0ddff 100%);
-  color: #2f54eb;
+  background: #79bbff;
+  color: #fff;
   font-size: 32px;
   font-weight: 600;
   border: none;

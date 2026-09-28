@@ -11,7 +11,7 @@ Classes:
     PermissionRepository: 权限数据访问 SQLAlchemy 实现
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.core.exceptions import ConflictException
 from src.models.entities.user_entity import PermissionEntity
@@ -53,7 +53,21 @@ class PermissionRepository(BaseRepository[PermissionEntity, int]):
             conditions.append(PermissionEntity.module == module)
         if operation:
             conditions.append(PermissionEntity.operation == operation)
-        return self._paginate(conditions, skip, limit)
+        total = (
+            self.session.execute(
+                select(func.count()).select_from(select(self.model_class).where(*conditions).subquery())
+            ).scalar()
+            or 0
+        )
+        stmt = (
+            select(PermissionEntity)
+            .where(*conditions)
+            .order_by(PermissionEntity.sort_order.asc(), PermissionEntity.id.asc())
+            .offset(skip)
+            .limit(limit)
+        )
+        rows = list(self.session.execute(stmt).scalars().all())
+        return rows, total
 
     def get_all_modules(self) -> list[str]:
         """返回所有去重的模块列表。"""

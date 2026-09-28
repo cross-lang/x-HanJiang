@@ -19,6 +19,8 @@ from src.schemas.announcement import AnnouncementCreateRequest, AnnouncementUpda
 class AnnouncementService:
     """公告业务逻辑实现。"""
 
+    entity_type: str = "announcement"  # 审计日志实体类型
+
     def __init__(self, repository: AnnouncementRepository) -> None:
         self._repository = repository
 
@@ -54,6 +56,18 @@ class AnnouncementService:
         )
         entity = self._repository.create(entity)
         self._repository.commit()
+        self._audit(
+            entity_id=entity.id,
+            action="create",
+            operator=operator,
+            after_data={
+                "title": entity.title,
+                "content_type": entity.content_type,
+                "position": entity.position,
+                "status": entity.status,
+            },
+            remarks=f"创建公告{entity.title}",
+        )
         logger.info("Announcement created: id=%s title=%s", entity.id, entity.title)
         return entity
 
@@ -77,12 +91,31 @@ class AnnouncementService:
             NotFoundException: 公告不存在时抛出
         """
         entity = self._get_entity(announcement_id)
+        before = {
+            "title": entity.title,
+            "content_type": entity.content_type,
+            "position": entity.position,
+            "status": entity.status,
+        }
         patch_data = request.model_dump(exclude_unset=True, exclude_none=True)
         for key, value in patch_data.items():
             if hasattr(entity, key) and value is not None:
                 setattr(entity, key, value.value if hasattr(value, "value") else value)
         entity.updated_at = datetime.now()
         self._repository.commit()
+        self._audit(
+            entity_id=announcement_id,
+            action="update",
+            operator=operator,
+            before_data=before,
+            after_data={
+                "title": entity.title,
+                "content_type": entity.content_type,
+                "position": entity.position,
+                "status": entity.status,
+            },
+            remarks=f"修改公告{entity.title}",
+        )
         logger.info("Announcement updated: id=%s", announcement_id)
         return entity
 
@@ -97,8 +130,16 @@ class AnnouncementService:
             NotFoundException: 公告不存在时抛出
         """
         entity = self._get_entity(announcement_id)
+        before = {"title": entity.title, "position": entity.position, "status": entity.status}
         self._repository.delete(announcement_id)
         self._repository.commit()
+        self._audit(
+            entity_id=announcement_id,
+            action="delete",
+            operator=operator,
+            before_data=before,
+            remarks=f"删除公告{entity.title}",
+        )
         logger.info(
             "Announcement deleted: id=%s title=%s operator=%s",
             announcement_id,
@@ -137,6 +178,13 @@ class AnnouncementService:
         entity.published_at = now
         entity.updated_at = now
         self._repository.commit()
+        self._audit(
+            entity_id=announcement_id,
+            action="publish",
+            operator=operator,
+            after_data={"status": AnnouncementStatus.PUBLISHED.value},
+            remarks=f"发布公告{entity.title}",
+        )
         logger.info("Announcement published: id=%s", announcement_id)
         return entity
 
@@ -160,6 +208,13 @@ class AnnouncementService:
         entity.status = AnnouncementStatus.UNPUBLISHED.value
         entity.updated_at = datetime.now()
         self._repository.commit()
+        self._audit(
+            entity_id=announcement_id,
+            action="unpublish",
+            operator=operator,
+            after_data={"status": AnnouncementStatus.UNPUBLISHED.value},
+            remarks=f"下架公告{entity.title}",
+        )
         logger.info("Announcement unpublished: id=%s", announcement_id)
         return entity
 
@@ -234,3 +289,38 @@ class AnnouncementService:
         if entity is None:
             raise NotFoundException(message="公告不存在")
         return entity
+
+    def _audit(
+        self,
+        entity_id: Any,
+        action: str,
+        operator: dict[str, Any] | None,
+        before_data: dict[str, Any] | None = None,
+        after_data: dict[str, Any] | None = None,
+        remarks: str | None = None,
+    ) -> None:
+        """记录审计日志（失败不影响主流程）。
+
+        Args:
+            entity_id: 实体主键
+            action: 操作类型（create / update / delete / publish / unpublish 等）
+            operator: 操作人上下文（operator_id / ip_address）
+            before_data: 变更前数据快照
+            after_data: 变更后数据快照
+            remarks: 备注说明
+        """
+        try:
+            from src.services.audit_service import AuditService
+
+            AuditService().log_event(
+                entity_type=self.entity_type,
+                entity_id=entity_id,
+                action=action,
+                operator_id=operator.get("operator_id") if operator else None,
+                before_data=before_data,
+                after_data=after_data,
+                ip_address=operator.get("ip_address") if operator else None,
+                remarks=remarks or f"{self.entity_type} {action}",
+            )
+        except Exception as exc:  # noqa: BLE001 - 审计失败不阻断主流程
+            logger.warning("审计日志写入失败 entity_type=%s action=%s: %s", self.entity_type, action, exc)

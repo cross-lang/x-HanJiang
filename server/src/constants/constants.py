@@ -92,7 +92,10 @@ AUDIT_ACTION_CN: dict[str, str] = {
     "login": "登录",
     "logout": "退出登录",
     "export": "导出",
+    "upload": "上传",
+    "download": "下载",
     "publish": "发布",
+    "unpublish": "下架",
     "withdraw": "撤回",
     "reset_password": "重置密码",
 }
