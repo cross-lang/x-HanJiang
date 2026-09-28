@@ -65,11 +65,35 @@ VERIFY_CODE_EVENT: str = "security.verify_code"  # 验证码邮件事件类型
 # -- 通知 ---------------------------------------------------------------
 DEFAULT_ENABLED_CHANNEL: str = "station"  # 用户通知偏好未显式配置时的默认启用渠道（站内信默认开启）
 NOTIFICATION_EVENT_STATION_MESSAGE: str = "station.message"  # 站内信专用事件类型
+SYSTEM_NOTICE_EVENT: str = "system.notice"  # 系统通知（发布/维护广播）站内信事件类型
 MAX_BROADCAST_USER_LIMIT: int = 10000  # 告警/维护广播单次查询用户上限
 
 # -- 登录日志 -----------------------------------------------------------
 LOGIN_STATUS_SUCCESS: str = "success"  # 登录成功
 LOGIN_STATUS_FAILED: str = "failed"  # 登录失败
+
+# -- 审计日志 -----------------------------------------------------------
+LOGIN_STATUS_CN: dict[str, str] = {
+    "success": "成功",
+    "failed": "失败",
+}
+LOGIN_TYPE_CN: dict[str, str] = {
+    "password": "密码登录",
+    "sso": "单点登录",
+}
+AUDIT_ACTION_CN: dict[str, str] = {
+    "create": "新增",
+    "update": "更新",
+    "delete": "删除",
+    "bind_permission": "绑定权限",
+    "unbind_permission": "解绑权限",
+    "login": "登录",
+    "logout": "退出登录",
+    "export": "导出",
+    "publish": "发布",
+    "withdraw": "撤回",
+    "reset_password": "重置密码",
+}
 
 # -- 响应消息 -----------------------------------------------------------
 MSG_SUCCESS: str = "success"

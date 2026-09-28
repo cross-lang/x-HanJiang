@@ -13,10 +13,11 @@
 - 装饰器自动扫描路由注册权限，启动时自动同步到 permissions 表
 - 开放平台 HanJiang-1 HMAC 签名鉴权，支持明文与签名双模式，内置应用管理（AppId/AppKey 生命周期、scope 授权、密钥轮换）
 - 事件驱动多渠道通知系统（站内信 / 邮件 / 钉钉 / 飞书 / 短信），支持用户级偏好与失败自动重试
+- 系统通知广播：面向全体用户发布普通通知 / 系统维护通知，站内信广播 + 按用户渠道推送多渠道
 - 分层架构：API 路由 → 业务逻辑 → 数据访问，职责清晰
 - 生产级安全设计（常量时间比对、防重放、密码哈希、邮箱验证码二次认证）
 - 内置仪表盘（用户/角色/应用统计 + 登录趋势 + 操作日志趋势 + ECharts 可视化）
-- 文件管理（本地 / S3 兼容存储）、全局搜索、个人中心、系统告警与维护通知
+- 文件管理（本地 / S3 兼容存储）、全局搜索、个人中心、系统告警、公告管理（首页板块 / 横幅）
 - 完善的开发者体验（Swagger 文档、Alembic 迁移、统一异常处理、GitHub Actions CI）
 
 **适用场景：**
@@ -204,7 +205,7 @@ flowchart TD
 | 认证 | `POST /api/v1/auth/logout` | 退出登录 |
 | 个人中心 | `GET /api/v1/profile/me` | 当前用户信息 |
 | 个人中心 | `GET /api/v1/profile/menus` | 当前用户菜单树 |
-| 个人中心 | `POST /api/v1/profile/change-password` | 修改密码（邮箱验证码二次认证） |
+| 个人中心 | `POST /api/v1/profile/change-password` | 修改密码（验证码二次认证） |
 | 用户管理 | `GET /api/v1/users` | 用户列表（支持多角色） |
 | 用户管理 | `POST /api/v1/users` | 创建用户 |
 | 用户管理 | `GET /api/v1/users/export` | 导出用户（CSV） |
@@ -218,9 +219,15 @@ flowchart TD
 | 登录日志 | `GET /api/v1/audit/login-logs` | 登录日志列表 |
 | 文件管理 | `POST /api/v1/files/upload` | 上传文件 |
 | 文件管理 | `GET /api/v1/files` | 文件列表 |
+| 通知管理 | `POST /api/v1/notifications/publish` | 发布系统通知（普通 / 维护，全体用户广播） |
+| 通知管理 | `GET /api/v1/notifications/published` | 系统通知列表 |
 | 通知管理 | `GET /api/v1/notifications` | 通知列表 |
 | 站内信 | `GET /api/v1/station/messages` | 我的消息列表 |
 | 站内信 | `GET /api/v1/station/messages/unread-count` | 未读消息数 |
+| 公告管理 | `GET /api/v1/announcements/active` | 首页生效公告 |
+| 公告管理 | `POST /api/v1/announcements` | 创建公告（草稿） |
+| 公告管理 | `POST /api/v1/announcements/{id}/publish` | 发布公告 |
+| 公告管理 | `POST /api/v1/announcements/{id}/unpublish` | 下架公告 |
 | 仪表盘 | `GET /api/v1/dashboard/stats` | 仪表盘统计数据 |
 | 全局搜索 | `GET /api/v1/search` | 全局搜索（用户/角色/权限/应用/文件） |
 | 开放平台应用 | `POST /api/v1/admin/apps` | 创建开放应用（返回 AppId + AppKey） |

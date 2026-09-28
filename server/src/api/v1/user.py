@@ -248,7 +248,7 @@ def import_users(
             "phone": row.get("phone"),
             "avatar_url": row.get("avatar_url"),
             "role_id": int(row["role_id"]) if row.get("role_id") else None,
-            "status": row.get("status") or "active",
+            "status": row.get("status") or "enabled",
         }
         service.create(payload, operator=operator_ctx)
         imported += 1

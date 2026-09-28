@@ -40,34 +40,3 @@ class AlertSendRequest(BaseModel):
         description="扩展元数据（如来源系统、告警级别等）",
         examples=[{"source": "prometheus", "severity": "critical"}],
     )
-
-
-class MaintenanceNotifyRequest(BaseModel):
-    """系统维护通知请求。
-    管理员手动触发，通知全体用户即将进行的系统维护。
-    示例::
-        {
-            "maintenance_time": "2026-09-25 02:00",
-            "duration": "约 2 小时",
-            "reason": "数据库升级"
-        }
-    """
-
-    maintenance_time: str = Field(
-        min_length=1,
-        max_length=50,
-        description="维护开始时间",
-        examples=["2026-09-25 02:00"],
-    )
-    duration: str = Field(
-        min_length=1,
-        max_length=50,
-        description="预计持续时长",
-        examples=["约 2 小时"],
-    )
-    reason: str | None = Field(
-        default=None,
-        max_length=500,
-        description="维护原因",
-        examples=["数据库升级"],
-    )

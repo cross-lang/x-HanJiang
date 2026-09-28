@@ -22,7 +22,7 @@ CREATE TABLE `users` (
     `phone`  VARCHAR(20)  COMMENT '手机号',
     `avatar_url`  VARCHAR(500)  COMMENT '头像URL',
     `role_id`  BIGINT  NULL  COMMENT '主角色ID',
-    `status`  ENUM('active','inactive','locked')  NOT NULL  DEFAULT 'active'  COMMENT '状态',
+    `status`  ENUM('enabled','disabled')  NOT NULL  DEFAULT 'enabled'  COMMENT '状态：enabled 启用 / disabled 禁用',
     `last_login_at`  DATETIME  NULL  COMMENT '最后登录时间',
     `last_login_ip`  VARCHAR(45)  COMMENT '最后登录IP',
     `created_at`  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',

@@ -18,7 +18,7 @@ Endpoints:
     POST   /profile/notification-recipients:   添加通知接收人
     PUT    /profile/notification-recipients/{id}:  更新通知接收人
     DELETE /profile/notification-recipients/{id}: 删除通知接收人
-    POST   /profile/send-verify-code:          发送邮箱验证码
+    POST   /profile/send-verify-code:          发送验证码
     POST   /profile/update-phone:              修改手机号
     POST   /profile/update-email:              修改邮箱
 """
@@ -85,7 +85,7 @@ def update_me(
 @router.post(
     "/change-password",
     summary="修改密码",
-    description="当前用户修改自己的密码（需提供原密码 + 邮箱验证码二次认证）",
+    description="当前用户修改自己的密码（需提供原密码 + 验证码二次认证）",
     dependencies=[Depends(require_user_permission("profile:password"))],
 )
 @permission("profile:password", "修改密码", "profile", "password")
@@ -226,7 +226,7 @@ def delete_recipient(
 
 @router.post(
     "/send-verify-code",
-    summary="发送邮箱验证码",
+    summary="发送验证码",
     description="安全设置二次认证：向当前用户邮箱发送 6 位验证码，5 分钟有效",
     dependencies=[Depends(require_user_permission("profile:edit"))],
 )
@@ -244,7 +244,7 @@ def send_verify_code(
 @router.post(
     "/update-phone",
     summary="修改手机号",
-    description="需通过邮箱验证码二次认证",
+    description="需通过验证码二次认证",
     dependencies=[Depends(require_user_permission("profile:edit"))],
 )
 @permission("profile:edit", "编辑个人中心", "profile", "edit")
@@ -254,7 +254,7 @@ def update_phone(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """通过邮箱验证码校验后修改手机号。"""
+    """通过验证码校验后修改手机号。"""
     profile_service.verify_and_update_phone(current_user.id, body.code, body.phone)
     return success_response({"message": "手机号修改成功"}, request)
 
@@ -262,7 +262,7 @@ def update_phone(
 @router.post(
     "/update-email",
     summary="修改邮箱",
-    description="需通过原邮箱验证码二次认证",
+    description="需通过原验证码二次认证",
     dependencies=[Depends(require_user_permission("profile:edit"))],
 )
 @permission("profile:edit", "编辑个人中心", "profile", "edit")
@@ -272,6 +272,6 @@ def update_email(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """通过原邮箱验证码校验后修改邮箱。"""
+    """通过原验证码校验后修改邮箱。"""
     profile_service.verify_and_update_email(current_user.id, body.code, body.email)
     return success_response({"message": "邮箱修改成功"}, request)

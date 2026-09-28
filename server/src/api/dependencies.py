@@ -30,7 +30,6 @@ from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
-from src.services.maintenance_service import MaintenanceService
 from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
 
@@ -44,6 +43,7 @@ if TYPE_CHECKING:
     from src.repositories.role_permission_repository import RolePermissionRepository
     from src.repositories.role_repository import RoleRepository
     from src.repositories.user_repository import UserRepository
+    from src.services.announcement_service import AnnouncementService
     from src.services.dashboard_service import DashboardService
     from src.services.global_search_service import GlobalSearchService
     from src.services.login_log_service import LoginLogService
@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from src.services.profile_service import ProfileService
     from src.services.role_service import RoleService
     from src.services.station_service import StationMessageService
+    from src.services.system_notification_service import SystemNotificationService
     from src.services.system_notification_service import SystemNotificationService
     from src.services.user_service import UserService
 
@@ -147,12 +148,33 @@ def get_alert_service(
     return AlertService(dispatcher=dispatcher, session=db_session)
 
 
-def get_maintenance_service(
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+def get_announcement_service(
     db_session: Session = Depends(get_db_session),
-) -> MaintenanceService:
-    """获取维护通知服务实例。"""
-    return MaintenanceService(dispatcher=dispatcher, session=db_session)
+) -> AnnouncementService:
+    """获取公告业务服务实例。"""
+    from src.repositories.announcement_repository import AnnouncementRepository
+    from src.services.announcement_service import AnnouncementService
+
+    return AnnouncementService(repository=AnnouncementRepository(session=db_session))
+
+
+def get_system_notification_service(
+    db_session: Session = Depends(get_db_session),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
+) -> SystemNotificationService:
+    """获取系统通知（广播）业务服务实例。"""
+    from src.repositories.station_message_repository import StationMessageRepository
+    from src.repositories.system_notification_repository import SystemNotificationRepository
+    from src.repositories.user_repository import UserRepository
+    from src.services.station_service import StationMessageService
+    from src.services.system_notification_service import SystemNotificationService
+
+    return SystemNotificationService(
+        notice_repository=SystemNotificationRepository(session=db_session),
+        user_repository=UserRepository(session=db_session),
+        station_service=StationMessageService(repository=StationMessageRepository(session=db_session)),
+        dispatcher=dispatcher,
+    )
 
 
 def get_audit_service(

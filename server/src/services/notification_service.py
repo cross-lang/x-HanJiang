@@ -47,23 +47,6 @@ class NotificationService:
             metadata=metadata,
         )
 
-    def send_manual(
-        self,
-        event_type: str,
-        recipients: dict[str, str],
-        variables: dict[str, Any] | None = None,
-        channels: list[str] | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> list[NotificationRecordEntity]:
-        """手动指定接收人发送通知（调试用）。"""
-        return self._dispatcher.dispatch(
-            event_type=event_type,
-            recipients=recipients,
-            variables=variables,
-            channels=channels,
-            metadata=metadata,
-        )
-
     # ── 查询 ───────────────────────────────────────────────
 
     def list_records(

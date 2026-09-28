@@ -12,90 +12,177 @@ from src.api.dependencies import (
     get_current_user,
     get_notification_service,
     get_system_notification_service,
+    get_system_notification_service,
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.enums import SystemNotificationType
 from src.schemas.auth import CurrentUser
 from src.schemas.notification import (
-    NotificationRecordResponse,
-    NotificationSendRequest,
     NotificationStatsResponse,
+    PublishNotificationRequest,
+    SystemNotificationResponse,
     UpdateNotificationConfigRequest,
 )
 from src.services.notification_service import NotificationService
+from src.services.system_notification_service import SystemNotificationService
 from src.services.system_notification_service import SystemNotificationService
 
 router = APIRouter(prefix="/notifications", tags=["通知管理"])
 
 
+# ============================================================
+# 系统通知（广播）管理：发布 / 撤回 / 列表 / 详情
+# ============================================================
+
+
 @router.post(
-    "/send",
-    summary="手动发送通知",
-    description="手动触发一次通知发送（仅限管理员或调试使用）",
+    "/publish",
+    summary="发布系统通知",
+    description="面向全体活跃用户发布系统通知（普通通知/系统维护），推送站内信产生未读红点",
     dependencies=[Depends(require_user_permission("notification:create"))],
 )
 @permission("notification:create", "创建通知", "notification", "create")
-def send_notification(
+def publish_notice(
     request: Request,
-    body: NotificationSendRequest,
+    body: PublishNotificationRequest,
     current_user: CurrentUser = Depends(get_current_user),
-    notification_service: NotificationService = Depends(get_notification_service),
+    service: SystemNotificationService = Depends(get_system_notification_service),
 ) -> JSONResponse:
-    """手动发送通知。
+    """发布系统通知接口。
 
-    请求体示例（使用用户配置自动发送）::
-
-        {
-            "event_type": "user.password_changed",
-            "variables": {"username": "张三", "changed_at": "2026-09-24 10:00"}
-        }
-
-    请求体示例（手动指定接收人，调试用）::
-
-        {
-            "event_type": "user.password_changed",
-            "recipients": {"email": "zhangsan@example.com", "dingtalk": "zhangsan"},
-            "variables": {"username": "张三", "changed_at": "2026-09-23 10:00"},
-            "channels": ["email", "dingtalk"],
-            "metadata": {"source": "admin_panel"}
-        }
-
-    各字段说明：
-        - event_type: 事件类型，决定使用哪套模板。
-        - variables: 模板变量，会注入到对应模板的 `{变量名}` 占位符中。
-        - recipients: （可选）手动指定渠道→接收人映射，用于调试。
-            省略则自动从当前用户的通知渠道配置中获取（已启用的渠道）。
-        - channels: （可选，仅手动模式生效）指定实际发送的渠道，覆盖事件默认路由表。
-        - metadata: （可选）扩展元数据，会写入通知记录，可用于追溯来源。
+    notice_type=maintenance 时按系统维护语义发布（维护时间/时长为必填），
+    在站内信广播基础上额外按用户渠道配置推送多渠道通知。
 
     Args:
         request: 当前请求对象。
-        body: 通知发送请求体。
-        current_user: 当前登录用户（自动发送模式下作为默认接收人）。
-        notification_service: 通知业务服务。
+        body: 发布请求体（标题、正文、类型与维护参数）。
+        current_user: 当前登录用户（记录操作人）。
+        service: 系统通知业务服务。
 
     Returns:
-        JSONResponse: 统一响应结构，data 为发送成功的通知记录列表。
+        JSONResponse: 统一响应结构，data 为系统通知详情（维护类型附 sent_count）。
     """
-    if body.recipients:
-        # 手动指定接收人（调试模式）
-        records = notification_service.send_manual(
-            event_type=body.event_type.value,
-            recipients=body.recipients,
-            variables=body.variables,
-            channels=body.channels,
-            metadata=body.metadata,
+    operator = {
+        "operator_id": current_user.id,
+        "operator_name": current_user.username,
+    }
+    if body.notice_type == SystemNotificationType.MAINTENANCE:
+        notice_id, sent_count = service.publish_maintenance(
+            title=body.title,
+            maintenance_time=body.maintenance_time or "",
+            duration=body.duration or "",
+            reason=body.reason,
+            operator=operator,
         )
-    else:
-        # 根据当前用户配置自动发送
-        records = notification_service.send_for_user(
-            user_id=current_user.id,
-            event_type=body.event_type.value,
-            variables=body.variables,
-            metadata=body.metadata,
-        )
-    result = [NotificationRecordResponse.model_validate(r).model_dump() for r in records]
-    return success_response(result, request)
+        data = SystemNotificationResponse.model_validate(service.get_notice(notice_id)).model_dump()
+        data["sent_count"] = sent_count
+        return success_response(data, request)
+    entity = service.publish(
+        title=body.title,
+        content=body.content,
+        notice_type=body.notice_type,
+        operator=operator,
+    )
+    data = SystemNotificationResponse.model_validate(entity).model_dump()
+    return success_response(data, request)
+
+
+@router.post(
+    "/{notice_id}/withdraw",
+    summary="撤回系统通知",
+    description="撤回已发布的系统通知（幂等）",
+    dependencies=[Depends(require_user_permission("notification:create"))],
+)
+@permission("notification:create", "创建通知", "notification", "create")
+def withdraw_notice(
+    notice_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    service: SystemNotificationService = Depends(get_system_notification_service),
+) -> JSONResponse:
+    """撤回系统通知接口。
+
+    Args:
+        notice_id: 系统通知 ID。
+        request: 当前请求对象。
+        current_user: 当前登录用户（记录操作人）。
+        service: 系统通知业务服务。
+
+    Returns:
+        JSONResponse: 统一响应结构。
+    """
+    service.withdraw(
+        notice_id=notice_id,
+        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+    )
+    return success_response({"message": "通知已撤回"}, request)
+
+
+@router.get(
+    "/published",
+    summary="系统通知列表",
+    description="分页查询已发布的系统通知（普通通知/系统维护）",
+    dependencies=[Depends(require_user_permission("notification:view"))],
+)
+@permission("notification:view", "查看通知", "notification", "view")
+def list_published_notices(
+    request: Request,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    notice_type: str | None = Query(None, description="按通知类型过滤"),
+    status: str | None = Query(None, description="按发布状态过滤"),
+    keyword: str | None = Query(None, description="按标题/正文关键字搜索"),
+    service: SystemNotificationService = Depends(get_system_notification_service),
+) -> JSONResponse:
+    """系统通知列表接口。
+
+    Args:
+        request: 当前请求对象。
+        page: 页码。
+        page_size: 每页数量。
+        notice_type: 通知类型过滤（notice/maintenance）。
+        status: 发布状态过滤（published/withdrawn）。
+        keyword: 标题/正文关键字搜索。
+        service: 系统通知业务服务。
+
+    Returns:
+        JSONResponse: 统一响应结构，data 为分页系统通知列表。
+    """
+    result = service.list_notices(
+        page=page,
+        page_size=page_size,
+        notice_type=notice_type,
+        status=status,
+        keyword=keyword,
+    )
+    return success_response(result.model_dump(), request)
+
+
+@router.get(
+    "/published/{notice_id}",
+    summary="系统通知详情",
+    description="查询单条系统通知详情",
+    dependencies=[Depends(require_user_permission("notification:view"))],
+)
+@permission("notification:view", "查看通知", "notification", "view")
+def get_published_notice(
+    notice_id: int,
+    request: Request,
+    service: SystemNotificationService = Depends(get_system_notification_service),
+) -> JSONResponse:
+    """系统通知详情接口。
+
+    Args:
+        notice_id: 系统通知 ID。
+        request: 当前请求对象。
+        service: 系统通知业务服务。
+
+    Returns:
+        JSONResponse: 统一响应结构，data 为系统通知详情。
+    """
+    result = service.get_notice(notice_id)
+    return success_response(result.model_dump(), request)
 
 
 @router.get(

@@ -23,10 +23,10 @@ from src.constants.constants import (
     OPENAPI_HEADER_DATE,
     OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
-from src.constants.enums import AppAuthMode, NotificationEvent
+from src.constants.enums import AppAuthMode, AppStatus, NotificationEvent
 from src.core.exceptions import AuthenticationException, NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
-from src.notification.notification_decorators import notify
+from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
 from src.services.base_service import BaseService
@@ -159,7 +159,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         if not app_id:
             raise AuthenticationException(message="缺少请求头 X-App-Id")
         app = self._repository.get_by_app_id(app_id)
-        if app is None or app.status != "active":
+        if app is None or app.status != AppStatus.ACTIVE.value:
             raise AuthenticationException(message="App 无效或已停用")
         try:
             mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)
@@ -267,7 +267,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             rate_limit_per_minute=rate_limit_per_minute,
             auth_mode=auth_mode,
             owner_user_id=owner_user_id,
-            status="active",
+            status=AppStatus.ACTIVE.value,
         )
         created = self._repository.create(entity)
         self._commit()

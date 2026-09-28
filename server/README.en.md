@@ -13,6 +13,8 @@ HanJiang backend is a production-grade Python web application framework deeply b
 - Dual-track authentication: user-side JWT + open platform HanJiang-1 HMAC signature
 - Separate business audit logs and login logs, recording operator, IP, before/after data, with CSV export
 - Event-driven multi-channel notifications (station / email / DingTalk / Feishu / SMS), per-user preferences and recipients, automatic retry on failure
+- System notice broadcast: publish normal / maintenance notices to all active users, station message broadcast with unread badges, maintenance notices additionally fan out per user channel configs
+- Announcement management: board / banner home placements, full lifecycle draft → published → unpublished, with validity period, ordering and Markdown / rich-text content
 - Health check integrated alerting: database / cache failures trigger notifications automatically (throttled)
 - Unified storage abstraction (local / S3-compatible), zero code changes to switch backends
 - Production-grade security (bcrypt password hashing, constant-time comparison, replay protection, email verification code for sensitive operations)
@@ -194,7 +196,7 @@ server/
 ├── config.yaml.example       # YAML configuration template
 ├── alembic/                  # Database migration management
 │   ├── env.py                # Migration runtime environment
-│   └── versions/             # Migration version scripts (5 versions currently)
+│   └── versions/             # Migration version scripts (7 versions currently)
 ├── docs/                     # Project docs (DDL SQL, Postman OpenAPI collection)
 ├── examples/                 # Usage examples
 │   ├── basic_usage.py        # Basic usage
@@ -216,9 +218,9 @@ server/
 │   │   │   ├── audit.py      # Audit logs + login logs (with export)
 │   │   │   ├── dashboard.py  # Dashboard stats
 │   │   │   ├── file.py       # File management (upload / list / download / delete)
-│   │   │   ├── notification.py # Notification mgmt (records/stats/manual send + system channel configs/monitor/channel test)
+│   │   │   ├── notification.py # Notification mgmt (system notification publish/withdraw + records/stats + channel configs/monitor/test)
 │   │   │   ├── alert.py      # System alerts (webhook / broadcast)
-│   │   │   ├── maintenance.py # System maintenance notices
+│   │   │   ├── announcement.py # Announcements (create/update/delete/publish/unpublish/active)
 │   │   │   ├── station.py    # Station messages (unread count / list / read)
 │   │   │   ├── openapi_app.py # Open platform app management
 │   │   │   ├── global_search.py # Global search
@@ -358,6 +360,20 @@ flowchart TD
   J -->|Yes| M[End]
 ```
 
+#### Announcement Lifecycle
+
+```mermaid
+flowchart TD
+  A[Create Announcement<br/>starts as draft] --> B[Set Position & Validity<br/>board / banner]
+  B --> C{Publish Validation<br/>valid period · end_at > start_at · not expired}
+  C -->|Failed| E[Reject<br/>ValidationException]
+  C -->|Passed| D[Published<br/>record published_at]
+  D --> F{Valid Period Over?}
+  F -->|No| G[Active on Homepage<br/>GET /announcements/active]
+  F -->|Yes| H[Mark is_expired<br/>hidden from display]
+  D -->|Admin action| I[Unpublished<br/>only published can be unpublished]
+```
+
 #### Permission Auto-Registration
 
 ```mermaid
@@ -457,7 +473,7 @@ Once the backend is running:
 |--------|------|-------------|
 | GET | `/api/v1/profile/me` | Current user info (roles & permissions) |
 | PUT | `/api/v1/profile/me` | Update personal info |
-| POST | `/api/v1/profile/change-password` | Change password (old password + email code) |
+| POST | `/api/v1/profile/change-password` | Change password (old password + verification code) |
 | GET | `/api/v1/profile/menus` | Current user menu tree (permission-filtered) |
 | GET | `/api/v1/profile/notification-preferences` | My notification preferences |
 | PUT | `/api/v1/profile/notification-preferences` | Update my notification preferences |
@@ -465,9 +481,9 @@ Once the backend is running:
 | POST | `/api/v1/profile/notification-recipients` | Add recipient |
 | PUT | `/api/v1/profile/notification-recipients/{id}` | Update recipient |
 | DELETE | `/api/v1/profile/notification-recipients/{id}` | Delete recipient |
-| POST | `/api/v1/profile/send-verify-code` | Send email verification code |
-| POST | `/api/v1/profile/update-phone` | Update phone (email code verification) |
-| POST | `/api/v1/profile/update-email` | Update email (old email code verification) |
+| POST | `/api/v1/profile/send-verify-code` | Send verification code (6-digit, to email) |
+| POST | `/api/v1/profile/update-phone` | Update phone (verification code) |
+| POST | `/api/v1/profile/update-email` | Update email (old verification code) |
 
 **Roles:**
 
@@ -513,23 +529,39 @@ Once the backend is running:
 | GET | `/api/v1/files/{file_path:path}` | Get / download file |
 | DELETE | `/api/v1/files/{file_id}` | Delete file |
 
-**Notifications:**
+**Notifications (incl. system notification broadcast):**
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/notifications/send` | Manually send notification (by event or recipients) |
-| GET | `/api/v1/notifications` | Notification list (paged / event / channel / status) |
-| GET | `/api/v1/notifications/stats` | Notification stats (success/failed/pending) |
-| GET | `/api/v1/notifications/{id}` | Notification detail |
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/api/v1/notifications/publish` | Publish system notification (normal / maintenance, to all active users) | `notification:create` |
+| POST | `/api/v1/notifications/{notice_id}/withdraw` | Withdraw system notification (idempotent) | `notification:create` |
+| GET | `/api/v1/notifications/published` | System notice list (paged / type / status / keyword) | `notification:view` |
+| GET | `/api/v1/notifications/published/{notice_id}` | System notice detail | `notification:view` |
+| GET | `/api/v1/notifications` | Notification list (paged / event / channel / status) | `notification:view` |
+| GET | `/api/v1/notifications/stats` | Notification stats (success/failed/pending) | `notification:view` |
+| GET | `/api/v1/notifications/{id}` | Notification detail | `notification:view` |
 
-**System Notification Configs:**
+**System Notification Configs (admin):**
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/admin/notification-configs` | All system notification channel configs |
-| PUT | `/api/v1/admin/notification-configs/{channel}` | Update channel config (hot reload) |
-| GET | `/api/v1/admin/notification-configs/monitor/system` | System monitor status |
-| POST | `/api/v1/admin/notification-configs/{channel}/test` | Send channel test message |
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/api/v1/admin/notification-configs` | All system notification channel configs | `notification:config` |
+| PUT | `/api/v1/admin/notification-configs/{channel}` | Update channel config (hot reload) | `notification:config` |
+| GET | `/api/v1/admin/notification-configs/monitor/system` | System monitor status | `notification:config` |
+| POST | `/api/v1/admin/notification-configs/{channel}/test` | Send channel test message | `notification:config` |
+
+**Announcements:**
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/api/v1/announcements/active` | Active homepage announcements (published & within validity, any logged-in user) | Login |
+| POST | `/api/v1/announcements` | Create announcement (starts as draft) | `announcement:create` |
+| POST | `/api/v1/announcements/{id}/update` | Update announcement (all fields optional) | `announcement:edit` |
+| POST | `/api/v1/announcements/{id}/delete` | Delete announcement (hard delete) | `announcement:delete` |
+| POST | `/api/v1/announcements/{id}/publish` | Publish announcement (validity-checked, draft/unpublished → published) | `announcement:publish` |
+| POST | `/api/v1/announcements/{id}/unpublish` | Unpublish announcement (published → unpublished) | `announcement:publish` |
+| GET | `/api/v1/announcements` | Announcement list (admin view, paged / status / position / keyword) | `announcement:view` |
+| GET | `/api/v1/announcements/{id}` | Announcement detail | `announcement:view` |
 
 **System Alerts:**
 
@@ -537,12 +569,6 @@ Once the backend is running:
 |--------|------|-------------|
 | POST | `/api/v1/alerts` | Send system alert (external monitoring webhook) |
 | POST | `/api/v1/alerts/broadcast` | Broadcast alert (admin, all active users) |
-
-**Maintenance:**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/maintenance/notify` | Send maintenance notice (admin, all active users) |
 
 **Station Messages:**
 
@@ -595,6 +621,7 @@ Once the backend is running:
 ### Authorization
 
 - **User endpoints**: JWT Bearer Token + `@permission` decorator auto-registration + role/permission checks; permission changes are auto-synced on startup (stale permissions marked `is_deprecated`)
+- **Key permission items**: announcements `announcement:view / create / edit / delete / publish`; notifications `notification:view / create / config` (publish/withdraw system notifications, channel config management)
 - **Open platform endpoints**: AppId + AppKey (plain mode) or HanJiang-1 HMAC signature, access controlled by scopes declared via `@app_scope`; scopes are also auto-synced on startup
 
 ## Storage
@@ -603,7 +630,7 @@ Once the backend is running:
 
 - **Type**: MySQL 8.0+
 - **Config**: via `.env` (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_POOL_SIZE`)
-- **Migrations**: Alembic; current versions cover users, notification records, user notification configs, open platform apps and other core tables
+- **Migrations**: Alembic; current versions cover users, notification records, user notification configs, open platform apps, system notifications, announcements and other core tables
 - **Note**: inject the database password via environment variables in production; never commit it
 
 ### Cache

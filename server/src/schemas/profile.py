@@ -13,7 +13,9 @@ Classes:
     UpdateEmailRequest: 修改邮箱入参
 """
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from src.utils.time import normalize_date_str
 
 
 class UpdateMeRequest(BaseModel):
@@ -25,9 +27,25 @@ class UpdateMeRequest(BaseModel):
     gender: str | None = None
     birthday: str | None = None
 
+    @field_validator("birthday", mode="before")
+    @classmethod
+    def parse_birthday(cls, v: object) -> str | None:
+        """将生日输入规范化为本地日期 YYYY-MM-DD（兼容 ISO datetime，时区换算避免差一天）。
+
+        Args:
+            v: birthday 原始输入（str / date / datetime / None）
+
+        Returns:
+            str | None: 归一化后的日期字符串
+
+        Raises:
+            ValueError: 无法识别的日期格式
+        """
+        return normalize_date_str(v)
+
 
 class ChangePasswordRequest(BaseModel):
-    """修改密码入参（需原密码 + 邮箱验证码二次认证）。"""
+    """修改密码入参（需原密码 + 验证码二次认证）。"""
 
     old_password: str
     new_password: str
@@ -78,14 +96,14 @@ class NotificationRecipientUpdateRequest(BaseModel):
 
 
 class UpdatePhoneRequest(BaseModel):
-    """修改手机号入参（需邮箱验证码二次认证）。"""
+    """修改手机号入参（需验证码二次认证）。"""
 
     phone: str
     code: str
 
 
 class UpdateEmailRequest(BaseModel):
-    """修改邮箱入参（需原邮箱验证码二次认证）。"""
+    """修改邮箱入参（需原验证码二次认证）。"""
 
     email: str
     code: str

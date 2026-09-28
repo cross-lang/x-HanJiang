@@ -68,6 +68,11 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
     ("alert:send", "发送告警", "alert", "send", "向指定用户或全体用户发送告警", 50),
     ("maintenance:notify", "发送维护通知", "maintenance", "notify", "向全体用户发送维护通知", 51),
     ("notification:config", "通知配置管理", "notification", "config", "系统通知渠道配置管理", 52),
+    ("announcement:view", "查看公告", "announcement", "view", "查看公告列表与详情", 53),
+    ("announcement:create", "创建公告", "announcement", "create", "创建新公告", 54),
+    ("announcement:edit", "编辑公告", "announcement", "edit", "编辑公告信息", 55),
+    ("announcement:delete", "删除公告", "announcement", "delete", "删除公告", 56),
+    ("announcement:publish", "发布公告", "announcement", "publish", "发布/下架公告", 57),
     ("openapi_app:view", "查看开放平台应用", "openapi_app", "view", "查看开放平台应用列表", 60),
     ("openapi_app:create", "创建开放平台应用", "openapi_app", "create", "创建开放平台应用", 61),
     ("openapi_app:edit", "编辑开放平台应用", "openapi_app", "edit", "编辑开放平台应用", 62),
@@ -95,10 +100,11 @@ _SEED_MENUS = [
     ("系统管理", "用户管理", "/users", "User", "user:view", 1, "menu"),
     ("系统管理", "角色管理", "/roles", "UserFilled", "role:view", 2, "menu"),
     ("系统管理", "权限管理", "/permissions", "Lock", "role:view", 3, "menu"),
-    ("系统管理", "审计日志", "/audit", "Document", "audit_log:view", 4, "menu"),
-    ("系统管理", "登录日志", "/audit/login", "User", "login_log:view", 5, "menu"),
-    ("系统管理", "文件管理", "/files", "Folder", "file:view", 6, "menu"),
-    ("系统管理", "通知管理", "/system-notification", "Bell", "notification:config", 7, "menu"),
+    ("系统管理", "文件管理", "/files", "Folder", "file:view", 4, "menu"),
+    ("系统管理", "通知管理", "/system-notification", "Bell", "notification:config", 5, "menu"),
+    ("系统管理", "公告管理", "/announcements", "Tickets", "announcement:view", 6, "menu"),
+    ("系统管理", "审计日志", "/audit", "Document", "audit_log:view", 7, "menu"),
+    ("系统管理", "登录日志", "/audit/login", "User", "login_log:view", 8, "menu"),
     # 接口管理
     (0, "接口管理", "/apis", "Link", None, 4, "directory"),
     ("接口管理", "Swagger文档", "/apis/swagger", "Document", "swagger:view", 1, "menu"),
@@ -207,7 +213,7 @@ def init_seed_data() -> None:
                 gender="male",
                 birthday=date(1970, 1, 1),
                 avatar_url=None,
-                status="active",
+                status="enabled",
             )
             session.add(admin)
             session.flush()

@@ -15,6 +15,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.constants.enums import UserStatus
+from src.utils.time import normalize_date_str
 
 
 class UserCreateRequest(BaseModel):
@@ -42,7 +43,7 @@ class UserCreateRequest(BaseModel):
     role_ids: list[int] = Field(default_factory=list, description="角色ID列表")
     role_name: str | None = Field(default=None, description="角色名称")
     roles: list[dict] = Field(default_factory=list, description="用户角色列表")
-    status: UserStatus = Field(default=UserStatus.ACTIVE, description="状态")
+    status: UserStatus = Field(default=UserStatus.ENABLED, description="状态")
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     @field_validator("email")
@@ -57,17 +58,20 @@ class UserCreateRequest(BaseModel):
     @field_validator("birthday", mode="before")
     @classmethod
     def parse_birthday(cls, v: object) -> str | None:
-        """将 ISO datetime / date / datetime 字符串规范化为 YYYY-MM-DD。
+        """将 ISO datetime / date / datetime 输入规范化为本地日期 YYYY-MM-DD。
+
+        带时区的 ISO 字符串按 Asia/Shanghai 本地时区换算，避免时区偏移导致日期差一天。
 
         Args:
             v: birthday 原始输入（前端可能传 ISO 格式如 2000-01-01T16:00:00.000Z）
 
         Returns:
             str | None: 归一化为 YYYY-MM-DD 的字符串；输入为 None 时返回 None
+
+        Raises:
+            ValueError: 无法识别的日期格式
         """
-        if v is None:
-            return None
-        return str(v)[:10]
+        return normalize_date_str(v)
 
 
 class UserUpdateRequest(BaseModel):
@@ -113,17 +117,20 @@ class UserUpdateRequest(BaseModel):
     @field_validator("birthday", mode="before")
     @classmethod
     def parse_birthday(cls, v: object) -> str | None:
-        """将 ISO datetime / date / datetime 字符串规范化为 YYYY-MM-DD。
+        """将 ISO datetime / date / datetime 输入规范化为本地日期 YYYY-MM-DD。
+
+        带时区的 ISO 字符串按 Asia/Shanghai 本地时区换算，避免时区偏移导致日期差一天。
 
         Args:
             v: birthday 原始输入（前端可能传 ISO 格式如 2000-01-01T16:00:00.000Z）
 
         Returns:
             str | None: 归一化为 YYYY-MM-DD 的字符串；输入为 None 时返回 None
+
+        Raises:
+            ValueError: 无法识别的日期格式
         """
-        if v is None:
-            return None
-        return str(v)[:10]
+        return normalize_date_str(v)
 
 
 class AdminResetPasswordRequest(BaseModel):
@@ -182,11 +189,18 @@ class UserResponse(BaseModel):
     @field_validator("birthday", mode="before")
     @classmethod
     def parse_birthday(cls, v: object) -> str | None:
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return v[:10]
-        return str(v)[:10]
+        """将生日输入规范化为本地日期 YYYY-MM-DD（兼容 ISO datetime，时区换算避免差一天）。
+
+        Args:
+            v: birthday 原始输入（str / date / datetime / None）
+
+        Returns:
+            str | None: 归一化后的日期字符串
+
+        Raises:
+            ValueError: 无法识别的日期格式
+        """
+        return normalize_date_str(v)
 
     created_at: datetime | None = Field(default=None, description="创建时间")
     updated_at: datetime | None = Field(default=None, description="更新时间")

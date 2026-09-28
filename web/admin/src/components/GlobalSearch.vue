@@ -7,7 +7,7 @@
         v-model="keyword"
         class="search-input"
         type="text"
-        placeholder="全局搜索用户、角色、应用…"
+        placeholder="全局搜索用户、角色、应用、文件、通知、公告…"
         @input="onInput"
         @focus="panelVisible = !!keyword.trim()"
         @keydown.enter.prevent="jumpFirst"
@@ -62,6 +62,8 @@ const categories = [
   { key: 'permissions', label: '权限', path: '/permissions' },
   { key: 'apps', label: '开放平台应用', path: '/apps' },
   { key: 'files', label: '文件', path: '/files' },
+  { key: 'notices', label: '通知', path: '/system-notification' },
+  { key: 'announcements', label: '公告', path: '/announcements' },
 ] as const
 
 const visibleCategories = computed(() =>
@@ -105,6 +107,10 @@ function itemTitle(cat: (typeof categories)[number], item: any): string {
       return item.perm_name
     case 'apps':
       return item.name
+    case 'notices':
+      return item.title
+    case 'announcements':
+      return item.title
     default:
       return item.original_name
   }
@@ -120,9 +126,29 @@ function itemSub(cat: (typeof categories)[number], item: any): string {
       return item.perm_code
     case 'apps':
       return item.app_id
+    case 'notices':
+      return noticeTypeLabel(item.notice_type) + ' · ' + noticeStatusLabel(item.status)
+    case 'announcements':
+      return announcementStatusLabel(item.status) + ' · ' + announcementPositionLabel(item.position)
     default:
       return item.folder || (item.extension ? item.extension.toUpperCase() : '')
   }
+}
+
+function noticeTypeLabel(type: string): string {
+  return type === 'maintenance' ? '系统维护' : '系统通知'
+}
+
+function noticeStatusLabel(status: string): string {
+  return status === 'withdrawn' ? '已撤回' : '已发布'
+}
+
+function announcementStatusLabel(status: string): string {
+  return status === 'published' ? '已发布' : status === 'unpublished' ? '已下架' : '草稿'
+}
+
+function announcementPositionLabel(position: string): string {
+  return position === 'banner' ? '首页横幅' : '首页板块'
 }
 
 function goTo(cat: (typeof categories)[number], item: any) {

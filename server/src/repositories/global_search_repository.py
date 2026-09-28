@@ -6,8 +6,10 @@
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from src.models.entities.announcement_entity import AnnouncementEntity
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.file_entity import FileEntity
+from src.models.entities.system_notification_entity import SystemNotificationEntity
 from src.models.entities.user_entity import PermissionEntity, RoleEntity, UserEntity
 
 
@@ -88,6 +90,36 @@ class GlobalSearchRepository:
                 )
             )
             .filter(FileEntity.is_deleted.is_(False))
+            .limit(limit)
+            .all()
+        )
+
+    def search_notices(self, keyword: str, limit: int) -> list[SystemNotificationEntity]:
+        """按标题/正文模糊搜索系统通知。"""
+        like = f"%{keyword}%"
+        return (
+            self._session.query(SystemNotificationEntity)
+            .filter(
+                or_(
+                    SystemNotificationEntity.title.like(like),
+                    SystemNotificationEntity.content.like(like),
+                )
+            )
+            .limit(limit)
+            .all()
+        )
+
+    def search_announcements(self, keyword: str, limit: int) -> list[AnnouncementEntity]:
+        """按标题/正文模糊搜索公告。"""
+        like = f"%{keyword}%"
+        return (
+            self._session.query(AnnouncementEntity)
+            .filter(
+                or_(
+                    AnnouncementEntity.title.like(like),
+                    AnnouncementEntity.content.like(like),
+                )
+            )
             .limit(limit)
             .all()
         )

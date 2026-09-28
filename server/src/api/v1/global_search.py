@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""全局搜索接口 — 跨实体关键字搜索（用户/角色/权限/开放平台应用/文件）。"""
+"""全局搜索接口 — 跨实体关键字搜索（用户/角色/权限/开放平台应用/文件/通知/公告）。"""
 
 from fastapi import APIRouter, Depends, Request
 
@@ -24,13 +24,15 @@ _CATEGORY_PERMS: dict[str, str] = {
     "permissions": "role:view",
     "apps": "openapi_app:view",
     "files": "file:view",
+    "notices": "notification:view",
+    "announcements": "announcement:view",
 }
 
 
 @router.get(
     "",
     summary="全局搜索",
-    description="按关键字搜索用户/角色/权限/开放平台应用/文件，按分类返回前 N 条",
+    description="按关键字搜索用户/角色/权限/开放平台应用/文件/通知/公告，按分类返回前 N 条",
     dependencies=[Depends(require_user_permission("global_search:search"))],
 )
 @permission("global_search:search", "全局搜索", "global_search", "search")

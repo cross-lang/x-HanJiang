@@ -68,6 +68,20 @@ class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):
             "page_size": page_size,
         }
 
+    def get_detail(self, log_id: int) -> LoginLogResponse | None:
+        """查询单条登录日志详情（关联用户名与姓名）。
+
+        Args:
+            log_id: 登录日志 ID
+
+        Returns:
+            LoginLogResponse | None: 详情响应，不存在时为 None
+        """
+        entity = self._repository.get_by_id(log_id)
+        if entity is None:
+            return None
+        return self._to_response(entity)
+
     def _to_response(self, entity: LoginLogEntity) -> LoginLogResponse:
         """实体转响应 DTO，关联查询用户名和姓名（经仓库）。"""
         username = None

@@ -44,7 +44,13 @@ class StationMessageService:
         self._repository.commit()
 
     def send_station(self, user_id: int, title: str, content: str) -> None:
-        """发送站内信给指定用户（经仓库）。"""
+        """发送站内信给指定用户（经仓库）。
+
+        Args:
+            user_id: 目标用户 ID
+            title: 站内信标题
+            content: 站内信正文
+        """
         msg = NotificationRecordEntity(
             event_type=NOTIFICATION_EVENT_STATION_MESSAGE,
             channel=NotificationChannel.STATION.value,
@@ -56,4 +62,28 @@ class StationMessageService:
             max_retries=0,
         )
         self._repository.create(msg)
+        self._repository.commit()
+
+    def send_station_batch(self, user_ids: list[int], title: str, content: str, event_type: str) -> None:
+        """批量发送站内信给多个用户（单事务一次提交，供系统通知广播使用）。
+
+        Args:
+            user_ids: 目标用户 ID 列表
+            title: 站内信标题
+            content: 站内信正文
+            event_type: 站内信事件类型（如 system.notice）
+        """
+        for user_id in user_ids:
+            self._repository.create(
+                NotificationRecordEntity(
+                    event_type=event_type,
+                    channel=NotificationChannel.STATION.value,
+                    recipient=f"user:{user_id}",
+                    subject=title,
+                    content=content,
+                    status=StationMessageStatus.UNREAD.value,
+                    retry_count=0,
+                    max_retries=0,
+                )
+            )
         self._repository.commit()

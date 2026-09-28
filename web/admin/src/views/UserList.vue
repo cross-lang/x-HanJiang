@@ -31,8 +31,8 @@
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-            {{ row.status === 'active' ? '启用' : '禁用' }}
+          <el-tag :type="row.status === 'enabled' ? 'success' : 'danger'">
+            {{ row.status === 'enabled' ? '启用' : '禁用' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -43,16 +43,16 @@
         <template #default="{ row }">
           <template v-if="canOperate(row)">
             <el-button
-              v-if="row.status !== 'active' && row.username !== 'superadmin'"
+              v-if="row.status !== 'enabled' && row.username !== 'superadmin'"
               size="small"
               type="success"
               @click="handleToggleStatus(row, 'active')"
             >启用</el-button>
             <el-button
-              v-if="row.status === 'active' && row.username !== 'superadmin'"
+              v-if="row.status === 'enabled' && row.username !== 'superadmin'"
               size="small"
               type="warning"
-              @click="handleToggleStatus(row, 'inactive')"
+              @click="handleToggleStatus(row, 'disabled')"
             >禁用</el-button>
             <el-button v-if="row.username !== 'superadmin'" size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button v-if="row.id !== userStore.userInfo?.id" size="small" @click="handleResetPassword(row)">重置密码</el-button>
@@ -84,7 +84,7 @@
         <el-input v-model="form.phone" />
       </el-form-item>
       <el-form-item label="生日">
-        <el-date-picker v-model="form.birthday" type="date" placeholder="选择生日" />
+        <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" placeholder="选择生日" />
       </el-form-item>
       <el-form-item label="性别">
         <el-radio-group v-model="form.gender">
@@ -115,8 +115,8 @@
       </el-form-item>
       <el-form-item label="状态">
         <el-radio-group v-model="form.status">
-          <el-radio value="active">启用</el-radio>
-          <el-radio value="inactive">禁用</el-radio>
+          <el-radio value="enabled">启用</el-radio>
+          <el-radio value="disabled">禁用</el-radio>
         </el-radio-group>
       </el-form-item>
     </el-form>
@@ -166,7 +166,7 @@ const form = ref({
   gender: 'male',
   role_ids: [] as number[],
   password: '',
-  status: 'active',
+  status: 'enabled',
 })
 
 const resetVisible = ref(false)
@@ -219,7 +219,7 @@ function handleCreate() {
     gender: 'male',
     role_ids: [],
     password: '',
-    status: 'active',
+    status: 'enabled',
   }
   fetchRoles()
   dialogVisible.value = true
@@ -247,7 +247,7 @@ async function handleSubmit() {
   try {
     if (isEdit.value) {
       const { name, email, phone, birthday, gender, role_ids, status } = form.value
-      const birthdayStr = birthday ? (typeof birthday === 'string' ? birthday.split('T')[0] : new Date(birthday).toISOString().split('T')[0]) : ''
+      const birthdayStr = birthday ? (typeof birthday === 'string' ? birthday.split('T')[0] : '') : ''
       await request.post(`/users/${editId.value}/update`, { name, email, phone, birthday: birthdayStr, gender, role_ids, status })
       ElMessage.success('更新成功')
     } else {
@@ -262,7 +262,7 @@ async function handleSubmit() {
 }
 
 async function handleToggleStatus(row: any, status: string) {
-  const action = status === 'active' ? '启用' : '禁用'
+  const action = status === 'enabled' ? '启用' : '禁用'
   try {
     await ElMessageBox.confirm(`确定要${action}用户 ${row.username} 吗？`, '提示', { type: 'warning' })
     await request.post(`/users/${row.id}/update`, { status })

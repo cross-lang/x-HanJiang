@@ -7,13 +7,13 @@ from fastapi import APIRouter
 
 from src.api.v1 import (
     alert,
+    announcement,
     audit,
     auth,
     dashboard,
     file,
     global_search,
     health,
-    maintenance,
     notification,
     openapi_app,
     permission,
@@ -50,15 +50,15 @@ v1_router.include_router(audit.router)
 # 注册文件管理路由
 v1_router.include_router(file.router)
 
-# 注册通知管理路由（用户侧通知记录 + 系统通知渠道配置）
+# 注册公告管理路由
+v1_router.include_router(announcement.router)
+
+# 注册通知管理路由（系统通知发布/撤回/列表 + 用户侧通知记录 + 系统通知渠道配置）
 v1_router.include_router(notification.router)
 v1_router.include_router(notification.admin_router)
 
 # 注册告警管理路由
 v1_router.include_router(alert.router)
-
-# 注册维护管理路由
-v1_router.include_router(maintenance.router)
 
 # 注册仪表盘管理路由
 v1_router.include_router(dashboard.router)

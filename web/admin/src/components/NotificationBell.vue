@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Bell } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { ElMessage } from 'element-plus'
@@ -38,6 +38,11 @@ const list = ref<any[]>([])
 const expandedId = ref<number | null>(null)
 
 async function fetchUnread() {
+  // 未登录不轮询，避免登录页持续 401
+  if (!localStorage.getItem('access_token')) {
+    unreadCount.value = 0
+    return
+  }
   const res = await request.get('/station/messages/unread-count')
   unreadCount.value = res.data.count
 }
@@ -62,8 +67,14 @@ async function markAllRead() {
   fetchList()
 }
 
+let pollTimer: number | undefined
+
 onMounted(() => {
   fetchUnread()
-  setInterval(fetchUnread, 60000)
+  pollTimer = window.setInterval(fetchUnread, 15000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 </script>

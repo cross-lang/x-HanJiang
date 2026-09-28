@@ -2,64 +2,75 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.constants.enums import NotificationChannel, NotificationEvent
+from src.constants.enums import NotificationChannel, SystemNotificationType
+
+"""系统通知（广播）发布请求。
+发布面向全体用户的系统通知；notice_type=maintenance 时维护字段必填。
+"""
 
 
-class NotificationSendRequest(BaseModel):
-    """通知发送请求。
-    默认根据当前登录用户的通知渠道配置自动发送。
-    也可通过 recipients 手动指定接收人（调试用）。
-    示例（自动发送，从用户配置获取渠道）::
-        {
-            "event_type": "user.password_changed",
-            "variables": { "username": "张三" }
-        }
-    示例（手动指定接收人，调试用）::
-        {
-            "event_type": "user.password_changed",
-            "recipients": {
-                "email": "zhangsan@example.com",
-                "dingtalk": "zhangsan"
-            },
-            "variables": { "username": "张三", "changed_at": "2026-09-23 10:00" },
-            "channels": ["email", "dingtalk"],
-            "metadata": { "source": "admin_panel" }
-        }
+class PublishNotificationRequest(BaseModel):
+    """系统通知发布请求模型。
+
+    Attributes:
+        title: 通知标题（1-200 字）
+        content: 通知正文（maintenance 类型可省略，系统自动生成）
+        notice_type: 通知类型（notice 普通通知 / maintenance 系统维护）
+        maintenance_time: 维护开始时间（maintenance 类型必填）
+        duration: 预计持续时长（maintenance 类型必填）
+        reason: 维护原因（可选）
     """
 
-    event_type: NotificationEvent = Field(
-        description="事件类型，决定使用哪套模板",
-        examples=[
-            NotificationEvent.USER_PASSWORD_CHANGED,
-            NotificationEvent.USER_LOGIN_FAILED,
-            NotificationEvent.SYSTEM_ALERT,
-        ],
+    title: str = Field(min_length=1, max_length=200, description="通知标题")
+    content: str | None = Field(
+        default=None, max_length=5000, description="通知正文（maintenance 类型可省略，正文由系统按维护参数自动生成）"
     )
-    variables: dict[str, Any] = Field(
-        default_factory=dict,
-        description="模板变量，注入到模板的 `{变量名}` 占位符中",
-        examples=[{"username": "张三"}, {"order_no": "ORD001", "amount": "99.00"}],
-    )
-    channels: list[str] | None = Field(
-        default=None,
-        description="指定实际发送的渠道（覆盖事件默认路由表），省略则使用默认路由",
-        examples=[["email", "dingtalk"]],
-    )
-    recipients: dict[str, str] | None = Field(
-        default=None,
-        description="手动指定渠道→接收人映射（调试用），省略则从当前用户配置自动获取",
-        examples=[{"email": "zhangsan@example.com", "dingtalk": "zhangsan"}],
-    )
-    metadata: dict[str, Any] | None = Field(
-        default=None,
-        description="扩展元数据，写入通知记录，可用于追溯来源",
-        examples=[{"source": "admin_panel", "operator_id": 42}],
-    )
+    notice_type: SystemNotificationType = Field(default=SystemNotificationType.NOTICE, description="通知类型")
+    maintenance_time: str | None = Field(default=None, max_length=50, description="维护开始时间")
+    duration: str | None = Field(default=None, max_length=50, description="预计持续时长")
+    reason: str | None = Field(default=None, max_length=500, description="维护原因")
+
+    @model_validator(mode="after")
+    def _validate_maintenance_fields(self) -> PublishNotificationRequest:
+        """普通通知必须填写正文；维护类型必须携带维护时间与时长，且时长需包含单位。"""
+        if self.notice_type == SystemNotificationType.MAINTENANCE:
+            if not self.maintenance_time or not self.duration:
+                raise ValueError("维护类型通知必须填写维护开始时间与预计持续时长")
+            if not re.search(r"(小时|时|h|分钟|分|天)", self.duration):
+                raise ValueError("预计持续时长需包含单位，例如：2 小时")
+            try:
+                maintenance_dt = datetime.fromisoformat(self.maintenance_time)
+            except ValueError:
+                raise ValueError("维护时间格式不正确，应为 YYYY-MM-DD HH:mm:ss") from None
+            if maintenance_dt < datetime.now():
+                raise ValueError("维护时间不能早于当前时间")
+        elif not self.content or not self.content.strip():
+            raise ValueError("普通通知必须填写正文")
+        return self
+
+
+class SystemNotificationResponse(BaseModel):
+    """系统通知响应模型（发布/撤回/列表/详情）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: int = Field(description="系统通知 ID")
+    title: str = Field(description="通知标题")
+    content: str = Field(description="通知正文")
+    notice_type: str = Field(description="通知类型（notice/maintenance）")
+    maintenance_time: str | None = Field(default=None, description="维护开始时间")
+    duration: str | None = Field(default=None, description="预计持续时长")
+    reason: str | None = Field(default=None, description="维护原因")
+    status: str = Field(description="发布状态（published/withdrawn）")
+    operator_id: int | None = Field(default=None, description="操作人用户 ID")
+    operator_name: str | None = Field(default=None, description="操作人用户名")
+    published_at: datetime | None = Field(default=None, description="发布时间")
+    withdrawn_at: datetime | None = Field(default=None, description="撤回时间")
+    created_at: datetime | None = Field(default=None, description="创建时间")
 
 
 class NotificationRecordResponse(BaseModel):

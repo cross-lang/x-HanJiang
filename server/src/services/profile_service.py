@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """个人中心业务逻辑。
 个人中心（/api/v1/profile）的业务规则与事务编排层：
-    - 个人资料查询/修改、密码修改（邮箱验证码二次认证）
+    - 个人资料查询/修改、密码修改（验证码二次认证）
     - 当前用户菜单树组装
     - 通知偏好与通知接收人管理
     - 安全设置：验证码发送、手机号/邮箱修改
@@ -134,9 +134,7 @@ class ProfileService:
         for key, value in data.items():
             if value is None or value == "" or not hasattr(user, key):
                 continue
-            # birthday 是 date 类型，前端传 ISO datetime，截取前 10 位 YYYY-MM-DD
-            if key == "birthday" and isinstance(value, str) and len(value) >= 10:
-                value = value[:10]
+            # birthday 已在 schema 层规范化为 YYYY-MM-DD（含时区换算）
             setattr(user, key, value)
         self._user_repository.commit()
 
@@ -145,7 +143,7 @@ class ProfileService:
         user_id: int,
         request: ChangePasswordRequest,
     ) -> None:
-        """修改当前用户密码（需原密码 + 邮箱验证码二次认证）。
+        """修改当前用户密码（需原密码 + 验证码二次认证）。
         成功后发送站内信与邮件通知（发送失败不阻断主流程）。
 
         Args:
@@ -160,7 +158,7 @@ class ProfileService:
         if not verify_password(request.old_password, user.password_hash or ""):
             raise ValidationException(message="原密码错误")
         if not self._check_email_code(user.id, request.code):
-            raise ValidationException(message="邮箱验证码错误或已过期")
+            raise ValidationException(message="验证码错误或已过期")
         user.password_hash = hash_password(request.new_password)
         self._user_repository.commit()
         # 发站内信（失败不阻断主流程）
@@ -395,19 +393,21 @@ class ProfileService:
             raise ValidationException(message="当前账号未绑定邮箱，无法发送验证码")
         code = f"{random.randint(VERIFY_CODE_MIN, VERIFY_CODE_MAX)}"
         self._cache.set(f"{VERIFY_CODE_CACHE_PREFIX}{user.id}", code, ttl=VERIFY_CODE_TTL_SECONDS)
-        with suppress(Exception):
+        try:
             self._dispatch_email(
                 event_type=VERIFY_CODE_EVENT,
                 email=user.email,
                 variables={"code": code, "username": user.name or user.username},
             )
+        except Exception as exc:  # noqa: BLE001 - 邮件发送失败不阻断接口，但必须记录
+            logger.error("验证码邮件发送失败: user_id=%s error=%s", user.id, exc)
 
     def verify_and_update_phone(self, user_id: int, code: str, phone: str) -> None:
-        """通过邮箱验证码校验后修改手机号。
+        """通过验证码校验后修改手机号。
 
         Args:
             user_id: 当前用户 ID
-            code: 邮箱验证码（一次性）
+            code: 验证码（一次性）
             phone: 新手机号
 
         Raises:
@@ -416,16 +416,16 @@ class ProfileService:
         """
         user = self._require_user(user_id)
         if not self._check_email_code(user.id, code):
-            raise ValidationException(message="邮箱验证码错误或已过期")
+            raise ValidationException(message="验证码错误或已过期")
         user.phone = phone
         self._user_repository.commit()
 
     def verify_and_update_email(self, user_id: int, code: str, email: str) -> None:
-        """通过原邮箱验证码校验后修改邮箱。
+        """通过原验证码校验后修改邮箱。
 
         Args:
             user_id: 当前用户 ID
-            code: 原邮箱验证码（一次性）
+            code: 原验证码（一次性）
             email: 新邮箱地址
 
         Raises:
@@ -434,7 +434,7 @@ class ProfileService:
         """
         user = self._require_user(user_id)
         if not self._check_email_code(user.id, code):
-            raise ValidationException(message="原邮箱验证码错误或已过期")
+            raise ValidationException(message="原验证码错误或已过期")
         user.email = email
         self._user_repository.commit()
 
@@ -448,7 +448,7 @@ class ProfileService:
         return user
 
     def _check_email_code(self, user_id: int, code: str) -> bool:
-        """校验邮箱验证码（一次性，校验通过后立即删除）。
+        """校验验证码（一次性，校验通过后立即删除）。
 
         Args:
             user_id: 用户 ID

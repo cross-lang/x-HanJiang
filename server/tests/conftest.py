@@ -17,6 +17,22 @@ from fastapi.testclient import TestClient
 os.environ["APP_ENV"] = "testing"
 
 
+@pytest.fixture(autouse=True)
+def _disable_audit_writes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """测试环境禁用审计日志写库。
+
+    单元测试使用内存版 Fake Repository 隔离用户数据，但 BaseService._audit
+    内部会隐式实例化 AuditService 并连接真实数据库写入 audit_logs，
+    导致测试数据污染开发库。此处统一将审计写入降级为 no-op：
+        - 开发/生产环境不受影响，审计照常记录；
+        - 测试环境不连接真实数据库，符合模板"测试环境隔离"约束。
+    """
+    monkeypatch.setattr(
+        "src.services.audit_service.AuditService.log_event",
+        lambda *args, **kwargs: None,
+    )
+
+
 @pytest.fixture
 def client() -> TestClient:
     """创建测试用 HTTP 客户端。

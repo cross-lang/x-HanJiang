@@ -24,8 +24,8 @@ class UserEntity(Base):
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        server_default="active",
-        comment="状态",
+        server_default="enabled",
+        comment="状态：enabled 启用 / disabled 禁用",
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="最后登录时间")
     last_login_ip: Mapped[str | None] = mapped_column(String(45), nullable=True, comment="最后登录IP")

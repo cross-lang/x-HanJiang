@@ -85,7 +85,7 @@ class AlertService:
             logger.warning("Alert broadcast skipped: no database session")
             return 0
         repo = UserRepository(session=self._session)
-        users, _ = repo.search(status=UserStatus.ACTIVE.value, skip=0, limit=MAX_BROADCAST_USER_LIMIT)
+        users, _ = repo.search(status=UserStatus.ENABLED.value, skip=0, limit=MAX_BROADCAST_USER_LIMIT)
         sent_count = 0
         for user in users:
             try:

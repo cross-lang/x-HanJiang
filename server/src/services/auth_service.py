@@ -73,7 +73,7 @@ class AuthService:
         """
         user = self._find_account(account)
         success = False
-        if user is not None and user.status != UserStatus.LOCKED.value:
+        if user is not None and user.status == UserStatus.ENABLED.value:
             success = verify_password(password, user.password_hash or "")
         self._write_login_log(
             user_id=user.id if user else None,
@@ -114,8 +114,8 @@ class AuthService:
         user = self._user_repository.get_by_id(user_id)
         if user is None:
             raise AuthenticationException(message="用户不存在")
-        if user.status == UserStatus.LOCKED.value:
-            raise AuthenticationException(message="用户已被锁定")
+        if user.status == UserStatus.DISABLED.value:
+            raise AuthenticationException(message="用户已被禁用")
         access_token = create_access_token(user.id, extra_claims={"username": user.username})
         new_refresh_token = create_refresh_token(user.id, extra_claims={"username": user.username})
         access_jti = decode_token(access_token).get("jti")
@@ -184,7 +184,7 @@ class AuthService:
             name=user.name,
             role_id=role_ids[0] if role_ids else None,
             role_code=role_code,
-            status=user.status or UserStatus.ACTIVE.value,
+            status=user.status or UserStatus.ENABLED.value,
             avatar_url=user.avatar_url,
             phone=getattr(user, "phone", None),
             birthday=user.birthday.strftime("%Y-%m-%d") if user.birthday else None,

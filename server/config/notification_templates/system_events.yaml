@@ -1,1 +1,13 @@
-﻿# 系统域事件通知模板
+# 系统域事件通知模板
+
+security.verify_code:
+  email:
+    subject: "【汉江】邮箱验证码：{code}"
+    content: |
+      <p>您好，{username}：</p>
+      <p>您正在进行安全操作，本次邮箱验证码为：</p>
+      <p style="font-size:24px;font-weight:bold;letter-spacing:2px">{code}</p>
+      <p>验证码 5 分钟内有效，请勿向他人泄露。</p>
+  default:
+    subject: "【汉江】邮箱验证码：{code}"
+    content: "您好，{username}，您的邮箱验证码为 {code}，5 分钟内有效。"

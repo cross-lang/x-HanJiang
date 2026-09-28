@@ -19,9 +19,13 @@ request.interceptors.request.use((config) => {
 request.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
-      localStorage.removeItem('access_token')
-      window.location.href = '/login'
+    // 401：会话失效跳登录；未登录场景静默，不弹错误提示
+    if (error.response?.status === 401) {
+      if (!window.location.pathname.includes('/login')) {
+        localStorage.removeItem('access_token')
+        window.location.href = '/login'
+      }
+      return Promise.reject(error)
     }
     const msg = error.response?.data?.message || '请求失败'
     ElMessage.error(msg)

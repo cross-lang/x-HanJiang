@@ -17,6 +17,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.constants import AUDIT_ACTION_CN, LOGIN_STATUS_CN, LOGIN_TYPE_CN
 from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
 from src.schemas.auth import CurrentUser
@@ -121,9 +122,9 @@ def export_audit_logs(
     fieldnames = [
         "id",
         "entity_type",
-        "entity_id",
         "action",
-        "operator_username",
+        "operator_id",
+        "operator_name",
         "ip_address",
         "created_at",
         "remarks",
@@ -131,9 +132,9 @@ def export_audit_logs(
     headers_cn = {
         "id": "ID",
         "entity_type": "实体类型",
-        "entity_id": "实体ID",
         "action": "操作",
-        "operator_username": "操作人",
+        "operator_id": "操作人ID",
+        "operator_name": "操作人姓名",
         "ip_address": "IP",
         "created_at": "时间",
         "remarks": "备注",
@@ -143,13 +144,16 @@ def export_audit_logs(
     writer.writerow(headers_cn)
     for row in result["items"]:
         data = AuditLogResponse.model_validate(row).model_dump()
-        data["operator_username"] = username_map.get(row.operator_id, {}).get("username", "") if row.operator_id else ""
+        data["action"] = AUDIT_ACTION_CN.get(row.action, row.action)
+        data["operator_id"] = row.operator_id or ""
+        data["operator_name"] = username_map.get(row.operator_id, {}).get("name", "") if row.operator_id else ""
         writer.writerow({k: data.get(k, "") for k in fieldnames})
     content = buf.getvalue().encode("utf-8-sig")
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     return StreamingResponse(
         iter([content]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=audit_logs_export.csv"},
+        headers={"Content-Disposition": f"attachment; filename=audit_logs_{timestamp}.csv"},
     )
 
 
@@ -251,15 +255,15 @@ def export_login_logs(
         page=1,
         page_size=100000,
     )
-    fieldnames = ["id", "username", "ip_address", "status", "login_type", "created_at", "user_agent"]
+    fieldnames = ["id", "username", "name", "ip_address", "status", "login_type", "created_at"]
     headers_cn = {
         "id": "ID",
         "username": "用户名",
+        "name": "姓名",
         "ip_address": "IP",
         "status": "状态",
         "login_type": "登录方式",
         "created_at": "时间",
-        "user_agent": "浏览器",
     }
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames)
@@ -268,18 +272,19 @@ def export_login_logs(
         d = {
             "id": row.id,
             "username": row.username,
+            "name": row.name or "",
             "ip_address": row.ip_address,
-            "status": row.status,
-            "login_type": row.login_type,
+            "status": LOGIN_STATUS_CN.get(row.status, row.status),
+            "login_type": LOGIN_TYPE_CN.get(row.login_type, row.login_type),
             "created_at": str(row.created_at),
-            "user_agent": row.user_agent or "",
         }
         writer.writerow({k: d.get(k, "") for k in fieldnames})
     content = buf.getvalue().encode("utf-8-sig")
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     return StreamingResponse(
         iter([content]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=login_logs_export.csv"},
+        headers={"Content-Disposition": f"attachment; filename=login_logs_{timestamp}.csv"},
     )
 
 
@@ -296,7 +301,7 @@ def get_login_log(
     login_service: LoginLogService = Depends(get_login_log_service),
     _=Depends(get_current_user),
 ):
-    result = login_service.get_by_id(log_id)
+    result = login_service.get_detail(log_id)
     if result is None:
         raise NotFoundException(message=f"登录日志 {log_id} 不存在")
     return success_response(result.model_dump(), request)

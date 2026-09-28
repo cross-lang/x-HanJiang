@@ -13,10 +13,11 @@ HanJiang is a full-stack rapid development platform built on FastAPI + Vue 3 + T
 - Auto-register permissions via `@permission` decorator, synced to DB on startup
 - Open platform HanJiang-1 HMAC signature, supporting plain and signed modes, with built-in app management (AppId/AppKey lifecycle, scope authorization, key rotation)
 - Event-driven multi-channel notification system (station / email / DingTalk / Feishu / SMS) with per-user preferences and automatic retry
+- System notice broadcast: publish normal / maintenance notices to all users, station message broadcast + multi-channel push per user configs
 - Layered architecture: API routes → Business logic → Data access
 - Production-grade security (constant-time comparison, replay protection, password hashing, email verification code for sensitive operations)
 - Built-in dashboard (user/role/app stats + login trend + audit trend + ECharts)
-- File management (local / S3-compatible storage), global search, profile center, system alerts & maintenance notices
+- File management (local / S3-compatible storage), global search, profile center, system alerts, announcement management (homepage board / banner)
 - Great developer experience (Swagger docs, Alembic migrations, unified error handling, GitHub Actions CI)
 
 **Use Cases:**
@@ -203,7 +204,7 @@ Once the backend is running:
 | Auth | `POST /api/v1/auth/logout` | Logout |
 | Profile | `GET /api/v1/profile/me` | Current user info |
 | Profile | `GET /api/v1/profile/menus` | Current user menu tree |
-| Profile | `POST /api/v1/profile/change-password` | Change password (email code verification) |
+| Profile | `POST /api/v1/profile/change-password` | Change password (verification code) |
 | Users | `GET /api/v1/users` | User list (multi-role) |
 | Users | `POST /api/v1/users` | Create user |
 | Users | `GET /api/v1/users/export` | Export users (CSV) |
@@ -217,9 +218,15 @@ Once the backend is running:
 | Login Logs | `GET /api/v1/audit/login-logs` | Login log list |
 | Files | `POST /api/v1/files/upload` | Upload file |
 | Files | `GET /api/v1/files` | File list |
+| Notifications | `POST /api/v1/notifications/publish` | Publish system notification (normal / maintenance, broadcast to all users) |
+| Notifications | `GET /api/v1/notifications/published` | System notice list |
 | Notifications | `GET /api/v1/notifications` | Notification list |
 | Station | `GET /api/v1/station/messages` | My message list |
 | Station | `GET /api/v1/station/messages/unread-count` | Unread message count |
+| Announcements | `GET /api/v1/announcements/active` | Active homepage announcements |
+| Announcements | `POST /api/v1/announcements` | Create announcement (draft) |
+| Announcements | `POST /api/v1/announcements/{id}/publish` | Publish announcement |
+| Announcements | `POST /api/v1/announcements/{id}/unpublish` | Unpublish announcement |
 | Dashboard | `GET /api/v1/dashboard/stats` | Dashboard stats |
 | Global Search | `GET /api/v1/search` | Global search (users/roles/permissions/apps/files) |
 | Open API Apps | `POST /api/v1/admin/apps` | Create open app (returns AppId + AppKey) |

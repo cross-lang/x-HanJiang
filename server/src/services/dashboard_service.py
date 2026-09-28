@@ -43,6 +43,7 @@ class DashboardService:
             {
                 "id": r[0].id,
                 "username": r[1] or "-",
+                "name": r[2] or "",
                 "ip_address": r[0].ip_address,
                 "status": r[0].status,
                 "created_at": r[0].created_at.isoformat() if r[0].created_at else None,
@@ -56,7 +57,8 @@ class DashboardService:
                 "id": r[0].id,
                 "entity_type": r[0].entity_type,
                 "action": r[0].action,
-                "operator_name": r[1] or "-",
+                "operator_username": r[1] or "-",
+                "operator_name": r[2] or "",
                 "ip_address": r[0].ip_address,
                 "created_at": r[0].created_at.isoformat() if r[0].created_at else None,
             }
@@ -64,7 +66,7 @@ class DashboardService:
         ]
         # 用户状态分布
         user_status_rows = self._repository.user_status_distribution()
-        status_label_map = {"active": "活跃", "inactive": "禁用", "locked": "锁定"}
+        status_label_map = {"enabled": "启用", "disabled": "禁用"}
         user_status_distribution = [
             {"name": status_label_map.get(r.status, r.status), "value": r.count} for r in user_status_rows
         ]

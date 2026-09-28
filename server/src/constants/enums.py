@@ -17,11 +17,17 @@ class CommonStatus(Enum):
 
 
 class UserStatus(Enum):
-    """用户状态"""
+    """用户状态（对齐 users.status 列：enabled 启用 / disabled 禁用）。"""
+
+    ENABLED = "enabled"
+    DISABLED = "disabled"
+
+
+class AppStatus(Enum):
+    """开放平台应用状态（对齐 api_apps.status 列）。"""
 
     ACTIVE = "active"
-    INACTIVE = "inactive"
-    LOCKED = "locked"
+    DISABLED = "disabled"
 
 
 class AppAuthMode(Enum):
@@ -146,6 +152,42 @@ class StationMessageStatus(BaseEnum):
     READ = "read", "已读"
 
 
+class SystemNotificationType(BaseEnum):
+    """系统通知类型（决定发布语义与维护参数是否必填）。"""
+
+    NOTICE = "notice", "普通通知"
+    MAINTENANCE = "maintenance", "系统维护"
+
+
+class SystemNotificationStatus(BaseEnum):
+    """系统通知发布状态。"""
+
+    PUBLISHED = "published", "已发布"
+    WITHDRAWN = "withdrawn", "已撤回"
+
+
+class AnnouncementContentType(BaseEnum):
+    """公告正文格式类型。"""
+
+    MARKDOWN = "markdown", "Markdown"
+    RICHTEXT = "richtext", "富文本"
+
+
+class AnnouncementPosition(BaseEnum):
+    """公告展示位置（首页板块 / 横幅）。"""
+
+    BOARD = "board", "首页板块"
+    BANNER = "banner", "首页横幅"
+
+
+class AnnouncementStatus(BaseEnum):
+    """公告发布状态。"""
+
+    DRAFT = "draft", "草稿"
+    PUBLISHED = "published", "已发布"
+    UNPUBLISHED = "unpublished", "已下架"
+
+
 class HttpStatus(BaseEnum):
     """HTTP 状态码"""
 
@@ -194,6 +236,7 @@ class ApiModuleCode(BaseEnum):
     AUDIT_LOG = ("audit_log", "审计日志")
     LOGIN_LOG = ("login_log", "登录日志")
     NOTIFICATION = ("notification", "通知管理")
+    ANNOUNCEMENT = ("announcement", "公告管理")
     ALERT = ("alert", "告警管理")
     MAINTENANCE = ("maintenance", "维护管理")
     OPENAPI_APP = ("openapi_app", "开放平台应用")

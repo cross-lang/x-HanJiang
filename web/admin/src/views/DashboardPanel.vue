@@ -119,6 +119,80 @@
       </el-col>
     </el-row>
 
+    <!-- 系统监控 -->
+    <el-row :gutter="20" style="margin-bottom: 20px">
+      <el-col :span="24">
+        <el-card v-if="canMonitor">
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>系统监控</span>
+              <span style="font-size: 12px; color: #999">已运行 {{ monitor.uptime?.uptime_text || '-' }}</span>
+            </div>
+          </template>
+          <el-row :gutter="20">
+            <!-- CPU -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="font-size: 28px; font-weight: bold; color: #409eff">
+                  {{ monitor.cpu?.percent ?? 0 }}%
+                </div>
+                <div style="color: #999; margin: 8px 0">CPU 使用率</div>
+                <div style="font-size: 12px; color: #999">
+                  {{ monitor.cpu?.core_count }}核 / {{ monitor.cpu?.thread_count }}线程
+                </div>
+                <el-tag :type="statusType(monitor.cpu?.status)" size="small" style="margin-top: 6px">
+                  {{ statusText(monitor.cpu?.status) }}
+                </el-tag>
+              </div>
+            </el-col>
+            <!-- 内存 -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="font-size: 28px; font-weight: bold; color: #67c23a">
+                  {{ monitor.memory?.percent ?? 0 }}%
+                </div>
+                <div style="color: #999; margin: 8px 0">内存使用率</div>
+                <div style="font-size: 12px; color: #999">
+                  {{ monitor.memory?.used_gb }} / {{ monitor.memory?.total_gb }} GB
+                </div>
+                <el-tag :type="statusType(monitor.memory?.status)" size="small" style="margin-top: 6px">
+                  {{ statusText(monitor.memory?.status) }}
+                </el-tag>
+              </div>
+            </el-col>
+            <!-- 磁盘 -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="font-size: 28px; font-weight: bold; color: #e6a23c">
+                  {{ monitor.disk?.used_percent ?? 0 }}%
+                </div>
+                <div style="color: #999; margin: 8px 0">磁盘使用率</div>
+                <div style="font-size: 12px; color: #999">
+                  {{ monitor.disk?.used_gb }} / {{ monitor.disk?.total_gb }} GB
+                </div>
+                <el-tag :type="statusType(monitor.disk?.status)" size="small" style="margin-top: 6px">
+                  {{ statusText(monitor.disk?.status) }}
+                </el-tag>
+              </div>
+            </el-col>
+            <!-- 网络 -->
+            <el-col :xs="12" :sm="6">
+              <div style="text-align: center">
+                <div style="display: flex; justify-content: center; gap: 16px; font-size: 18px; font-weight: bold; color: #909399">
+                  <span>↓ {{ monitor.network?.recv_kbps ?? 0 }} KB/s</span>
+                  <span>↑ {{ monitor.network?.send_kbps ?? 0 }} KB/s</span>
+                </div>
+                <div style="color: #999; margin: 8px 0">网络 IO</div>
+                <div style="font-size: 12px; color: #999">
+                  收 {{ monitor.network?.bytes_recv_total_mb }} MB / 发 {{ monitor.network?.bytes_sent_total_mb }} MB
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 最近动态 -->
     <el-row :gutter="20" style="margin-bottom: 20px">
       <el-col :span="12">
@@ -130,7 +204,9 @@
             </div>
           </template>
           <el-table :data="recentLogins" size="small" empty-text="暂无记录">
-            <el-table-column prop="username" label="用户" width="100" />
+            <el-table-column label="用户" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.username }}{{ row.name ? '（' + row.name + '）' : '' }}</template>
+            </el-table-column>
             <el-table-column prop="ip_address" label="IP" width="120" />
             <el-table-column prop="status" label="状态" width="70">
               <template #default="{ row }">
@@ -154,7 +230,9 @@
             </div>
           </template>
           <el-table :data="recentAudits" size="small" empty-text="暂无记录">
-            <el-table-column prop="operator_name" label="操作人" width="100" />
+            <el-table-column label="操作人" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.operator_username }}{{ row.operator_name ? '（' + row.operator_name + '）' : '' }}</template>
+            </el-table-column>
             <el-table-column prop="entity_type" label="实体" width="100" />
             <el-table-column prop="action" label="操作" width="80" />
             <el-table-column prop="ip_address" label="IP" width="120" />
@@ -169,8 +247,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -270,6 +349,33 @@ const notifyChartOption = computed(() => ({
   ],
 }))
 
+const userStore = useUserStore()
+const permissions = userStore.userInfo?.permissions || []
+const canMonitor = computed(() => permissions.includes('*') || permissions.includes('notification:config'))
+const monitor = ref<any>({})
+
+function statusType(s: string) {
+  if (s === 'critical') return 'danger'
+  if (s === 'warning') return 'warning'
+  return 'success'
+}
+function statusText(s: string) {
+  if (s === 'critical') return '严重'
+  if (s === 'warning') return '警告'
+  return '正常'
+}
+
+let monitorTimer: number | undefined
+
+async function fetchMonitor() {
+  try {
+    const res = await request.get('/admin/notification-configs/monitor/system')
+    monitor.value = res.data
+  } catch (e) {
+    // 普通用户可能没权限，忽略
+  }
+}
+
 function formatTime(t: string) {
   if (!t) return ''
   return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -315,5 +421,13 @@ onMounted(async () => {
   } catch (e) {
     console.error('dashboard load error', e)
   }
+  if (canMonitor.value) {
+    await fetchMonitor()
+    monitorTimer = window.setInterval(fetchMonitor, 5000)
+  }
+})
+
+onUnmounted(() => {
+  if (monitorTimer) clearInterval(monitorTimer)
 })
 </script>

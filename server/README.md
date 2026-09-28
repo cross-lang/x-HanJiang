@@ -13,6 +13,8 @@
 - 用户态 JWT 认证 + 开放平台 HanJiang-1 HMAC 签名双轨鉴权
 - 业务审计日志与登录日志分离，记录操作者、IP、前后数据，支持 CSV 导出
 - 事件驱动多渠道通知（站内信 / 邮件 / 钉钉 / 飞书 / 短信），支持用户级偏好与接收人管理、失败自动重试
+- 系统通知广播：面向全体活跃用户发布普通通知 / 系统维护通知，站内信广播产生未读红点，维护通知按用户渠道配置推送多渠道
+- 公告管理：首页板块 / 横幅展示位，草稿 → 发布 → 下架全生命周期，支持有效期、排序与 Markdown / 富文本正文
 - 健康检查联动告警：数据库 / 缓存故障自动触发通知（带节流，避免重复告警）
 - 统一存储抽象（本地 / S3 兼容），业务代码零改动切换
 - 生产级安全（密码 bcrypt 哈希、常量时间比对、防重放、邮箱验证码二次认证）
@@ -194,7 +196,7 @@ server/
 ├── config.yaml.example       # YAML 配置文件模板
 ├── alembic/                  # 数据库迁移管理
 │   ├── env.py                # 迁移运行环境
-│   └── versions/             # 迁移版本脚本（当前 5 个版本）
+│   └── versions/             # 迁移版本脚本（当前 7 个版本）
 ├── docs/                     # 项目文档（建表 SQL、Postman OpenAPI 集合）
 ├── examples/                 # 使用示例脚本
 │   ├── basic_usage.py        # 基础用法示例
@@ -216,9 +218,9 @@ server/
 │   │   │   ├── audit.py      # 业务审计日志 + 登录日志（含导出）
 │   │   │   ├── dashboard.py  # 仪表盘统计
 │   │   │   ├── file.py       # 文件管理（上传 / 列表 / 下载 / 删除）
-│   │   │   ├── notification.py # 通知管理（记录查询/统计/手动发送 + 系统渠道配置/监控/渠道测试）
+│   │   │   ├── notification.py # 通知管理（系统通知发布/撤回 + 记录查询/统计 + 渠道配置/监控/测试）
 │   │   │   ├── alert.py      # 系统告警（Webhook / 广播）
-│   │   │   ├── maintenance.py # 系统维护通知
+│   │   │   ├── announcement.py # 公告管理（创建/修改/删除/发布/下架/首页生效公告）
 │   │   │   ├── station.py    # 站内信（未读数 / 列表 / 已读）
 │   │   │   ├── openapi_app.py # 开放平台应用管理
 │   │   │   ├── global_search.py # 全局搜索
@@ -358,6 +360,20 @@ flowchart TD
   J -->|成功| M[流程结束]
 ```
 
+#### 公告发布流程
+
+```mermaid
+flowchart TD
+  A[创建公告<br/>初始为草稿 draft] --> B[设置展示位置与有效期<br/>board 首页板块 / banner 首页横幅]
+  B --> C{发布校验<br/>已设有效期 · end_at > start_at · 未过期}
+  C -->|校验失败| E[拒绝发布<br/>ValidationException]
+  C -->|通过| D[发布 published<br/>记录发布时间]
+  D --> F{有效期结束?}
+  F -->|未结束| G[首页生效公告<br/>GET /announcements/active]
+  F -->|已结束| H[标记 is_expired<br/>不再对外展示]
+  D -->|管理操作| I[下架 unpublished<br/>仅已发布可下架]
+```
+
 #### 权限自动注册流程
 
 ```mermaid
@@ -457,7 +473,7 @@ graph LR
 |------|------|------|
 | GET | `/api/v1/profile/me` | 当前用户信息（含角色与权限） |
 | PUT | `/api/v1/profile/me` | 修改个人信息 |
-| POST | `/api/v1/profile/change-password` | 修改密码（原密码 + 邮箱验证码二次认证） |
+| POST | `/api/v1/profile/change-password` | 修改密码（原密码 + 验证码二次认证） |
 | GET | `/api/v1/profile/menus` | 当前用户菜单树（按权限过滤） |
 | GET | `/api/v1/profile/notification-preferences` | 我的通知偏好 |
 | PUT | `/api/v1/profile/notification-preferences` | 更新我的通知偏好 |
@@ -465,9 +481,9 @@ graph LR
 | POST | `/api/v1/profile/notification-recipients` | 添加通知接收人 |
 | PUT | `/api/v1/profile/notification-recipients/{id}` | 更新通知接收人 |
 | DELETE | `/api/v1/profile/notification-recipients/{id}` | 删除通知接收人 |
-| POST | `/api/v1/profile/send-verify-code` | 发送邮箱验证码（安全二次认证） |
-| POST | `/api/v1/profile/update-phone` | 修改手机号（邮箱验证码二次认证） |
-| POST | `/api/v1/profile/update-email` | 修改邮箱（原邮箱验证码二次认证） |
+| POST | `/api/v1/profile/send-verify-code` | 发送验证码（安全二次认证，6 位发送至邮箱） |
+| POST | `/api/v1/profile/update-phone` | 修改手机号（验证码二次认证） |
+| POST | `/api/v1/profile/update-email` | 修改邮箱（原验证码二次认证） |
 
 **角色管理：**
 
@@ -513,23 +529,39 @@ graph LR
 | GET | `/api/v1/files/{file_path:path}` | 获取 / 下载文件 |
 | DELETE | `/api/v1/files/{file_id}` | 删除文件 |
 
-**通知管理：**
+**通知管理（含系统通知广播）：**
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/notifications/send` | 手动发送通知（按事件或指定接收人） |
-| GET | `/api/v1/notifications` | 通知列表（分页/事件/渠道/状态过滤） |
-| GET | `/api/v1/notifications/stats` | 通知统计（成功/失败/待发送） |
-| GET | `/api/v1/notifications/{id}` | 通知详情 |
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| POST | `/api/v1/notifications/publish` | 发布系统通知（普通通知 / 系统维护，面向全体活跃用户） | `notification:create` |
+| POST | `/api/v1/notifications/{notice_id}/withdraw` | 撤回系统通知（幂等） | `notification:create` |
+| GET | `/api/v1/notifications/published` | 系统通知列表（分页/类型/状态/关键字过滤） | `notification:view` |
+| GET | `/api/v1/notifications/published/{notice_id}` | 系统通知详情 | `notification:view` |
+| GET | `/api/v1/notifications` | 通知列表（分页/事件/渠道/状态过滤） | `notification:view` |
+| GET | `/api/v1/notifications/stats` | 通知统计（成功/失败/待发送） | `notification:view` |
+| GET | `/api/v1/notifications/{id}` | 通知详情 | `notification:view` |
 
-**系统通知配置：**
+**系统通知配置（管理员）：**
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/admin/notification-configs` | 所有系统通知渠道配置 |
-| PUT | `/api/v1/admin/notification-configs/{channel}` | 更新渠道配置（热生效，无需重启） |
-| GET | `/api/v1/admin/notification-configs/monitor/system` | 系统监控状态 |
-| POST | `/api/v1/admin/notification-configs/{channel}/test` | 发送渠道测试消息 |
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| GET | `/api/v1/admin/notification-configs` | 所有系统通知渠道配置 | `notification:config` |
+| PUT | `/api/v1/admin/notification-configs/{channel}` | 更新渠道配置（热生效，无需重启） | `notification:config` |
+| GET | `/api/v1/admin/notification-configs/monitor/system` | 系统监控状态 | `notification:config` |
+| POST | `/api/v1/admin/notification-configs/{channel}/test` | 发送渠道测试消息 | `notification:config` |
+
+**公告管理：**
+
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| GET | `/api/v1/announcements/active` | 首页生效公告（已发布且在有效期，登录用户可见） | 登录即可 |
+| POST | `/api/v1/announcements` | 创建公告（初始为草稿） | `announcement:create` |
+| POST | `/api/v1/announcements/{id}/update` | 修改公告（所有字段可选） | `announcement:edit` |
+| POST | `/api/v1/announcements/{id}/delete` | 删除公告（物理删除） | `announcement:delete` |
+| POST | `/api/v1/announcements/{id}/publish` | 发布公告（校验有效期，草稿/已下架 → 已发布） | `announcement:publish` |
+| POST | `/api/v1/announcements/{id}/unpublish` | 下架公告（已发布 → 已下架） | `announcement:publish` |
+| GET | `/api/v1/announcements` | 公告列表（管理视角，分页/状态/位置/关键字过滤） | `announcement:view` |
+| GET | `/api/v1/announcements/{id}` | 公告详情 | `announcement:view` |
 
 **系统告警：**
 
@@ -537,12 +569,6 @@ graph LR
 |------|------|------|
 | POST | `/api/v1/alerts` | 发送系统告警（供外部监控 Webhook 调用） |
 | POST | `/api/v1/alerts/broadcast` | 广播系统告警（管理员，全体活跃用户） |
-
-**系统维护：**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/maintenance/notify` | 发送系统维护通知（管理员，全体活跃用户） |
 
 **站内信：**
 
@@ -595,6 +621,7 @@ graph LR
 ### 权限控制说明
 
 - **用户态接口**：JWT Bearer Token + `@permission` 装饰器自动注册权限 + 角色/权限校验；权限声明变更在服务启动时自动同步（失效权限标记 `is_deprecated`）
+- **核心权限项**：公告管理 `announcement:view / create / edit / delete / publish`；通知管理 `notification:view / create / config`（发布/撤回系统通知、渠道配置管理）
 - **开放平台接口**：AppId + AppKey（明文模式）或 HanJiang-1 HMAC 签名认证，通过 `@app_scope` 声明的 scope 控制接口访问范围；scope 同样在启动时自动同步
 
 ## 存储配置说明
@@ -603,7 +630,7 @@ graph LR
 
 - **类型**：MySQL 8.0+
 - **配置**：通过 `.env` 配置 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`、`MYSQL_POOL_SIZE`
-- **迁移**：使用 Alembic 管理数据库版本，当前迁移版本包含用户、通知记录、用户通知配置、开放平台应用等核心表
+- **迁移**：使用 Alembic 管理数据库版本，当前迁移版本包含用户、通知记录、用户通知配置、开放平台应用、系统通知、公告等核心表
 - **注意**：生产环境务必通过环境变量注入数据库密码，且不写入版本库
 
 ### 缓存

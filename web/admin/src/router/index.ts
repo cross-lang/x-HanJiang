@@ -70,6 +70,11 @@ const router = createRouter({
           component: () => import('@/views/SystemNotification.vue'),
         },
         {
+          path: 'announcements',
+          name: 'Announcements',
+          component: () => import('@/views/AnnouncementList.vue'),
+        },
+        {
           path: 'profile',
           name: 'Profile',
           component: () => import('@/views/Profile.vue'),

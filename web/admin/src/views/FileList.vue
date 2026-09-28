@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+  <el-card>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px">
       <el-upload :show-file-list="false" :http-request="handleUpload" :headers="uploadHeaders">
         <el-button type="primary" icon="Upload">上传文件</el-button>
       </el-upload>
@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <el-table :data="list" v-loading="loading" border>
+    <el-table :data="list" v-loading="loading">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="original_name" label="文件名" min-width="200" show-overflow-tooltip />
       <el-table-column prop="folder" label="目录" width="120" />
@@ -30,14 +30,14 @@
     </el-table>
 
     <el-pagination
-      style="margin-top: 16px; justify-content: flex-end; display: flex"
+      style="margin-top: 20px; justify-content: flex-end; display: flex"
       :current-page="page"
       :page-size="pageSize"
       :total="total"
       layout="total, prev, pager, next"
       @current-change="onPageChange"
     />
-  </div>
+  </el-card>
 </template>
 
 <script setup lang="ts">

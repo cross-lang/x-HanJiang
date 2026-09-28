@@ -3,8 +3,10 @@
 仅通过仓库获取实体数据，再负责结果组装。
 """
 
+from src.models.entities.announcement_entity import AnnouncementEntity
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.file_entity import FileEntity
+from src.models.entities.system_notification_entity import SystemNotificationEntity
 from src.models.entities.user_entity import PermissionEntity, RoleEntity, UserEntity
 from src.repositories.global_search_repository import GlobalSearchRepository
 
@@ -15,6 +17,8 @@ SEARCHABLE_CATEGORIES: tuple[str, ...] = (
     "permissions",
     "apps",
     "files",
+    "notices",
+    "announcements",
 )
 
 
@@ -44,6 +48,12 @@ class GlobalSearchService:
             result["apps"] = [self._to_app(r) for r in self._repository.search_apps(keyword, limit)]
         if "files" in categories:
             result["files"] = [self._to_file(r) for r in self._repository.search_files(keyword, limit)]
+        if "notices" in categories:
+            result["notices"] = [self._to_notice(r) for r in self._repository.search_notices(keyword, limit)]
+        if "announcements" in categories:
+            result["announcements"] = [
+                self._to_announcement(r) for r in self._repository.search_announcements(keyword, limit)
+            ]
         return result
 
     @staticmethod
@@ -91,4 +101,22 @@ class GlobalSearchService:
             "original_name": r.original_name,
             "folder": r.folder,
             "extension": r.extension,
+        }
+
+    @staticmethod
+    def _to_notice(r: SystemNotificationEntity) -> dict:
+        return {
+            "id": r.id,
+            "title": r.title,
+            "notice_type": r.notice_type,
+            "status": r.status,
+        }
+
+    @staticmethod
+    def _to_announcement(r: AnnouncementEntity) -> dict:
+        return {
+            "id": r.id,
+            "title": r.title,
+            "position": r.position,
+            "status": r.status,
         }

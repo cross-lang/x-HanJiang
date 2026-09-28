@@ -1,62 +1,88 @@
 <template>
-  <div style="max-width: 900px; margin: 0 auto">
-    <el-card style="margin-bottom: 20px">
-      <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px">
-        <el-avatar :size="64" style="background: #79bbff; font-size: 28px">
-          {{ (userStore.userInfo?.name || 'U').charAt(0) }}
-        </el-avatar>
-        <div>
-          <h2 style="margin: 0">{{ userStore.userInfo?.name || userStore.userInfo?.username }}</h2>
-          <p style="margin: 5px 0 0; color: #999">@{{ userStore.userInfo?.username }}</p>
+  <div class="profile-page">
+    <!-- 顶部信息横幅 -->
+    <div class="hero-card">
+      <div class="hero-left">
+        <el-avatar :size="80" class="hero-avatar">{{ initial }}</el-avatar>
+        <div class="hero-info">
+          <div class="hero-name">{{ userStore.userInfo?.name || userStore.userInfo?.username }}</div>
+          <div class="hero-sub">@{{ userStore.userInfo?.username }}</div>
+          <div class="hero-tags">
+            <span v-for="r in roles" :key="r.id" class="hero-tag">{{ r.name }}</span>
+          </div>
         </div>
       </div>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <div class="stat-num">{{ roles.length }}</div>
+          <div class="stat-label">角色</div>
+        </div>
+        <div class="stat-divider" />
+        <div class="stat-item">
+          <div class="stat-num">{{ isSuperAdmin ? '∞' : permissionList.length }}</div>
+          <div class="stat-label">权限</div>
+        </div>
+        <div class="stat-divider" />
+        <div class="stat-item">
+          <div class="stat-num">{{ userStore.userInfo?.email ? '已绑定' : '未绑定' }}</div>
+          <div class="stat-label">邮箱</div>
+        </div>
+        <div class="stat-divider" />
+        <div class="stat-item">
+          <div class="stat-num">{{ userStore.userInfo?.phone ? '已绑定' : '未绑定' }}</div>
+          <div class="stat-label">手机</div>
+        </div>
+      </div>
+    </div>
 
-      <el-divider />
-
-      <el-tabs v-model="activeTab">
+    <!-- 主体卡片 -->
+    <el-card class="main-card" shadow="never">
+      <el-tabs v-model="activeTab" class="profile-tabs">
         <el-tab-pane label="基本信息" name="info">
-          <el-form :model="form" label-width="80px" style="max-width: 500px">
-            <el-form-item label="用户名">
-              <el-input :model-value="userStore.userInfo?.username" disabled />
-            </el-form-item>
-            <el-form-item label="姓名">
-              <el-input v-model="form.name" />
-            </el-form-item>
-            <el-form-item label="生日">
-              <el-date-picker v-model="form.birthday" type="date" />
-            </el-form-item>
-            <el-form-item label="性别">
-              <el-radio-group v-model="form.gender">
-                <el-radio value="male">男</el-radio>
-                <el-radio value="female">女</el-radio>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="saveInfo">保存修改</el-button>
-            </el-form-item>
-          </el-form>
+          <div class="pane-body">
+            <el-form :model="form" label-width="96px" class="info-form">
+              <el-form-item label="用户名">
+                <el-input :model-value="userStore.userInfo?.username" disabled />
+              </el-form-item>
+              <el-form-item label="姓名">
+                <el-input v-model="form.name" placeholder="请输入姓名" />
+              </el-form-item>
+              <el-form-item label="生日">
+                <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              </el-form-item>
+              <el-form-item label="性别">
+                <el-radio-group v-model="form.gender">
+                  <el-radio value="male">男</el-radio>
+                  <el-radio value="female">女</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" round @click="saveInfo">保存修改</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
         </el-tab-pane>
 
         <el-tab-pane label="角色权限" name="roles">
-          <div style="padding: 10px 0">
-            <h4 style="margin: 0 0 16px; color: #333">我的角色</h4>
-            <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px">
-              <el-tag v-for="r in roles" :key="r.id" type="primary" size="large" effect="dark" style="padding: 8px 16px; font-size: 14px">
-                {{ r.name }}
-              </el-tag>
+          <div class="pane-body">
+            <h4 class="pane-title">我的角色</h4>
+            <div class="role-wrap">
+              <div v-for="r in roles" :key="r.id" class="role-chip">
+                <el-icon><Avatar /></el-icon>
+                <span>{{ r.name }}</span>
+              </div>
             </div>
 
-            <h4 style="margin: 0 0 16px; color: #333">我的权限</h4>
-            <el-alert v-if="permissions.includes('*')" type="success" :closable="false" style="margin-bottom: 16px">
+            <h4 class="pane-title">我的权限</h4>
+            <el-alert v-if="isSuperAdmin" type="success" :closable="false" class="pane-alert">
               超级管理员，拥有所有权限
             </el-alert>
-            <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px">
-              <div v-for="group in groupedPermissions" :key="group.module" style="background: #f8f9fa; border-radius: 8px; padding: 16px">
-                <div style="font-weight: 600; color: #409eff; margin-bottom: 12px; font-size: 14px">
-                  {{ group.module_label || group.module }}
-                </div>
-                <div v-for="p in group.items" :key="p.code" style="padding: 4px 0; font-size: 13px; color: #555">
-                  {{ p.name }} <span style="color: #aaa; font-size: 12px">({{ p.code }})</span>
+            <div v-else class="perm-grid">
+              <div v-for="group in groupedPermissions" :key="group.module" class="perm-card">
+                <div class="perm-module">{{ group.module_label || group.module }}</div>
+                <div v-for="p in group.items" :key="p.code" class="perm-item">
+                  <span>{{ p.name }}</span>
+                  <span class="perm-code">{{ p.code }}</span>
                 </div>
               </div>
             </div>
@@ -64,13 +90,13 @@
         </el-tab-pane>
 
         <el-tab-pane label="通知偏好" name="notify">
-          <div style="padding: 10px 0">
-            <el-alert type="info" :closable="false" style="margin-bottom: 20px">
+          <div class="pane-body">
+            <el-alert type="info" :closable="false" class="pane-alert">
               选择您希望接收哪些事件的通知，未勾选的将不再推送
             </el-alert>
-            <el-table :data="preferenceEvents" border>
-              <el-table-column prop="name" label="事件" width="180" />
-              <el-table-column v-for="ch in channelList" :key="ch.code" :label="ch.name" width="100" align="center">
+            <el-table :data="preferenceEvents" border class="pref-table">
+              <el-table-column prop="name" label="事件" width="220" />
+              <el-table-column v-for="ch in channelList" :key="ch.code" :label="ch.name" width="120" align="center">
                 <template #default="{ row }">
                   <el-switch
                     :model-value="row.channels.find((c: any) => c.code === ch.code)?.enabled"
@@ -83,81 +109,91 @@
         </el-tab-pane>
 
         <el-tab-pane label="安全设置" name="security">
-          <div style="max-width: 600px">
-            <el-alert type="warning" :closable="false" style="margin-bottom: 20px">
-              修改手机号、邮箱、密码均需通过邮箱验证码二次认证
+          <div class="pane-body">
+            <el-alert type="warning" :closable="false" class="pane-alert">
+              修改手机号、邮箱、密码均需通过验证码二次认证
             </el-alert>
 
             <!-- 手机 -->
-            <el-card shadow="never" style="margin-bottom: 16px; background: #fafafa">
-              <template #header><b>绑定手机</b></template>
-              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px">
-                <span style="color: #666; width: 60px">当前</span>
-                <span>{{ userStore.userInfo?.phone || '未绑定' }}</span>
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Iphone /></el-icon>
+                <div>
+                  <div class="sec-title">绑定手机</div>
+                  <div class="sec-current">当前：{{ userStore.userInfo?.phone || '未绑定' }}</div>
+                </div>
               </div>
-              <el-form :model="phoneForm" label-width="80px">
+              <el-form :model="phoneForm" label-width="88px" class="sec-form">
                 <el-form-item label="新手机号">
                   <el-input v-model="phoneForm.phone" placeholder="请输入新手机号" />
                 </el-form-item>
-                <el-form-item label="邮箱验证码">
-                  <div style="display: flex; gap: 8px; width: 100%">
-                    <el-input v-model="phoneForm.code" placeholder="6 位验证码" style="flex: 1" />
+                <el-form-item label="验证码">
+                  <div class="code-row">
+                    <el-input v-model="phoneForm.code" placeholder="6 位验证码" />
                     <el-button @click="sendCode('phone')" :loading="codeLoading">发送验证码</el-button>
                   </div>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="updatePhone">修改手机号</el-button>
+                  <el-button type="primary" round @click="updatePhone">修改手机号</el-button>
                 </el-form-item>
               </el-form>
-            </el-card>
+            </div>
 
             <!-- 邮箱 -->
-            <el-card shadow="never" style="margin-bottom: 16px; background: #fafafa">
-              <template #header><b>绑定邮箱</b></template>
-              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px">
-                <span style="color: #666; width: 60px">当前</span>
-                <span>{{ userStore.userInfo?.email || '未绑定' }}</span>
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Message /></el-icon>
+                <div>
+                  <div class="sec-title">绑定邮箱</div>
+                  <div class="sec-current">当前：{{ userStore.userInfo?.email || '未绑定' }}</div>
+                </div>
               </div>
-              <el-form :model="emailForm" label-width="80px">
+              <el-form :model="emailForm" label-width="88px" class="sec-form">
                 <el-form-item label="新邮箱">
                   <el-input v-model="emailForm.email" placeholder="请输入新邮箱" />
                 </el-form-item>
-                <el-form-item label="邮箱验证码">
-                  <div style="display: flex; gap: 8px; width: 100%">
-                    <el-input v-model="emailForm.code" placeholder="6 位验证码" style="flex: 1" />
+                <el-form-item label="验证码">
+                  <div class="code-row">
+                    <el-input v-model="emailForm.code" placeholder="6 位验证码" />
                     <el-button @click="sendCode('email')" :loading="codeLoading">发送验证码</el-button>
                   </div>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="updateEmail">修改邮箱</el-button>
+                  <el-button type="primary" round @click="updateEmail">修改邮箱</el-button>
                 </el-form-item>
               </el-form>
-            </el-card>
+            </div>
 
             <!-- 密码 -->
-            <el-card shadow="never" style="background: #fafafa">
-              <template #header><b>修改密码</b></template>
-              <el-form :model="pwdForm" label-width="100px">
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Lock /></el-icon>
+                <div>
+                  <div class="sec-title">修改密码</div>
+                  <div class="sec-current">定期更换密码有助于提升账号安全性</div>
+                </div>
+              </div>
+              <el-form :model="pwdForm" label-width="88px" class="sec-form">
                 <el-form-item label="原密码">
-                  <el-input v-model="pwdForm.old_password" type="password" show-password />
+                  <el-input v-model="pwdForm.old_password" type="password" show-password placeholder="请输入原密码" />
                 </el-form-item>
                 <el-form-item label="新密码">
-                  <el-input v-model="pwdForm.new_password" type="password" show-password />
+                  <el-input v-model="pwdForm.new_password" type="password" show-password placeholder="请输入新密码" />
                 </el-form-item>
                 <el-form-item label="确认密码">
-                  <el-input v-model="pwdForm.confirm_password" type="password" show-password />
+                  <el-input v-model="pwdForm.confirm_password" type="password" show-password placeholder="请再次输入新密码" />
                 </el-form-item>
-                <el-form-item label="邮箱验证码">
-                  <div style="display: flex; gap: 8px; width: 100%">
-                    <el-input v-model="pwdForm.code" placeholder="6 位验证码" style="flex: 1" />
+                <el-form-item label="验证码">
+                  <div class="code-row">
+                    <el-input v-model="pwdForm.code" placeholder="6 位验证码" />
                     <el-button @click="sendCode('password')" :loading="codeLoading">发送验证码</el-button>
                   </div>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="changePassword">修改密码</el-button>
+                  <el-button type="primary" round @click="changePassword">修改密码</el-button>
                 </el-form-item>
               </el-form>
-            </el-card>
+            </div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -168,6 +204,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Avatar, Iphone, Message, Lock } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
 
@@ -190,6 +227,8 @@ const channelList = [
   { code: 'feishu', name: '飞书' },
 ]
 
+const initial = computed(() => (userStore.userInfo?.name || 'U').charAt(0))
+const isSuperAdmin = computed(() => permissions.value.includes('*'))
 
 const groupedPermissions = computed(() => {
   const map: Record<string, any[]> = {}
@@ -343,3 +382,260 @@ async function changePassword() {
   } catch (e) { /* 错误已处理 */ }
 }
 </script>
+
+<style scoped>
+.profile-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 8px 0 24px;
+}
+
+/* ===== 顶部信息横幅 ===== */
+.hero-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 28px 32px;
+  border-radius: 16px;
+  color: #303133;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.06);
+}
+
+.hero-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.hero-avatar {
+  background: linear-gradient(135deg, #e4edff 0%, #d0ddff 100%);
+  color: #2f54eb;
+  font-size: 32px;
+  font-weight: 600;
+  border: none;
+  flex-shrink: 0;
+}
+
+.hero-name {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.hero-sub {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #909399;
+}
+
+.hero-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.hero-tag {
+  padding: 3px 12px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid #e4e8f2;
+  background: #f5f8ff;
+  color: #2f54eb;
+}
+
+.hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 26px;
+  border-radius: 12px;
+  background: #f7f9fc;
+  border: 1px solid #eef0f4;
+}
+
+.stat-item {
+  text-align: center;
+  min-width: 64px;
+}
+
+.stat-num {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.stat-label {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: #e0e6ef;
+}
+
+/* ===== 主体卡片 ===== */
+.main-card {
+  margin-top: 20px;
+  border-radius: 16px;
+  border: 1px solid #eef0f4;
+  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.06);
+}
+
+.profile-tabs :deep(.el-tabs__header) {
+  padding: 0 24px;
+  margin-bottom: 0;
+}
+
+.profile-tabs :deep(.el-tabs__nav-wrap) {
+  padding-top: 6px;
+}
+
+.pane-body {
+  padding: 28px 32px 36px;
+}
+
+.pane-title {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.pane-alert {
+  margin-bottom: 20px;
+  border-radius: 10px;
+}
+
+.info-form {
+  max-width: 520px;
+}
+
+/* ===== 角色权限 ===== */
+.role-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 34px;
+}
+
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #e8f0fe 0%, #dbe6ff 100%);
+  color: #2f54eb;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.perm-card {
+  border: 1px solid #eceef3;
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: #fafbfd;
+  transition: box-shadow 0.2s ease;
+}
+
+.perm-card:hover {
+  box-shadow: 0 4px 12px rgba(31, 45, 61, 0.08);
+}
+
+.perm-module {
+  font-weight: 600;
+  color: #2f54eb;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.perm-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.perm-code {
+  color: #a0a6b1;
+  font-size: 12px;
+}
+
+/* ===== 通知偏好 ===== */
+.pref-table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ===== 安全设置 ===== */
+.sec-card {
+  border: 1px solid #eceef3;
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  background: #fff;
+  transition: box-shadow 0.2s ease;
+}
+
+.sec-card:hover {
+  box-shadow: 0 4px 14px rgba(31, 45, 61, 0.07);
+}
+
+.sec-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.sec-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e8f0fe;
+  color: #2f54eb;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.sec-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.sec-current {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.sec-form {
+  max-width: 520px;
+}
+
+.code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.code-row .el-input {
+  flex: 1;
+}
+</style>

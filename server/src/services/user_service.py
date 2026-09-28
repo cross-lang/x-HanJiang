@@ -17,7 +17,7 @@ from src.constants.enums import NotificationEvent, UserStatus
 from src.core.exceptions import AuthorizationException, ConflictException, NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import UserEntity
-from src.notification.notification_decorators import notify
+from src.notification.decorators import notify
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.base_service import BaseService
@@ -263,13 +263,13 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
 
     def verify_credentials(self, account: str, password: str) -> UserEntity | None:
         """校验登录凭据（供 AuthService 调用）。
-        支持用户名或邮箱匹配；LOCKED 用户拒绝登录。
+        支持用户名或邮箱匹配；DISABLED 用户拒绝登录。
         """
         user: UserEntity | None
         user = self._repository.get_by_email(account) if "@" in account else self._repository.get_by_username(account)
         if user is None:
             return None
-        if user.status == UserStatus.LOCKED.value:
+        if user.status == UserStatus.DISABLED.value:
             return None
         if not verify_password(password, user.password_hash or ""):
             return None
@@ -298,7 +298,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             role_id=role_ids[0] if role_ids else None,
             role_name=role_name,
             roles=roles,
-            status=entity.status or UserStatus.ACTIVE.value,
+            status=entity.status or UserStatus.ENABLED.value,
             last_login_at=entity.last_login_at,
             last_login_ip=entity.last_login_ip,
             created_at=entity.created_at,

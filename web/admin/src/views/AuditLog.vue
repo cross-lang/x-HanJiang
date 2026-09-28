@@ -35,8 +35,9 @@
       </template>
       <template v-else>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="operator_username" label="用户名" min-width="120" />
-        <el-table-column prop="operator_real_name" label="姓名" min-width="120" />
+        <el-table-column label="操作人" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.operator_username }}{{ row.operator_real_name ? '（' + row.operator_real_name + '）' : '' }}</template>
+        </el-table-column>
         <el-table-column prop="entity_type" label="实体类型" min-width="120" />
         <el-table-column prop="action" label="操作" min-width="120" />
         <el-table-column prop="remarks" label="备注" min-width="200" show-overflow-tooltip />
@@ -58,21 +59,37 @@
       :total="total"
       @current-change="fetchList"
     />
-    <el-dialog v-model="detailVisible" title="审计详情" width="700px">
+    <el-dialog v-model="detailVisible" :title="isLoginLog ? '登录详情' : '审计详情'" width="700px">
       <div v-if="detailRow">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="操作者">{{ detailRow.operator_username }}（{{ detailRow.operator_real_name || '-' }}）</el-descriptions-item>
-          <el-descriptions-item label="操作时间">{{ detailRow.created_at }}</el-descriptions-item>
-          <el-descriptions-item label="实体类型">{{ detailRow.entity_type }}</el-descriptions-item>
-          <el-descriptions-item label="操作">{{ detailRow.action }}</el-descriptions-item>
-          <el-descriptions-item label="IP">{{ detailRow.ip_address }}</el-descriptions-item>
-          <el-descriptions-item label="备注">{{ detailRow.remarks }}</el-descriptions-item>
-        </el-descriptions>
-        <el-divider />
-        <h4>变更前数据</h4>
-        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.before_data, null, 2) }}</pre>
-        <h4>变更后数据</h4>
-        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.after_data, null, 2) }}</pre>
+        <template v-if="isLoginLog">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="操作者">{{ detailRow.username }}（{{ detailRow.name || '-' }}）</el-descriptions-item>
+            <el-descriptions-item label="操作时间">{{ detailRow.created_at }}</el-descriptions-item>
+            <el-descriptions-item label="登录方式">{{ detailRow.login_type }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="detailRow.status === 'success' ? 'success' : 'danger'">
+                {{ loginStatusText(detailRow.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="IP">{{ detailRow.ip_address }}</el-descriptions-item>
+            <el-descriptions-item label="用户ID">{{ detailRow.user_id ?? '-' }}</el-descriptions-item>
+          </el-descriptions>
+        </template>
+        <template v-else>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="操作者">{{ detailRow.operator_username }}（{{ detailRow.operator_real_name || '-' }}）</el-descriptions-item>
+            <el-descriptions-item label="操作时间">{{ detailRow.created_at }}</el-descriptions-item>
+            <el-descriptions-item label="实体类型">{{ detailRow.entity_type }}</el-descriptions-item>
+            <el-descriptions-item label="操作">{{ detailRow.action }}</el-descriptions-item>
+            <el-descriptions-item label="IP">{{ detailRow.ip_address }}</el-descriptions-item>
+            <el-descriptions-item label="备注">{{ detailRow.remarks }}</el-descriptions-item>
+          </el-descriptions>
+          <el-divider />
+          <h4>变更前数据</h4>
+          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.before_data, null, 2) }}</pre>
+          <h4>变更后数据</h4>
+          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.after_data, null, 2) }}</pre>
+        </template>
       </div>
     </el-dialog>
   </el-card>
@@ -99,9 +116,15 @@ const detailVisible = ref(false)
 const detailRow = ref<any>(null)
 const loading = ref(false)
 
-function showDetail(row: any) {
-  detailRow.value = row
-  detailVisible.value = true
+async function showDetail(row: any) {
+  try {
+    const url = isLoginLog.value ? `/audit/login-logs/${row.id}` : `/audit/logs/${row.id}`
+    const res = await request.get(url)
+    detailRow.value = res.data
+    detailVisible.value = true
+  } catch (e) {
+    // 错误已处理
+  }
 }
 const page = ref(1)
 const pageSize = ref(20)

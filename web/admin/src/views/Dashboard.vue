@@ -12,6 +12,45 @@
       </div>
     </el-card>
 
+    <!-- 公告横幅（首页通栏） -->
+    <div v-if="bannerAnnouncements.length" style="margin-top: 20px">
+      <div
+        v-for="item in bannerAnnouncements"
+        :key="'b-' + item.id"
+        class="announcement-banner"
+        @click="openAnnouncement(item)"
+      >
+        <el-icon style="font-size: 20px; flex-shrink: 0"><Notification /></el-icon>
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ item.title }}</div>
+          <div style="font-size: 12px; margin-top: 4px; opacity: 0.9">
+            有效期至 {{ fmtTime(item.end_at) }}
+          </div>
+        </div>
+        <el-icon style="font-size: 18px"><ArrowRight /></el-icon>
+      </div>
+    </div>
+
+    <!-- 公告板块（列表） -->
+    <el-card v-if="boardAnnouncements.length" style="margin-top: 20px">
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span>公告</span>
+          <span style="font-size: 12px; color: #999">{{ boardAnnouncements.length }} 条进行中</span>
+        </div>
+      </template>
+      <div
+        v-for="item in boardAnnouncements"
+        :key="'n-' + item.id"
+        class="announcement-item"
+        @click="openAnnouncement(item)"
+      >
+        <span class="announcement-dot" />
+        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ item.title }}</span>
+        <span style="color: #999; font-size: 12px">{{ fmtTime(item.end_at) }}</span>
+      </div>
+    </el-card>
+
     <!-- 快捷入口 -->
     <el-row :gutter="20" style="margin-top: 20px">
       <el-col :span="6" v-for="item in quickLinks" :key="item.path">
@@ -29,80 +68,6 @@
               <div style="color: #999; font-size: 12px; margin-top: 4px">{{ item.desc }}</div>
             </div>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 系统监控 -->
-    <el-row :gutter="20" style="margin-top: 20px">
-      <el-col :span="24">
-        <el-card>
-          <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
-              <span>系统监控</span>
-              <span style="font-size: 12px; color: #999">已运行 {{ monitor.uptime?.uptime_text || '-' }}</span>
-            </div>
-          </template>
-          <el-row :gutter="20">
-            <!-- CPU -->
-            <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div style="font-size: 28px; font-weight: bold; color: #409eff">
-                  {{ monitor.cpu?.percent ?? 0 }}%
-                </div>
-                <div style="color: #999; margin: 8px 0">CPU 使用率</div>
-                <div style="font-size: 12px; color: #999">
-                  {{ monitor.cpu?.core_count }}核 / {{ monitor.cpu?.thread_count }}线程
-                </div>
-                <el-tag :type="statusType(monitor.cpu?.status)" size="small" style="margin-top: 6px">
-                  {{ statusText(monitor.cpu?.status) }}
-                </el-tag>
-              </div>
-            </el-col>
-            <!-- 内存 -->
-            <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div style="font-size: 28px; font-weight: bold; color: #67c23a">
-                  {{ monitor.memory?.percent ?? 0 }}%
-                </div>
-                <div style="color: #999; margin: 8px 0">内存使用率</div>
-                <div style="font-size: 12px; color: #999">
-                  {{ monitor.memory?.used_gb }} / {{ monitor.memory?.total_gb }} GB
-                </div>
-                <el-tag :type="statusType(monitor.memory?.status)" size="small" style="margin-top: 6px">
-                  {{ statusText(monitor.memory?.status) }}
-                </el-tag>
-              </div>
-            </el-col>
-            <!-- 磁盘 -->
-            <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div style="font-size: 28px; font-weight: bold; color: #e6a23c">
-                  {{ monitor.disk?.used_percent ?? 0 }}%
-                </div>
-                <div style="color: #999; margin: 8px 0">磁盘使用率</div>
-                <div style="font-size: 12px; color: #999">
-                  {{ monitor.disk?.used_gb }} / {{ monitor.disk?.total_gb }} GB
-                </div>
-                <el-tag :type="statusType(monitor.disk?.status)" size="small" style="margin-top: 6px">
-                  {{ statusText(monitor.disk?.status) }}
-                </el-tag>
-              </div>
-            </el-col>
-            <!-- 网络 -->
-            <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div style="display: flex; justify-content: center; gap: 16px; font-size: 18px; font-weight: bold; color: #909399">
-                  <span>↓ {{ monitor.network?.recv_kbps ?? 0 }} KB/s</span>
-                  <span>↑ {{ monitor.network?.send_kbps ?? 0 }} KB/s</span>
-                </div>
-                <div style="color: #999; margin: 8px 0">网络 IO</div>
-                <div style="font-size: 12px; color: #999">
-                  收 {{ monitor.network?.bytes_recv_total_mb }} MB / 发 {{ monitor.network?.bytes_sent_total_mb }} MB
-                </div>
-              </div>
-            </el-col>
-          </el-row>
         </el-card>
       </el-col>
     </el-row>
@@ -151,13 +116,25 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 公告详情对话框 -->
+    <el-dialog v-model="announcementVisible" title="公告详情" width="680px">
+      <template v-if="announcementDetail">
+        <div style="font-size: 18px; font-weight: 600; margin-bottom: 12px">{{ announcementDetail.title }}</div>
+        <div style="color: #999; font-size: 12px; margin-bottom: 12px">
+          有效期：{{ fmtTime(announcementDetail.start_at) }} ~ {{ fmtTime(announcementDetail.end_at) }}
+        </div>
+        <div class="announcement-preview" v-html="renderAnnouncement(announcementDetail.content, announcementDetail.content_type)" />
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
+import { renderAnnouncement } from '@/utils/announcement'
 
 const userStore = useUserStore()
 const today = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
@@ -171,36 +148,38 @@ const allQuickLinks = [
 
 const permissions = userStore.userInfo?.permissions || []
 const quickLinks = allQuickLinks.filter(l => !l.perm || permissions.includes('*') || permissions.includes(l.perm))
-
 const myLogins = ref<any[]>([])
 const myAudits = ref<any[]>([])
-const monitor = ref<any>({})
+
+const announcements = ref<any[]>([])
+const announcementVisible = ref(false)
+const announcementDetail = ref<any>(null)
+
+const bannerAnnouncements = computed(() => announcements.value.filter(a => a.position === 'banner'))
+const boardAnnouncements = computed(() => announcements.value.filter(a => a.position === 'board'))
+
+function fmtTime(v: string | null | undefined): string {
+  if (!v) return ''
+  return v.replace('T', ' ').slice(0, 16)
+}
+
+async function fetchAnnouncements() {
+  try {
+    const res = await request.get('/announcements/available')
+    announcements.value = res.data.items || []
+  } catch (e) {
+    // 公告接口不可用时静默
+  }
+}
+
+function openAnnouncement(item: any) {
+  announcementDetail.value = item
+  announcementVisible.value = true
+}
 
 function formatTime(t: string) {
   if (!t) return ''
   return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
-function statusType(s: string) {
-  if (s === 'critical') return 'danger'
-  if (s === 'warning') return 'warning'
-  return 'success'
-}
-function statusText(s: string) {
-  if (s === 'critical') return '严重'
-  if (s === 'warning') return '警告'
-  return '正常'
-}
-
-let monitorTimer: number | undefined
-
-async function fetchMonitor() {
-  try {
-    const res = await request.get('/admin/notification-configs/monitor/system')
-    monitor.value = res.data
-  } catch (e) {
-    // 普通用户可能没权限，忽略
-  }
 }
 
 onMounted(async () => {
@@ -211,11 +190,47 @@ onMounted(async () => {
   } catch (e) {
     // 静默处理
   }
-  await fetchMonitor()
-  monitorTimer = window.setInterval(fetchMonitor, 5000)
-})
-
-onUnmounted(() => {
-  if (monitorTimer) clearInterval(monitorTimer)
+  await fetchAnnouncements()
 })
 </script>
+
+<style scoped>
+.announcement-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, #409eff, #66b1ff);
+  color: #fff;
+  border-radius: 8px;
+  padding: 14px 20px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.25);
+}
+.announcement-banner:hover {
+  opacity: 0.92;
+}
+.announcement-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.announcement-item:hover {
+  background: var(--el-fill-color-light);
+}
+.announcement-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #409eff;
+  flex-shrink: 0;
+}
+.announcement-preview {
+  line-height: 1.7;
+  max-height: 400px;
+  overflow: auto;
+}
+</style>

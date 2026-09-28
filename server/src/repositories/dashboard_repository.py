@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.constants.constants import LOGIN_STATUS_FAILED
-from src.constants.enums import CommonStatus, UserStatus
+from src.constants.enums import AppStatus, CommonStatus, UserStatus
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.file_entity import FileEntity
@@ -39,7 +39,7 @@ class DashboardRepository:
         user_count = (
             self._session.execute(
                 select(func.count(UserEntity.id)).where(
-                    UserEntity.status == UserStatus.ACTIVE.value,
+                    UserEntity.status == UserStatus.ENABLED.value,
                     UserEntity.deleted_at.is_(None),
                 )
             ).scalar()
@@ -57,7 +57,7 @@ class DashboardRepository:
         app_count = (
             self._session.execute(
                 select(func.count(OpenApiAppEntity.id)).where(
-                    OpenApiAppEntity.status == UserStatus.ACTIVE.value,
+                    OpenApiAppEntity.status == AppStatus.ACTIVE.value,
                     OpenApiAppEntity.deleted_at.is_(None),
                 )
             ).scalar()
@@ -171,7 +171,7 @@ class DashboardRepository:
     def recent_logins(self, limit: int = 10) -> list:
         """最近登录记录（关联用户名，按时间倒序）。"""
         return self._session.execute(
-            select(LoginLogEntity, UserEntity.username)
+            select(LoginLogEntity, UserEntity.username, UserEntity.name)
             .outerjoin(UserEntity, UserEntity.id == LoginLogEntity.user_id)
             .order_by(LoginLogEntity.created_at.desc())
             .limit(limit)
@@ -181,7 +181,7 @@ class DashboardRepository:
         """最近操作日志（按时间倒序，关联用户名）。"""
         return list(
             self._session.execute(
-                select(AuditLogEntity, UserEntity.username)
+                select(AuditLogEntity, UserEntity.username, UserEntity.name)
                 .outerjoin(UserEntity, UserEntity.id == AuditLogEntity.operator_id)
                 .order_by(AuditLogEntity.created_at.desc())
                 .limit(limit)

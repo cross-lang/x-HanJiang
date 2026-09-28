@@ -203,7 +203,7 @@ class NotificationDispatcher:
 
     def _enqueue_retry(self, records: list[NotificationRecordEntity]) -> None:
         """将失败记录写入 Redis 重试队列（ZSET，score 为下次重试时间戳）。"""
-        from src.notification.retry import NOTIFICATION_RETRY_QUEUE_KEY
+        from src.notification.bootstrap import NOTIFICATION_RETRY_QUEUE_KEY
 
         try:
             from src.infras.cache import get_cached_cache_provider
