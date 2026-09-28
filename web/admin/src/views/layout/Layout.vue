@@ -47,15 +47,17 @@
       </el-menu>
     </el-aside>
     <el-container>
-      <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center">
+      <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center; user-select: none; -webkit-user-select: none">
         <GlobalSearch />
         <NotificationBell />
-        <div class="ai-btn" @click="openAiDrawer">
-          <div class="ai-entry">
-            <el-icon :size="18"><MagicStick /></el-icon>
-            <span>小江</span>
+        <el-tooltip content="我是小江，您的 AI 助手" placement="bottom" effect="light" :show-after="200">
+          <div class="ai-btn" @click="openAiDrawer">
+            <div class="ai-entry">
+              <el-icon :size="18"><MagicStick /></el-icon>
+              <span>小江</span>
+            </div>
           </div>
-        </div>
+        </el-tooltip>
         <el-dropdown @command="handleCommand">
           <span style="cursor: pointer; display: flex; align-items: center; gap: 10px">
             <el-avatar :size="36" style="background: #79bbff">
@@ -70,16 +72,6 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile"><el-icon style="margin-right: 8px"><User /></el-icon>个人中心</el-dropdown-item>
-              <el-dropdown-item divided>
-                <a href="https://github.com/cross-lang/x-HanJiang" target="_blank" style="display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; line-height: 32px">
-                  <el-icon><Link /></el-icon> GitHub
-                </a>
-              </el-dropdown-item>
-              <el-dropdown-item>
-                <a href="https://gitee.com/cross-lang/x-HanJiang" target="_blank" style="display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; line-height: 32px">
-                  <el-icon><Star /></el-icon> Gitee
-                </a>
-              </el-dropdown-item>
               <el-dropdown-item divided command="logout"><el-icon style="margin-right: 8px"><SwitchButton /></el-icon>退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -97,13 +89,21 @@
           <router-view />
         </div>
         <div class="app-footer">
-          Copyright © {{ currentYear }} 汉江管理系统 All Rights Reserved
+          <div class="app-footer-links">
+            <a href="https://github.com/cross-lang/x-HanJiang" target="_blank" rel="noopener noreferrer" title="GitHub">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            </a>
+            <a href="https://gitee.com/cross-lang/x-HanJiang" target="_blank" rel="noopener noreferrer" title="Gitee">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M2 6.5A4.5 4.5 0 0 1 6.5 2h11A4.5 4.5 0 0 1 22 6.5v11a4.5 4.5 0 0 1-4.5 4.5h-11A4.5 4.5 0 0 1 2 17.5v-11z"/><path fill="#fff" d="M5 9h14v1.3H5zm0 3.5h10v1.3H5z"/></svg>
+            </a>
+          </div>
+          <span>Copyright © {{ currentYear }} 汉江管理系统 All Rights Reserved</span>
         </div>
       </el-main>
     </el-container>
 
     <!-- 小江 AI 助手抽屉 -->
-    <el-drawer v-model="aiVisible" size="420px" direction="rtl">
+    <el-drawer v-model="aiVisible" :size="`${aiDrawerWidth}px`" direction="rtl" class="ai-drawer-shell">
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 4px">
           <div style="display: flex; align-items: center; gap: 10px">
@@ -119,16 +119,29 @@
           </el-button>
         </div>
       </template>
-      <div style="display: flex; flex-direction: column; height: 100%">
+      <div style="display: flex; height: 100%">
+        <div
+          class="ai-drawer-split"
+          :class="{ 'ai-drawer-split-active': draggingDrawer }"
+          title="按住鼠标左右拖动，调整小江窗口宽度"
+          @mousedown="startDrawerResize"
+        ></div>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%">
         <!-- 会话管理面板：点击「会话管理」嵌入聊天区上方，聊天记录顺势下移 -->
         <transition name="ai-panel">
-        <div
-          v-if="aiConvPanelVisible"
-          class="ai-conv-panel"
-          style="flex-shrink: 0; max-height: 264px; overflow-y: auto; border-radius: 12px; margin-bottom: 12px; padding: 12px 8px 8px"
-        >
+        <div v-if="aiConvPanelVisible" style="flex-shrink: 0; margin-bottom: 12px">
+          <div
+            class="ai-conv-panel"
+            :style="`height: ${aiPanelHeight}px; overflow-y: auto; border-radius: 12px; padding: 12px 8px 8px`"
+          >
           <!-- 标题行 -->
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 2px 10px; border-bottom: 1px solid rgba(139, 92, 246, 0.10); margin-bottom: 6px">
+          <div
+            style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px 10px; border-bottom: 1px solid rgba(144, 147, 153, 0.15); margin-bottom: 6px; cursor: pointer; border-radius: 6px; transition: background 0.15s"
+            title="点击收起会话面板"
+            @click="toggleConvPanel"
+            @mouseenter="($event.currentTarget as HTMLElement).style.background = 'rgba(144, 147, 153, 0.06)'"
+            @mouseleave="($event.currentTarget as HTMLElement).style.background = 'transparent'"
+          >
             <div style="display: flex; align-items: center; gap: 6px">
               <span style="width: 3px; height: 14px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #6366f1); display: inline-block"></span>
               <span style="font-size: 13px; color: #1f2329; font-weight: 600">会话列表</span>
@@ -138,7 +151,7 @@
               style="display: inline-flex; align-items: center; gap: 2px; padding: 5px 10px; border: none; border-radius: 8px; cursor: pointer; color: #fff; font-size: 12px; font-weight: 500; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 1px 4px rgba(99, 102, 241, 0.3); transition: filter 0.15s; outline: none"
               @mouseenter="($event.target as HTMLElement).style.filter = 'brightness(1.08)'"
               @mouseleave="($event.target as HTMLElement).style.filter = 'none'"
-              @click="createNewConversation"
+              @click.stop="createNewConversation"
             >
               <el-icon size="12"><Plus /></el-icon>&nbsp;新建会话
             </button>
@@ -153,14 +166,14 @@
             <div
               v-if="item.is_pinned && item.id === pinnedConvs[0]?.id"
               class="ai-conv-group"
-              style="padding: 6px 8px 3px; font-size: 11px; color: #9a9aa6; letter-spacing: 0.5px"
+              style="padding: 6px 8px 3px; font-size: 12px; color: #6f6f7a; letter-spacing: 0.5px"
             >
               置顶
             </div>
             <div
               v-else-if="!item.is_pinned && item.id === recentConvs[0]?.id"
               class="ai-conv-group"
-              style="padding: 6px 8px 3px; font-size: 11px; color: #9a9aa6; letter-spacing: 0.5px"
+              style="padding: 6px 8px 3px; font-size: 12px; color: #6f6f7a; letter-spacing: 0.5px"
             >
               最近
             </div>
@@ -170,7 +183,7 @@
               style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; cursor: pointer"
               :style="
                 item.id === aiConversationId
-                  ? 'background: linear-gradient(90deg, rgba(139,92,246,0.06), rgba(99,102,241,0.02))'
+                  ? 'background: rgba(144, 147, 153, 0.10)'
                   : ''
               "
               @mouseenter="aiConvHoverId = item.id"
@@ -199,7 +212,7 @@
                   @mouseleave="($event.target as HTMLElement).style.color = item.is_pinned ? '#8b5cf6' : '#b8b8c2'"
                   @click.stop="togglePin(item)"
                 >
-                  <Top />
+                  <Paperclip />
                 </el-icon>
                 <el-icon
                   title="删除"
@@ -214,6 +227,13 @@
             </div>
           </div>
         </div>
+        <div
+          class="ai-panel-split"
+          :class="{ 'ai-panel-split-active': draggingPanel }"
+          title="按住鼠标上下拖动，调整会话面板高度"
+          @mousedown="startPanelResize"
+        ></div>
+        </div>
         </transition>
         <!-- 聊天区 -->
         <div ref="chatScrollRef" style="flex: 1; overflow-y: auto; padding: 12px; background: #f7f8fd; border: 1px solid #e6e7f0; border-radius: 8px; margin-bottom: 12px">
@@ -223,8 +243,8 @@
             >
               <el-icon size="22" color="#fff"><MagicStick /></el-icon>
             </div>
-            <p style="margin: 0 0 6px; font-size: 16px; font-weight: 600; color: #1f2329">你好！我是小江，汉江管理系统的 AI 导览助手</p>
-            <p style="font-size: 13px; color: #909399; margin-bottom: 14px; line-height: 1.6">不熟悉系统怎么操作？直接问我，我可以教你并帮你跳转到对应页面：</p>
+            <p style="margin: 0 0 6px; font-size: 16px; font-weight: 600; color: #1f2329; text-align: center">你好！我是小江，您的 AI 助手</p>
+            <p style="font-size: 13px; color: #909399; margin-bottom: 14px; line-height: 1.6; text-align: left">不熟悉系统怎么操作？直接问我，我可以教你并帮你跳转到对应页面：</p>
             <div style="text-align: left; font-size: 14px; line-height: 1.9; color: #5a6cf0; background: #eef1fc; border-radius: 8px; padding: 10px 14px">
               <div
                 class="ai-quick-q"
@@ -263,46 +283,60 @@
           <div
             v-for="(msg, idx) in aiMessages"
             :key="idx"
-            style="margin-bottom: 12px; display: flex; flex-direction: column"
-            :style="msg.role === 'user' ? 'align-items: flex-end' : 'align-items: flex-start'"
+            style="margin-bottom: 12px; display: flex; align-items: flex-end; gap: 8px"
+            :style="msg.role === 'user' ? 'flex-direction: row-reverse' : 'flex-direction: row'"
           >
+            <img
+              v-if="msg.role === 'assistant'"
+              :src="xiaoJiangLogo"
+              alt="小江"
+              style="width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0; object-fit: contain; background: #eef1fc; padding: 2px; box-sizing: border-box"
+            />
             <div
-              :style="
-                msg.role === 'user'
-                  ? 'background: linear-gradient(135deg, #5b7cfa, #5a6cf0); color: #fff; padding: 8px 12px; border-radius: 8px; max-width: 80%; white-space: pre-wrap; word-break: break-word'
-                  : 'background: #fff; color: #333; border: 1px solid #e4e7ed; padding: 8px 12px; border-radius: 8px; max-width: 80%; white-space: pre-wrap; word-break: break-word'
-              "
+              v-else
+              style="width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #5b7cfa, #5a6cf0); display: flex; align-items: center; justify-content: center; flex-shrink: 0"
             >
-              <span v-if="msg.loading && !msg.content" class="ai-typing">正在思考<span class="ai-dot">…</span></span>
-              <template v-else>{{ msg.content }}</template>
+              <el-icon size="13" color="#fff"><User /></el-icon>
             </div>
-            <div
-              v-if="msg.role === 'assistant' && msg.messageId != null"
-              style="display: flex; gap: 2px; margin-top: 2px"
-            >
-              <el-button
-                text
-                size="small"
-                :type="msg.feedback === 'up' ? 'primary' : 'info'"
-                :disabled="msg.feedback !== null"
-                @click="submitAiFeedback(msg, true)"
+            <div style="display: flex; flex-direction: column; max-width: 80%; min-width: 0">
+              <div
+                :style="
+                  msg.role === 'user'
+                    ? 'background: linear-gradient(135deg, #5b7cfa, #5a6cf0); color: #fff; font-size: 13px; padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-word'
+                    : 'background: #fff; color: #333; font-size: 13px; border: 1px solid #e4e7ed; padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-word'
+                "
               >
-                <el-icon :size="13"><Select /></el-icon>&nbsp;有帮助
-              </el-button>
-              <el-button
-                text
-                size="small"
-                :type="msg.feedback === 'down' ? 'danger' : 'info'"
-                :disabled="msg.feedback !== null"
-                @click="submitAiFeedback(msg, false)"
+                <span v-if="msg.loading && !msg.content" class="ai-typing">正在思考<span class="ai-dot">…</span></span>
+                <template v-else>{{ msg.content }}</template>
+              </div>
+              <div
+                v-if="msg.role === 'assistant' && msg.messageId != null && msg.content"
+                style="display: flex; gap: 2px; margin-top: 2px"
               >
-                <el-icon :size="13"><Close /></el-icon>&nbsp;没帮助
-              </el-button>
+                <el-button
+                  text
+                  size="small"
+                  :type="msg.feedback === 'up' ? 'primary' : 'info'"
+                  :disabled="msg.feedback !== null"
+                  @click="submitAiFeedback(msg, true)"
+                >
+                  <el-icon :size="13"><Select /></el-icon>&nbsp;有帮助
+                </el-button>
+                <el-button
+                  text
+                  size="small"
+                  :type="msg.feedback === 'down' ? 'danger' : 'info'"
+                  :disabled="msg.feedback !== null"
+                  @click="submitAiFeedback(msg, false)"
+                >
+                  <el-icon :size="13"><Close /></el-icon>&nbsp;没帮助
+                </el-button>
+              </div>
             </div>
           </div>
         </div>
-        <!-- 输入区 -->
-        <div style="display: flex; gap: 8px">
+        <!-- 输入区：底部留白，避免贴边下沉 -->
+        <div style="display: flex; gap: 8px; padding: 0 0 18px">
           <el-input
             v-model="aiInput"
             placeholder="输入你的问题..."
@@ -311,13 +345,14 @@
           />
           <el-button type="primary" :loading="aiLoading" :disabled="aiLoading" @click="sendAiMessage">发送</el-button>
         </div>
+        </div>
       </div>
     </el-drawer>
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -346,8 +381,75 @@ const currentYear = new Date().getFullYear()
 const isHome = computed(() => route.path === '/dashboard' || route.path === '/')
 
 const aiVisible = ref(false)
+// 抽屉整体宽度（左缘拖拽条可左右调整，扩大横向视野；380~760px 夹取）
+const aiDrawerWidth = ref(420)
+const draggingDrawer = ref(false)
+const startX = ref(0)
+const startW = ref(0)
+
+/** 抽屉左缘拖拽条按下：记录起点，阻止默认（防文本选中），挂全局监听 */
+function startDrawerResize(e: MouseEvent): void {
+  e.preventDefault()
+  draggingDrawer.value = true
+  startX.value = e.clientX
+  startW.value = aiDrawerWidth.value
+  document.body.classList.add('ai-resizing')
+  document.addEventListener('mousemove', onDrawerResize)
+  document.addEventListener('mouseup', endDrawerResize)
+}
+
+/** 拖动中：抽屉在右侧，向左拖（clientX 减小）则宽度增大 */
+function onDrawerResize(e: MouseEvent): void {
+  if (!draggingDrawer.value) return
+  const delta = startX.value - e.clientX
+  aiDrawerWidth.value = Math.min(760, Math.max(380, startW.value + delta))
+}
+
+/** 松开：移除全局监听，恢复文本可选 */
+function endDrawerResize(): void {
+  draggingDrawer.value = false
+  document.body.classList.remove('ai-resizing')
+  document.removeEventListener('mousemove', onDrawerResize)
+  document.removeEventListener('mouseup', endDrawerResize)
+}
 // 会话管理面板：展开时嵌入聊天区上方（不弹窗、不分栏）
 const aiConvPanelVisible = ref(false)
+// 会话面板高度（可拖拽分隔条调整，120~400px 夹取；聊天区 flex 自动伸缩）
+const aiPanelHeight = ref(220)
+const draggingPanel = ref(false)
+const startY = ref(0)
+const startH = ref(0)
+
+/** 分隔条按下：记录起点，阻止默认（防文本选中），挂全局移动/松开监听 */
+function startPanelResize(e: MouseEvent): void {
+  e.preventDefault()
+  draggingPanel.value = true
+  startY.value = e.clientY
+  startH.value = aiPanelHeight.value
+  document.body.classList.add('ai-resizing')
+  document.addEventListener('mousemove', onPanelResize)
+  document.addEventListener('mouseup', endPanelResize)
+}
+
+/** 拖动中：按位移更新面板高度 */
+function onPanelResize(e: MouseEvent): void {
+  if (!draggingPanel.value) return
+  const delta = e.clientY - startY.value
+  aiPanelHeight.value = Math.min(400, Math.max(120, startH.value + delta))
+}
+
+/** 松开：移除全局监听，恢复文本可选 */
+function endPanelResize(): void {
+  draggingPanel.value = false
+  document.body.classList.remove('ai-resizing')
+  document.removeEventListener('mousemove', onPanelResize)
+  document.removeEventListener('mouseup', endPanelResize)
+}
+
+onBeforeUnmount(() => {
+  endPanelResize()
+  endDrawerResize()
+})
 const aiInput = ref('')
 const aiLoading = ref(false)
 // 最近会话ID（续聊上下文；null 表示新会话，首轮由后端自动创建）
@@ -703,23 +805,126 @@ function handleCommand(cmd: string) {
   }
 }
 .app-footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  text-align: center;
   padding: 12px 0 20px;
   color: #909399;
   font-size: 12px;
   user-select: none;
 }
+.app-footer-links {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.app-footer-links a {
+  color: #909399;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.app-footer-links a:hover {
+  color: #409eff;
+}
 </style>
 
 <style>
+/* 全局禁止拖选文本（防黑框圈选），输入类控件除外 */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+input,
+textarea,
+[contenteditable='true'] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 拖拽期间全局禁止文本选中（防黑框圈选） */
+body.ai-resizing {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* AI 助手抽屉：body 去内边距，左缘拖拽条贴边 */
+.ai-drawer-shell .el-drawer__body {
+  padding: 0;
+}
+.ai-drawer-split {
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.15s;
+}
+.ai-drawer-split::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 48px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.ai-drawer-split:hover {
+  background: rgba(144, 147, 153, 0.10);
+}
+.ai-drawer-split:hover::after,
+.ai-drawer-split-active::after {
+  background: rgba(64, 158, 255, 0.55);
+}
+.ai-drawer-split-active {
+  background: rgba(64, 158, 255, 0.12);
+}
+
 /* AI 助手会话管理面板：紫色渐变氛围 + 柔光 + 动效（与「小江」品牌元素统一） */
 .ai-conv-panel {
-  background: #f4f2fd;
-  border: 1px solid rgba(139, 92, 246, 0.12);
-  border-bottom: 2px solid rgba(139, 92, 246, 0.18);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.10);
+  background: #f6f7f9;
+  border: 1px solid rgba(144, 147, 153, 0.18);
+  border-bottom: 2px solid rgba(144, 147, 153, 0.28);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
   animation: ai-panel-in 0.22s ease-out both;
+}
+.ai-panel-split {
+  height: 12px;
+  margin-top: 4px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  position: relative;
+  transition: background 0.15s;
+}
+.ai-panel-split::after {
+  content: '';
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.ai-panel-split:hover {
+  background: rgba(144, 147, 153, 0.10);
+}
+.ai-panel-split:hover::after,
+.ai-panel-split-active::after {
+  background: rgba(64, 158, 255, 0.55);
+}
+.ai-panel-split-active {
+  background: rgba(64, 158, 255, 0.12);
 }
 @keyframes ai-panel-in {
   from {
@@ -738,17 +943,17 @@ function handleCommand(cmd: string) {
   background: transparent;
 }
 .ai-conv-panel::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.18);
+  background: rgba(144, 147, 153, 0.25);
   border-radius: 2px;
 }
 .ai-conv-panel::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.32);
+  background: rgba(144, 147, 153, 0.45);
 }
 .ai-conv-row {
   transition: background 0.2s ease;
 }
 .ai-conv-row:hover {
-  background: linear-gradient(90deg, rgba(139, 92, 246, 0.05), rgba(99, 102, 241, 0.02)) !important;
+  background: rgba(144, 147, 153, 0.06) !important;
 }
 .ai-conv-group {
   display: flex;

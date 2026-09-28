@@ -53,6 +53,8 @@ ASSISTANT_PERMISSION_FEEDBACK: str = "assistant:feedback"
 
 #: 大模型服务不可用时的兜底回复（持久化到会话，避免前端空白）
 ASSISTANT_FALLBACK_MESSAGE: str = "AI 助手服务暂时不可用，请稍后再试。"
+#: 空回复兜底文案：模型未输出任何内容时展示，避免空白回复
+ASSISTANT_EMPTY_REPLY_MESSAGE: str = "抱歉，我没能理解您的问题。请换个说法。"
 #: 滚动摘要每次折入的旧消息条数（控制单次压缩成本）
 ASSISTANT_ROLL_CHUNK_SIZE: int = 4
 #: 滚动摘要触发系数：消息总数超过（保留轮数 × 2）时触发一次压缩

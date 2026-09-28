@@ -27,6 +27,7 @@ from src.assistant.retriever import RetrieverProvider, get_retriever_provider
 from src.assistant.title import generate_title
 from src.assistant.tools import ToolArgs, ToolRegistry
 from src.constants.assistant import (
+    ASSISTANT_EMPTY_REPLY_MESSAGE,
     ASSISTANT_ENTITY_TYPE,
     ASSISTANT_ENTRY_CATALOG,
     ASSISTANT_FALLBACK_MESSAGE,
@@ -393,7 +394,11 @@ class AssistantService:
             ):
                 answer_chunks.append(chunk)
                 yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
-            content = "".join(answer_chunks)
+            content = "".join(answer_chunks).strip()
+            if not content:
+                # 空回复兜底：模型未输出任何内容，给用户友好提示而非空白
+                content = ASSISTANT_EMPTY_REPLY_MESSAGE
+                yield {"type": AssistantEventType.TOKEN.mark, "content": content}
             saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
             self._maybe_roll_summary(conversation)
             self._maybe_rename(conversation, query, content)
