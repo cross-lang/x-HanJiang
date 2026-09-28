@@ -3,7 +3,7 @@
 
 职责：
     - 将系统入口清单（ASSISTANT_ENTRY_CATALOG）、FAQ 操作手册（数据文件
-      server/templates/assistant_faq.yaml，经 src.assistant.faq 加载）
+      server/templates/assistant_templates/assistant_faq.yaml，经 src.assistant.faq 加载）
       与用户档案（记忆第 1 层注入点）组装为系统提示词，注入对话上下文
     - 入口清单与 FAQ 当前来自常量（静态维护）；后续可替换为从菜单表 /
       数据表动态生成，本类只依赖数据源，替换数据源不影响上层
@@ -38,7 +38,7 @@ class KnowledgeBase:
     Attributes:
         _user_memory: 用户长期记忆提供者（第 1 层注入点）
         _faq_items: FAQ 操作手册条目（加载自数据文件，顺序即匹配优先级）
-        _prompt_path: 系统提示词模板路径（默认 templates/assistant_prompt.yaml）
+        _prompt_path: 系统提示词模板路径（默认 templates/assistant_templates/assistant_prompt.yaml）
         _prompt_template: 系统提示词模板缓存（懒加载）
         _faq_block_template: 命中 FAQ 的【优先参考】块模板
     """
@@ -59,7 +59,7 @@ class KnowledgeBase:
         self._user_memory: UserMemoryProvider = user_memory
         self._faq_items: tuple[FaqItem, ...] = load_assistant_faq(faq_path)
         self._prompt_path: Path = prompt_path or (
-            find_project_root() / "templates" / "assistant_prompt.yaml"
+            find_project_root() / "templates" / "assistant_templates" / "assistant_prompt.yaml"
         )
         self._prompt_template: str | None = None
         self._faq_block_template: str = ""

@@ -53,7 +53,7 @@
         <div class="ai-btn" @click="openAiDrawer">
           <div class="ai-entry">
             <el-icon :size="18"><MagicStick /></el-icon>
-            <span>AI 助手</span>
+            <span>小江</span>
           </div>
         </div>
         <el-dropdown @command="handleCommand">
@@ -102,7 +102,7 @@
       </el-main>
     </el-container>
 
-    <!-- AI 助手聊天弹窗 -->
+    <!-- 小江 AI 助手抽屉 -->
     <el-drawer v-model="aiVisible" size="420px" direction="rtl">
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 4px">
@@ -114,130 +114,146 @@
             />
             <span style="font-size: 16px; font-weight: 600">小江</span>
           </div>
-          <el-popover
-            v-model:visible="aiConvPopVisible"
-            placement="bottom-end"
-            :width="380"
-            trigger="click"
-            :show-arrow="false"
-            popper-class="ai-conv-popper"
-          >
-            <template #reference>
-              <el-button text size="small">
-                <el-icon><ChatDotRound /></el-icon>&nbsp;会话
-              </el-button>
-            </template>
-            <div style="width: 100%; box-sizing: border-box">
-              <!-- 头部：标题 + 新建会话（紫色渐变） -->
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px">
-                <span style="font-size: 15px; font-weight: 600; color: #1f2329">会话列表</span>
-                <button
-                  type="button"
-                  style="display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border: none; border-radius: 10px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 500; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35); transition: filter 0.15s; outline: none"
-                  @mouseenter="($event.target as HTMLElement).style.filter = 'brightness(1.08)'"
-                  @mouseleave="($event.target as HTMLElement).style.filter = 'none'"
-                  @click="createNewConversation"
-                >
-                  <el-icon size="13"><Plus /></el-icon>新建会话
-                </button>
-              </div>
-              <!-- 列表区：置顶分组 + 最近分组 + 空态 -->
-              <div style="max-height: 420px; overflow-y: auto; padding: 0 6px 12px">
-                <div
-                  v-for="item in aiConversations"
-                  :key="item.id"
-                  style="margin-bottom: 2px"
-                >
-                  <!-- 分组标签：置顶组首条 / 最近组首条 -->
-                  <div
-                    v-if="item.is_pinned && item.id === pinnedConvs[0]?.id"
-                    style="display: flex; align-items: center; gap: 4px; padding: 6px 10px 4px; font-size: 12px; color: #9a9aa6"
-                  >
-                    <el-icon size="12"><Top /></el-icon>置顶
-                  </div>
-                  <div
-                    v-else-if="!item.is_pinned && item.id === recentConvs[0]?.id"
-                    style="padding: 8px 10px 4px; font-size: 12px; color: #9a9aa6"
-                  >
-                    最近
-                  </div>
-                  <!-- 会话行 -->
-                  <div
-                    style="display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; cursor: pointer; transition: background 0.15s"
-                    :style="
-                      item.id === aiConversationId
-                        ? 'background: linear-gradient(90deg, rgba(139,92,246,0.10), rgba(99,102,241,0.05))'
-                        : aiConvHoverId === item.id
-                          ? 'background: #f6f5fc'
-                          : ''
-                    "
-                    @mouseenter="aiConvHoverId = item.id"
-                    @mouseleave="aiConvHoverId = null"
-                    @click="switchConversation(item.id)"
-                  >
-                    <!-- 当前会话指示条 -->
-                    <div
-                      :style="
-                        item.id === aiConversationId
-                          ? 'width: 3px; height: 22px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #6366f1); flex-shrink: 0'
-                          : 'width: 3px; height: 22px; flex-shrink: 0'
-                      "
-                    ></div>
-                    <!-- 会话图标 -->
-                    <div
-                      style="width: 32px; height: 32px; border-radius: 9px; background: #f0eeff; display: flex; align-items: center; justify-content: center; flex-shrink: 0"
-                    >
-                      <el-icon color="#6d5ef1" size="15"><ChatLineRound /></el-icon>
-                    </div>
-                    <!-- 标题 + 时间 -->
-                    <div style="flex: 1; min-width: 0">
-                      <div style="font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500">
-                        {{ convTitle(item) }}
-                      </div>
-                      <div style="font-size: 11px; color: #a3a3ad; margin-top: 2px">{{ convTime(item) }}</div>
-                    </div>
-                    <!-- 操作：置顶 / 删除 -->
-                    <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0">
-                      <el-icon
-                        :color="item.is_pinned ? '#8b5cf6' : '#c0c4cc'"
-                        :title="item.is_pinned ? '取消置顶' : '置顶'"
-                        style="cursor: pointer; padding: 3px"
-                        @click.stop="togglePin(item)"
-                      >
-                        <Top />
-                      </el-icon>
-                      <el-icon
-                        title="删除"
-                        style="cursor: pointer; padding: 3px; color: #c0c4cc"
-                        @click.stop="deleteConversationItem(item.id)"
-                      >
-                        <Delete />
-                      </el-icon>
-                    </div>
-                  </div>
-                </div>
-                <!-- 空态 -->
-                <div v-if="aiConversations.length === 0" style="text-align: center; padding: 28px 12px 22px">
-                  <el-icon size="36" color="#d5d3e8"><ChatDotRound /></el-icon>
-                  <p style="margin: 10px 0 2px; font-size: 13px; color: #8f8f99">还没有会话</p>
-                  <p style="font-size: 12px; color: #b9b9c4">点击上方「新建会话」开始对话</p>
-                </div>
-              </div>
-            </div>
-          </el-popover>
+          <el-button text size="small" @click="toggleConvPanel">
+            <el-icon><ChatDotRound /></el-icon>&nbsp;{{ aiConvPanelVisible ? '收起会话' : '会话管理' }}
+          </el-button>
         </div>
       </template>
       <div style="display: flex; flex-direction: column; height: 100%">
+        <!-- 会话管理面板：点击「会话管理」嵌入聊天区上方，聊天记录顺势下移 -->
+        <transition name="ai-panel">
+        <div
+          v-if="aiConvPanelVisible"
+          class="ai-conv-panel"
+          style="flex-shrink: 0; max-height: 264px; overflow-y: auto; border-radius: 12px; margin-bottom: 12px; padding: 12px 8px 8px"
+        >
+          <!-- 标题行 -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 2px 8px">
+            <div style="display: flex; align-items: center; gap: 6px">
+              <span style="width: 3px; height: 14px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #6366f1); display: inline-block"></span>
+              <span style="font-size: 13px; color: #1f2329; font-weight: 600">会话列表</span>
+            </div>
+            <button
+              type="button"
+              style="display: inline-flex; align-items: center; gap: 2px; padding: 5px 10px; border: none; border-radius: 8px; cursor: pointer; color: #fff; font-size: 12px; font-weight: 500; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 1px 4px rgba(99, 102, 241, 0.3); transition: filter 0.15s; outline: none"
+              @mouseenter="($event.target as HTMLElement).style.filter = 'brightness(1.08)'"
+              @mouseleave="($event.target as HTMLElement).style.filter = 'none'"
+              @click="createNewConversation"
+            >
+              <el-icon size="12"><Plus /></el-icon>&nbsp;新建会话
+            </button>
+          </div>
+          <!-- 列表 -->
+          <div v-if="aiConversations.length === 0" style="text-align: center; padding: 20px 8px">
+            <el-icon size="28" color="#d5d3e8"><ChatDotRound /></el-icon>
+            <p style="margin: 8px 0 0; font-size: 12px; color: #8f8f99">还没有会话，点击「新建会话」开始对话</p>
+          </div>
+          <div v-for="item in aiConversations" :key="item.id" style="margin-bottom: 2px">
+            <!-- 分组标签：置顶 / 最近 -->
+            <div
+              v-if="item.is_pinned && item.id === pinnedConvs[0]?.id"
+              class="ai-conv-group"
+              style="padding: 6px 8px 3px; font-size: 11px; color: #9a9aa6; letter-spacing: 0.5px"
+            >
+              置顶
+            </div>
+            <div
+              v-else-if="!item.is_pinned && item.id === recentConvs[0]?.id"
+              class="ai-conv-group"
+              style="padding: 6px 8px 3px; font-size: 11px; color: #9a9aa6; letter-spacing: 0.5px"
+            >
+              最近
+            </div>
+            <!-- 会话行：左侧当前会话高亮条 + 名称时间 + 置顶/删除 -->
+            <div
+              class="ai-conv-row"
+              style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; cursor: pointer"
+              :style="
+                item.id === aiConversationId
+                  ? 'background: linear-gradient(90deg, rgba(139,92,246,0.06), rgba(99,102,241,0.02))'
+                  : ''
+              "
+              @mouseenter="aiConvHoverId = item.id"
+              @mouseleave="aiConvHoverId = null"
+              @click="switchConversation(item.id)"
+            >
+              <div
+                :style="
+                  item.id === aiConversationId
+                    ? 'width: 3px; height: 20px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #6366f1); flex-shrink: 0'
+                    : 'width: 3px; height: 20px; flex-shrink: 0'
+                "
+              ></div>
+              <div style="flex: 1; min-width: 0">
+                <div style="font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">
+                  {{ convTitle(item) }}
+                </div>
+                <div style="font-size: 11px; color: #a3a3ad; margin-top: 2px">{{ convTime(item) }}</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0">
+                <el-icon
+                  :color="item.is_pinned ? '#8b5cf6' : '#b8b8c2'"
+                  :title="item.is_pinned ? '取消置顶' : '置顶'"
+                  style="cursor: pointer; padding: 3px; border-radius: 4px"
+                  @mouseenter="($event.target as HTMLElement).style.color = '#8b5cf6'"
+                  @mouseleave="($event.target as HTMLElement).style.color = item.is_pinned ? '#8b5cf6' : '#b8b8c2'"
+                  @click.stop="togglePin(item)"
+                >
+                  <Top />
+                </el-icon>
+                <el-icon
+                  title="删除"
+                  style="cursor: pointer; padding: 3px; border-radius: 4px; color: #b8b8c2"
+                  @mouseenter="($event.target as HTMLElement).style.color = '#f56c6c'"
+                  @mouseleave="($event.target as HTMLElement).style.color = '#b8b8c2'"
+                  @click.stop="deleteConversationItem(item.id)"
+                >
+                  <Delete />
+                </el-icon>
+              </div>
+            </div>
+          </div>
+        </div>
+        </transition>
+        <!-- 聊天区 -->
         <div ref="chatScrollRef" style="flex: 1; overflow-y: auto; padding: 12px; background: #f8f9fb; border-radius: 8px; margin-bottom: 12px">
           <div v-if="aiMessages.length === 0" style="text-align: center; color: #666; padding: 24px 12px">
-            <el-icon size="40" color="#409eff"><MagicStick /></el-icon>
-            <p style="margin: 12px 0 4px; font-size: 15px; font-weight: 600; color: #333">你好！我是小江，汉江管理系统的 AI 导览助手</p>
-            <p style="font-size: 13px; color: #909399; margin-bottom: 12px">不熟悉系统怎么操作？直接问我，我可以教你并帮你跳转到对应页面：</p>
+            <div
+              style="width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 14px; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: center"
+            >
+              <el-icon size="22" color="#fff"><MagicStick /></el-icon>
+            </div>
+            <p style="margin: 0 0 6px; font-size: 16px; font-weight: 600; color: #1f2329">你好！我是小江，汉江管理系统的 AI 导览助手</p>
+            <p style="font-size: 13px; color: #909399; margin-bottom: 14px; line-height: 1.6">不熟悉系统怎么操作？直接问我，我可以教你并帮你跳转到对应页面：</p>
             <div style="text-align: left; font-size: 14px; line-height: 1.9; color: #409eff; background: #ecf5ff; border-radius: 8px; padding: 10px 14px">
-              <div>· 怎么添加用户？</div>
-              <div>· 帮我跳到权限管理</div>
-              <div>· 用户列表在哪里？</div>
-              <div>· 怎么修改我的个人资料？</div>
+              <div
+                class="ai-quick-q"
+                style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
+                @click="askQuickQuestion('怎么添加用户？')"
+              >
+                怎么添加用户？
+              </div>
+              <div
+                class="ai-quick-q"
+                style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
+                @click="askQuickQuestion('帮我跳到权限管理')"
+              >
+                帮我跳到权限管理
+              </div>
+              <div
+                class="ai-quick-q"
+                style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
+                @click="askQuickQuestion('用户列表在哪里？')"
+              >
+                用户列表在哪里？
+              </div>
+              <div
+                class="ai-quick-q"
+                style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
+                @click="askQuickQuestion('怎么修改我的个人资料？')"
+              >
+                怎么修改我的个人资料？
+              </div>
             </div>
           </div>
           <div
@@ -281,6 +297,7 @@
             </div>
           </div>
         </div>
+        <!-- 输入区 -->
         <div style="display: flex; gap: 8px">
           <el-input
             v-model="aiInput"
@@ -325,6 +342,8 @@ const currentYear = new Date().getFullYear()
 const isHome = computed(() => route.path === '/dashboard' || route.path === '/')
 
 const aiVisible = ref(false)
+// 会话管理面板：展开时嵌入聊天区上方（不弹窗、不分栏）
+const aiConvPanelVisible = ref(false)
 const aiInput = ref('')
 const aiLoading = ref(false)
 // 最近会话ID（续聊上下文；null 表示新会话，首轮由后端自动创建）
@@ -342,7 +361,6 @@ interface AiMsg {
 const aiMessages = ref<AiMsg[]>([])
 // 会话管理：会话列表 / 会话管理弹层显隐
 const aiConversations = ref<ConversationItem[]>([])
-const aiConvPopVisible = ref(false)
 const aiConvHoverId = ref<number | null>(null)
 // 会话分组：置顶优先，其余为最近
 const pinnedConvs = computed(() => aiConversations.value.filter((c) => c.is_pinned))
@@ -385,9 +403,9 @@ async function refreshConversations() {
   }
 }
 
-/** 会话列表标题：优先滚动摘要，否则会话序号 */
+/** 会话列表标题：优先 AI 自动归纳的主题名，否则会话序号 */
 function convTitle(item: ConversationItem): string {
-  return item.summary || `会话 #${item.id}`
+  return item.title || `会话 #${item.id}`
 }
 
 /** 会话列表时间（MM-DD HH:mm） */
@@ -425,13 +443,13 @@ async function loadConversation(id: number | null) {
 
 /** 切换会话 */
 async function switchConversation(id: number) {
-  aiConvPopVisible.value = false
+  aiConvPanelVisible.value = false
   await loadConversation(id)
 }
 
 /** 新建会话 */
 async function createNewConversation() {
-  aiConvPopVisible.value = false
+  aiConvPanelVisible.value = false
   try {
     const res: any = await createConversation()
     const conv: ConversationItem = res?.data
@@ -465,7 +483,6 @@ async function deleteConversationItem(id: number) {
   } catch {
     return // 用户取消
   }
-  aiConvPopVisible.value = false
   try {
     await deleteConversation(id)
     aiConversations.value = aiConversations.value.filter((c) => c.id !== id)
@@ -484,11 +501,27 @@ async function deleteConversationItem(id: number) {
 }
 
 /** 打开 AI 助手抽屉：刷新会话列表并恢复最近会话历史 */
+/** 切换会话管理面板（展开时刷新列表；聊天记录保持原位，面板嵌入其上方） */
+async function toggleConvPanel() {
+  aiConvPanelVisible.value = !aiConvPanelVisible.value
+  if (aiConvPanelVisible.value) {
+    await refreshConversations()
+  }
+}
+
 async function openAiDrawer() {
   aiVisible.value = true
+  aiConvPanelVisible.value = false
   await refreshConversations()
   if (aiMessages.value.length > 0) return
   await loadConversation(aiConversationId.value)
+}
+
+/** 点击欢迎卡示例问题：直接作为用户输入发起对话 */
+function askQuickQuestion(question: string) {
+  if (aiLoading.value) return
+  aiInput.value = question
+  void sendAiMessage()
 }
 
 async function sendAiMessage() {
@@ -676,11 +709,81 @@ function handleCommand(cmd: string) {
 </style>
 
 <style>
-/* 会话管理弹层：圆角 + 阴影 + 去默认内边距（对齐 AI 助手紫色主题） */
-.ai-conv-popper.el-popper {
-  padding: 0;
-  border-radius: 14px;
-  border: none;
-  box-shadow: 0 8px 28px rgba(31, 35, 41, 0.12);
+/* AI 助手会话管理面板：紫色渐变氛围 + 柔光 + 动效（与「小江」品牌元素统一） */
+.ai-conv-panel {
+  background: linear-gradient(180deg, #fbfaff 0%, #ffffff 100%);
+  border: 1px solid rgba(139, 92, 246, 0.10);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.05);
+  animation: ai-panel-in 0.22s ease-out both;
+}
+@keyframes ai-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ai-conv-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.ai-conv-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ai-conv-panel::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.18);
+  border-radius: 2px;
+}
+.ai-conv-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.32);
+}
+.ai-conv-row {
+  transition: background 0.2s ease;
+}
+.ai-conv-row:hover {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.05), rgba(99, 102, 241, 0.02)) !important;
+}
+.ai-conv-group {
+  display: flex;
+  align-items: center;
+}
+.ai-conv-group::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  margin-right: 6px;
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+.ai-panel-enter-active,
+.ai-panel-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.ai-panel-enter-from,
+.ai-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.ai-quick-q {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+.ai-quick-q::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(64, 158, 255, 0.75);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.ai-quick-q:hover {
+  background: rgba(64, 158, 255, 0.12);
+  transform: translateX(2px);
 }
 </style>

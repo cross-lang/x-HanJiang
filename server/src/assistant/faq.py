@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """AI 助手 FAQ 操作手册：数据模型与加载器。
 
-FAQ 内容以数据文件（server/templates/assistant_faq.yaml）承载，本模块只负责：
+FAQ 内容以数据文件（server/templates/assistant_templates/assistant_faq.yaml）承载，本模块只负责：
     - FaqItem：内容结构定义（数据模型，不承载业务逻辑）
     - load_assistant_faq()：加载 + 结构校验 + 转为 FaqItem 元组
 
 加载规则：
-    - 默认数据文件：find_project_root()/templates/assistant_faq.yaml
+    - 默认数据文件：find_project_root()/templates/assistant_templates/assistant_faq.yaml
     - 加载失败（文件缺失 / YAML 非法 / 结构不合法 / id 重复 / entry_path 不在
       入口目录）直接抛 ValueError 阻断启动——与配置加载同级别对待，避免带病运行
     - entry_path 校验依赖 ASSISTANT_ENTRY_CATALOG（入口目录是数据源权威）
@@ -49,9 +49,9 @@ def default_faq_path() -> Path:
     """返回默认 FAQ 数据文件路径。
 
     Returns:
-        Path: server/templates/assistant_faq.yaml 的绝对路径
+        Path: server/templates/assistant_templates/assistant_faq.yaml 的绝对路径
     """
-    return find_project_root() / "templates" / "assistant_faq.yaml"
+    return find_project_root() / "templates" / "assistant_templates" / "assistant_faq.yaml"
 
 
 def load_assistant_faq(path: Path | None = None) -> tuple[FaqItem, ...]:

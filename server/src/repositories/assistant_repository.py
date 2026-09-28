@@ -104,6 +104,19 @@ class AssistantConversationRepository(BaseRepository[AssistantConversationEntity
         entity.summary = summary
         self.session.flush()
 
+    def update_title(self, conversation_id: int, title: str) -> None:
+        """更新会话主题名（AI 自动归纳，页面展示）。
+
+        Args:
+            conversation_id: 会话ID
+            title: 新的主题名
+        """
+        entity = self.get_by_id(conversation_id)
+        if entity is None:
+            return
+        entity.title = title
+        self.session.flush()
+
 
 class AssistantMessageRepository(BaseRepository[AssistantMessageEntity, int]):
     """会话消息仓库。"""

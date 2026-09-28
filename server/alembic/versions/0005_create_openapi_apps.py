@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0005_create_openapi_apps"
-down_revision = "0004_add_permissions"
+down_revision = "0004_add_nickname_and_normal_user_role"
 branch_labels = None
 depends_on = None
 

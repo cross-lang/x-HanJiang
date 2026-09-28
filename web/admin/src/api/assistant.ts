@@ -11,6 +11,7 @@ import request from './request'
 export interface ConversationItem {
   id: number
   user_id: number
+  title: string | null
   summary: string | null
   is_pinned: boolean
   created_at: string

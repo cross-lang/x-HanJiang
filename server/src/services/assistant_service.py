@@ -24,6 +24,7 @@ from typing import cast
 from src.assistant.knowledge import KnowledgeBase
 from src.assistant.memory import NullUserMemory, UserMemoryProvider
 from src.assistant.retriever import RetrieverProvider, get_retriever_provider
+from src.assistant.title import generate_title
 from src.assistant.tools import ToolArgs, ToolRegistry
 from src.constants.assistant import (
     ASSISTANT_ENTITY_TYPE,
@@ -381,6 +382,7 @@ class AssistantService:
                 yield {"type": AssistantEventType.TOKEN.mark, "content": reply}
                 saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, reply)
                 self._maybe_roll_summary(conversation)
+                self._maybe_rename(conversation, query, reply)
                 yield self._done_event(conversation.id, saved.id)
                 return
             answer_chunks: list[str] = []
@@ -394,6 +396,7 @@ class AssistantService:
             content = "".join(answer_chunks)
             saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
             self._maybe_roll_summary(conversation)
+            self._maybe_rename(conversation, query, content)
             yield self._done_event(conversation.id, saved.id)
             return
         # 达到工具步数上限仍无最终答案（异常兜底，避免死循环）
@@ -662,6 +665,35 @@ class AssistantService:
         self._message_repository.delete_by_ids([entity.id for entity in evicted])
         self._conversation_repository.commit()
         logger.info(f"AI 助手滚动摘要：conversation={conversation.id} 折入 {len(evicted)} 条旧消息")
+
+    def _maybe_rename(
+        self,
+        conversation: AssistantConversationEntity,
+        query: str,
+        reply: str,
+    ) -> None:
+        """每轮对话完成后自动归纳会话主题名（失败静默，不影响主流程）。
+
+        Args:
+            conversation: 会话实体
+            query: 本轮用户输入
+            reply: 本轮助手最终回复（兜底跳转文案或正常回答）
+        """
+        try:
+            title = generate_title(
+                self._get_llm(),
+                summary=conversation.summary or "",
+                query=query,
+                reply=reply,
+            )
+            if not title:
+                return
+            self._conversation_repository.update_title(conversation.id, title)
+            conversation.title = title
+            self._conversation_repository.commit()
+            logger.info(f"AI 助手会话命名：conversation={conversation.id} title={title}")
+        except ExternalServiceException:
+            logger.warning(f"AI 助手会话命名失败（模型调用异常）：conversation={conversation.id}")
 
     def _audit_navigate(
         self,

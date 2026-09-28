@@ -1,6 +1,6 @@
-"""add permissions
+"""add nickname and normal user role
 
-Revision ID: 0004_add_permissions
+Revision ID: 0004_add_nickname_and_normal_user_role
 Revises: 0003_create_user_notification_configs
 Create Date: 2026-09-23 21:50:00.000000
 
@@ -9,7 +9,7 @@ Create Date: 2026-09-23 21:50:00.000000
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "0004_add_permissions"
+revision = "0004_add_nickname_and_normal_user_role"
 down_revision = "0003_create_user_notification_configs"
 branch_labels = None
 depends_on = None

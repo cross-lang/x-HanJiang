@@ -43,6 +43,7 @@ class ConversationResponse(BaseModel):
     Attributes:
         id: 会话ID
         user_id: 所属用户ID
+        title: 会话主题名（AI 自动归纳，可空）
         summary: 滚动摘要（可空）
         is_pinned: 是否置顶
         created_at: 创建时间
@@ -51,6 +52,7 @@ class ConversationResponse(BaseModel):
 
     id: int = Field(description="会话ID")
     user_id: int = Field(description="所属用户ID")
+    title: str | None = Field(default=None, description="会话主题名（AI 自动归纳）")
     summary: str | None = Field(default=None, description="滚动摘要")
     is_pinned: bool = Field(default=False, description="是否置顶")
     created_at: datetime = Field(description="创建时间")
