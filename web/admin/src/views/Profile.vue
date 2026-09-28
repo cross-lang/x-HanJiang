@@ -444,8 +444,8 @@ async function changePassword() {
   font-size: 12px;
   border-radius: 999px;
   border: 1px solid #e4e8f2;
-  background: #f5f8ff;
-  color: #2f54eb;
+  background: #ecf5ff;
+  color: #409eff;
 }
 
 .hero-stats {
@@ -531,8 +531,8 @@ async function changePassword() {
   gap: 8px;
   padding: 9px 18px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #e8f0fe 0%, #dbe6ff 100%);
-  color: #2f54eb;
+  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
+  color: #409eff;
   font-size: 14px;
   font-weight: 500;
 }
@@ -557,7 +557,7 @@ async function changePassword() {
 
 .perm-module {
   font-weight: 600;
-  color: #2f54eb;
+  color: #409eff;
   margin-bottom: 12px;
   font-size: 14px;
 }
@@ -607,8 +607,8 @@ async function changePassword() {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: #e8f0fe;
-  color: #2f54eb;
+  background: #ecf5ff;
+  color: #409eff;
   font-size: 20px;
   flex-shrink: 0;
 }
