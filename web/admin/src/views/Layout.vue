@@ -86,13 +86,11 @@
         </el-dropdown>
       </el-header>
       <el-main style="background: #f0f2f5; padding: 0; display: flex; flex-direction: column">
-        <div style="background: #fff; padding: 12px 20px; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; gap: 12px">
-          <template v-if="!isHome">
-            <el-button text @click="$router.push('/dashboard')">
-              <el-icon style="margin-right: 4px"><Back /></el-icon>返回首页
-            </el-button>
-            <el-divider direction="vertical" />
-          </template>
+        <div v-if="!isHome" style="background: #fff; padding: 12px 20px; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; gap: 12px">
+          <el-button text @click="$router.push('/dashboard')">
+            <el-icon style="margin-right: 4px"><Back /></el-icon>返回首页
+          </el-button>
+          <el-divider direction="vertical" />
           <span style="color: #606266; font-size: 14px">{{ pageTitle }}</span>
         </div>
         <div style="flex: 1; padding: 20px">
