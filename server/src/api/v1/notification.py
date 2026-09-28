@@ -12,7 +12,6 @@ from src.api.dependencies import (
     get_current_user,
     get_notification_service,
     get_system_notification_service,
-    get_system_notification_service,
     require_user_permission,
 )
 from src.api.response import success_response
@@ -25,7 +24,6 @@ from src.schemas.notification import (
     UpdateNotificationConfigRequest,
 )
 from src.services.notification_service import NotificationService
-from src.services.system_notification_service import SystemNotificationService
 from src.services.system_notification_service import SystemNotificationService
 
 router = APIRouter(prefix="/notifications", tags=["通知管理"])

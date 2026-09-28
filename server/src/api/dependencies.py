@@ -52,7 +52,6 @@ if TYPE_CHECKING:
     from src.services.role_service import RoleService
     from src.services.station_service import StationMessageService
     from src.services.system_notification_service import SystemNotificationService
-    from src.services.system_notification_service import SystemNotificationService
     from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -209,7 +208,7 @@ def get_dashboard_service(
     return DashboardService(repository=DashboardRepository(session=db_session))
 
 
-def get_system_notification_service(
+def get_system_notification_config_service(
     db_session: Session = Depends(get_db_session),
 ) -> SystemNotificationService:
     """获取系统通知配置服务。"""

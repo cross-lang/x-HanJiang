@@ -253,32 +253,6 @@ def list_announcements(
 
 
 @router.get(
-    "/{announcement_id}",
-    summary="公告详情",
-    description="查询单条公告详情",
-    dependencies=[Depends(require_user_permission("announcement:view"))],
-)
-@permission("announcement:view", "查看公告", "announcement", "view")
-def get_announcement(
-    announcement_id: int,
-    request: Request,
-    service: AnnouncementService = Depends(get_announcement_service),
-):
-    """公告详情接口。
-
-    Args:
-        announcement_id: 公告 ID
-        request: 当前请求对象
-        service: 公告业务服务
-
-    Returns:
-        统一响应结构，data 为公告详情
-    """
-    entity = service.get(announcement_id)
-    return success_response(_to_response(entity).model_dump(), request)
-
-
-@router.get(
     "/available",
     summary="当前可用的公告列表",
     description="查询当前可用的公告（已发布且在有效期内），供首页板块/横幅展示",
@@ -304,3 +278,31 @@ def available_announcements(
     """
     items = service.list_available(position=position, limit=limit)
     return success_response({"items": [_to_response(i).model_dump() for i in items]}, request)
+
+
+@router.get(
+    "/{announcement_id}",
+    summary="公告详情",
+    description="查询单条公告详情",
+    dependencies=[Depends(require_user_permission("announcement:view"))],
+)
+@permission("announcement:view", "查看公告", "announcement", "view")
+def get_announcement(
+    announcement_id: int,
+    request: Request,
+    service: AnnouncementService = Depends(get_announcement_service),
+):
+    """公告详情接口。
+
+    Args:
+        announcement_id: 公告 ID
+        request: 当前请求对象
+        service: 公告业务服务
+
+    Returns:
+        统一响应结构，data 为公告详情
+    """
+    entity = service.get(announcement_id)
+    return success_response(_to_response(entity).model_dump(), request)
+
+

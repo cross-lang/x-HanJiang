@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """业务枚举定义。
+
 集中定义项目通用枚举类型，供 schemas / services / repositories 复用。
 枚举值对齐数据库列定义，避免业务代码中出现魔法字符串。
+按业务类别分组，以横线注释区分。
 """
 
 from enum import Enum
 
 from src.constants.base import BaseEnum
+
+# ── 通用状态域 ────────────────────────────────────────
 
 
 class CommonStatus(Enum):
@@ -16,11 +20,49 @@ class CommonStatus(Enum):
     DISABLED = "disabled"
 
 
+# ── 用户域 ────────────────────────────────────────────
+
+
 class UserStatus(Enum):
     """用户状态（对齐 users.status 列：enabled 启用 / disabled 禁用）。"""
 
     ENABLED = "enabled"
     DISABLED = "disabled"
+
+
+# ── 角色权限域 ────────────────────────────────────────
+
+
+class SystemRoleCode(BaseEnum):
+    """系统内置角色编码（种子数据中固定存在，不可删除）。"""
+
+    SUPERADMIN = ("superadmin", "超级管理员")
+    ADMIN = ("admin", "管理员")
+    USER = ("user", "普通用户")
+
+
+class ApiModuleCode(BaseEnum):
+    """用户态权限模块编码与中文名映射。"""
+
+    USER = ("user", "用户管理")
+    ROLE = ("role", "角色管理")
+    FILE = ("file", "文件管理")
+    AUDIT_LOG = ("audit_log", "审计日志")
+    LOGIN_LOG = ("login_log", "登录日志")
+    NOTIFICATION = ("notification", "通知管理")
+    ANNOUNCEMENT = ("announcement", "公告管理")
+    ALERT = ("alert", "告警管理")
+    MAINTENANCE = ("maintenance", "维护管理")
+    OPENAPI_APP = ("openapi_app", "开放平台应用")
+    OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
+    DASHBOARD = ("dashboard", "仪表盘")
+    SWAGGER = ("swagger", "接口文档")
+    PROFILE = ("profile", "个人中心")
+    STATION = ("station", "站内信")
+    GLOBAL_SEARCH = ("global_search", "全局搜索")
+
+
+# ── 开放平台域 ────────────────────────────────────────
 
 
 class AppStatus(Enum):
@@ -40,6 +82,16 @@ class AppAuthMode(Enum):
     PLAIN = "plain"
     HMAC = "hmac"
     BOTH = "both"
+
+
+class OpenApiModuleCode(BaseEnum):
+    """开放平台 scope 模块编码与中文名映射。"""
+
+    USER = ("user", "用户管理")
+    HEALTH = ("health", "健康检查")
+
+
+# ── 通知域 ────────────────────────────────────────────
 
 
 class NotificationChannel(BaseEnum):
@@ -166,6 +218,9 @@ class SystemNotificationStatus(BaseEnum):
     WITHDRAWN = "withdrawn", "已撤回"
 
 
+# ── 公告域 ────────────────────────────────────────────
+
+
 class AnnouncementContentType(BaseEnum):
     """公告正文格式类型。"""
 
@@ -186,6 +241,9 @@ class AnnouncementStatus(BaseEnum):
     DRAFT = "draft", "草稿"
     PUBLISHED = "published", "已发布"
     UNPUBLISHED = "unpublished", "已下架"
+
+
+# ── HTTP 域 ───────────────────────────────────────────
 
 
 class HttpStatus(BaseEnum):
@@ -217,39 +275,3 @@ class HttpMediaType(Enum):
     FILE = "application/octet-stream"
     FORM_URLENCODED = "application/x-www-form-urlencoded"
     MULTIPART = "multipart/form-data"
-
-
-class SystemRoleCode(BaseEnum):
-    """系统内置角色编码（种子数据中固定存在，不可删除）。"""
-
-    SUPERADMIN = ("superadmin", "超级管理员")
-    ADMIN = ("admin", "管理员")
-    USER = ("user", "普通用户")
-
-
-class ApiModuleCode(BaseEnum):
-    """用户态权限模块编码与中文名映射。"""
-
-    USER = ("user", "用户管理")
-    ROLE = ("role", "角色管理")
-    FILE = ("file", "文件管理")
-    AUDIT_LOG = ("audit_log", "审计日志")
-    LOGIN_LOG = ("login_log", "登录日志")
-    NOTIFICATION = ("notification", "通知管理")
-    ANNOUNCEMENT = ("announcement", "公告管理")
-    ALERT = ("alert", "告警管理")
-    MAINTENANCE = ("maintenance", "维护管理")
-    OPENAPI_APP = ("openapi_app", "开放平台应用")
-    OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
-    DASHBOARD = ("dashboard", "仪表盘")
-    SWAGGER = ("swagger", "接口文档")
-    PROFILE = ("profile", "个人中心")
-    STATION = ("station", "站内信")
-    GLOBAL_SEARCH = ("global_search", "全局搜索")
-
-
-class OpenApiModuleCode(BaseEnum):
-    """开放平台 scope 模块编码与中文名映射。"""
-
-    USER = ("user", "用户管理")
-    HEALTH = ("health", "健康检查")
