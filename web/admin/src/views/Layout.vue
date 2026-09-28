@@ -9,7 +9,13 @@
         :title="isCollapsed ? '点击展开菜单' : '点击收起菜单'"
         @click="toggleMenu"
       >
-        {{ isCollapsed ? '汉江' : '汉江管理系统' }}
+        <img
+          src="/logo-icon.png"
+          class="app-logo"
+          :style="{ width: isCollapsed ? '32px' : '36px', height: isCollapsed ? '32px' : '36px' }"
+          alt="汉江管理系统"
+        />
+        <span v-if="!isCollapsed" class="app-name">汉江管理系统</span>
       </div>
       <el-menu
         :default-active="$route.path"
@@ -196,15 +202,25 @@ function handleCommand(cmd: string) {
 
 <style scoped>
 .app-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   color: #303133;
-  text-align: center;
-  padding: 20px 0;
+  padding: 16px 0;
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
   transition: color 0.2s ease, background-color 0.2s ease;
+}
+.app-logo {
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.app-name {
+  line-height: 1;
 }
 .app-title:hover {
   color: #409eff;

@@ -4,6 +4,7 @@
       <div class="login-inner">
         <!-- 左侧品牌区 -->
         <div class="login-left">
+          <img src="/logo-icon.png" class="login-logo" alt="汉江管理系统" />
           <h1 class="brand-name">汉江管理系统</h1>
           <p class="brand-sub">HanJiang Admin Platform</p>
         </div>
@@ -221,10 +222,17 @@ async function handleLogin() {
   background: #fff;
   border-right: 1px solid #f0f0f0;
 }
+.login-logo {
+  width: 100px;
+  height: 100px;
+  border-radius: 20px;
+  display: block;
+  margin-bottom: 16px;
+}
 .brand-name {
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: #409eff;
   margin: 0;
 }
 .brand-sub {
