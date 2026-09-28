@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from src.api.v1 import (
     alert,
     announcement,
+    assistant,
     audit,
     auth,
     dashboard,
@@ -71,5 +72,8 @@ v1_router.include_router(openapi_app.router)
 
 # 注册全局搜索路由
 v1_router.include_router(global_search.router)
+
+# 注册 AI 助手路由
+v1_router.include_router(assistant.router)
 
 __all__ = ["v1_router"]

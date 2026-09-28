@@ -49,6 +49,19 @@ from src.constants.enums import (
     NotificationChannel,
     UserStatus,
 )
+from src.constants.assistant import (
+    ASSISTANT_ENTRY_CATALOG,
+    ASSISTANT_ENTITY_TYPE,
+    ASSISTANT_FALLBACK_MESSAGE,
+    ASSISTANT_MESSAGE_LIST_LIMIT,
+    ASSISTANT_PERMISSION_CHAT,
+    ASSISTANT_PERMISSION_FEEDBACK,
+    ASSISTANT_ROLL_CHUNK_SIZE,
+    ASSISTANT_ROLL_TRIGGER_FACTOR,
+    NAVIGATE_TOOL_NAME,
+    AssistantEventType,
+    AssistantMessageRole,
+)
 
 __all__ = [
     "APP_ID",
@@ -89,6 +102,17 @@ __all__ = [
     "VERIFY_CODE_CACHE_PREFIX",
     "VERIFY_CODE_EVENT",
     "DEFAULT_ENABLED_CHANNEL",
+    "ASSISTANT_ENTRY_CATALOG",
+    "ASSISTANT_ENTITY_TYPE",
+    "ASSISTANT_FALLBACK_MESSAGE",
+    "ASSISTANT_MESSAGE_LIST_LIMIT",
+    "ASSISTANT_PERMISSION_CHAT",
+    "ASSISTANT_PERMISSION_FEEDBACK",
+    "ASSISTANT_ROLL_CHUNK_SIZE",
+    "ASSISTANT_ROLL_TRIGGER_FACTOR",
+    "NAVIGATE_TOOL_NAME",
+    "AssistantEventType",
+    "AssistantMessageRole",
     "AppAuthMode",
     "UserStatus",
     "CommonStatus",

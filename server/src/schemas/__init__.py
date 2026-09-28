@@ -17,6 +17,12 @@
 from src.schemas.common import ApiResponse, PaginatedRequest, PaginatedResponse
 from src.schemas.health import HealthResponse, VersionResponse
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
+from src.schemas.assistant import (
+    ChatRequest,
+    ConversationResponse,
+    FeedbackRequest,
+    MessageResponse,
+)
 
 __all__ = [
     "PaginatedRequest",
@@ -27,4 +33,8 @@ __all__ = [
     "UserCreateRequest",
     "UserUpdateRequest",
     "UserResponse",
+    "ChatRequest",
+    "ConversationResponse",
+    "FeedbackRequest",
+    "MessageResponse",
 ]

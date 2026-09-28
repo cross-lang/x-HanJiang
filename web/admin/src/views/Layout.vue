@@ -50,7 +50,7 @@
       <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center">
         <GlobalSearch />
         <NotificationBell />
-        <div class="ai-btn" @click="aiVisible = true">
+        <div class="ai-btn" @click="openAiDrawer">
           <div class="ai-entry">
             <el-icon :size="18"><MagicStick /></el-icon>
             <span>AI 助手</span>
@@ -106,13 +106,55 @@
     <el-drawer v-model="aiVisible" title="AI 助手" size="420px" direction="rtl">
       <div style="display: flex; flex-direction: column; height: 100%">
         <div style="flex: 1; overflow-y: auto; padding: 12px; background: #f8f9fb; border-radius: 8px; margin-bottom: 12px">
-          <div v-if="aiMessages.length === 0" style="text-align: center; color: #999; padding: 40px 0">
-            <el-icon size="40" color="#c0c4cc"><MagicStick /></el-icon>
-            <p style="margin-top: 12px">你好！我是 AI 助手，有什么可以帮你的？</p>
+          <div v-if="aiMessages.length === 0" style="text-align: center; color: #666; padding: 24px 12px">
+            <el-icon size="40" color="#409eff"><MagicStick /></el-icon>
+            <p style="margin: 12px 0 4px; font-size: 15px; font-weight: 600; color: #333">你好！我是小江，汉江管理系统的 AI 导览助手</p>
+            <p style="font-size: 13px; color: #909399; margin-bottom: 12px">不熟悉系统怎么操作？直接问我，我可以教你并帮你跳转到对应页面：</p>
+            <div style="text-align: left; font-size: 14px; line-height: 1.9; color: #409eff; background: #ecf5ff; border-radius: 8px; padding: 10px 14px">
+              <div>· 怎么添加用户？</div>
+              <div>· 帮我跳到权限管理</div>
+              <div>· 用户列表在哪里？</div>
+              <div>· 怎么修改我的个人资料？</div>
+            </div>
           </div>
-          <div v-for="(msg, idx) in aiMessages" :key="idx" style="margin-bottom: 12px; display: flex; justify-content: flex-end">
-            <div style="background: #409eff; color: #fff; padding: 8px 12px; border-radius: 8px; max-width: 80%">
-              {{ msg.content }}
+          <div
+            v-for="(msg, idx) in aiMessages"
+            :key="idx"
+            style="margin-bottom: 12px; display: flex; flex-direction: column"
+            :style="msg.role === 'user' ? 'align-items: flex-end' : 'align-items: flex-start'"
+          >
+            <div
+              :style="
+                msg.role === 'user'
+                  ? 'background: #409eff; color: #fff; padding: 8px 12px; border-radius: 8px; max-width: 80%; white-space: pre-wrap; word-break: break-word'
+                  : 'background: #fff; color: #333; border: 1px solid #e4e7ed; padding: 8px 12px; border-radius: 8px; max-width: 80%; white-space: pre-wrap; word-break: break-word'
+              "
+            >
+              <span v-if="msg.loading && !msg.content" class="ai-typing">正在思考<span class="ai-dot">…</span></span>
+              <template v-else>{{ msg.content }}</template>
+            </div>
+            <div
+              v-if="msg.role === 'assistant' && msg.messageId != null"
+              style="display: flex; gap: 2px; margin-top: 2px"
+            >
+              <el-button
+                text
+                size="small"
+                :type="msg.feedback === 'up' ? 'primary' : 'info'"
+                :disabled="msg.feedback !== null"
+                @click="submitAiFeedback(msg, true)"
+              >
+                <el-icon :size="13"><Select /></el-icon>&nbsp;有帮助
+              </el-button>
+              <el-button
+                text
+                size="small"
+                :type="msg.feedback === 'down' ? 'danger' : 'info'"
+                :disabled="msg.feedback !== null"
+                @click="submitAiFeedback(msg, false)"
+              >
+                <el-icon :size="13"><Close /></el-icon>&nbsp;没帮助
+              </el-button>
             </div>
           </div>
         </div>
@@ -120,9 +162,10 @@
           <el-input
             v-model="aiInput"
             placeholder="输入你的问题..."
+            :disabled="aiLoading"
             @keyup.enter="sendAiMessage"
           />
-          <el-button type="primary" @click="sendAiMessage">发送</el-button>
+          <el-button type="primary" :loading="aiLoading" :disabled="aiLoading" @click="sendAiMessage">发送</el-button>
         </div>
       </div>
     </el-drawer>
@@ -132,9 +175,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import GlobalSearch from '@/components/GlobalSearch.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
+import {
+  chatSSE,
+  getConversationMessages,
+  submitFeedback,
+  type MessageItem,
+} from '@/api/assistant'
 
 const route = useRoute()
 const router = useRouter()
@@ -147,16 +197,100 @@ const isHome = computed(() => route.path === '/dashboard' || route.path === '/')
 
 const aiVisible = ref(false)
 const aiInput = ref('')
-const aiMessages = ref<any[]>([])
+const aiLoading = ref(false)
+// 最近会话ID（续聊上下文；null 表示新会话，首轮由后端自动创建）
+const aiConversationId = ref<number | null>(
+  Number(localStorage.getItem('ai_conversation_id')) || null,
+)
+// 消息：user / assistant（assistant 支持 loading 占位、messageId 反馈定位、feedback 选中态）
+interface AiMsg {
+  role: 'user' | 'assistant'
+  content: string
+  loading?: boolean
+  messageId?: number | null
+  feedback?: 'up' | 'down' | null
+}
+const aiMessages = ref<AiMsg[]>([])
 
-function sendAiMessage() {
-  if (!aiInput.value.trim()) return
-  aiMessages.value.push({ role: 'user', content: aiInput.value })
+/** 打开 AI 助手抽屉：恢复最近会话的历史消息 */
+async function openAiDrawer() {
+  aiVisible.value = true
+  if (aiMessages.value.length > 0) return
+  if (aiConversationId.value === null) return // 无会话：显示欢迎引导语
+  try {
+    const res: any = await getConversationMessages(aiConversationId.value)
+    const items: MessageItem[] = res?.data ?? []
+    aiMessages.value = items.map((item) => ({
+      role: item.role === 'user' ? 'user' : 'assistant',
+      content: item.content,
+      messageId: item.id,
+      feedback: null,
+    }))
+  } catch {
+    // 加载历史失败（如会话已失效）：重置会话，从欢迎引导开始
+    aiConversationId.value = null
+    localStorage.removeItem('ai_conversation_id')
+  }
+}
+
+async function sendAiMessage() {
+  const text = aiInput.value.trim()
+  if (!text || aiLoading.value) return
   aiInput.value = ''
-  // TODO: 后续接入 AI 接口
-  setTimeout(() => {
-    aiMessages.value.push({ role: 'assistant', content: 'AI 助手功能即将上线，敬请期待！' })
-  }, 500)
+  aiMessages.value.push({ role: 'user', content: text })
+  // 助手占位消息：SSE 期间流式填充
+  const assistantMsg: AiMsg = { role: 'assistant', content: '', loading: true, messageId: null, feedback: null }
+  aiMessages.value.push(assistantMsg)
+  aiLoading.value = true
+  try {
+    await chatSSE(aiConversationId.value, text, {
+      onThinking: () => {
+        // 可在此透出"正在思考"；默认由 loading 占位展示
+      },
+      onToken: (chunk) => {
+        assistantMsg.content += chunk
+      },
+      onNavigate: (path) => {
+        // 跳转指令：执行路由跳转并关闭抽屉（剩余流式文本不再展示）
+        router.push(path)
+        aiVisible.value = false
+      },
+      onDenied: () => {
+        // 越权拒绝：模型随后会流式说明，无需额外动作
+      },
+      onError: (message) => {
+        assistantMsg.content = message || '服务异常，请稍后再试'
+      },
+      onDone: ({ conversationId, messageId }) => {
+        if (conversationId !== null && conversationId !== aiConversationId.value) {
+          aiConversationId.value = conversationId
+          localStorage.setItem('ai_conversation_id', String(conversationId))
+        }
+        assistantMsg.loading = false
+        assistantMsg.messageId = messageId // 供 👍👎 反馈定位
+      },
+    })
+  } catch (err: any) {
+    assistantMsg.loading = false
+    assistantMsg.content = err?.message || '网络异常，请稍后再试'
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+/** 提交 👍👎 反馈（成功后锁定，防止重复提交） */
+async function submitAiFeedback(msg: AiMsg, positive: boolean) {
+  if (msg.feedback !== null || aiConversationId.value === null || msg.messageId == null) return
+  try {
+    await submitFeedback({
+      conversation_id: aiConversationId.value,
+      message_id: msg.messageId,
+      positive,
+    })
+    msg.feedback = positive ? 'up' : 'down'
+  } catch {
+    // 失败提示由请求拦截器统一处理
+  }
 }
 
 // 左侧菜单折叠状态（持久化到 localStorage）
@@ -254,6 +388,23 @@ function handleCommand(cmd: string) {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(124, 58, 237, 0.45);
   filter: brightness(1.06);
+}
+.ai-typing {
+  color: #909399;
+  font-size: 13px;
+}
+.ai-dot {
+  display: inline-block;
+  animation: ai-blink 1s infinite steps(2, start);
+}
+@keyframes ai-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
 }
 .app-footer {
   flex-shrink: 0;

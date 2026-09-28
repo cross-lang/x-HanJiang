@@ -22,6 +22,11 @@ from src.models.entities.user_entity import (
     UserEntity,
     UserRoleEntity,
 )
+from src.models.entities.assistant_entity import (
+    AssistantConversationEntity,
+    AssistantFeedbackEntity,
+    AssistantMessageEntity,
+)
 
 __all__ = [
     "UserEntity",
@@ -39,4 +44,7 @@ __all__ = [
     "OpenApiScopeEntity",
     "FileEntity",
     "MenuEntity",
+    "AssistantConversationEntity",
+    "AssistantMessageEntity",
+    "AssistantFeedbackEntity",
 ]

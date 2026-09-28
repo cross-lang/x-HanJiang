@@ -120,3 +120,47 @@ notification:
   sms_secret_key: ""
   sms_sign_name: ""
   sms_template_code: ""
+
+# ============================================================
+# AI 助手配置
+# llm.provider: "openai_compat"（OpenAI 兼容协议，可对接小米 MiMo / DeepSeek /
+#               豆包火山方舟 / 通义 / 本地 vLLM 等，通过 base_url 切换）
+# 默认大模型：小米 MiMo mimo-v2.5-pro（文本推理更强）；
+#             如需图片理解能力，model 改为 "mimo-v2.5"
+# memory:      第 2 层（滚动摘要）+ 第 3 层（最近原文）记忆参数
+# retriever:   RAG 预留，默认未启用（provider: "null"）
+# tools:       MCP 工具源预留，默认关闭
+# 敏感信息（api_key）建议通过环境变量注入：AI_LLM_API_KEY=xxx
+# ============================================================
+ai:
+  enabled: true
+  llm:
+    provider: "openai_compat"
+    base_url: "https://api.xiaomimimo.com/v1"
+    api_key: ""
+    model: "mimo-v2.5-pro"
+    # 向量模型（长期记忆 / RAG 接入时使用，留空复用主模型）
+    embedding_model: ""
+    temperature: 0.7
+    max_tokens: 2048
+    timeout_seconds: 60
+    # agent 循环步数上限（防死循环）
+    max_tool_rounds: 3
+  memory:
+    enabled: true
+    # 第 3 层：保留的最近原文轮数（一轮 = 一问一答）
+    recent_raw_rounds: 8
+    # 历史上下文 token 预算上限（不含系统提示词与输出预留）
+    token_budget: 54000
+    # 滚动摘要使用的模型（留空复用主模型）
+    summary_model: ""
+  retriever:
+    enabled: false
+    provider: "null"
+    top_k: 3
+  tools:
+    # MCP 工具源开关（预留，接入 MCP 后置为 true）
+    mcp_enabled: false
+    mcp_server_url: ""
+    # MCP 扩展参数（JSON 字符串，预留）
+    mcp_extra_config: ""

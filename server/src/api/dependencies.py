@@ -35,6 +35,11 @@ from src.services.permission_service import PermissionService
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
+    from src.repositories.assistant_repository import (
+        AssistantConversationRepository,
+        AssistantFeedbackRepository,
+        AssistantMessageRepository,
+    )
     from src.repositories.login_log_repository import LoginLogRepository
     from src.repositories.menu_repository import MenuRepository
     from src.repositories.notification_preference_repository import NotificationPreferenceRepository
@@ -44,6 +49,7 @@ if TYPE_CHECKING:
     from src.repositories.role_repository import RoleRepository
     from src.repositories.user_repository import UserRepository
     from src.services.announcement_service import AnnouncementService
+    from src.services.assistant_service import AssistantService
     from src.services.dashboard_service import DashboardService
     from src.services.global_search_service import GlobalSearchService
     from src.services.login_log_service import LoginLogService
@@ -487,6 +493,48 @@ def get_profile_service(
         recipient_repository=recipient_repository,
         dispatcher=dispatcher,
         station_service=station_service,
+    )
+
+
+def get_assistant_conversation_repository(
+    db_session: Session = Depends(get_db_session),
+) -> AssistantConversationRepository:
+    """获取 AI 助手会话仓库实例。"""
+    from src.repositories.assistant_repository import AssistantConversationRepository
+
+    return AssistantConversationRepository(session=db_session)
+
+
+def get_assistant_message_repository(
+    db_session: Session = Depends(get_db_session),
+) -> AssistantMessageRepository:
+    """获取 AI 助手消息仓库实例。"""
+    from src.repositories.assistant_repository import AssistantMessageRepository
+
+    return AssistantMessageRepository(session=db_session)
+
+
+def get_assistant_feedback_repository(
+    db_session: Session = Depends(get_db_session),
+) -> AssistantFeedbackRepository:
+    """获取 AI 助手反馈仓库实例。"""
+    from src.repositories.assistant_repository import AssistantFeedbackRepository
+
+    return AssistantFeedbackRepository(session=db_session)
+
+
+def get_assistant_service(
+    conversation_repository: AssistantConversationRepository = Depends(get_assistant_conversation_repository),
+    message_repository: AssistantMessageRepository = Depends(get_assistant_message_repository),
+    feedback_repository: AssistantFeedbackRepository = Depends(get_assistant_feedback_repository),
+) -> AssistantService:
+    """创建 AI 助手编排服务（LLM / 工具注册表 / 知识库默认懒加载单例）。"""
+    from src.services.assistant_service import AssistantService
+
+    return AssistantService(
+        conversation_repository=conversation_repository,
+        message_repository=message_repository,
+        feedback_repository=feedback_repository,
     )
 
 

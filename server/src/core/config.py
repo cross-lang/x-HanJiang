@@ -237,6 +237,83 @@ class NotificationConfig:
 
 
 # ============================================================
+# AI 助手配置
+# ============================================================
+
+
+@dataclass
+class AILLMConfig:
+    """AI 助手大模型配置。
+    provider: 供应商类型，当前支持 "openai_compat"（OpenAI 兼容协议，
+    可对接 DeepSeek / 豆包（火山方舟）/ 通义 / 本地 vLLM 等）。
+    接入新供应商时新增实现类并修改 provider 即可，业务代码零改动。
+    """
+
+    provider: str = "openai_compat"
+    base_url: str = "https://api.xiaomimimo.com/v1"
+    api_key: str = ""  # 敏感信息，仅通过环境变量 / .env 注入
+    model: str = "mimo-v2.5-pro"
+    embedding_model: str = ""  # 备用：长期记忆 / RAG 接入时使用，为空则复用主模型
+    temperature: float = 0.7
+    max_tokens: int = 2048
+    timeout_seconds: int = 60
+    max_tool_rounds: int = 3  # agent 循环步数上限，防死循环
+
+
+@dataclass
+class AIMemoryConfig:
+    """AI 助手记忆配置（第 2/3 层）。
+    recent_raw_rounds: 第 3 层保留的最近原文轮数（一轮 = 一问一答）
+    token_budget: 历史上下文 token 预算上限（不含系统提示词与输出预留）
+    summary_model: 滚动摘要使用的模型，为空则复用主模型
+    """
+
+    enabled: bool = True
+    recent_raw_rounds: int = 8
+    token_budget: int = 54000
+    summary_model: str = ""
+
+
+@dataclass
+class AIRetrieverConfig:
+    """AI 助手知识检索（RAG）配置。
+    当前仅预留能力位，默认未启用（provider="null"）。
+    provider: "null"（未启用）| 后续可扩展 "rag" / 向量检索实现。
+    """
+
+    enabled: bool = False
+    provider: str = "null"
+    top_k: int = 3
+
+
+@dataclass
+class AIToolsConfig:
+    """AI 助手工具配置。
+    mcp_enabled: MCP 工具源开关（预留：接入 MCP 服务器后置为 true）。
+    mcp_server_url: MCP 服务器地址（预留）。
+    mcp_extra_config: MCP 扩展参数（JSON 字符串，预留）。
+    """
+
+    mcp_enabled: bool = False
+    mcp_server_url: str = ""
+    mcp_extra_config: str = ""
+
+
+@dataclass
+class AIConfig:
+    """AI 助手整体配置。
+    集中管理模型（llm）、记忆（memory）、检索（retriever）、工具（tools）四类子配置，
+    全部支持通过 config.yaml 与环境变量（AI_* 前缀）覆盖。
+    """
+
+    enabled: bool = True
+    llm: AILLMConfig = field(default_factory=AILLMConfig)
+    memory: AIMemoryConfig = field(default_factory=AIMemoryConfig)
+    retriever: AIRetrieverConfig = field(default_factory=AIRetrieverConfig)
+    tools: AIToolsConfig = field(default_factory=AIToolsConfig)
+
+
+# ============================================================
 # 环境变量 → YAML 配置段 映射
 # ============================================================
 
@@ -285,6 +362,8 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
             "sms_template_code",
         ],
     ),
+    # AI 助手：仅顶层 enabled 走通用映射，嵌套子配置在 _load_from_env 中单独处理
+    "ai": ("AI_", ["enabled"]),
 }
 
 
@@ -435,6 +514,36 @@ class Settings:
                 "sms_sign_name": "",
                 "sms_template_code": "",
             },
+            "ai": {
+                "enabled": True,
+                "llm": {
+                    "provider": "openai_compat",
+                    "base_url": "https://api.xiaomimimo.com/v1",
+                    "api_key": "",
+                    "model": "mimo-v2.5-pro",
+                    "embedding_model": "",
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                    "timeout_seconds": 60,
+                    "max_tool_rounds": 3,
+                },
+                "memory": {
+                    "enabled": True,
+                    "recent_raw_rounds": 8,
+                    "token_budget": 54000,
+                    "summary_model": "",
+                },
+                "retriever": {
+                    "enabled": False,
+                    "provider": "null",
+                    "top_k": 3,
+                },
+                "tools": {
+                    "mcp_enabled": False,
+                    "mcp_server_url": "",
+                    "mcp_extra_config": "",
+                },
+            },
         }
 
     def _merge_config(self, base: dict[str, Any], override: dict[str, Any]) -> None:
@@ -568,6 +677,48 @@ class Settings:
             smtp["from_name"] = value
         if value := os.environ.get("SMTP_FROM_ADDRESS"):
             smtp["from_address"] = value
+        # AI 助手配置的环境变量（AI_LLM_* / AI_MEMORY_* / AI_RETRIEVER_* / AI_TOOLS_*）
+        ai = config.setdefault("ai", {})
+        ai_llm = ai.setdefault("llm", {})
+        ai_memory = ai.setdefault("memory", {})
+        ai_retriever = ai.setdefault("retriever", {})
+        ai_tools = ai.setdefault("tools", {})
+        _ai_env_int_map: dict[str, tuple[dict[str, Any], str]] = {
+            "AI_LLM_MAX_TOKENS": (ai_llm, "max_tokens"),
+            "AI_LLM_TIMEOUT_SECONDS": (ai_llm, "timeout_seconds"),
+            "AI_LLM_MAX_TOOL_ROUNDS": (ai_llm, "max_tool_rounds"),
+            "AI_MEMORY_RECENT_RAW_ROUNDS": (ai_memory, "recent_raw_rounds"),
+            "AI_MEMORY_TOKEN_BUDGET": (ai_memory, "token_budget"),
+            "AI_RETRIEVER_TOP_K": (ai_retriever, "top_k"),
+        }
+        for env_key, (section, key) in _ai_env_int_map.items():
+            if value := os.environ.get(env_key):
+                section[key] = _to_int(value)
+        _ai_env_bool_map: dict[str, tuple[dict[str, Any], str]] = {
+            "AI_ENABLED": (ai, "enabled"),
+            "AI_MEMORY_ENABLED": (ai_memory, "enabled"),
+            "AI_RETRIEVER_ENABLED": (ai_retriever, "enabled"),
+            "AI_TOOLS_MCP_ENABLED": (ai_tools, "mcp_enabled"),
+        }
+        for env_key, (section, key) in _ai_env_bool_map.items():
+            if value := os.environ.get(env_key):
+                section[key] = _to_bool(value)
+        _ai_env_str_map: dict[str, tuple[dict[str, Any], str]] = {
+            "AI_LLM_PROVIDER": (ai_llm, "provider"),
+            "AI_LLM_BASE_URL": (ai_llm, "base_url"),
+            "AI_LLM_API_KEY": (ai_llm, "api_key"),
+            "AI_LLM_MODEL": (ai_llm, "model"),
+            "AI_LLM_EMBEDDING_MODEL": (ai_llm, "embedding_model"),
+            "AI_MEMORY_SUMMARY_MODEL": (ai_memory, "summary_model"),
+            "AI_RETRIEVER_PROVIDER": (ai_retriever, "provider"),
+            "AI_TOOLS_MCP_SERVER_URL": (ai_tools, "mcp_server_url"),
+            "AI_TOOLS_MCP_EXTRA_CONFIG": (ai_tools, "mcp_extra_config"),
+        }
+        for env_key, (section, key) in _ai_env_str_map.items():
+            if value := os.environ.get(env_key):
+                section[key] = value
+        if value := os.environ.get("AI_LLM_TEMPERATURE"):
+            ai_llm["temperature"] = _to_float(value)
 
     # ----------------------------------------------------------
     # 解析到 dataclass
@@ -598,6 +749,19 @@ class Settings:
         # 通知渠道配置
         notification_raw = self._config.get("notification", {})
         self.notification = NotificationConfig(**notification_raw)
+        # AI 助手配置（嵌套 dataclass）
+        ai_raw = self._config.get("ai", {})
+        ai_llm_raw = ai_raw.pop("llm", {})
+        ai_memory_raw = ai_raw.pop("memory", {})
+        ai_retriever_raw = ai_raw.pop("retriever", {})
+        ai_tools_raw = ai_raw.pop("tools", {})
+        self.ai = AIConfig(
+            enabled=ai_raw.get("enabled", True),
+            llm=AILLMConfig(**ai_llm_raw),
+            memory=AIMemoryConfig(**ai_memory_raw),
+            retriever=AIRetrieverConfig(**ai_retriever_raw),
+            tools=AIToolsConfig(**ai_tools_raw),
+        )
 
     # ----------------------------------------------------------
     # 环境判断
