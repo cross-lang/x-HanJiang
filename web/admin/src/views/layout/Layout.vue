@@ -216,7 +216,7 @@
         </div>
         </transition>
         <!-- 聊天区 -->
-        <div ref="chatScrollRef" style="flex: 1; overflow-y: auto; padding: 12px; background: #f8f9fb; border-radius: 8px; margin-bottom: 12px">
+        <div ref="chatScrollRef" style="flex: 1; overflow-y: auto; padding: 12px; background: #f7f8fd; border-radius: 8px; margin-bottom: 12px">
           <div v-if="aiMessages.length === 0" style="text-align: center; color: #666; padding: 24px 12px">
             <div
               style="width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 14px; background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: center"
@@ -225,12 +225,13 @@
             </div>
             <p style="margin: 0 0 6px; font-size: 16px; font-weight: 600; color: #1f2329">你好！我是小江，汉江管理系统的 AI 导览助手</p>
             <p style="font-size: 13px; color: #909399; margin-bottom: 14px; line-height: 1.6">不熟悉系统怎么操作？直接问我，我可以教你并帮你跳转到对应页面：</p>
-            <div style="text-align: left; font-size: 14px; line-height: 1.9; color: #409eff; background: #ecf5ff; border-radius: 8px; padding: 10px 14px">
+            <div style="text-align: left; font-size: 14px; line-height: 1.9; color: #5a6cf0; background: #eef1fc; border-radius: 8px; padding: 10px 14px">
               <div
                 class="ai-quick-q"
                 style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
                 @click="askQuickQuestion('怎么添加用户？')"
               >
+                <el-icon size="14" style="color: #5a6cf0; flex-shrink: 0"><Right /></el-icon>
                 怎么添加用户？
               </div>
               <div
@@ -238,6 +239,7 @@
                 style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
                 @click="askQuickQuestion('帮我跳到权限管理')"
               >
+                <el-icon size="14" style="color: #5a6cf0; flex-shrink: 0"><Right /></el-icon>
                 帮我跳到权限管理
               </div>
               <div
@@ -245,6 +247,7 @@
                 style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
                 @click="askQuickQuestion('用户列表在哪里？')"
               >
+                <el-icon size="14" style="color: #5a6cf0; flex-shrink: 0"><Right /></el-icon>
                 用户列表在哪里？
               </div>
               <div
@@ -252,6 +255,7 @@
                 style="cursor: pointer; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; transition: background 0.15s, transform 0.15s"
                 @click="askQuickQuestion('怎么修改我的个人资料？')"
               >
+                <el-icon size="14" style="color: #5a6cf0; flex-shrink: 0"><Right /></el-icon>
                 怎么修改我的个人资料？
               </div>
             </div>
@@ -265,7 +269,7 @@
             <div
               :style="
                 msg.role === 'user'
-                  ? 'background: #409eff; color: #fff; padding: 8px 12px; border-radius: 8px; max-width: 80%; white-space: pre-wrap; word-break: break-word'
+                  ? 'background: linear-gradient(135deg, #5b7cfa, #5a6cf0); color: #fff; padding: 8px 12px; border-radius: 8px; max-width: 80%; white-space: pre-wrap; word-break: break-word'
                   : 'background: #fff; color: #333; border: 1px solid #e4e7ed; padding: 8px 12px; border-radius: 8px; max-width: 80%; white-space: pre-wrap; word-break: break-word'
               "
             >
@@ -772,15 +776,7 @@ function handleCommand(cmd: string) {
   text-decoration: none;
   display: flex;
   align-items: center;
-}
-.ai-quick-q::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(64, 158, 255, 0.75);
-  margin-right: 8px;
-  flex-shrink: 0;
+  gap: 6px;
 }
 .ai-quick-q:hover {
   background: rgba(64, 158, 255, 0.12);
