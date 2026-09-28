@@ -79,7 +79,7 @@
           </template>
         </el-dropdown>
       </el-header>
-      <el-main style="background: #f0f2f5; padding: 0">
+      <el-main style="background: #f0f2f5; padding: 0; display: flex; flex-direction: column">
         <div style="background: #fff; padding: 12px 20px; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; gap: 12px">
           <el-button text @click="$router.push('/dashboard')">
             <el-icon style="margin-right: 4px"><Back /></el-icon>返回首页
@@ -87,8 +87,11 @@
           <el-divider direction="vertical" />
           <span style="color: #606266; font-size: 14px">{{ pageTitle }}</span>
         </div>
-        <div style="padding: 20px">
+        <div style="flex: 1; padding: 20px">
           <router-view />
+        </div>
+        <div class="app-footer">
+          Copyright © {{ currentYear }} 汉江管理系统 All Rights Reserved
         </div>
       </el-main>
     </el-container>
@@ -131,6 +134,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+const currentYear = new Date().getFullYear()
 const aiVisible = ref(false)
 const aiInput = ref('')
 const aiMessages = ref<any[]>([])
@@ -230,5 +234,13 @@ function handleCommand(cmd: string) {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(124, 58, 237, 0.45);
   filter: brightness(1.06);
+}
+.app-footer {
+  flex-shrink: 0;
+  text-align: center;
+  padding: 12px 0 20px;
+  color: #909399;
+  font-size: 12px;
+  user-select: none;
 }
 </style>
