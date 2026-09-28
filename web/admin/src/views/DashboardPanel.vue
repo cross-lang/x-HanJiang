@@ -225,7 +225,7 @@
         <el-card shadow="hover">
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
-              <span>最近操作日志</span>
+              <span>最近操作记录</span>
               <el-button text type="primary" size="small" @click="goAudit('audit')">查看更多</el-button>
             </div>
           </template>

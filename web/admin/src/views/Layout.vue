@@ -44,12 +44,12 @@
       <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center">
         <GlobalSearch />
         <NotificationBell />
-        <el-badge is-dot class="ai-btn" @click="aiVisible = true">
+        <div class="ai-btn" @click="aiVisible = true">
           <div class="ai-entry">
             <el-icon :size="18"><MagicStick /></el-icon>
             <span>AI 助手</span>
           </div>
-        </el-badge>
+        </div>
         <el-dropdown @command="handleCommand">
           <span style="cursor: pointer; display: flex; align-items: center; gap: 10px">
             <el-avatar :size="36" style="background: #79bbff">

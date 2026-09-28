@@ -6,8 +6,11 @@
 
 from datetime import UTC, datetime, timedelta
 
-from src.constants.enums import NotificationStatus
+from src.constants.enums import NotificationChannel, NotificationStatus
 from src.repositories.dashboard_repository import DashboardRepository
+
+# 通知渠道标识 → 中文名称映射（以 NotificationChannel 枚举为唯一权威来源）
+_CHANNEL_LABELS: dict[str, str] = {channel.mark: channel.desc for channel in NotificationChannel}
 
 
 class DashboardService:
@@ -79,9 +82,12 @@ class DashboardService:
         login_failed_rows = self._repository.login_failed_trend(week_ago)
         login_failed_map = {str(r.date): r.count for r in login_failed_rows}
         login_failed_counts = [login_failed_map.get(d, 0) for d in all_dates]
-        # 通知渠道分布
+        # 通知渠道分布（name 返回中文，channel 保留标识）
         channel_rows = self._repository.notify_channel_distribution()
-        channel_distribution = [{"name": r.channel, "value": r.count} for r in channel_rows]
+        channel_distribution = [
+            {"name": _CHANNEL_LABELS.get(r.channel, r.channel), "value": r.count, "channel": r.channel}
+            for r in channel_rows
+        ]
         # 通知发送成功率趋势（近7天）
         notify_status_rows = self._repository.notify_status_trend(week_ago)
         notify_success_map: dict[str, int] = {}
