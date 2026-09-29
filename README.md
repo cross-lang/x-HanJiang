@@ -91,25 +91,25 @@ x-HanJiang/
 
 ```mermaid
 graph TB
-    subgraph 前端
-        A[管理后台]
-        B[开放平台]
+    subgraph "前端"
+        A["管理后台"]
+        B["开放平台"]
     end
 
-    subgraph 后端
-        C[API 路由层]
-        D[业务逻辑层]
-        E[数据访问层]
+    subgraph "后端"
+        C["API 路由层"]
+        D["业务逻辑层"]
+        E["数据访问层"]
     end
 
-    subgraph 基础设施
-        F[(MySQL)]
-        G[(Redis)]
-        H[(本地/S3 存储)]
+    subgraph "基础设施"
+        F[("MySQL")]
+        G[("Redis")]
+        H[("本地/S3 存储")]
     end
 
-    A -->|HTTP /api/v1| C
-    B -->|HTTP /api/open/v1| C
+    A -->|"HTTP /api/v1"| C
+    B -->|"HTTP /api/open/v1"| C
     C --> D
     D --> E
     E --> F
@@ -121,76 +121,76 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant U as 用户
-    participant F as 前端
-    participant A as API
-    participant S as Service
-    participant DB as 数据库
+    participant U as "用户"
+    participant F as "前端"
+    participant A as "API"
+    participant S as "Service"
+    participant DB as "数据库"
 
-    U->>F: 输入用户名密码
-    F->>A: POST /auth/login
-    A->>S: 校验凭据
-    S->>DB: 查询用户
-    DB-->>S: 用户记录
-    S->>S: 验证密码哈希
-    S->>DB: 写入登录日志
-    S-->>A: 生成 JWT Token
-    A-->>F: 返回 access_token
-    F->>F: 存入 localStorage
+    U->>F: "输入用户名密码"
+    F->>A: "POST /auth/login"
+    A->>S: "校验凭据"
+    S->>DB: "查询用户"
+    DB-->>S: "用户记录"
+    S->>S: "验证密码哈希"
+    S->>DB: "写入登录日志"
+    S-->>A: "生成 JWT Token"
+    A-->>F: "返回 access_token"
+    F->>F: "存入 localStorage
 ```
 
 ### 权限自动注册流程
 
 ```mermaid
 flowchart LR
-    A[路由函数 @permission 装饰器] --> B[启动时 collect_permissions_from_app]
-    B --> C[扫描 app.routes 提取权限元数据]
-    C --> D[upsert 到 permissions 表]
-    D --> E[表里有但路由里没有 → is_deprecated=True]
+    A["路由函数 @permission 装饰器"] --> B["启动时 collect_permissions_from_app"]
+    B --> C["扫描 app.routes 提取权限元数据"]
+    C --> D["upsert 到 permissions 表"]
+    D --> E["表里有但路由里没有 → is_deprecated=True"]
 ```
 
 ### 通知发送流程
 
 ```mermaid
 flowchart TD
-    A[业务事件触发<br/>如 user.password_changed] --> B[通知分发器]
-    B --> C[查询用户通知偏好与接收人]
-    C --> D[站内信]
-    C --> E[邮件]
-    C --> F[钉钉]
-    C --> G[飞书]
-    D --> H[写入通知记录]
+    A["业务事件触发<br/>如 user.password_changed"] --> B["通知分发器"]
+    B --> C["查询用户通知偏好与接收人"]
+    C --> D["站内信"]
+    C --> E["邮件"]
+    C --> F["钉钉"]
+    C --> G["飞书"]
+    D --> H["写入通知记录"]
     E --> H
     F --> H
     G --> H
-    H --> I{发送成功?}
-    I -->|失败| J[Redis 重试队列]
-    J --> K[重试 Worker]
+    H --> I{"发送成功?"}
+    I -->|"失败"| J["Redis 重试队列"]
+    J --> K["重试 Worker"]
     K --> D
-    I -->|成功| L[完成]
+    I -->|"成功"| L["完成"]
 ```
 
 ### AI 助手对话流程
 
 ```mermaid
 sequenceDiagram
-    participant U as 用户
-    participant F as 前端（AI 助手抽屉）
-    participant A as /assistant/chat（SSE）
-    participant S as AssistantService
-    participant L as 大模型（openai_compat）
+    participant U as "用户"
+    participant F as "前端（AI 助手抽屉）"
+    participant A as "assistant/chat (SSE)"
+    participant S as "AssistantService"
+    participant L as "大模型 (openai_compat)"
 
-    U->>F: 输入消息
-    F->>A: POST /assistant/chat（SSE 连接，Bearer JWT）
-    Note over A: Depends(get_current_user) 校验 JWT<br/>解析出 current_user（端点层完成，不经过 Service）
-    A->>S: chat_stream(current_user, conversation_id, message)
-    S->>S: 会话归属校验 / 记忆管理 / 知识库检索 / 工具编排
-    S->>L: 组装上下文调用大模型
-    L-->>S: 流式输出
-    S-->>A: token / navigate / done 事件
-    A-->>F: SSE data 帧逐条下发
-    F-->>U: 流式渲染回复
-    F->>A: POST /assistant/feedback（👍👎）
+    U->>F: "输入消息"
+    F->>A: "POST /assistant/chat（SSE 连接，Bearer JWT）"
+    Note over A: "Depends(get_current_user) 校验 JWT；解析出 current_user（端点层完成，不经过 Service）"
+    A->>S: "chat_stream(current_user, conversation_id, message)"
+    S->>S: "会话归属校验 / 记忆管理 / 知识库检索 / 工具编排"
+    S->>L: "组装上下文调用大模型"
+    L-->>S: "流式输出"
+    S-->>A: "token / navigate / done 事件"
+    A-->>F: "SSE data 帧逐条下发"
+    F-->>U: "流式渲染回复"
+    F->>A: "POST /assistant/feedback（👍👎）
 ```
 
 ## 技术栈

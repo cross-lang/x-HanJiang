@@ -19,5 +19,5 @@ api_router = APIRouter(prefix=API_PREFIX)
 api_router.include_router(v1_router)
 
 # 2. 开放平台路由（面向外部服务，AppId/AppKey 鉴权）
-open_router = APIRouter(prefix=f"{API_PREFIX}/open")
+open_router = APIRouter(prefix=OPEN_API_PREFIX)
 open_router.include_router(open_v1_router)
