@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 """常量定义模块。"""
 
+from src.constants.assistant import (
+    ASSISTANT_ENTITY_TYPE,
+    ASSISTANT_ENTRY_CATALOG,
+    ASSISTANT_FALLBACK_MESSAGE,
+    ASSISTANT_MESSAGE_LIST_LIMIT,
+    ASSISTANT_PERMISSION_CHAT,
+    ASSISTANT_PERMISSION_FEEDBACK,
+    ASSISTANT_ROLL_CHUNK_SIZE,
+    ASSISTANT_ROLL_TRIGGER_FACTOR,
+    NAVIGATE_TOOL_NAME,
+    AssistantEventType,
+    AssistantMessageRole,
+)
 from src.constants.constants import (
     API_PREFIX,
     APP_DESCRIPTION,
@@ -49,19 +62,6 @@ from src.constants.enums import (
     HttpStatus,
     NotificationChannel,
     UserStatus,
-)
-from src.constants.assistant import (
-    ASSISTANT_ENTRY_CATALOG,
-    ASSISTANT_ENTITY_TYPE,
-    ASSISTANT_FALLBACK_MESSAGE,
-    ASSISTANT_MESSAGE_LIST_LIMIT,
-    ASSISTANT_PERMISSION_CHAT,
-    ASSISTANT_PERMISSION_FEEDBACK,
-    ASSISTANT_ROLL_CHUNK_SIZE,
-    ASSISTANT_ROLL_TRIGGER_FACTOR,
-    NAVIGATE_TOOL_NAME,
-    AssistantEventType,
-    AssistantMessageRole,
 )
 
 __all__ = [

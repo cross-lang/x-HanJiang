@@ -41,6 +41,9 @@ OPENAPI_HEADER_DATE: str = "X-App-Date"
 OPENAPI_HEADER_AUTHORIZATION: str = "X-App-Authorization"
 OPENAPI_ALGORITHM: str = "HanJiang-1"
 OPENAPI_SIGNATURE_WINDOW_SECONDS: int = 300
+# 签名串中 Content-Type 固定值（参考金山 WPS-4 约定：固定 application/json，
+# 与请求是否携带 body 无关；GET 无 body 时签名串同样拼接该值）
+OPENAPI_CONTENT_TYPE: str = "application/json"
 
 # ── 账号与令牌 ────────────────────────────────────────
 # 超级管理员用户名（种子数据固定，业务代码中禁止硬编码 "superadmin"）

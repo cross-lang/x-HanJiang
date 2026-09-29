@@ -17,6 +17,7 @@ from fastapi import Request
 
 from src.constants.constants import (
     OPENAPI_ALGORITHM,
+    OPENAPI_CONTENT_TYPE,
     OPENAPI_HEADER_APP_ID,
     OPENAPI_HEADER_APP_KEY,
     OPENAPI_HEADER_AUTHORIZATION,
@@ -65,7 +66,9 @@ def build_signing_string(
 ) -> str:
     """构造 HanJiang-1 待签名串（与外部调用方的协议约定，勿随意改）。
     格式：Ver + METHOD + URI + Content-Type + Date + SHA256(body)
-    直接拼接，无分隔符（参考 WPS-4）。
+    直接拼接，无分隔符（参考金山 WPS-4 风格）。
+    注意：Content-Type 固定为 application/json（与请求是否携带 body 无关），
+    GET 无 body 时同样拼接该固定值，body 为空则 SHA256(body) 取空字符串。
     """
     body_hash = security.sha256_hex(body.decode("utf-8")) if body else ""
     return "".join(
@@ -229,8 +232,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             body = await request.body()
         except Exception:
             body = b""
-        # 5. Content-Type
-        content_type = request.headers.get("content-type", "")
+        # 5. Content-Type（协议固定为 application/json，不从请求头取值，与金山 WPS-4 一致）
+        content_type = OPENAPI_CONTENT_TYPE
         # 6. 重算签名并比对
         return verify_request_signature(
             app_key_plain=secret,

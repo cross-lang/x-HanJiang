@@ -10,7 +10,6 @@ import re
 import zlib
 from typing import Any
 
-
 NUM_ARABIC_TO_CH_MAP: dict[int, str] = {
     0: "零",
     1: "一",

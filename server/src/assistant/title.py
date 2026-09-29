@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from typing import cast
 
-from src.core.exceptions import ExternalServiceException
 from src.infras.llm import ChatMessage, LLMProvider
 
 # 主题名长度上限（防止模型异常输出超长文本）
