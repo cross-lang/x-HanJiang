@@ -10,7 +10,6 @@ import re
 import zlib
 from typing import Any
 
-from pypinyin import Style, pinyin
 
 NUM_ARABIC_TO_CH_MAP: dict[int, str] = {
     0: "零",
@@ -185,32 +184,6 @@ def string_similar(str1: str, str2: str) -> float:
 def convert_ch_to_arabic(text: str) -> str:
     """将文本中的汉字数字转换为阿拉伯数字。"""
     return "".join(str(NUM_CH_TO_ARABIC_MAP.get(_)) if _ in NUM_CH_TO_ARABIC_MAP else _ for _ in text)
-
-
-def hanzi_to_pinyin(hanzi_name: str) -> str:
-    """汉字转为拼音（基础版）。"""
-    return "".join(
-        pinyin_ls[0]
-        for pinyin_ls in pinyin(hanzi_name, style=Style.NORMAL, errors="ignore", strict=False, heteronym=True)
-    )
-
-
-def advanced_hanzi_to_pinyin(hanzi_name: str) -> str:
-    """汉字转为拼音（高级版，阿拉伯数字先转汉字再转拼音）。"""
-    str_arabic_list = [str(_) for _ in NUM_ARABIC_TO_TRA_CH_MAP]
-    return "".join(
-        pinyin_ls[0]
-        for pinyin_ls in pinyin(
-            "".join(
-                NUM_ARABIC_TO_TRA_CH_MAP[int(_)] if _.isdigit() and _ in str_arabic_list else _ for _ in hanzi_name
-            ),
-            style=Style.NORMAL,
-            errors="ignore",
-            strict=False,
-            heteronym=True,
-        )
-    )
-
 
 if __name__ == "__main__":
     print(is_str("xxx"))
