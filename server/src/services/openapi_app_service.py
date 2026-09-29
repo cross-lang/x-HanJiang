@@ -51,7 +51,7 @@ def generate_app_id() -> str:
 
 # ============================================================
 
-# 开放平台协议：HanJiang-1 签名串拼装（参考 WPS-4 风格）
+# 开放平台协议：HanJiang-1 签名串拼装
 
 # ============================================================
 
@@ -66,7 +66,7 @@ def build_signing_string(
 ) -> str:
     """构造 HanJiang-1 待签名串（与外部调用方的协议约定，勿随意改）。
     格式：Ver + METHOD + URI + Content-Type + Date + SHA256(body)
-    直接拼接，无分隔符（参考金山 WPS-4 风格）。
+    直接拼接，无分隔符。
     注意：Content-Type 固定为 application/json（与请求是否携带 body 无关），
     GET 无 body 时同样拼接该固定值，body 为空则 SHA256(body) 取空字符串。
     """
@@ -232,7 +232,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             body = await request.body()
         except Exception:
             body = b""
-        # 5. Content-Type（协议固定为 application/json，不从请求头取值，与金山 WPS-4 一致）
+        # 5. Content-Type（协议固定为 application/json，不从请求头取值）
         content_type = OPENAPI_CONTENT_TYPE
         # 6. 重算签名并比对
         return verify_request_signature(

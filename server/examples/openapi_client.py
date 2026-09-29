@@ -8,7 +8,7 @@
     - 默认仅演示单个 GET 请求（展示最简签名串）；可选 --with-post
       演示 POST / DELETE 全链路（创建用户后自动清理，不留脏数据）。
 
-签名协议（参考金山 WPS-4，与服务端实现严格对齐）：
+签名协议（与服务端实现严格对齐）：
     签名串 = HanJiang-1 + METHOD + URI + Content-Type + Date + SHA256(body)
     - URI：完整路径 + 查询串（不含域名），必须包含 /api/open/v1 前缀；
     - Content-Type：固定 application/json，与请求是否携带 body 无关；
@@ -36,6 +36,7 @@ import hmac
 import json
 import os
 import sys
+import textwrap
 import time
 from dataclasses import dataclass
 from email.utils import formatdate
@@ -46,7 +47,7 @@ import requests
 # ── 协议常量（与服务端 src/constants/constants.py 保持一致，禁止单独修改）────
 ALGORITHM: Final[str] = "HanJiang-1"  # 签名算法版本号（Ver）
 SIGN_CONTENT_TYPE: Final[str] = "application/json"  # 签名串中 Content-Type 固定值
-API_BASE_PATH: Final[str] = "/api/open/v1"  # 签名串使用的 URI 前缀（与服务端 _extract_uri 对齐）
+API_BASE_PATH: Final[str] = "/api/open/v1"  # 签名串使用的 URI 前缀（含版本号）
 DEFAULT_BASE_URL: Final[str] = f"http://127.0.0.1:8000{API_BASE_PATH}"
 DEFAULT_TIMEOUT: Final[float] = 10.0  # 请求超时（秒）
 
@@ -131,7 +132,7 @@ class OpenApiClient:
         """
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-    def build_signing_string(self, method: str, uri: str, body: bytes = b"") -> str:
+    def build_signing_string(self, method: str, uri: str, date: str, body: bytes = b"") -> str:
         """构造 HanJiang-1 待签名串（公开方法，便于 --verbose 演示打印）。
 
         格式：Ver + METHOD + URI + Content-Type + Date + SHA256(body)，直接拼接无分隔符。
@@ -139,19 +140,19 @@ class OpenApiClient:
         Args:
             method: HTTP 方法（GET/POST/PUT/PATCH/DELETE）。
             uri: 完整路径 + 查询串（不含域名，含 /api/open/v1 前缀）。
+            date: RFC1123 GMT 时间；必须与 X-App-Date 请求头为同一值（单点生成）。
             body: 请求体字节流；为空时 body 哈希取空字符串。
 
         Returns:
             参与 HMAC 计算的原始签名串。
         """
-        date_str = formatdate(timeval=None, usegmt=True)  # RFC1123，如 "Tue, 30 Sep 2026 08:00:00 GMT"
         body_hash = self._sha256_hex(body.decode("utf-8")) if body else ""
         signing_string = "".join(
-            [ALGORITHM, method.upper(), uri, SIGN_CONTENT_TYPE, date_str, body_hash]
+            [ALGORITHM, method.upper(), uri, SIGN_CONTENT_TYPE, date, body_hash]
         )
         if self._config.verbose:
             print(f"        ┌ 签名串: {signing_string}")
-            print(f"        └ X-App-Date: {date_str}")
+            print(f"        └ X-App-Date: {date}")
         return signing_string
 
     def build_headers(self, method: str, uri: str, body: bytes = b"") -> dict[str, str]:
@@ -174,7 +175,8 @@ class OpenApiClient:
             headers[HEADER_APP_KEY] = self._config.app_key
             return headers
 
-        signing_string = self.build_signing_string(method, uri, body)
+        date_str = formatdate(timeval=None, usegmt=True)  # 单点生成：签名串与 X-App-Date 必须一致
+        signing_string = self.build_signing_string(method, uri, date_str, body)
         signature = hmac.new(
             self._config.app_key.encode("utf-8"),
             signing_string.encode("utf-8"),
@@ -183,7 +185,7 @@ class OpenApiClient:
         if self._config.verbose:
             print(f"        ┌ X-App-Authorization: {ALGORITHM} {self._config.app_id}:{signature}")
 
-        headers[HEADER_DATE] = formatdate(timeval=None, usegmt=True)
+        headers[HEADER_DATE] = date_str
         headers[HEADER_AUTHORIZATION] = f"{ALGORITHM} {self._config.app_id}:{signature}"
         # 请求头统一携带 Content-Type（GET 无 body 也带，与服务端签名校验约定一致）
         headers["Content-Type"] = SIGN_CONTENT_TYPE
@@ -217,9 +219,8 @@ class OpenApiClient:
         if body is not None:
             body_bytes = json.dumps(body, ensure_ascii=False).encode("utf-8")
 
-        # uri = 完整路径 + query（不含域名）。
-        # 必须包含 /api/open/v1 前缀，与服务端 _extract_uri（request.url.path + query）
-        # 保持一致，否则两端签名串不一致导致 HMAC 鉴权失败。
+        # uri = 完整路径 + query（不含域名），必须包含 /api/open/v1 前缀，
+        # 否则两端签名串不一致导致 HMAC 鉴权失败。
         query_str = ""
         if params:
             query_str = "?" + "&".join(f"{k}={v}" for k, v in params.items())
@@ -261,19 +262,31 @@ def _print_step(index: int, title: str) -> None:
     print(f"\n[{index}] {title}")
 
 
+def _format_json(obj: object) -> str:
+    """将 Python 对象格式化为可读 JSON 文本（2 空格缩进，中文不转义）。
+
+    Args:
+        obj: 待格式化的对象（dict / list 等）。
+
+    Returns:
+        格式化后的多行 JSON 字符串。
+    """
+    return json.dumps(obj, ensure_ascii=False, indent=2)
+
+
 def _print_response(resp: requests.Response, summary_key: str | None = None) -> None:
-    """统一打印响应：成功时输出 code/message 与关键数据，失败时给出排查提示。
+    """统一打印响应：成功时格式化输出 JSON，失败时给出排查提示。
 
     Args:
         resp: 待展示的响应对象。
         summary_key: 响应 data 中需要精简展示的字段路径（如 "items"），
-            缺省时输出 data 全量（适用于小体量响应）。
+            缺省时格式化输出 data 全量（适用于小体量响应）。
     """
     print(f"    状态码: {resp.status_code}")
     if resp.status_code >= 400:
         try:
             err = resp.json()
-            print(f"    错误信息: {err}")
+            print(f"    错误信息:\n{textwrap.indent(_format_json(err), '    ')}")
         except ValueError:
             print(f"    响应体: {resp.text}")
         if resp.status_code == 401:
@@ -296,7 +309,7 @@ def _print_response(resp: requests.Response, summary_key: str | None = None) -> 
             if len(items) > 3:
                 print(f"        ... 共 {len(items)} 条，total={data.get('total')}")
             return
-    print(f"    返回: {resp.json()}")
+    print(f"    返回:\n{textwrap.indent(_format_json(resp.json()), '    ')}")
 
 
 # ── 命令行与配置解析 ──────────────────────────────────
@@ -360,10 +373,11 @@ def main(argv: list[str] | None = None) -> int:
     config = _build_config(args)
     client = OpenApiClient(config)
 
-    print("=" * 64)
-    print(f"开放平台 API 调用演示（auth_mode: {config.auth_mode}）")
-    print(f"AppId: {config.app_id}")
-    print(f"Base : {config.base_url}")
+    print(f"汉江开放平台 API 调用演示开始")
+    print(f"服务端地址: {config.base_url}")
+    print(f"鉴权模式: {config.auth_mode}")
+    print(f"应用标识（AppId）: {config.app_id}")
+    print(f"应用密钥（AppKey）: {config.app_key}")
     print("=" * 64)
 
     try:
@@ -390,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("\n" + "=" * 64)
     print("演示结束")
-    print("=" * 64)
+
     return 0
 
 
