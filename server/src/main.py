@@ -18,6 +18,7 @@ Usage:
     from src.main import app
 """
 
+import asyncio
 from contextlib import asynccontextmanager, suppress
 
 import uvicorn
@@ -155,7 +156,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"{APP_NAME} shutting down...")
     if retry_task is not None:
         retry_task.cancel()
-        with suppress(Exception):
+        with suppress(asyncio.CancelledError):
             await retry_task
     get_cached_database_provider().close()
     logger.info("Database connection closed")
