@@ -409,10 +409,10 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  A[路由函数<br/>@permission 装饰器] --> B[启动时<br/>collect_permissions_from_app]
-  B --> C[扫描 app.routes<br/>提取权限元数据]
-  C --> D[upsert 到<br/>permissions 表]
-  D --> E[表里有但路由里没有<br/>→ is_deprecated=True]
+  A["路由函数<br/>@permission 装饰器"] --> B["启动时<br/>collect_permissions_from_app"]
+  B --> C["扫描 app.routes<br/>提取权限元数据"]
+  C --> D["upsert 到<br/>permissions 表"]
+  D --> E["表里有但路由里没有<br/>→ is_deprecated=True"]
 ```
 
 ### 模块依赖关系

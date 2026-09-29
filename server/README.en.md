@@ -409,10 +409,10 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  A[@permission Decorator on Routes] --> B[collect_permissions_from_app on Startup]
-  B --> C[Scan app.routes for Permission Metadata]
-  C --> D[Upsert to permissions Table]
-  D --> E[In DB but Not in Routes → is_deprecated=True]
+  A["@permission Decorator on Routes"] --> B["collect_permissions_from_app on Startup"]
+  B --> C["Scan app.routes for Permission Metadata"]
+  C --> D["Upsert to permissions Table"]
+  D --> E["In DB but Not in Routes → is_deprecated=True"]
 ```
 
 ### Module Dependency Diagram
