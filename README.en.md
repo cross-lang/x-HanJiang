@@ -18,20 +18,6 @@ An **out-of-the-box** enterprise full-stack platform built on **FastAPI + Vue 3*
 
 </div>
 
-<!-- TOC -->
-- [Why HanJiang?](#why-hanjiang)
-- [Core Capabilities](#core-capabilities)
-- [UI Preview](#ui-preview)
-- [Quick Start](#quick-start)
-  - [Backend](#backend)
-  - [Frontend](#frontend)
-- [Project Structure](#project-structure)
-- [Tech Stack](#tech-stack)
-- [API Docs](#api-docs)
-- [License](#license)
-- [Contact](#contact)
-<!-- /TOC -->
-
 ## Why HanJiang?
 
 | What you need | HanJiang | Bare FastAPI DIY | Generic front-end template |
