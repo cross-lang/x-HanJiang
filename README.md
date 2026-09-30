@@ -62,11 +62,16 @@ x-HanJiang/
 │   ├── src/
 │   │   ├── api/       # 路由层（v1 用户态 + open/v1 开放平台）
 │   │   ├── assistant/ # AI 助手（对话编排/记忆/检索/工具）
+│   │   ├── constants/ # 常量与枚举（ModuleCode、BaseEnum）
 │   │   ├── core/      # 配置/中间件/异常/安全
 │   │   ├── infras/    # 基础设施（数据库/缓存/存储/通知渠道/LLM）
 │   │   ├── models/    # SQLAlchemy 数据模型
+│   │   ├── notification/  # 通知子系统（分发器/模板/重试）
 │   │   ├── repositories/  # 数据访问层
+│   │   ├── scheduling/    # 调度任务（通知重试 Worker）
+│   │   ├── schemas/   # Pydantic Schema
 │   │   ├── services/  # 业务逻辑层
+│   │   ├── utils/     # 工具函数
 │   │   └── main.py    # 应用入口
 │   ├── alembic/       # 数据库迁移
 │   ├── tests/         # 单元测试

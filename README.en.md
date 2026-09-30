@@ -62,11 +62,16 @@ x-HanJiang/
 │   ├── src/
 │   │   ├── api/       # Routes (v1 user-facing + open/v1 open platform)
 │   │   ├── assistant/ # AI assistant (dialog orchestration/memory/retrieval/tools)
+│   │   ├── constants/ # Constants and enums (ModuleCode, BaseEnum)
 │   │   ├── core/      # Config/middleware/exceptions/security
 │   │   ├── infras/    # Infrastructure (database/cache/storage/notifications/LLM)
 │   │   ├── models/    # SQLAlchemy data models
+│   │   ├── notification/  # Notification subsystem (dispatcher/templates/retry)
 │   │   ├── repositories/  # Data access layer
+│   │   ├── scheduling/    # Scheduled tasks (notification retry worker)
+│   │   ├── schemas/   # Pydantic schemas
 │   │   ├── services/  # Business logic layer
+│   │   ├── utils/     # Utility functions
 │   │   └── main.py    # Application entry
 │   ├── alembic/       # Database migrations
 │   ├── tests/         # Unit tests
