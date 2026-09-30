@@ -12,7 +12,6 @@ SSE 通道说明：chat 接口返回 text/event-stream，事件为 data: <json> 
 该接口不使用统一 success_response 包装（属 SSE 通道特例），其余接口保持统一响应。
 """
 
-import json
 from collections.abc import Iterator
 
 from fastapi import APIRouter, Depends, Request
@@ -40,6 +39,7 @@ from src.schemas.assistant import (
 )
 from src.schemas.auth import CurrentUser
 from src.services.assistant_service import AssistantService
+from src.utils.sse import build_sse_event
 
 router = APIRouter(prefix="/assistant", tags=["AI 助手"])
 
@@ -49,18 +49,6 @@ _SSE_HEADERS: dict[str, str] = {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
-
-
-def _sse_event(data: dict[str, object]) -> str:
-    """将事件字典序列化为 SSE 数据帧。
-
-    Args:
-        data: 事件字典
-
-    Returns:
-        str: 完整 SSE 帧（data: <json>\\n\\n）
-    """
-    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 def _to_conversation_response(entity: AssistantConversationEntity) -> ConversationResponse:
@@ -119,11 +107,11 @@ def chat(
         """
         try:
             for event in service.chat_stream(current_user, body.conversation_id, body.message):
-                yield _sse_event(event)
+                yield build_sse_event(event)
         except Exception as exc:  # noqa: BLE001 - SSE 通道最后防线，仅兜底不可预期异常
             logger.error(f"AI 助手 SSE 通道异常: {exc}")
-            yield _sse_event({"type": AssistantEventType.ERROR.mark, "message": "服务异常，请稍后再试"})
-            yield _sse_event(
+            yield build_sse_event({"type": AssistantEventType.ERROR.mark, "message": "服务异常，请稍后再试"})
+            yield build_sse_event(
                 {
                     "type": AssistantEventType.DONE.mark,
                     "conversation_id": body.conversation_id,

@@ -14,11 +14,7 @@ Endpoints:
     POST   /users/import:   批量导入用户
 """
 
-import csv
-import io
-
 from fastapi import APIRouter, Depends, File, Request, UploadFile
-from fastapi.responses import StreamingResponse
 
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
@@ -38,6 +34,7 @@ from src.schemas.user import (
     UserUpdateRequest,
 )
 from src.services.user_service import UserService
+from src.utils.csv import build_csv_stream_response, parse_csv_rows
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -128,19 +125,17 @@ def export_users(
         "last_login_at": "最后登录",
         "created_at": "创建时间",
     }
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=fieldnames)
-    writer.writerow(headers_cn)
+    csv_rows = []
     for row in rows:
         data = row.model_dump()
         if isinstance(data.get("roles"), list):
             data["roles"] = ";".join(r.get("role_name", "") for r in data["roles"])
-        writer.writerow({k: data.get(k, "") for k in fieldnames})
-    content = buf.getvalue().encode("utf-8-sig")
-    return StreamingResponse(
-        iter([content]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=users_export.csv"},
+        csv_rows.append(data)
+    return build_csv_stream_response(
+        fieldnames=fieldnames,
+        headers_cn=headers_cn,
+        rows=csv_rows,
+        filename="users_export.csv",
     )
 
 
@@ -235,7 +230,7 @@ def import_users(
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise ValidationException(message="仅支持 CSV 文件导入")
     csv_content = file.file.read().decode("utf-8-sig")
-    rows = list(csv.DictReader(csv_content.splitlines()))
+    rows = parse_csv_rows(csv_content)
     imported = 0
     operator_ctx = get_user_operator_context(current_user, request)
     for row in rows:

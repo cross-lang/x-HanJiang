@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """审计日志接口。"""
 
-import csv
-import io
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import StreamingResponse
 
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
@@ -23,6 +20,7 @@ from src.schemas.audit import AuditLogResponse
 from src.schemas.auth import CurrentUser
 from src.services.audit_service import AuditService
 from src.services.login_log_service import LoginLogService
+from src.utils.csv import build_csv_stream_response
 
 router = APIRouter(prefix="/audit", tags=["审计日志"])
 
@@ -139,21 +137,19 @@ def export_audit_logs(
         "created_at": "时间",
         "remarks": "备注",
     }
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=fieldnames)
-    writer.writerow(headers_cn)
+    csv_rows = []
     for row in result["items"]:
         data = AuditLogResponse.model_validate(row).model_dump()
         data["action"] = AUDIT_ACTION_CN.get(row.action, row.action)
         data["operator_id"] = row.operator_id or ""
         data["operator_name"] = username_map.get(row.operator_id, {}).get("name", "") if row.operator_id else ""
-        writer.writerow({k: data.get(k, "") for k in fieldnames})
-    content = buf.getvalue().encode("utf-8-sig")
+        csv_rows.append(data)
     timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    return StreamingResponse(
-        iter([content]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=audit_logs_{timestamp}.csv"},
+    return build_csv_stream_response(
+        fieldnames=fieldnames,
+        headers_cn=headers_cn,
+        rows=csv_rows,
+        filename=f"audit_logs_{timestamp}.csv",
     )
 
 
@@ -265,26 +261,25 @@ def export_login_logs(
         "login_type": "登录方式",
         "created_at": "时间",
     }
-    buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=fieldnames)
-    writer.writerow(headers_cn)
+    csv_rows = []
     for row in result["items"]:
-        d = {
-            "id": row.id,
-            "username": row.username,
-            "name": row.name or "",
-            "ip_address": row.ip_address,
-            "status": LOGIN_STATUS_CN.get(row.status, row.status),
-            "login_type": LOGIN_TYPE_CN.get(row.login_type, row.login_type),
-            "created_at": str(row.created_at),
-        }
-        writer.writerow({k: d.get(k, "") for k in fieldnames})
-    content = buf.getvalue().encode("utf-8-sig")
+        csv_rows.append(
+            {
+                "id": row.id,
+                "username": row.username,
+                "name": row.name or "",
+                "ip_address": row.ip_address,
+                "status": LOGIN_STATUS_CN.get(row.status, row.status),
+                "login_type": LOGIN_TYPE_CN.get(row.login_type, row.login_type),
+                "created_at": str(row.created_at),
+            }
+        )
     timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    return StreamingResponse(
-        iter([content]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=login_logs_{timestamp}.csv"},
+    return build_csv_stream_response(
+        fieldnames=fieldnames,
+        headers_cn=headers_cn,
+        rows=csv_rows,
+        filename=f"login_logs_{timestamp}.csv",
     )
 
 
