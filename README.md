@@ -117,7 +117,9 @@ graph TB
     D --> H
 ```
 
-### 核心业务流程：用户登录
+### 核心业务流程
+
+#### 用户登录
 
 ```mermaid
 sequenceDiagram
@@ -139,7 +141,7 @@ sequenceDiagram
     F->>F: "存入 localStorage
 ```
 
-### 权限自动注册流程
+#### 权限自动注册流程
 
 ```mermaid
 flowchart LR
@@ -149,7 +151,7 @@ flowchart LR
     D --> E["表里有但路由里没有 → is_deprecated=True"]
 ```
 
-### 通知发送流程
+#### 通知发送流程
 
 ```mermaid
 flowchart TD
@@ -170,7 +172,7 @@ flowchart TD
     I -->|"成功"| L["完成"]
 ```
 
-### AI 助手对话流程
+#### AI 助手对话流程
 
 ```mermaid
 sequenceDiagram
