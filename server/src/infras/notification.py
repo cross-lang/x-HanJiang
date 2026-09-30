@@ -114,6 +114,9 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
     - 工作通知模式（推荐）：配置 app_key + app_secret + agent_id，
       通过钉钉 OpenAPI 向指定 userid 发送工作通知，实现 per-user 投递。
     - Webhook 模式（降级）：仅配置 webhook_url，向群机器人所在群广播。
+
+    HTTP 调用统一走 HttpProvider 抽象（超时/重试由实现统一管理），
+    可通过 http_provider 参数注入 Mock 以便测试。
     """
 
     def __init__(
@@ -123,6 +126,7 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         app_key: str = "",
         app_secret: str = "",
         agent_id: str = "",
+        http_provider=None,
     ) -> None:
         self._webhook_url = webhook_url
         self._secret = secret
@@ -131,6 +135,12 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         self._agent_id = agent_id
         self._access_token: str = ""
         self._token_expires_at: float = 0
+        if http_provider is not None:
+            self._http = http_provider
+        else:
+            from src.infras.http import get_cached_http_provider
+
+            self._http = get_cached_http_provider()
 
     @property
     def channel_name(self) -> str:
@@ -145,17 +155,12 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         """获取钉钉企业内部应用 access_token（自动缓存，过期前 5 分钟刷新）。"""
         import time
 
-        import requests
-
         if self._access_token and time.time() < self._token_expires_at:
             return self._access_token
-        resp = requests.post(
+        data = self._http.post(
             "https://api.dingtalk.com/v1.0/oauth2/accessToken",
             json={"appKey": self._app_key, "appSecret": self._app_secret},
-            timeout=10,
         )
-        resp.raise_for_status()
-        data = resp.json()
         self._access_token = data["accessToken"]
         # expiresIn 单位秒，提前 5 分钟刷新
         self._token_expires_at = time.time() + data["expireIn"] - 300
@@ -173,8 +178,6 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
 
     def _send_work_notification(self, message: NotificationMessage) -> bool:
         """通过工作通知 API 发送给指定用户。"""
-        import requests
-
         token = self._get_access_token()
         url = "https://api.dingtalk.com/v1.0/org/corpversations/messages/sendToConversation"
         headers = {"x-acs-dingtalk-access-token": token}
@@ -186,9 +189,7 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
                 "text": {"content": message.content},
             },
         }
-        resp = requests.post(url, json=payload, headers=headers, timeout=10)
-        resp.raise_for_status()
-        result = resp.json()
+        result = self._http.post(url, json=payload, headers=headers)
         if "errorCode" in result:
             logger.error("DingTalk work notification failed: {}", result)
             return False
@@ -200,8 +201,6 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         import hashlib
         import hmac
         import time
-
-        import requests
 
         url = self._webhook_url
         if self._secret:
@@ -218,9 +217,7 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
             "msgtype": "text",
             "text": {"content": message.content},
         }
-        resp = requests.post(url, json=payload, timeout=10)
-        resp.raise_for_status()
-        result = resp.json()
+        result = self._http.post(url, json=payload)
         if result.get("errcode") != 0:
             logger.error("DingTalk webhook failed: {}", result)
             return False
@@ -240,6 +237,9 @@ class FeishuNotificationProvider(BaseNotificationProvider):
     - 应用消息模式（推荐）：配置 app_id + app_secret，
       通过飞书 OpenAPI 向指定 open_id 发送应用消息，实现 per-user 投递。
     - Webhook 模式（降级）：仅配置 webhook_url，向群机器人所在群广播。
+
+    HTTP 调用统一走 HttpProvider 抽象（超时/重试由实现统一管理），
+    可通过 http_provider 参数注入 Mock 以便测试。
     """
 
     def __init__(
@@ -248,6 +248,7 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         secret: str = "",
         app_id: str = "",
         app_secret: str = "",
+        http_provider=None,
     ) -> None:
         self._webhook_url = webhook_url
         self._secret = secret
@@ -255,6 +256,12 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         self._app_secret = app_secret
         self._tenant_token: str = ""
         self._token_expires_at: float = 0
+        if http_provider is not None:
+            self._http = http_provider
+        else:
+            from src.infras.http import get_cached_http_provider
+
+            self._http = get_cached_http_provider()
 
     @property
     def channel_name(self) -> str:
@@ -269,17 +276,12 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         """获取飞书 tenant_access_token（自动缓存，过期前 5 分钟刷新）。"""
         import time
 
-        import requests
-
         if self._tenant_token and time.time() < self._token_expires_at:
             return self._tenant_token
-        resp = requests.post(
+        data = self._http.post(
             "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
             json={"app_id": self._app_id, "app_secret": self._app_secret},
-            timeout=10,
         )
-        resp.raise_for_status()
-        data = resp.json()
         if data.get("code") != 0:
             raise RuntimeError(f"Feishu token error: {data}")
         self._tenant_token = data["tenant_access_token"]
@@ -298,8 +300,6 @@ class FeishuNotificationProvider(BaseNotificationProvider):
 
     def _send_app_message(self, message: NotificationMessage) -> bool:
         """通过应用消息 API 发送给指定用户（open_id）。"""
-        import requests
-
         token = self._get_tenant_token()
         url = "https://open.feishu.cn/open-apis/im/v1/messages"
         headers = {"Authorization": f"Bearer {token}"}
@@ -309,9 +309,7 @@ class FeishuNotificationProvider(BaseNotificationProvider):
             "msg_type": "text",
             "content": '{"text": ' + f'"{message.content}"' + "}",
         }
-        resp = requests.post(url, json=payload, headers=headers, params=params, timeout=10)
-        resp.raise_for_status()
-        result = resp.json()
+        result = self._http.post(url, json=payload, headers=headers, params=params)
         if result.get("code", 0) != 0:
             logger.error("Feishu app message failed: {}", result)
             return False
@@ -323,8 +321,6 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         import hashlib
         import hmac
         import time
-
-        import requests
 
         extra: dict[str, Any] = {}
         if self._secret:
@@ -338,9 +334,7 @@ class FeishuNotificationProvider(BaseNotificationProvider):
             "content": {"text": message.content},
             **extra,
         }
-        resp = requests.post(self._webhook_url, json=payload, timeout=10)
-        resp.raise_for_status()
-        result = resp.json()
+        result = self._http.post(self._webhook_url, json=payload)
         if result.get("code", 0) != 0 and result.get("StatusCode", 0) != 0:
             logger.error("Feishu webhook failed: {}", result)
             return False
