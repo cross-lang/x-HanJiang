@@ -1,45 +1,50 @@
-[English](README.en.md) | 中文
-
 # 汉江（HanJiang）— 全栈快速开发平台
 
-## 项目简介
+[English](README.en.md) | 中文
 
-汉江（HanJiang）是一个基于 FastAPI + Vue 3 + TypeScript 的全栈快速开发平台，深度封装企业级 Web 应用的通用能力，让开发者聚焦业务本身。
+基于 **FastAPI + Vue 3** 的**开箱即用**的企业级全栈平台。深度封装后台系统通用能力（认证、权限、审计、通知、AI、开放平台），开发者只需聚焦业务本身。
 
-**核心特征：**
+## 为什么选择 HanJiang？
 
-- 前后端分离：FastAPI 后端 + Vue 3 + Element Plus 前端，全栈 TypeScript 类型安全
-- 内置 JWT 认证 + RBAC 权限模型 + 操作审计 + 登录日志，开箱即用
-- 装饰器自动扫描路由注册权限，启动时自动同步到 permissions 表
-- 开放平台 HanJiang-1 HMAC 签名鉴权，支持明文与签名双模式，内置应用管理（AppId/AppKey 生命周期、scope 授权、密钥轮换）
-- 事件驱动多渠道通知系统（站内信 / 邮件 / 钉钉 / 飞书 / 短信），支持用户级偏好与失败自动重试
-- 系统通知广播：面向全体用户发布普通通知 / 系统维护通知，站内信广播 + 按用户渠道推送多渠道
-- 分层架构：API 路由 → 业务逻辑 → 数据访问，职责清晰
-- 生产级安全设计（常量时间比对、防重放、密码哈希、邮箱验证码二次认证）
-- 内置仪表盘（用户/角色/应用统计 + 登录趋势 + 操作日志趋势 + ECharts 可视化）
-- 文件管理（本地 / S3 兼容存储）、全局搜索、个人中心、系统告警、公告管理（首页板块 / 横幅）
-- AI 助手：SSE 流式对话（token / navigate / done 事件）、会话管理、记忆压缩、知识库检索与工具编排，openai_compat 协议可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等
-- 完善的开发者体验（Swagger 文档、Alembic 迁移、统一异常处理、GitHub Actions CI）
+| 你需要的 | HanJiang | 裸 FastAPI 自研 | 通用前后端模板 |
+| --- | --- | --- | --- |
+| 开箱即用的后台系统 | ✅ | ⚠️ 需自研 | ❌ 只有 UI |
+| FastAPI 异步高性能后端 | ✅ | ✅ 但需自建 | ❌ 无后端 |
+| RBAC 菜单/按钮权限 + 启动自动注册 | ✅ | ⚠️ 需自研 | ❌ |
+| AI 助手（SSE 流式对话 / 工具编排） | ✅ | ❌ | ❌ |
+| 开放平台签名鉴权（HMAC / 防重放） | ✅ | ❌ | ❌ |
+| 多渠道通知（站内信/邮件/钉钉/飞书） | ✅ | ❌ | ❌ |
+| 审计日志 + 登录日志 | ✅ | ❌ | ❌ |
+| Docker 一键部署 | ✅ | ⚠️ | ⚠️ |
 
-**适用场景：**
+## 核心能力
 
-- 企业内部管理系统快速搭建
-- SaaS 产品后端基座
-- 开放平台 / API 服务网关
-- 前后端分离项目脚手架
+- **认证与权限**：JWT 认证 + RBAC 权限模型，`@permission` 装饰器声明式注册，启动时自动扫描同步到数据库
+- **AI 助手**：SSE 流式对话（token / navigate / done 事件）、会话管理、记忆压缩、知识库检索与工具编排，`openai_compat` 协议可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等
+- **开放平台**：HanJiang-1 HMAC 签名鉴权（明文/签名双模式）、AppId/AppKey 生命周期管理、scope 授权、密钥轮换
+- **通知系统**：事件驱动多渠道分发（站内信/邮件/钉钉/飞书），模板变量插值、用户级偏好、失败自动重试
+- **可观测性**：业务审计日志、登录日志、操作日志趋势、系统告警
+- **工程化**：分层架构（API → Service → Repository）、统一异常处理、Swagger 文档、Alembic 迁移、GitHub Actions CI
+
+## 界面预览
+
+![登录页](./me/login.png)
+
+![管理后台](./me/admin.png) ![系统管理](./me/admin_system.png)
+![AI助手](./me/admin_assistant.png) ![开放应用](./me/admin_openapp.png)
 
 ## 快速开始
 
-### 后端启动
+### 后端
 
 ```bash
 cd server
 uv run x-HanJiang --reload
 ```
 
-详细配置说明请参考 [server/README.md](server/README.md)。
+配置说明见 [server/README.md](server/README.md)。
 
-### 前端启动
+### 前端
 
 ```bash
 cd web/admin
@@ -47,182 +52,51 @@ npm install
 npm run dev
 ```
 
-访问 http://localhost:5173
-详细说明请参考 [web/admin/README.md](web/admin/README.md)。
+访问 <http://localhost:5173>，详见 [web/admin/README.md](web/admin/README.md)。
 
 ## 项目结构
 
 ```
 x-HanJiang/
-├── server/                  # 后端（FastAPI）
+├── server/            # 后端（FastAPI）
 │   ├── src/
-│   │   ├── api/              # 路由层（v1 用户态 + open/v1 开放平台）
-│   │   ├── assistant/        # AI 助手（对话编排/记忆/检索/工具）
-│   │   ├── constants/        # 常量与枚举（ModuleCode、BaseEnum）
-│   │   ├── core/             # 核心（配置/中间件/异常/安全）
-│   │   ├── infras/           # 基础设施（数据库/缓存/存储/通知渠道/LLM）
-│   │   ├── models/           # SQLAlchemy 数据模型（models/entities）
-│   │   ├── notification/     # 通知子系统（分发器/模板/重试）
-│   │   ├── repositories/     # 数据访问层
-│   │   ├── scheduling/       # 调度任务（通知重试 Worker）
-│   │   ├── schemas/          # Pydantic Schema
-│   │   ├── services/         # 业务逻辑层
-│   │   ├── utils/            # 工具函数
-│   │   └── main.py           # 应用入口
-│   ├── alembic/              # 数据库迁移
-│   ├── config/               # 配置文件
-│   ├── docs/                 # 项目文档（建表 SQL、Postman 集合）
-│   ├── examples/             # 使用示例
-│   ├── logs/                 # 日志输出
-│   ├── scripts/              # 工程脚本
-│   ├── static/               # 本地文件存储目录
-│   ├── tests/                # 单元测试
+│   │   ├── api/       # 路由层（v1 用户态 + open/v1 开放平台）
+│   │   ├── assistant/ # AI 助手（对话编排/记忆/检索/工具）
+│   │   ├── core/      # 配置/中间件/异常/安全
+│   │   ├── infras/    # 基础设施（数据库/缓存/存储/通知渠道/LLM）
+│   │   ├── models/    # SQLAlchemy 数据模型
+│   │   ├── repositories/  # 数据访问层
+│   │   ├── services/  # 业务逻辑层
+│   │   └── main.py    # 应用入口
+│   ├── alembic/       # 数据库迁移
+│   ├── tests/         # 单元测试
 │   └── pyproject.toml
-├── web/                      # 前端
-│   ├── admin/                # 管理后台（Vue3 + TS + Element Plus + ECharts）
-│   └── open/                 # 开放平台门户（待开发）
-├── docker-compose.yml        # Docker 编排
+├── web/
+│   ├── admin/         # 管理后台（Vue3 + TS + Element Plus）
+│   └── open/          # 开放平台门户（待开发）
+├── docker-compose.yml # Docker 编排
 └── README.md
-```
-
-## 系统架构
-
-### 分层架构
-
-```mermaid
-graph TB
-    subgraph "前端"
-        A["管理后台"]
-        B["开放平台"]
-    end
-
-    subgraph "后端"
-        C["API 路由层"]
-        D["业务逻辑层"]
-        E["数据访问层"]
-    end
-
-    subgraph "基础设施"
-        F[("MySQL")]
-        G[("Redis")]
-        H[("本地/S3 存储")]
-    end
-
-    A -->|"HTTP /api/v1"| C
-    B -->|"HTTP /api/open/v1"| C
-    C --> D
-    D --> E
-    E --> F
-    D --> G
-    D --> H
-```
-
-### 核心业务流程
-
-#### 用户登录
-
-```mermaid
-sequenceDiagram
-    participant U as "用户"
-    participant F as "前端"
-    participant A as "API"
-    participant S as "Service"
-    participant DB as "数据库"
-
-    U->>F: "输入用户名密码"
-    F->>A: "POST /auth/login"
-    A->>S: "校验凭据"
-    S->>DB: "查询用户"
-    DB-->>S: "用户记录"
-    S->>S: "验证密码哈希"
-    S->>DB: "写入登录日志"
-    S-->>A: "生成 JWT Token"
-    A-->>F: "返回 access_token"
-    F->>F: "存入 localStorage
-```
-
-#### 权限自动注册流程
-
-```mermaid
-flowchart LR
-    A["路由函数 @permission 装饰器"] --> B["启动时 collect_permissions_from_app"]
-    B --> C["扫描 app.routes 提取权限元数据"]
-    C --> D["upsert 到 permissions 表"]
-    D --> E["表里有但路由里没有 → is_deprecated=True"]
-```
-
-#### 通知发送流程
-
-```mermaid
-flowchart TD
-    A["业务事件触发<br/>如 user.password_changed"] --> B["通知分发器"]
-    B --> C["查询用户通知偏好与接收人"]
-    C --> D["站内信"]
-    C --> E["邮件"]
-    C --> F["钉钉"]
-    C --> G["飞书"]
-    D --> H["写入通知记录"]
-    E --> H
-    F --> H
-    G --> H
-    H --> I{"发送成功?"}
-    I -->|"失败"| J["Redis 重试队列"]
-    J --> K["重试 Worker"]
-    K --> D
-    I -->|"成功"| L["完成"]
-```
-
-#### AI 助手对话流程
-
-```mermaid
-sequenceDiagram
-    participant U as "用户"
-    participant F as "前端（AI 助手抽屉）"
-    participant A as "assistant/chat (SSE)"
-    participant S as "AssistantService"
-    participant L as "大模型 (openai_compat)"
-
-    U->>F: "输入消息"
-    F->>A: "POST /assistant/chat（SSE 连接，Bearer JWT）"
-    Note over A: "Depends(get_current_user) 校验 JWT；解析出 current_user（端点层完成，不经过 Service）"
-    A->>S: "chat_stream(current_user, conversation_id, message)"
-    S->>S: "会话归属校验 / 记忆管理 / 知识库检索 / 工具编排"
-    S->>L: "组装上下文调用大模型"
-    L-->>S: "流式输出"
-    S-->>A: "token / navigate / done 事件"
-    A-->>F: "SSE data 帧逐条下发"
-    F-->>U: "流式渲染回复"
-    F->>A: "POST /assistant/feedback（👍👎）
 ```
 
 ## 技术栈
 
 | 分类 | 技术 |
-|---|---|
-| **后端语言** | Python 3.11+ |
-| **后端框架** | FastAPI |
-| **ORM** | SQLAlchemy 2.0 |
-| **数据库迁移** | Alembic |
-| **前端框架** | Vue 3 + TypeScript |
-| **前端构建** | Vite 6 |
-| **UI 组件库** | Element Plus |
-| **状态管理** | Pinia |
-| **图表** | ECharts 6 + vue-echarts |
-| **数据库** | MySQL |
-| **缓存** | Redis |
-| **日志** | Loguru |
-| **认证** | JWT + HMAC 签名 |
-| **AI 集成** | OpenAI SDK（openai_compat 兼容协议，可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等） |
-| **包管理** | uv |
-| **部署** | Docker / docker-compose |
+| --- | --- |
+| 后端 | Python 3.11+ / FastAPI / SQLAlchemy 2.0 / Alembic |
+| 前端 | Vue 3 + TypeScript / Vite / Element Plus / Pinia / ECharts |
+| 存储 | MySQL / Redis |
+| 认证 | JWT + HMAC 签名 |
+| AI | OpenAI SDK（openai_compat 协议） |
+| 工程 | uv / Ruff / mypy / pytest / Loguru |
+| 部署 | Docker / docker-compose |
 
 ## API 文档
 
-后端启动后可访问：
+启动后端后访问：
 
-- **Swagger UI**：http://localhost:8000/docs
-- **ReDoc**：http://localhost:8000/redoc
-- **OpenAPI JSON**：http://localhost:8000/openapi.json
+- **Swagger UI**：<http://localhost:8000/docs>
+- **ReDoc**：<http://localhost:8000/redoc>
+- **OpenAPI JSON**：<http://localhost:8000/openapi.json>
 
 ## 许可证
 
@@ -231,7 +105,5 @@ sequenceDiagram
 ## 联系方式
 
 - **作者**：John Young（夜雨诗来）
-- **邮箱**：john.young@foxmail.com
-- **Gitee**：https://gitee.com/yeyushilai
-- **GitHub**：https://github.com/yeyushilai
-- **项目地址**：https://github.com/cross-lang/x-HanJiang
+- **邮箱**：<john.young@foxmail.com>
+- **GitHub**：<https://github.com/cross-lang/x-HanJiang>
