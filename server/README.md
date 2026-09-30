@@ -2,6 +2,21 @@
 
 # 汉江（HanJiang）后端服务
 
+基于 FastAPI 深度封装的生产级 Python Web 应用框架，三层架构 + 依赖注入，开箱即用支撑企业级 RESTful API 服务。
+
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)
+![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00)
+![MySQL 8.0](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
+![Redis 7](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![uv](https://img.shields.io/badge/uv-0.6%2B-26A5E4)
+
+![GitHub Stars](https://img.shields.io/github/stars/cross-lang/x-HanJiang?style=flat&logo=github&logoColor=white&label=Stars)
+![GitHub Forks](https://img.shields.io/github/forks/cross-lang/x-HanJiang?style=flat&logo=github&logoColor=white&label=Forks)
+![License](https://img.shields.io/github/license/cross-lang/x-HanJiang?style=flat&label=License)
+![Commits](https://img.shields.io/github/commit-activity/m/cross-lang/x-HanJiang?style=flat&logo=github&logoColor=white&label=Commits)
+
 ## 📖 项目简介
 
 汉江（HanJiang）后端是一个基于 FastAPI 深度封装的生产级 Python Web 应用框架，遵循标准三层架构（API → Service → Repository）与依赖注入设计，内置 JWT 认证、RBAC 权限模型、审计日志、登录日志、开放平台 AppId/AppKey 鉴权（支持 HanJiang-1 HMAC 签名）、事件驱动多渠道通知系统、站内信、文件管理（本地 / S3 兼容）、全局搜索与种子数据自动初始化，开箱即用支撑企业级 RESTful API 服务。
@@ -193,6 +208,17 @@ curl http://localhost:8000/api/open/v1/me \
 ```
 
 > 首次部署后默认超级管理员账号：`superadmin` / `admin@123456`，生产环境请务必修改。
+
+### ❓ 8. 常见问题排查
+
+| 问题 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 端口占用（Address already in use） | 8000 端口被其他进程占用 | 换端口启动：`uv run uvicorn src.main:app --port 8001`，或 `netstat -ano \| findstr :8000` 定位进程 |
+| uv 安装失败 | 网络受限或代理未配置 | 重装 uv 或配置镜像源：`UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple` |
+| 配置加载异常 | `.env` / `config.yaml` 未创建 | 执行 `cp .env.example .env` 或 `cp config.yaml.example config.yaml` |
+| MySQL 连接失败 | 数据库未启动 / 账号密码错误 | 检查 MySQL 服务与 `MYSQL_*` 配置，首次部署先执行 `uv run python scripts/init_db.py` |
+| Redis 连接失败 | Redis 未启动 / 密码未配置 | 检查 Redis 服务与 `REDIS_*` 配置 |
+| 接口返回 403 | 角色缺少权限或令牌过期 | 检查角色权限绑定，重新登录获取新令牌 |
 
 ## 📁 项目结构
 

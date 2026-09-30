@@ -2,6 +2,21 @@
 
 # HanJiang Backend Service
 
+A production-grade Python web application framework deeply built on FastAPI — three-layer architecture with dependency injection, powering enterprise-grade RESTful APIs out of the box.
+
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)
+![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00)
+![MySQL 8.0](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
+![Redis 7](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![uv](https://img.shields.io/badge/uv-0.6%2B-26A5E4)
+
+![GitHub Stars](https://img.shields.io/github/stars/cross-lang/x-HanJiang?style=flat&logo=github&logoColor=white&label=Stars)
+![GitHub Forks](https://img.shields.io/github/forks/cross-lang/x-HanJiang?style=flat&logo=github&logoColor=white&label=Forks)
+![License](https://img.shields.io/github/license/cross-lang/x-HanJiang?style=flat&label=License)
+![Commits](https://img.shields.io/github/commit-activity/m/cross-lang/x-HanJiang?style=flat&logo=github&logoColor=white&label=Commits)
+
 ## 📖 Project Introduction
 
 HanJiang backend is a production-grade Python web application framework deeply built on FastAPI. It follows the standard three-layer architecture (API → Service → Repository) with dependency injection, and ships with JWT authentication, an RBAC permission model, audit logs, login logs, open platform AppId/AppKey authentication (with HanJiang-1 HMAC signature support), an event-driven multi-channel notification system, station messages, file management (local / S3-compatible), global search, and automatic seed data initialization — everything needed to power enterprise-grade RESTful APIs out of the box.
@@ -193,6 +208,17 @@ curl http://localhost:8000/api/open/v1/me \
 ```
 
 > The default super admin account after first deployment is `superadmin` / `admin@123456`. Change it in production.
+
+### ❓ 8. Troubleshooting
+
+| Issue | Possible Cause | Solution |
+|-------|---------------|----------|
+| Port already in use (Address already in use) | Port 8000 occupied by another process | Start on another port: `uv run uvicorn src.main:app --port 8001`, or locate the process with `netstat -ano \| findstr :8000` |
+| uv install fails | Network restrictions or no proxy configured | Reinstall uv or use a mirror index: `UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple` |
+| Configuration loading errors | `.env` / `config.yaml` not created | Run `cp .env.example .env` or `cp config.yaml.example config.yaml` |
+| MySQL connection failure | Database not started / wrong credentials | Check the MySQL service and `MYSQL_*` config; run `uv run python scripts/init_db.py` on first deployment |
+| Redis connection failure | Redis not started / password missing | Check the Redis service and `REDIS_*` config |
+| 403 on endpoints | Role lacks permission or token expired | Check role-permission bindings and re-login for a new token |
 
 ## 📁 Project Structure
 
