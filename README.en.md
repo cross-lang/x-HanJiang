@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="me/logo-icon.png" alt="HanJiang" width="250"/>
+<img src="me/logo-icon-little.png" alt="HanJiang" width="250"/>
 
 # HanJiang — Full-Stack Rapid Development Platform
 
