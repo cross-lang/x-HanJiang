@@ -5,7 +5,6 @@
     - RequestIDMiddleware：为每个请求生成唯一 ID 并注入到请求状态和响应头
     - RequestLoggingMiddleware：全链路请求记录（路径、入参、响应耗时、客户端IP、操作人ID）
     - ExceptionHandlingMiddleware：统一异常处理（404、405、500、限流、权限异常）
-    - RateLimitMiddleware：请求限流（基于 slowapi）
     - AuthMiddleware：认证中间件基础封装
 
 Usage:
@@ -204,30 +203,6 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
             )
 
 
-def setup_rate_limiter(app: FastAPI) -> Any:
-    """配置请求限流器。
-    基于 slowapi 实现，限制每个 IP 每分钟的请求次数。
-    从 Settings 中读取限流配置。
-
-    Args:
-        app: FastAPI 应用实例
-
-    Returns:
-        Limiter: slowapi 限流器实例
-    """
-    from slowapi import Limiter, _rate_limit_exceeded_handler
-    from slowapi.errors import RateLimitExceeded
-    from slowapi.util import get_remote_address
-
-    limiter: Limiter = Limiter(
-        key_func=get_remote_address,
-        default_limits=[f"{settings.rate_limit.per_minute}/minute"],
-    )
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
-    return limiter
-
-
 class AuthMiddleware(BaseHTTPMiddleware):
     """认证中间件基础封装。
     提供请求认证的基础框架，验证 Authorization 请求头。
@@ -296,6 +271,5 @@ __all__ = [
     "RequestIDMiddleware",
     "RequestLoggingMiddleware",
     "ExceptionHandlingMiddleware",
-    "setup_rate_limiter",
     "AuthMiddleware",
 ]

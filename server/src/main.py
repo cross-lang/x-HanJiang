@@ -34,16 +34,9 @@ from src.core.middleware import (
     ExceptionHandlingMiddleware,
     RequestIDMiddleware,
     RequestLoggingMiddleware,
-    setup_rate_limiter,
 )
 from src.infras.cache import get_cached_cache_provider
-
-try:
-    from slowapi import Limiter  # noqa: F401
-
-    _has_slowapi = True
-except ImportError:
-    _has_slowapi = False
+from src.infras.rate_limiter import get_cached_rate_limiter_provider
 
 
 @asynccontextmanager
@@ -55,15 +48,18 @@ async def lifespan(app: FastAPI):
     from src.infras.database import get_cached_database_provider
 
     get_cached_database_provider()
+    
     # 初始化数据库（表）
     from src.infras.database import init_db
 
     init_db()
     logger.info("Database initialized successfully")
+    
     # 初始化种子数据
     from src.core.seed import init_seed_data
 
     init_seed_data()
+    
     # 初始化 Redis
     get_cached_cache_provider()
     logger.info("Redis connection established")
@@ -232,12 +228,8 @@ def create_app() -> FastAPI:
     )
     # 注册全局异常处理器
     register_exception_handlers(app)
-    # 限流器注册（在应用 state 上挂载 limiter，slowapi 通过装饰器使用）
-    if _has_slowapi:
-        setup_rate_limiter(app)
-        logger.info(f"Rate limiter enabled: {settings.rate_limit.per_minute} req/min per IP")
-    else:
-        logger.info("Rate limiter disabled (slowapi not installed)")
+    # 限流器注册（通过 RateLimiterProvider 抽象装配，当前实现基于 slowapi）
+    get_cached_rate_limiter_provider().setup(app)
     # 认证用户路由（面向用户，JWT 鉴权）
     app.include_router(api_router)
     # 开放平台路由（面向应用，AppId/AppKey 鉴权）
