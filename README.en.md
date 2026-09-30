@@ -1,8 +1,22 @@
+<div align="center">
+
+<img src="me/logo-icon.png" alt="HanJiang" width="96"/>
+
 # HanJiang — Full-Stack Rapid Development Platform
+
+An **out-of-the-box** enterprise full-stack platform built on **FastAPI + Vue 3**, encapsulating the common capabilities of backend admin systems (auth, permissions, audit, notifications, AI, open platform) so developers can focus on their business.
 
 [中文](README.md) | English
 
-An **out-of-the-box** enterprise full-stack platform built on **FastAPI + Vue 3**. It encapsulates the common capabilities of backend admin systems (auth, permissions, audit, notifications, AI, open platform) so developers can focus on their business.
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![FastAPI 0.115+](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)
+![Vue 3](https://img.shields.io/badge/Vue%203-4FC08D?logo=vuedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+
+</div>
 
 <!-- TOC -->
 - [Why HanJiang?](#why-hanjiang)

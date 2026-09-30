@@ -1,8 +1,22 @@
+<div align="center">
+
+<img src="me/logo-icon.png" alt="HanJiang" width="96"/>
+
 # 汉江（HanJiang）— 全栈快速开发平台
+
+基于 **FastAPI + Vue 3** 的**开箱即用**的企业级全栈平台，深度封装后台系统通用能力（认证、权限、审计、通知、AI、开放平台），开发者只需聚焦业务本身。
 
 [English](README.en.md) | 中文
 
-基于 **FastAPI + Vue 3** 的**开箱即用**的企业级全栈平台。深度封装后台系统通用能力（认证、权限、审计、通知、AI、开放平台），开发者只需聚焦业务本身。
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![FastAPI 0.115+](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)
+![Vue 3](https://img.shields.io/badge/Vue%203-4FC08D?logo=vuedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+
+</div>
 
 <!-- TOC -->
 - [为什么选择 HanJiang？](#为什么选择-hanjiang)
