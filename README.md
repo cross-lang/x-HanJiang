@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="me/logo-icon.png" alt="HanJiang" width="96"/>
+<img src="me/logo-icon.png" alt="HanJiang" width="128"/>
 
 # 汉江（HanJiang）— 全栈快速开发平台
 
