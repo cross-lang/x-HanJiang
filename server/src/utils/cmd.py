@@ -1,51 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+"""命令行执行（废弃保留）。
+
+该模块自项目重建起在 src/ 与 tests/ 中无任何引用，属死代码，已于 2026-09-30 清理为占位。
+如需使用请按当前工程规范重新实现（subprocess 封装，注意安全校验）。
 """
-命令行执行模块
-提供执行外部命令的封装（普通执行与 bash 脚本执行），并返回标准输出/错误与退出码。
-"""
-
-import subprocess
-import tempfile
-from collections.abc import Sequence
-from pathlib import Path
-
-
-def normal_exec(argv: str | Sequence[str], timeout: int = 60) -> tuple[int, bytes, bytes]:
-    """普通执行命令。"""
-    if timeout <= 0:
-        raise ValueError("timeout must be > 0")
-    shell = isinstance(argv, str)
-    try:
-        proc = subprocess.run(
-            argv,
-            capture_output=True,
-            shell=shell,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as e:
-        raise TimeoutError(f"exec cmd timeout, cmd: {argv!r}, timeout: {timeout}") from e
-    return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
-
-
-def bash_exec(
-    cmd: str,
-    timeout: int = 60,
-    dir: str = "/tmp",
-    bin: str = "/bin/bash",
-) -> tuple[int, bytes, bytes]:
-    """使用 bash 命令执行。"""
-    target_dir = Path(dir)
-    target_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        suffix=".sh",
-        prefix="_xxx_",
-        dir=str(target_dir),
-        delete=False,
-    ) as f:
-        f.write(cmd)
-        tmp_file_path = f.name
-    # keep compatible: default behaviour still prints bash trace (-x)
-    return normal_exec([bin, "-x", tmp_file_path], timeout)

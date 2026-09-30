@@ -1,34 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+"""接口鉴权（废弃保留）。
+
+该模块自项目重建起在 src/ 与 tests/ 中无任何引用，属死代码，已于 2026-09-30 清理为占位。
+如需使用请按当前工程规范重新实现（HMAC 时间窗 token 生成/校验）。
 """
-接口鉴权模块
-提供基于时间窗口与共享密钥的简单 token 生成与校验能力，适用于轻量级接口鉴权场景。
-"""
-
-import datetime
-import hashlib
-import hmac
-
-AUTH_API_SECRETKEY: str = ""
-
-
-def _calc_token(timestr: str) -> str:
-    """token 计算方式，使用 HMAC-SHA256。"""
-    return hmac.new(AUTH_API_SECRETKEY.encode("utf-8"), timestr.encode("utf-8"), hashlib.sha256).hexdigest()
-
-
-def gen_token() -> str:
-    """生成 token。"""
-    timestr = datetime.datetime.now().strftime("%Y%m%d%H")
-    return _calc_token(timestr)
-
-
-def verify_token(token: str) -> bool:
-    """验证 token。
-    上一小时的 token 在这一小时的前 5 分钟内仍然有效。
-    """
-    token_expire_delay = 5
-    now = datetime.datetime.now()
-    tokens: set[datetime.datetime] = {now}
-    if now.minute <= token_expire_delay:
-        tokens.add(now - datetime.timedelta(hours=1))
-    return token in {_calc_token(dt.strftime("%Y%m%d%H")) for dt in tokens}

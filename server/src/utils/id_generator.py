@@ -1,25 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+"""ID 生成（废弃保留）。
+
+该模块自项目重建起在 src/ 与 tests/ 中无任何引用，属死代码，已于 2026-09-30 清理为占位。
+如需使用请按当前工程规范重新实现（UUID4 / 时间戳 ID 生成）。
 """
-ID 生成模块
-提供 UUID 与基于时间戳的唯一 ID 生成方法，便于在业务中快速生成标识符。
-"""
-
-import secrets
-import time
-import uuid
-
-
-def gen_uuid() -> str:
-    """生成 UUID4 字符串。"""
-    return str(uuid.uuid4())
-
-
-def gen_timestamp_id() -> int:
-    """生成基于时间戳的唯一 ID（微秒级 + 随机后缀）。"""
-    micros = time.time_ns() // 1_000
-    return int(micros) + secrets.randbelow(9000) + 1000
-
-
-if __name__ == "__main__":
-    print(gen_uuid())
-    print(gen_timestamp_id())

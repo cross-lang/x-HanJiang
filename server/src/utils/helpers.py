@@ -1,30 +1,14 @@
 #!/usr/bin/env python3
-"""
-通用工具函数模块
-本模块提供项目中常用的通用工具函数，包括：
-    - UUID 生成
-    - 客户端 IP 提取
-    - 敏感数据脱敏
-    - 时间戳格式化
-    - 项目根目录定位
+"""通用工具函数模块（精简）。
+
+保留项目中实际使用的通用函数：客户端 IP 提取、敏感数据脱敏、项目根目录定位；
+其余（generate_request_id / datetime_now_iso）无引用，已于 2026-09-30 清理。
 """
 
-import uuid
-from datetime import UTC
 from pathlib import Path
 from typing import Any
 
 from fastapi import Request
-
-
-def generate_request_id() -> str:
-    """生成唯一请求 ID。
-    使用 UUID4 算法生成全局唯一的请求标识符。
-
-    Returns:
-        str: UUID4 格式的请求 ID
-    """
-    return str(uuid.uuid4())
 
 
 def get_client_ip(request: Request) -> str:
@@ -74,17 +58,6 @@ def mask_sensitive(data: dict[str, Any], keys: list[str] | None = None) -> dict[
         else:
             masked[k] = v
     return masked
-
-
-def datetime_now_iso() -> str:
-    """获取当前 UTC 时间的 ISO 8601 格式字符串。
-
-    Returns:
-        str: ISO 8601 格式的 UTC 时间戳
-    """
-    from datetime import datetime
-
-    return datetime.now(UTC).isoformat()
 
 
 def find_project_root(marker: str = "pyproject.toml") -> Path:
