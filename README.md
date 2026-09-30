@@ -105,5 +105,7 @@ x-HanJiang/
 ## 联系方式
 
 - **作者**：John Young（夜雨诗来）
-- **邮箱**：<john.young@foxmail.com>
-- **GitHub**：<https://github.com/cross-lang/x-HanJiang>
+- **邮箱**：john.young@foxmail.com
+- **Gitee**：https://gitee.com/yeyushilai
+- **GitHub**：https://github.com/yeyushilai
+- **项目地址**：https://github.com/cross-lang/x-HanJiang
