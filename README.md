@@ -23,7 +23,7 @@
 
 </div>
 
-## 为什么选择 HanJiang？
+## 💡 为什么选择 HanJiang？
 
 | 你需要的 | HanJiang | 裸 FastAPI 自研 | 通用前后端模板 |
 | --- | --- | --- | --- |
@@ -36,7 +36,7 @@
 | 审计日志 + 登录日志 | ✅ | ❌ | ❌ |
 | Docker 一键部署 | ✅ | ⚠️ | ⚠️ |
 
-## 核心能力
+## ✨ 核心能力
 
 - **认证与权限**：JWT 认证 + RBAC 权限模型，`@permission` 装饰器声明式注册，启动时自动扫描同步到数据库
 - **AI 助手**：SSE 流式对话（token / navigate / done 事件）、会话管理、记忆压缩、知识库检索与工具编排，`openai_compat` 协议可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等
@@ -45,16 +45,16 @@
 - **可观测性**：业务审计日志、登录日志、操作日志趋势、系统告警
 - **工程化**：分层架构（API → Service → Repository）、统一异常处理、Swagger 文档、Alembic 迁移、GitHub Actions CI
 
-## 界面预览
+## 📸 界面预览
 
 ![登录页](./me/login.png)
 
 ![管理后台](./me/admin.png) ![系统管理](./me/admin_system.png)
 ![AI助手](./me/admin_assistant.png) ![开放应用](./me/admin_openapp.png)
 
-## 快速开始
+## 🚀 快速开始
 
-### 后端
+### 🖥️ 后端
 
 ```bash
 cd server
@@ -63,7 +63,7 @@ uv run x-HanJiang --reload
 
 配置说明见 [server/README.md](server/README.md)。
 
-### 前端
+### 🌐 前端
 
 ```bash
 cd web/admin
@@ -73,7 +73,7 @@ npm run dev
 
 访问 <http://localhost:5173>，详见 [web/admin/README.md](web/admin/README.md)。
 
-## 项目结构
+## 📁 项目结构
 
 ```
 x-HanJiang/
@@ -102,7 +102,7 @@ x-HanJiang/
 └── README.md
 ```
 
-## 技术栈
+## 🛠️ 技术栈
 
 | 分类 | 技术 |
 | --- | --- |
@@ -114,7 +114,7 @@ x-HanJiang/
 | 工程 | uv / Ruff / mypy / pytest / Loguru |
 | 部署 | Docker / docker-compose |
 
-## API 文档
+## 🔌 API 文档
 
 启动后端后访问：
 
@@ -122,11 +122,11 @@ x-HanJiang/
 - **ReDoc**：<http://localhost:8000/redoc>
 - **OpenAPI JSON**：<http://localhost:8000/openapi.json>
 
-## 许可证
+## 📄 许可证
 
 本项目采用 [MIT License](LICENSE) 开源协议。
 
-## 联系方式
+## 📮 联系方式
 
 - **作者**：John Young（夜雨诗来）
 - **邮箱**：john.young@foxmail.com

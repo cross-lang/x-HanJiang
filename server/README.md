@@ -2,7 +2,7 @@
 
 # 汉江（HanJiang）后端服务
 
-## 项目简介
+## 📖 项目简介
 
 汉江（HanJiang）后端是一个基于 FastAPI 深度封装的生产级 Python Web 应用框架，遵循标准三层架构（API → Service → Repository）与依赖注入设计，内置 JWT 认证、RBAC 权限模型、审计日志、登录日志、开放平台 AppId/AppKey 鉴权（支持 HanJiang-1 HMAC 签名）、事件驱动多渠道通知系统、站内信、文件管理（本地 / S3 兼容）、全局搜索与种子数据自动初始化，开箱即用支撑企业级 RESTful API 服务。
 
@@ -27,9 +27,9 @@
 - 开放平台 / API 网关
 - 前后端分离项目脚手架
 
-## 快速开始
+## 🚀 快速开始
 
-### 1. 环境要求
+### ⚙️ 1. 环境要求
 
 | 工具 | 版本要求 | 用途 |
 |------|----------|------|
@@ -56,14 +56,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. 项目代码克隆
+### 📥 2. 项目代码克隆
 
 ```bash
 git clone https://github.com/cross-lang/x-HanJiang.git
 cd x-HanJiang/server
 ```
 
-### 3. 依赖同步安装
+### 📦 3. 依赖同步安装
 
 ```bash
 # 安装所有依赖（生产 + 开发）
@@ -73,7 +73,7 @@ uv sync
 uv sync --no-dev
 ```
 
-### 4. 环境配置
+### ⚙️ 4. 环境配置
 
 项目支持 `.env` 环境变量和 `config.yaml` 配置文件两种方式，配置优先级：**环境变量 > 环境特定 YAML（config.{env}.yaml）> 默认 YAML > 代码默认值**。
 
@@ -119,7 +119,7 @@ cp config.yaml.example config.yaml
 > python -c "from src.utils.security import generate_secret_key; print(generate_secret_key())"
 > ```
 
-### 5. 服务启动
+### ▶️ 5. 服务启动
 
 **方式一：本地开发热重载启动（推荐）**
 
@@ -145,7 +145,7 @@ uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 - ReDoc 只读文档：http://localhost:8000/redoc
 - 健康检查：http://localhost:8000/api/v1/health
 
-### 6. 常用工程命令
+### ⌨️ 6. 常用工程命令
 
 ```bash
 # 运行单元测试（含覆盖率报告）
@@ -167,7 +167,7 @@ uv audit
 uv run python scripts/export_openapi.py
 ```
 
-### 7. 使用方法示例
+### 📚 7. 使用方法示例
 
 **登录获取令牌：**
 
@@ -194,7 +194,7 @@ curl http://localhost:8000/api/open/v1/me \
 
 > 首次部署后默认超级管理员账号：`superadmin` / `admin@123456`，生产环境请务必修改。
 
-## 项目结构
+## 📁 项目结构
 
 ```
 server/
@@ -282,9 +282,9 @@ server/
 └── uv.lock                   # 依赖锁定文件（可复现构建）
 ```
 
-## 系统架构
+## 🏗️ 系统架构
 
-### 系统分层架构
+### 🏗️ 系统分层架构
 
 ```mermaid
 flowchart TB
@@ -315,9 +315,9 @@ flowchart TB
   Infra --> OSS[(S3 / 本地存储)]
 ```
 
-### 核心业务流程
+### 🔄 核心业务流程
 
-#### 用户登录与鉴权
+#### 🔐 用户登录与鉴权
 
 ```mermaid
 flowchart TD
@@ -346,7 +346,7 @@ flowchart TD
   Response --> End
 ```
 
-#### 通知发送流程
+#### 🔔 通知发送流程
 
 ```mermaid
 flowchart TD
@@ -369,7 +369,7 @@ flowchart TD
   J -->|成功| M[流程结束]
 ```
 
-#### 公告发布流程
+#### 📢 公告发布流程
 
 ```mermaid
 flowchart TD
@@ -383,7 +383,7 @@ flowchart TD
   D -->|管理操作| I[下架 unpublished<br/>仅已发布可下架]
 ```
 
-#### AI 助手对话流程
+#### 🤖 AI 助手对话流程
 
 ```mermaid
 sequenceDiagram
@@ -405,7 +405,7 @@ sequenceDiagram
     F->>A: POST /assistant/feedback（👍👎）
 ```
 
-#### 权限自动注册流程
+#### 🛡️ 权限自动注册流程
 
 ```mermaid
 flowchart LR
@@ -415,7 +415,7 @@ flowchart LR
   D --> E["表里有但路由里没有<br/>→ is_deprecated=True"]
 ```
 
-### 模块依赖关系
+### 🧩 模块依赖关系
 
 ```mermaid
 graph LR
@@ -432,7 +432,7 @@ graph LR
   SCHED[Scheduling 调度] --> RETRY
 ```
 
-## 技术栈
+## 🛠️ 技术栈
 
 | 分类 | 技术 | 说明 |
 |------|------|------|
@@ -459,7 +459,7 @@ graph LR
 | **测试框架** | pytest | 单元测试（含覆盖率） |
 | **部署运维** | Docker / Docker Compose | 容器部署与编排 |
 
-## API 文档说明
+## 🔌 API 文档说明
 
 后端启动后可访问：
 
@@ -469,7 +469,7 @@ graph LR
 | ReDoc | http://localhost:8000/redoc | 只读 API 文档 |
 | OpenAPI JSON | http://localhost:8000/openapi.json | 标准 OpenAPI 3.x 规范文件 |
 
-### 核心接口清单
+### 🔌 核心接口清单
 
 **健康检查（公开）：**
 
@@ -660,29 +660,29 @@ graph LR
 | PATCH | `/api/open/v1/users/{id}` | 更新用户 | `user:write` |
 | DELETE | `/api/open/v1/users/{id}` | 删除用户 | `user:write` |
 
-### 权限控制说明
+### 🛡️ 权限控制说明
 
 - **用户态接口**：JWT Bearer Token + `@permission` 装饰器自动注册权限 + 角色/权限校验；权限声明变更在服务启动时自动同步（失效权限标记 `is_deprecated`）
 - **核心权限项**：公告管理 `announcement:view / create / edit / delete / publish`；通知管理 `notification:view / create / config`（发布/撤回系统通知、渠道配置管理）
 - **AI 助手**：`assistant:chat`（对话与会话管理，自动注册，实际仅要求登录）、`assistant:feedback`（消息反馈）
 - **开放平台接口**：AppId + AppKey（明文模式）或 HanJiang-1 HMAC 签名认证，通过 `@app_scope` 声明的 scope 控制接口访问范围；scope 同样在启动时自动同步
 
-## 存储配置说明
+## 🗄️ 存储配置说明
 
-### 数据库存储
+### 🗄️ 数据库存储
 
 - **类型**：MySQL 8.0+
 - **配置**：通过 `.env` 配置 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`、`MYSQL_POOL_SIZE`
 - **迁移**：使用 Alembic 管理数据库版本，当前迁移版本包含用户、通知记录、用户通知配置、开放平台应用、系统通知、公告等核心表
 - **注意**：生产环境务必通过环境变量注入数据库密码，且不写入版本库
 
-### 缓存
+### ⚡ 缓存
 
 - **类型**：Redis 7+
 - **用途**：限流计数、登录态缓存（登出即时失效）、邮箱验证码、通知重试队列
 - **配置**：通过 `.env` 配置 `REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`REDIS_DB`
 
-### 文件存储
+### 📂 文件存储
 
 支持两种模式，通过 `storage.provider` / `STORAGE_PROVIDER` 切换：
 
@@ -706,11 +706,11 @@ graph LR
 
 > **注意**：生产环境建议通过环境变量注入 S3 密钥，避免写入版本库；切换存储后端只需修改 `provider` 字段，业务代码零改动。
 
-## 许可证
+## 📄 许可证
 
 本项目基于 [MIT License](../LICENSE) 开源。
 
-## 参考资料
+## 📚 参考资料
 
 | 技术 | 官方文档 |
 |------|----------|
@@ -728,7 +728,7 @@ graph LR
 | mypy | https://mypy.readthedocs.io/ |
 | Docker | https://docs.docker.com/ |
 
-## 联系方式
+## 📮 联系方式
 
 - **作者**：John Young（夜雨诗来）
 - **邮箱**：john.young@foxmail.com

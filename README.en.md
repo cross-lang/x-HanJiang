@@ -23,7 +23,7 @@ An **out-of-the-box** enterprise full-stack platform built on **FastAPI + Vue 3*
 
 </div>
 
-## Why HanJiang?
+## 💡 Why HanJiang?
 
 | What you need | HanJiang | Bare FastAPI DIY | Generic front-end template |
 | --- | --- | --- | --- |
@@ -36,7 +36,7 @@ An **out-of-the-box** enterprise full-stack platform built on **FastAPI + Vue 3*
 | Audit logs + login logs | ✅ | ❌ | ❌ |
 | One-click Docker deployment | ✅ | ⚠️ | ⚠️ |
 
-## Core Capabilities
+## ✨ Core Capabilities
 
 - **Auth & Permissions**: JWT auth + RBAC permission model, declarative registration via the `@permission` decorator, auto-scanned and synced to the database at startup
 - **AI Assistant**: SSE streaming chat (token / navigate / done events), conversation management, memory compaction, knowledge-base retrieval and tool orchestration; the `openai_compat` protocol works with DeepSeek, Volcano Ark, Qwen, vLLM and more
@@ -45,16 +45,16 @@ An **out-of-the-box** enterprise full-stack platform built on **FastAPI + Vue 3*
 - **Observability**: business audit logs, login logs, operation-log trends, system alerts
 - **Engineering**: layered architecture (API → Service → Repository), unified exception handling, Swagger docs, Alembic migrations, GitHub Actions CI
 
-## UI Preview
+## 📸 UI Preview
 
 ![Login](./me/login.png)
 
 ![Admin](./me/admin.png) ![System](./me/admin_system.png)
 ![AI Assistant](./me/admin_assistant.png) ![Open Apps](./me/admin_openapp.png)
 
-## Quick Start
+## 🚀 Quick Start
 
-### Backend
+### 🖥️ Backend
 
 ```bash
 cd server
@@ -63,7 +63,7 @@ uv run x-HanJiang --reload
 
 See [server/README.md](server/README.md) for configuration.
 
-### Frontend
+### 🌐 Frontend
 
 ```bash
 cd web/admin
@@ -73,7 +73,7 @@ npm run dev
 
 Open <http://localhost:5173>. See [web/admin/README.md](web/admin/README.md).
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 x-HanJiang/
@@ -102,7 +102,7 @@ x-HanJiang/
 └── README.md
 ```
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Category | Technology |
 | --- | --- |
@@ -114,7 +114,7 @@ x-HanJiang/
 | Tooling | uv / Ruff / mypy / pytest / Loguru |
 | Deployment | Docker / docker-compose |
 
-## API Docs
+## 🔌 API Docs
 
 After starting the backend:
 
@@ -122,11 +122,11 @@ After starting the backend:
 - **ReDoc**: <http://localhost:8000/redoc>
 - **OpenAPI JSON**: <http://localhost:8000/openapi.json>
 
-## License
+## 📄 License
 
 This project is released under the [MIT License](LICENSE).
 
-## Contact
+## 📮 Contact
 
 - **Author**: John Young
 - **Email**: <john.young@foxmail.com>

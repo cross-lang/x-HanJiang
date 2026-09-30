@@ -2,7 +2,7 @@
 
 # HanJiang Backend Service
 
-## Project Introduction
+## 📖 Project Introduction
 
 HanJiang backend is a production-grade Python web application framework deeply built on FastAPI. It follows the standard three-layer architecture (API → Service → Repository) with dependency injection, and ships with JWT authentication, an RBAC permission model, audit logs, login logs, open platform AppId/AppKey authentication (with HanJiang-1 HMAC signature support), an event-driven multi-channel notification system, station messages, file management (local / S3-compatible), global search, and automatic seed data initialization — everything needed to power enterprise-grade RESTful APIs out of the box.
 
@@ -27,9 +27,9 @@ HanJiang backend is a production-grade Python web application framework deeply b
 - Open platform / API gateway
 - Full-stack project boilerplate
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Environment Requirements
+### ⚙️ 1. Environment Requirements
 
 | Tool | Version | Purpose |
 |------|---------|---------|
@@ -56,14 +56,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. Clone the Project
+### 📥 2. Clone the Project
 
 ```bash
 git clone https://github.com/cross-lang/x-HanJiang.git
 cd x-HanJiang/server
 ```
 
-### 3. Sync & Install Dependencies
+### 📦 3. Sync & Install Dependencies
 
 ```bash
 # Install all dependencies (production + development)
@@ -73,7 +73,7 @@ uv sync
 uv sync --no-dev
 ```
 
-### 4. Environment Configuration
+### ⚙️ 4. Environment Configuration
 
 The project supports both `.env` environment variables and `config.yaml` configuration files. Precedence: **environment variables > environment-specific YAML (config.{env}.yaml) > default YAML > code defaults**.
 
@@ -119,7 +119,7 @@ cp config.yaml.example config.yaml
 > python -c "from src.utils.security import generate_secret_key; print(generate_secret_key())"
 > ```
 
-### 5. Start the Service
+### ▶️ 5. Start the Service
 
 **Option 1: Local development with hot reload (recommended)**
 
@@ -145,7 +145,7 @@ After startup, visit:
 - ReDoc read-only docs: http://localhost:8000/redoc
 - Health check: http://localhost:8000/api/v1/health
 
-### 6. Common Engineering Commands
+### ⌨️ 6. Common Engineering Commands
 
 ```bash
 # Run unit tests (with coverage report)
@@ -167,7 +167,7 @@ uv audit
 uv run python scripts/export_openapi.py
 ```
 
-### 7. Usage Examples
+### 📚 7. Usage Examples
 
 **Login to obtain tokens:**
 
@@ -194,7 +194,7 @@ curl http://localhost:8000/api/open/v1/me \
 
 > The default super admin account after first deployment is `superadmin` / `admin@123456`. Change it in production.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 server/
@@ -282,9 +282,9 @@ server/
 └── uv.lock                   # Lock file (reproducible builds)
 ```
 
-## System Architecture
+## 🏗️ System Architecture
 
-### Layered Architecture
+### 🏗️ Layered Architecture
 
 ```mermaid
 flowchart TB
@@ -315,9 +315,9 @@ flowchart TB
   Infra --> OSS[(S3 / Local Storage)]
 ```
 
-### Core Business Flows
+### 🔄 Core Business Flows
 
-#### User Login & Authorization
+#### 🛡️ User Login & Authorization
 
 ```mermaid
 flowchart TD
@@ -346,7 +346,7 @@ flowchart TD
   Response --> End
 ```
 
-#### Notification Dispatch Flow
+#### 🔔 Notification Dispatch Flow
 
 ```mermaid
 flowchart TD
@@ -369,7 +369,7 @@ flowchart TD
   J -->|Yes| M[End]
 ```
 
-#### Announcement Lifecycle
+#### 📢 Announcement Lifecycle
 
 ```mermaid
 flowchart TD
@@ -383,7 +383,7 @@ flowchart TD
   D -->|Admin action| I[Unpublished<br/>only published can be unpublished]
 ```
 
-#### AI Assistant Conversation Flow
+#### 🤖 AI Assistant Conversation Flow
 
 ```mermaid
 sequenceDiagram
@@ -405,7 +405,7 @@ sequenceDiagram
     F->>A: POST /assistant/feedback (👍👎)
 ```
 
-#### Permission Auto-Registration
+#### 🛡️ Permission Auto-Registration
 
 ```mermaid
 flowchart LR
@@ -415,7 +415,7 @@ flowchart LR
   D --> E["In DB but Not in Routes → is_deprecated=True"]
 ```
 
-### Module Dependency Diagram
+### 🧩 Module Dependency Diagram
 
 ```mermaid
 graph LR
@@ -432,7 +432,7 @@ graph LR
   SCHED[Scheduling] --> RETRY
 ```
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Category | Technology | Description |
 |----------|------------|-------------|
@@ -459,7 +459,7 @@ graph LR
 | **Testing** | pytest | Unit tests (with coverage) |
 | **Deployment** | Docker / Docker Compose | Container deployment & orchestration |
 
-## API Documentation
+## 🔌 API Documentation
 
 Once the backend is running:
 
@@ -469,7 +469,7 @@ Once the backend is running:
 | ReDoc | http://localhost:8000/redoc | Read-only API docs |
 | OpenAPI JSON | http://localhost:8000/openapi.json | Standard OpenAPI 3.x spec |
 
-### Core Endpoints
+### 🔌 Core Endpoints
 
 **Health (public):**
 
@@ -660,29 +660,29 @@ Once the backend is running:
 | PATCH | `/api/open/v1/users/{id}` | Update user | `user:write` |
 | DELETE | `/api/open/v1/users/{id}` | Delete user | `user:write` |
 
-### Authorization
+### 🛡️ Authorization
 
 - **User endpoints**: JWT Bearer Token + `@permission` decorator auto-registration + role/permission checks; permission changes are auto-synced on startup (stale permissions marked `is_deprecated`)
 - **Key permission items**: announcements `announcement:view / create / edit / delete / publish`; notifications `notification:view / create / config` (publish/withdraw system notifications, channel config management)
 - **AI assistant**: `assistant:chat` (chat & conversation management, auto-registered, login-only in practice), `assistant:feedback` (message feedback)
 - **Open platform endpoints**: AppId + AppKey (plain mode) or HanJiang-1 HMAC signature, access controlled by scopes declared via `@app_scope`; scopes are also auto-synced on startup
 
-## Storage
+## 🗄️ Storage
 
-### Database
+### 🗄️ Database
 
 - **Type**: MySQL 8.0+
 - **Config**: via `.env` (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_POOL_SIZE`)
 - **Migrations**: Alembic; current versions cover users, notification records, user notification configs, open platform apps, system notifications, announcements and other core tables
 - **Note**: inject the database password via environment variables in production; never commit it
 
-### Cache
+### ⚡ Cache
 
 - **Type**: Redis 7+
 - **Usage**: rate limiting, login state (instant invalidation on logout), email verification codes, notification retry queue
 - **Config**: via `.env` (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`)
 
-### File Storage
+### 📂 File Storage
 
 Two modes, switch via `storage.provider` / `STORAGE_PROVIDER`:
 
@@ -706,11 +706,11 @@ Two modes, switch via `storage.provider` / `STORAGE_PROVIDER`:
 
 > **Note**: inject S3 keys via environment variables in production; switching storage backends only requires changing the `provider` field with zero business code changes.
 
-## License
+## 📄 License
 
 This project is open-sourced under the [MIT License](../LICENSE).
 
-## References
+## 📚 References
 
 | Technology | Official Docs |
 |------------|---------------|
@@ -728,7 +728,7 @@ This project is open-sourced under the [MIT License](../LICENSE).
 | mypy | https://mypy.readthedocs.io/ |
 | Docker | https://docs.docker.com/ |
 
-## Contact
+## 📮 Contact
 
 - **Author**: John Young (夜雨诗来)
 - **Email**: john.young@foxmail.com

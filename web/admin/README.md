@@ -2,7 +2,7 @@
 
 汉江管理后台是 [汉江（HanJiang）全栈快速开发平台](https://github.com/cross-lang/x-HanJiang) 的前端项目，基于 Vue 3 + TypeScript + Vite + Element Plus 构建，配套 FastAPI 后端使用，提供企业级管理系统开箱即用的管理界面。
 
-## 功能特性
+## ✨ 功能特性
 
 - **登录与安全**：用户名 / 密码登录，JWT 令牌自动携带，401 自动跳转登录页
 - **仪表盘**：统计卡片 + ECharts 图表 + 最近记录 + 我的最近活动
@@ -20,7 +20,7 @@
 - **AI 助手**：顶栏入口 + 右侧抽屉，SSE 流式对话（token / navigate / done 事件实时渲染）、会话管理与历史恢复、👍👎 反馈
 - **API 文档**：内嵌 Swagger UI，浏览器内直接调试接口
 
-## 技术栈
+## 🛠️ 技术栈
 
 | 分类 | 技术 |
 |---|---|
@@ -34,22 +34,22 @@
 | **图表** | ECharts 6 + vue-echarts |
 | **内容渲染** | marked（Markdown 渲染）+ DOMPurify（XSS 消毒） |
 
-## 快速开始
+## 🚀 快速开始
 
-### 环境要求
+### ⚙️ 环境要求
 
 | 工具 | 版本要求 |
 |---|---|
 | Node.js | >= 18 |
 | npm | >= 9 |
 
-### 安装依赖
+### 📦 安装依赖
 
 ```bash
 npm install
 ```
 
-### 开发启动
+### 💻 开发启动
 
 ```bash
 npm run dev
@@ -57,7 +57,7 @@ npm run dev
 
 访问 http://localhost:5173。Vite 会自动将 `/api`、`/docs`、`/redoc`、`/openapi.json` 请求代理到后端 `http://127.0.0.1:8000`，开发时无需处理跨域。
 
-### 生产构建
+### 🏭 生产构建
 
 ```bash
 npm run build
@@ -65,13 +65,13 @@ npm run build
 
 构建过程包含 `vue-tsc` 类型检查 + Vite 打包，产物输出到 `dist/` 目录，可部署至 Nginx 等静态服务器（需将 `/api` 反向代理到后端）。
 
-### 本地预览
+### 🖥️ 本地预览
 
 ```bash
 npm run preview
 ```
 
-## 项目结构
+## 📁 项目结构
 
 ```
 admin/
@@ -101,7 +101,7 @@ admin/
 └── tsconfig.node.json
 ```
 
-## 页面与路由
+## 🧭 页面与路由
 
 | 路由 | 页面 | 说明 |
 |---|---|---|
@@ -122,14 +122,14 @@ admin/
 | `/profile` | 个人中心 | 个人信息 + 改密 / 改手机 / 改邮箱（验证码二次认证）+ 通知偏好 / 接收人 |
 | `/files` | 文件管理 | 上传 / 列表 / 下载 / 删除 |
 
-## 请求封装约定
+## 🔗 请求封装约定
 
 - `src/api/request.ts` 创建 Axios 实例，`baseURL` 为 `/api/v1`
 - **请求拦截器**：自动从 `localStorage` 读取 `access_token` 并注入 `Authorization: Bearer <token>`
 - **响应拦截器**：直接返回 `response.data`；401 时清除令牌并跳转登录页；其他错误统一弹出 `ElMessage` 提示
 - 业务页面统一通过 `request` 调用接口，路径与后端 `/api/v1` 前缀下的路由对应（如 `/users`、`/profile/me`）
 
-## 后端代理
+## 🔀 后端代理
 
 `vite.config.ts` 中配置了以下代理（开发环境）：
 
@@ -140,7 +140,7 @@ admin/
 | `/redoc` | http://127.0.0.1:8000 |
 | `/openapi.json` | http://127.0.0.1:8000 |
 
-## 联调说明
+## 🤝 联调说明
 
 - 开发前需先启动后端服务（参考 [server/README.md](../../server/README.md)），默认端口 `8000`
 - 默认超级管理员账号：`superadmin` / `admin@123456`，生产环境请务必修改
