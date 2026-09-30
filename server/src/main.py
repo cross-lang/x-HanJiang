@@ -48,18 +48,15 @@ async def lifespan(app: FastAPI):
     from src.infras.database import get_cached_database_provider
 
     get_cached_database_provider()
-    
     # 初始化数据库（表）
     from src.infras.database import init_db
 
     init_db()
     logger.info("Database initialized successfully")
-    
     # 初始化种子数据
     from src.core.seed import init_seed_data
 
     init_seed_data()
-    
     # 初始化 Redis
     get_cached_cache_provider()
     logger.info("Redis connection established")
