@@ -189,7 +189,7 @@
 | 测试 | pytest 单元 / 集成测试（服务层与仓储层通过依赖替换 Mock，不连真实数据库） |
 | 迁移 | Alembic 迁移脚本管理表结构 |
 | 部署 | Dockerfile 构建（uv 编译依赖）+ docker-compose 编排，运行镜像不携带测试与示例 |
-| 文档 | README 中英双语、server/docs 工程文档、《开放平台对接指南》、Swagger 在线文档 |
+| 文档 | README 中英双语、数据库定义文档、《开放平台对接指南》、Swagger 在线文档 |
 | CI | GitHub Actions 自动化流水线 |
 
 ---
