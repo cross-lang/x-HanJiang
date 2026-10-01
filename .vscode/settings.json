@@ -1,4 +1,5 @@
 {
+    "python.defaultInterpreterPath": "${workspaceFolder}/server/.venv/Scripts/python.exe",
     "jedi.workspace.exclude": [
         "**/venv/**",
         "**/.git/**",

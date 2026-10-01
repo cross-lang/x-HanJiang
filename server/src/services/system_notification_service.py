@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from src.constants.constants import MAX_BROADCAST_USER_LIMIT, SYSTEM_NOTICE_EVENT
+from src.constants.constants import MAX_BROADCAST_USER_LIMIT
 from src.constants.enums import (
     NotificationEvent,
     SystemNotificationStatus,
@@ -104,7 +104,7 @@ class SystemNotificationService:
             user_ids=[u.id for u in users],
             title=title,
             content=content,
-            event_type=SYSTEM_NOTICE_EVENT,
+            event_type=NotificationEvent.SYSTEM_NOTICE.mark,
         )
         self._audit(
             entity_id=entity.id,

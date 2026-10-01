@@ -14,7 +14,12 @@ Functions:
 
 from sqlalchemy import select
 
-from src.constants.constants import SUPERADMIN_USERNAME
+from src.constants.constants import (
+    SUPERADMIN_EMAIL,
+    SUPERADMIN_NAME,
+    SUPERADMIN_PASSWORD,
+    SUPERADMIN_USERNAME,
+)
 from src.constants.enums import SystemRoleCode
 from src.constants.permissions import PERMISSION_CATALOG, PermissionCode
 from src.core.logger import logger
@@ -27,21 +32,6 @@ from src.models.entities.user_entity import (
     UserEntity,
 )
 from src.utils.security import hash_password
-
-# ── 超级管理员 ──────────────────────────────────────────────
-_SEED_ROLE_CODE = SystemRoleCode.SUPERADMIN.mark
-_SEED_ROLE_NAME = "超级管理员"
-
-# ── 管理员 ──────────────────────────────────────────────────
-_SEED_ADMIN_ROLE_CODE = SystemRoleCode.ADMIN.mark
-_SEED_ADMIN_ROLE_NAME = "管理员"
-
-# ── 普通用户 ────────────────────────────────────────────────
-_SEED_USER_ROLE_CODE = "user"
-_SEED_USER_ROLE_NAME = "普通用户"
-_SEED_ADMIN_USERNAME = SUPERADMIN_USERNAME
-_SEED_ADMIN_PASSWORD = "admin@123456"
-_SEED_ADMIN_EMAIL = "superadmin@system.local"
 
 # ── 内置权限定义 ──────────────────────────────────────────────
 # 权限元数据唯一事实来源为 src.constants.permissions.PermissionCode，
@@ -97,54 +87,50 @@ def init_seed_data() -> None:
                 logger.info(f"Seed permission created: perm_code={code}")
             perm_map[code] = perm
         # 2. 超级管理员角色
-        role = session.execute(select(RoleEntity).where(RoleEntity.role_code == _SEED_ROLE_CODE)).scalars().first()
+        role = _find_role_by_code(session, SystemRoleCode.SUPERADMIN.mark)
         if role is None:
             role = RoleEntity(
-                role_name=_SEED_ROLE_NAME,
-                role_code=_SEED_ROLE_CODE,
+                role_name=SystemRoleCode.SUPERADMIN.desc,
+                role_code=SystemRoleCode.SUPERADMIN.mark,
                 description="系统内置超级管理员角色，拥有全部权限",
                 role_type="system",
                 status="enabled",
             )
             session.add(role)
             session.flush()
-            logger.info(f"Seed role created: role_code={_SEED_ROLE_CODE}")
+            logger.info(f"Seed role created: role_code={SystemRoleCode.SUPERADMIN.mark}")
         # 3. 超级管理员角色 → 绑定全部权限
         for perm in perm_map.values():
             _ensure_role_permission(session, role.id, perm.id)
         # 3.5 管理员角色（除不能管理超级管理员外，其余权限相同）
-        admin_role = (
-            session.execute(select(RoleEntity).where(RoleEntity.role_code == _SEED_ADMIN_ROLE_CODE)).scalars().first()
-        )
+        admin_role = _find_role_by_code(session, SystemRoleCode.ADMIN.mark)
         if admin_role is None:
             admin_role = RoleEntity(
-                role_name=_SEED_ADMIN_ROLE_NAME,
-                role_code=_SEED_ADMIN_ROLE_CODE,
+                role_name=SystemRoleCode.ADMIN.desc,
+                role_code=SystemRoleCode.ADMIN.mark,
                 description="系统内置管理员角色，拥有除超级管理员管理外的全部权限",
                 role_type="system",
                 status="enabled",
             )
             session.add(admin_role)
             session.flush()
-            logger.info(f"Seed role created: role_code={_SEED_ADMIN_ROLE_CODE}")
+            logger.info(f"Seed role created: role_code={SystemRoleCode.ADMIN.mark}")
         # 管理员角色 → 绑定全部权限（幂等，无论角色是否新建都执行）
         for perm in perm_map.values():
             _ensure_role_permission(session, admin_role.id, perm.id)
         # 3.6 普通用户角色（绑定个人基础功能权限，无管理权限）
-        user_role = (
-            session.execute(select(RoleEntity).where(RoleEntity.role_code == _SEED_USER_ROLE_CODE)).scalars().first()
-        )
+        user_role = _find_role_by_code(session, SystemRoleCode.USER.mark)
         if user_role is None:
             user_role = RoleEntity(
-                role_name=_SEED_USER_ROLE_NAME,
-                role_code=_SEED_USER_ROLE_CODE,
+                role_name=SystemRoleCode.USER.desc,
+                role_code=SystemRoleCode.USER.mark,
                 description="系统内置普通用户角色，仅可查看首页",
                 role_type="system",
                 status="enabled",
             )
             session.add(user_role)
             session.flush()
-            logger.info(f"Seed role created: role_code={_SEED_USER_ROLE_CODE}")
+            logger.info(f"Seed role created: role_code={SystemRoleCode.USER.mark}")
         # 3.7 普通用户角色 → 绑定个人基础功能权限（幂等）
         user_basic_codes = [
             PermissionCode.PROFILE_VIEW.mark,
@@ -161,15 +147,15 @@ def init_seed_data() -> None:
             if target_perm is not None:
                 _ensure_role_permission(session, user_role.id, target_perm.id)
         # 4. 超级管理员用户
-        admin = session.execute(select(UserEntity).where(UserEntity.username == _SEED_ADMIN_USERNAME)).scalars().first()
+        admin = session.execute(select(UserEntity).where(UserEntity.username == SUPERADMIN_USERNAME)).scalars().first()
         if admin is None:
             from datetime import date
 
             admin = UserEntity(
-                username=_SEED_ADMIN_USERNAME,
-                name="超级管理员",
-                email=_SEED_ADMIN_EMAIL,
-                password_hash=hash_password(_SEED_ADMIN_PASSWORD),
+                username=SUPERADMIN_USERNAME,
+                name=SUPERADMIN_NAME,
+                email=SUPERADMIN_EMAIL,
+                password_hash=hash_password(SUPERADMIN_PASSWORD),
                 phone=None,
                 gender="male",
                 birthday=date(1970, 1, 1),
@@ -186,7 +172,7 @@ def init_seed_data() -> None:
                     user_id=admin.id, role_id=role.id
                 )
             )
-            logger.info(f"Seed admin user created: username={_SEED_ADMIN_USERNAME}")
+            logger.info(f"Seed admin user created: username={SUPERADMIN_USERNAME}")
         # 5. 菜单数据
         _seed_menus(session)
         # 6. 通知渠道配置（把 .env 里的 SMTP 等配置初始化进数据库）
@@ -198,6 +184,11 @@ def init_seed_data() -> None:
         logger.warning(f"Seed data initialization skipped: {e}")
     finally:
         session.close()
+
+
+def _find_role_by_code(session, role_code: str) -> RoleEntity | None:
+    """按角色编码查询内置角色。"""
+    return session.execute(select(RoleEntity).where(RoleEntity.role_code == role_code)).scalars().first()
 
 
 def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:

@@ -3,8 +3,7 @@
 仅调用 StationMessageRepository 存取数据，不直接操作数据库会话。
 """
 
-from src.constants.constants import NOTIFICATION_EVENT_STATION_MESSAGE
-from src.constants.enums import NotificationChannel, StationMessageStatus
+from src.constants.enums import NotificationChannel, NotificationEvent, StationMessageStatus
 from src.models.entities.notification_entity import NotificationRecordEntity
 from src.repositories.station_message_repository import StationMessageRepository
 
@@ -52,7 +51,7 @@ class StationMessageService:
             content: 站内信正文
         """
         msg = NotificationRecordEntity(
-            event_type=NOTIFICATION_EVENT_STATION_MESSAGE,
+            event_type=NotificationEvent.STATION_MESSAGE.mark,
             channel=NotificationChannel.STATION.value,
             recipient=f"user:{user_id}",
             subject=title,

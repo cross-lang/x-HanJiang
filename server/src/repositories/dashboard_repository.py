@@ -16,8 +16,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.constants.constants import LOGIN_STATUS_FAILED
-from src.constants.enums import AppStatus, CommonStatus, UserStatus
+from src.constants.enums import AppStatus, CommonStatus, LoginStatus, UserStatus
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.file_entity import FileEntity
@@ -108,7 +107,7 @@ class DashboardRepository:
                 func.count(LoginLogEntity.id).label("count"),
             )
             .where(func.date(LoginLogEntity.created_at) >= start_date)
-            .where(LoginLogEntity.status == LOGIN_STATUS_FAILED)
+            .where(LoginLogEntity.status == LoginStatus.FAILED.mark)
             .group_by(func.date(LoginLogEntity.created_at))
         ).all()
 

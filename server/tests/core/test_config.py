@@ -134,8 +134,8 @@ class TestSettings:
 
     def test_environment_properties(self):
         """测试环境判断属性。"""
-        from src.constants.constants import ENV_DEVELOPMENT
+        from src.constants import Environment
         from src.core.config import Settings
 
         s = Settings()
-        assert s.app_env in (ENV_DEVELOPMENT, "testing")
+        assert s.app_env in (Environment.DEVELOPMENT, "testing")

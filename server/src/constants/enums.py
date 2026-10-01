@@ -8,7 +8,18 @@
 
 from enum import Enum
 
-from src.constants.base import BaseEnum
+from src.constants.base import IntBaseEnum, StrBaseEnum
+
+# ── 运行环境域 ────────────────────────────────────────
+
+
+class Environment(StrBaseEnum):
+    """运行环境（对齐配置 app_env，可直接与裸字符串比较）。"""
+
+    DEVELOPMENT = "development", "开发环境"
+    TESTING = "testing", "测试环境"
+    PRODUCTION = "production", "生产环境"
+
 
 # ── 通用状态域 ────────────────────────────────────────
 
@@ -33,7 +44,7 @@ class UserStatus(Enum):
 # ── 角色权限域 ────────────────────────────────────────
 
 
-class SystemRoleCode(BaseEnum):
+class SystemRoleCode(StrBaseEnum):
     """系统内置角色编码（种子数据中固定存在，不可删除）。"""
 
     SUPERADMIN = ("superadmin", "超级管理员")
@@ -41,7 +52,7 @@ class SystemRoleCode(BaseEnum):
     USER = ("user", "普通用户")
 
 
-class ApiModuleCode(BaseEnum):
+class ApiModuleCode(StrBaseEnum):
     """用户态权限模块编码与中文名映射。"""
 
     USER = ("user", "用户管理")
@@ -85,7 +96,7 @@ class AppAuthMode(Enum):
     BOTH = "both"
 
 
-class OpenApiModuleCode(BaseEnum):
+class OpenApiModuleCode(StrBaseEnum):
     """开放平台 scope 模块编码与中文名映射。"""
 
     USER = ("user", "用户管理")
@@ -95,7 +106,7 @@ class OpenApiModuleCode(BaseEnum):
 # ── 通知域 ────────────────────────────────────────────
 
 
-class NotificationChannel(BaseEnum):
+class NotificationChannel(StrBaseEnum):
     """通知发送渠道"""
 
     STATION = "station", "站内信"
@@ -105,10 +116,11 @@ class NotificationChannel(BaseEnum):
     FEISHU = "feishu", "飞书"
 
 
-class NotificationEvent(BaseEnum):
+class NotificationEvent(StrBaseEnum):
     """通知事件类型。
     按业务域分组，格式：{domain}.{action}
-    所有事件类型必须在 templates/notification_templates/ 下有对应模板。
+    走 dispatcher 的事件必须在 templates/notification_templates/ 下有对应模板；
+    直接入库型事件（SYSTEM_NOTICE / STATION_MESSAGE）内容由调用方给出，无需模板。
     """
 
     # ── 用户域 ──────────────────────────────────
@@ -131,7 +143,9 @@ class NotificationEvent(BaseEnum):
     PERMISSION_REVOKED = "permission.revoked", "权限回收"
     # ── 系统域 ──────────────────────────────────
     SYSTEM_ALERT = "system.alert", "系统告警"
-    SYSTEM_MAINTENANCE = "system.maintenance", "系统维护"
+    SYSTEM_NOTICE = "system.notice", "系统通知（发布/维护广播站内信）"
+    # ── 站内信域 ────────────────────────────────
+    STATION_MESSAGE = "station.message", "站内消息"
     # ── 文件域 ──────────────────────────────────
     FILE_UPLOADED = "file.uploaded", "文件上传完成"
     FILE_DELETED = "file.deleted", "文件已删除"
@@ -221,10 +235,18 @@ DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
         NotificationChannel.DINGTALK,
         NotificationChannel.FEISHU,
     ],
+    # 系统通知 / 站内信：直接入库型事件，仅走站内信；
+    # 显式配置以防 dispatch 未传渠道时兜底误发邮件
+    NotificationEvent.SYSTEM_NOTICE: [
+        NotificationChannel.STATION
+    ],
+    NotificationEvent.STATION_MESSAGE: [
+        NotificationChannel.STATION
+    ],
 }
 
 
-class NotificationStatus(BaseEnum):
+class NotificationStatus(StrBaseEnum):
     """通知发送状态。"""
 
     PENDING = "pending", "待发送"
@@ -233,21 +255,21 @@ class NotificationStatus(BaseEnum):
     RETRYING = "retrying", "重试中"
 
 
-class StationMessageStatus(BaseEnum):
+class StationMessageStatus(StrBaseEnum):
     """站内信阅读状态（对齐 notification_records.status 列的站内信取值）。"""
 
     UNREAD = "unread", "未读"
     READ = "read", "已读"
 
 
-class SystemNotificationType(BaseEnum):
+class SystemNotificationType(StrBaseEnum):
     """系统通知类型（决定发布语义与维护参数是否必填）。"""
 
     NOTICE = "notice", "普通通知"
     MAINTENANCE = "maintenance", "系统维护"
 
 
-class SystemNotificationStatus(BaseEnum):
+class SystemNotificationStatus(StrBaseEnum):
     """系统通知发布状态。"""
 
     PUBLISHED = "published", "已发布"
@@ -257,21 +279,21 @@ class SystemNotificationStatus(BaseEnum):
 # ── 公告域 ────────────────────────────────────────────
 
 
-class AnnouncementContentType(BaseEnum):
+class AnnouncementContentType(StrBaseEnum):
     """公告正文格式类型。"""
 
     MARKDOWN = "markdown", "Markdown"
     RICHTEXT = "richtext", "富文本"
 
 
-class AnnouncementPosition(BaseEnum):
+class AnnouncementPosition(StrBaseEnum):
     """公告展示位置（首页板块 / 横幅）。"""
 
     BOARD = "board", "首页板块"
     BANNER = "banner", "首页横幅"
 
 
-class AnnouncementStatus(BaseEnum):
+class AnnouncementStatus(StrBaseEnum):
     """公告发布状态。"""
 
     DRAFT = "draft", "草稿"
@@ -279,16 +301,71 @@ class AnnouncementStatus(BaseEnum):
     UNPUBLISHED = "unpublished", "已下架"
 
 
+# ── 日志域 ────────────────────────────────────────────
+
+
+class LoginStatus(StrBaseEnum):
+    """登录日志状态（对齐 login_logs.status 列）。"""
+
+    SUCCESS = "success", "成功"
+    FAILED = "failed", "失败"
+
+
+class LoginType(StrBaseEnum):
+    """登录方式（对齐 login_logs.login_type 列）。"""
+
+    PASSWORD = "password", "密码登录"
+    SSO = "sso", "单点登录"
+
+
+class AuditAction(StrBaseEnum):
+    """审计日志动作类型（对齐 audit_logs.action 列；mark 为存储值，desc 为展示文案）。"""
+
+    CREATE = "create", "新增"
+    UPDATE = "update", "更新"
+    DELETE = "delete", "删除"
+    BIND_PERMISSION = "bind_permission", "绑定权限"
+    UNBIND_PERMISSION = "unbind_permission", "解绑权限"
+    LOGIN = "login", "登录"
+    LOGOUT = "logout", "退出登录"
+    EXPORT = "export", "导出"
+    UPLOAD = "upload", "上传"
+    DOWNLOAD = "download", "下载"
+    PUBLISH = "publish", "发布"
+    UNPUBLISH = "unpublish", "下架"
+    WITHDRAW = "withdraw", "撤回"
+    RESET_PASSWORD = "reset_password", "重置密码"
+
+
 # ── HTTP 域 ───────────────────────────────────────────
 
+class HttpContentType(StrBaseEnum):
+    """HTTP Content-Type 媒体类型枚举"""
+    APPLICATION_JSON = "application/json", "JSON"
+    APPLICATION_OCTET_STREAM = "application/octet-stream", "二进制流"
+    APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded", "表单数据编码"
+    MULTIPART_FORM_DATA = "multipart/form-data", "多部分表单数据"
+    TEXT_EVENT_STREAM = "text/event-stream", "事件流（SSE）"
 
-class HttpStatus(BaseEnum):
+
+class HttpHeaders(StrBaseEnum):
+    """HTTP 请求头"""
+    X_REQUEST_ID = "X-Request-ID", "请求ID"
+    X_REAL_IP = "X-Real-IP", "真实地址"
+    X_FORWARDED_FOR = "X-Forwarded-For", "转发地址"
+    AUTHORIZATION = "Authorization", "认证头"
+    CONTENT_TYPE = "Content-Type", "内容类型"
+    ACCEPT = "Accept", "可接受类型"
+    USER_AGENT = "User-Agent", "用户代理"
+
+
+class HttpStatusCode(IntBaseEnum):
     """HTTP 状态码"""
-
     OK = 200, "OK"
     CREATED = 201, "Created"
     ACCEPTED = 202, "Accepted"
     NO_CONTENT = 204, "No Content"
+
     BAD_REQUEST = 400, "Bad Request"
     UNAUTHORIZED = 401, "Unauthorized"
     FORBIDDEN = 403, "Forbidden"
@@ -297,6 +374,7 @@ class HttpStatus(BaseEnum):
     CONFLICT = 409, "Conflict"
     UNPROCESSABLE_ENTITY = 422, "Unprocessable Entity"
     TOO_MANY_REQUESTS = 429, "Too Many Requests"
+
     INTERNAL_SERVER_ERROR = 500, "Internal Server Error"
     NOT_IMPLEMENTED = 501, "Not Implemented"
     BAD_GATEWAY = 502, "Bad Gateway"
@@ -304,10 +382,31 @@ class HttpStatus(BaseEnum):
     GATEWAY_TIMEOUT = 504, "Gateway Timeout"
 
 
-class HttpMediaType(BaseEnum):
-    """HTTP Content-Type 媒体类型枚举。"""
-    APPLICATION_JSON = "application/json", "JSON"
-    APPLICATION_OCTET_STREAM = "application/octet-stream", "二进制流"
-    APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded", "表单数据编码"
-    MULTIPART_FORM_DATA = "multipart/form-data", "表单数据编码"
-    TEXT_EVENT_STREAM = "text/event-stream", "事件流（SSE）"
+class ApiResponseCode(IntBaseEnum):
+    """API 响应码"""
+    SUCCESS = 0, "Success"
+    ERROR = -1, "An error occurred"
+    VALIDATION_ERROR = 40001, "Validation failed"
+    UNAUTHORIZED = 40101, "Unauthorized"
+    FORBIDDEN = 40301, "Forbidden"
+    NOT_FOUND = 40401, "Resource not found"
+    RATE_LIMIT_EXCEEDED = 42901, "Rate limit exceeded"
+    SERVER_ERROR = 50001, "Internal server error"
+    DATABASE_ERROR = 50002, "Database operation failed"
+    EXTERNAL_SERVICE_ERROR = 50003, "External service call failed"
+    DOCUMENT_ERROR = 50004, "Document processing failed"
+    EMBEDDING_ERROR = 50005, "Embedding generation failed"
+    VECTOR_STORE_ERROR = 50006, "Vector store operation failed"
+    RETRIEVAL_ERROR = 50007, "Retrieval operation failed"
+    GENERATION_ERROR = 50008, "Content generation failed"
+
+
+class ApiResponseMessage(StrBaseEnum):
+    """API 响应消息"""
+    SUCCESS = "success", "成功"
+    INTERNAL_ERROR = "Internal server error", "内部服务器错误"
+    NOT_FOUND = "Resource not found", "资源不存在"
+    VALIDATION_ERROR = "Validation error", "参数校验错误"
+    AUTHENTICATION_FAILED = "Authentication failed", "认证失败"
+    AUTHORIZATION_DENIED = "Permission denied", "权限拒绝"
+

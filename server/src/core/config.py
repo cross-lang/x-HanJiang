@@ -18,9 +18,7 @@ import yaml
 
 from src.constants import (
     DEFAULT_CONFIG_DIR,
-    ENV_DEVELOPMENT,
-    ENV_PRODUCTION,
-    ENV_TESTING,
+    Environment,
 )
 from src.core.logger import logger
 from src.utils.convert import to_bool, to_float, to_int
@@ -410,7 +408,7 @@ class Settings:
     def _get_default_config(self) -> dict[str, Any]:
         """返回所有配置段的代码默认值。"""
         return {
-            "app_env": ENV_DEVELOPMENT,
+            "app_env": Environment.DEVELOPMENT,
             "server": {
                 "host": "0.0.0.0",
                 "port": 8000,
@@ -578,7 +576,7 @@ class Settings:
             except Exception as e:
                 logger.warning(f"Cannot load config file {default_file}: {e}")
         # 2. 加载环境特定配置（覆盖默认配置）
-        app_env = os.environ.get("APP_ENV", config.get("app_env", ENV_DEVELOPMENT))
+        app_env = os.environ.get("APP_ENV", config.get("app_env", Environment.DEVELOPMENT))
         env_file = config_dir / f"config.{app_env}.yaml"
         if env_file.exists():
             try:
@@ -723,7 +721,7 @@ class Settings:
 
     def _parse_config(self) -> None:
         """将原始配置字典解析为 dataclass 实例。"""
-        self.app_env: str = self._config.get("app_env", ENV_DEVELOPMENT)
+        self.app_env: str = self._config.get("app_env", Environment.DEVELOPMENT)
         self.server = ServerConfig(**self._config.get("server", {}))
         self.logging = LoggingConfig(**self._config.get("logging", {}))
         self.cors = CORSConfig(**self._config.get("cors", {}))
@@ -767,17 +765,17 @@ class Settings:
     @property
     def is_development(self) -> bool:
         """是否为开发环境。"""
-        return self.app_env == ENV_DEVELOPMENT
+        return self.app_env == Environment.DEVELOPMENT
 
     @property
     def is_testing(self) -> bool:
         """是否为测试环境。"""
-        return self.app_env == ENV_TESTING
+        return self.app_env == Environment.TESTING
 
     @property
     def is_production(self) -> bool:
         """是否为生产环境。"""
-        return self.app_env == ENV_PRODUCTION
+        return self.app_env == Environment.PRODUCTION
 
     # ----------------------------------------------------------
     # 配置校验

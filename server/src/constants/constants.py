@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """通用全局常量。
 
-集中定义应用信息、环境标识、请求上下文键、响应消息、
+集中定义应用信息、请求上下文键、
 用户字段约束等全局常量。禁止在业务代码中硬编码这些值。
 按业务类别分组，以横线注释区分。
 """
+
+# ── 配置文件 ──────────────────────────────────────────
+DEFAULT_CONFIG_DIR: str = "."
+DEFAULT_CONFIG_FILE: str = "config.yaml"
+
 
 # ── 应用信息 ──────────────────────────────────────────
 APP_ID: str = "x-HanJiang"
@@ -18,21 +23,8 @@ APP_VERSION: str = "0.1.0"
 API_PREFIX: str = "/api"
 OPEN_API_PREFIX: str = "/api/open"
 
-# ── 环境标识 ──────────────────────────────────────────
-ENV_DEVELOPMENT: str = "development"
-ENV_TESTING: str = "testing"
-ENV_PRODUCTION: str = "production"
 
-# ── 配置文件 ──────────────────────────────────────────
-DEFAULT_CONFIG_DIR: str = "."
-DEFAULT_CONFIG_FILE: str = "config.yaml"
-
-# ── 请求上下文 ────────────────────────────────────────
-REQUEST_ID_HEADER: str = "X-Request-ID"  # 请求头中的 Request ID 字段名
-CONTEXT_REQUEST_ID: str = "request_id"  # request.state 中的键
-CONTEXT_REAL_IP: str = "real_ip"  # request.state 中的键
-
-# ── 开放平台鉴权 ──────────────────────────────────────
+# ── 开放平台 ──────────────────────────────────────
 # plain 模式：X-App-Id + X-App-Key
 # hmac 模式：X-App-Id + X-App-Date + X-App-Authorization
 OPENAPI_HEADER_APP_ID: str = "X-App-Id"
@@ -46,8 +38,11 @@ OPENAPI_SIGNATURE_WINDOW_SECONDS: int = 300
 OPENAPI_CONTENT_TYPE: str = "application/json"
 
 # ── 账号与令牌 ────────────────────────────────────────
-# 超级管理员用户名（种子数据固定，业务代码中禁止硬编码 "superadmin"）
+# 超级管理员
 SUPERADMIN_USERNAME: str = "superadmin"
+SUPERADMIN_NAME: str = "超级管理员"
+SUPERADMIN_PASSWORD: str = "admin@123456"
+SUPERADMIN_EMAIL: str = "superadmin@system.local"
 
 # 用户名长度约束
 USERNAME_MIN_LENGTH: int = 3
@@ -70,44 +65,5 @@ VERIFY_CODE_EVENT: str = "security.verify_code"  # 验证码邮件事件类型
 
 # ── 通知与广播 ────────────────────────────────────────
 DEFAULT_ENABLED_CHANNEL: str = "station"  # 用户通知偏好未显式配置时的默认启用渠道（站内信默认开启）
-NOTIFICATION_EVENT_STATION_MESSAGE: str = "station.message"  # 站内信专用事件类型
-SYSTEM_NOTICE_EVENT: str = "system.notice"  # 系统通知（发布/维护广播）站内信事件类型
 MAX_BROADCAST_USER_LIMIT: int = 10000  # 告警/维护广播单次查询用户上限
-
-# ── 登录日志 ──────────────────────────────────────────
-LOGIN_STATUS_SUCCESS: str = "success"  # 登录成功
-LOGIN_STATUS_FAILED: str = "failed"  # 登录失败
-LOGIN_STATUS_CN: dict[str, str] = {
-    "success": "成功",
-    "failed": "失败",
-}
-LOGIN_TYPE_CN: dict[str, str] = {
-    "password": "密码登录",
-    "sso": "单点登录",
-}
-
-# ── 审计日志 ──────────────────────────────────────────
-AUDIT_ACTION_CN: dict[str, str] = {
-    "create": "新增",
-    "update": "更新",
-    "delete": "删除",
-    "bind_permission": "绑定权限",
-    "unbind_permission": "解绑权限",
-    "login": "登录",
-    "logout": "退出登录",
-    "export": "导出",
-    "upload": "上传",
-    "download": "下载",
-    "publish": "发布",
-    "unpublish": "下架",
-    "withdraw": "撤回",
-    "reset_password": "重置密码",
-}
-
-# ── 响应消息 ──────────────────────────────────────────
-MSG_SUCCESS: str = "success"
-MSG_INTERNAL_ERROR: str = "Internal server error"
-MSG_NOT_FOUND: str = "Resource not found"
-MSG_VALIDATION_ERROR: str = "Validation error"
-MSG_AUTHENTICATION_FAILED: str = "Authentication failed"
-MSG_AUTHORIZATION_DENIED: str = "Permission denied"
+# 通知事件类型（含站内信专用事件）统一在 src.constants.enums.NotificationEvent 维护

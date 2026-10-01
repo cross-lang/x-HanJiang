@@ -5,13 +5,13 @@
 避免业务代码中出现魔法字符串。按规范禁止散落业务字符串，全部收拢至此。
 """
 
-from src.constants.base import BaseEnum
+from src.constants.base import StrBaseEnum
 from src.constants.permissions import PermissionCode
 
 # ── AI 助手 SSE 事件类型 ────────────────────────────────
 
 
-class AssistantEventType(BaseEnum):
+class AssistantEventType(StrBaseEnum):
     """AI 助手 SSE 流式事件类型（api 层透出给前端）。"""
 
     THINKING = ("thinking", "模型思考过程（可选透出）")
@@ -25,7 +25,7 @@ class AssistantEventType(BaseEnum):
 # ── 会话消息角色 ─────────────────────────────────────────
 
 
-class AssistantMessageRole(BaseEnum):
+class AssistantMessageRole(StrBaseEnum):
     """会话消息角色（对齐 assistant_messages.role 列）。
     注：工具调用过程消息不落库（避免回放时缺少 tool_call_id 导致非法），
     仅持久化 user / assistant 两类角色。

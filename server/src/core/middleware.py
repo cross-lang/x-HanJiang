@@ -25,7 +25,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.types import ASGIApp
 
 from src.api.response import error_response
-from src.constants import REQUEST_ID_HEADER
+from src.constants.enums import HttpHeaders
 from src.core.logger import logger
 from src.utils.helpers import get_client_ip, mask_sensitive
 
@@ -52,7 +52,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         app: ASGI 应用实例
     """
 
-    def __init__(self, app: ASGIApp, header_name: str = REQUEST_ID_HEADER) -> None:
+    def __init__(self, app: ASGIApp, header_name: str = HttpHeaders.X_REQUEST_ID) -> None:
         super().__init__(app)
         self.header_name: str = header_name
 

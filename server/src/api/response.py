@@ -14,15 +14,15 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from src.constants import MSG_INTERNAL_ERROR, MSG_SUCCESS
+from src.constants import ApiResponseMessage, HttpStatusCode
 from src.schemas.common import ApiResponse
 
 
 def success_response(
     data: Any,
     request: Request,
-    code: int = 200,
-    message: str = MSG_SUCCESS,
+    code: int = HttpStatusCode.OK.mark,
+    message: str = HttpStatusCode.OK.desc,
 ) -> JSONResponse:
     """构造统一成功响应。
 
@@ -47,8 +47,8 @@ def success_response(
 
 def error_response(
     request: Request,
-    code: int = 500,
-    message: str = MSG_INTERNAL_ERROR,
+    code: int = HttpStatusCode.INTERNAL_SERVER_ERROR.mark,
+    message: str = HttpStatusCode.INTERNAL_SERVER_ERROR.desc,
     data: Any = None,
 ) -> JSONResponse:
     """构造统一错误响应。

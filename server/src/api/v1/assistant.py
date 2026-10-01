@@ -21,7 +21,7 @@ from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_assistant_service, get_current_user
 from src.api.response import success_response
 from src.constants.assistant import AssistantEventType
-from src.constants.enums import HttpMediaType
+from src.constants.enums import HttpContentType
 from src.constants.permissions import PermissionCode
 from src.core.logger import logger
 from src.models.entities.assistant_entity import (
@@ -119,7 +119,7 @@ def chat(
 
     return StreamingResponse(
         generate(),
-        media_type=HttpMediaType.TEXT_EVENT_STREAM.value,
+        media_type=HttpContentType.TEXT_EVENT_STREAM.value,
         headers=_SSE_HEADERS,
     )
 

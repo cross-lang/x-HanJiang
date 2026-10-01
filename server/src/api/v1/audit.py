@@ -14,7 +14,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
-from src.constants.constants import AUDIT_ACTION_CN, LOGIN_STATUS_CN, LOGIN_TYPE_CN
+from src.constants.enums import AuditAction, LoginStatus, LoginType
 from src.constants.permissions import PermissionCode
 from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
@@ -141,7 +141,7 @@ def export_audit_logs(
     csv_rows = []
     for row in result["items"]:
         data = AuditLogResponse.model_validate(row).model_dump()
-        data["action"] = AUDIT_ACTION_CN.get(row.action, row.action)
+        data["action"] = AuditAction.get_desc_by_mark(row.action)
         data["operator_id"] = row.operator_id or ""
         data["operator_name"] = username_map.get(row.operator_id, {}).get("name", "") if row.operator_id else ""
         csv_rows.append(data)
@@ -270,8 +270,8 @@ def export_login_logs(
                 "username": row.username,
                 "name": row.name or "",
                 "ip_address": row.ip_address,
-                "status": LOGIN_STATUS_CN.get(row.status, row.status),
-                "login_type": LOGIN_TYPE_CN.get(row.login_type, row.login_type),
+                "status": LoginStatus.get_desc_by_mark(row.status),
+                "login_type": LoginType.get_desc_by_mark(row.login_type),
                 "created_at": str(row.created_at),
             }
         )

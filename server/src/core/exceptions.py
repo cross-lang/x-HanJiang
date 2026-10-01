@@ -29,7 +29,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from src.api.response import error_response
-from src.constants import MSG_INTERNAL_ERROR, MSG_VALIDATION_ERROR
+from src.constants import ApiResponseMessage, HttpStatusCode
 
 
 class AppException(Exception):
@@ -44,8 +44,8 @@ class AppException(Exception):
 
     def __init__(
         self,
-        message: str = "Application error",
-        code: int = 500,
+        message: str = HttpStatusCode.INTERNAL_SERVER_ERROR.desc,
+        code: int = HttpStatusCode.INTERNAL_SERVER_ERROR.mark,
         details: Any | None = None,
     ) -> None:
         """初始化应用异常。
@@ -69,7 +69,7 @@ class BusinessException(AppException):
     def __init__(
         self,
         message: str = "Business error",
-        code: int = 400,
+        code: int = HttpStatusCode.BAD_REQUEST.mark,
         details: Any | None = None,
     ) -> None:
         """初始化业务异常。
@@ -184,8 +184,8 @@ class SystemException(AppException):
 
     def __init__(
         self,
-        message: str = "Internal server error",
-        code: int = 500,
+        message: str = HttpStatusCode.INTERNAL_SERVER_ERROR.desc,
+        code: int = HttpStatusCode.INTERNAL_SERVER_ERROR.mark,
         details: Any | None = None,
     ) -> None:
         """初始化系统异常。
@@ -288,7 +288,7 @@ async def _validation_exception_handler(request: Request, exc: RequestValidation
     return error_response(
         request=request,
         code=422,
-        message=MSG_VALIDATION_ERROR,
+        message=ApiResponseMessage.VALIDATION_ERROR.mark,
         data={"details": errors},
     )
 
@@ -309,8 +309,8 @@ async def _generic_exception_handler(request: Request, exc: Exception) -> JSONRe
     logger.bind(request_id=request_id or "-").exception(f"Unhandled exception: {exc}")
     return error_response(
         request=request,
-        code=500,
-        message=MSG_INTERNAL_ERROR,
+        code=HttpStatusCode.INTERNAL_SERVER_ERROR.mark,
+        message=HttpStatusCode.INTERNAL_SERVER_ERROR.desc,
     )
 
 

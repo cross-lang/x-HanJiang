@@ -14,8 +14,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from src.constants.constants import LOGIN_STATUS_FAILED, LOGIN_STATUS_SUCCESS, TOKEN_TTL_SECONDS
-from src.constants.enums import NotificationEvent, SystemRoleCode, UserStatus
+from src.constants.constants import TOKEN_TTL_SECONDS
+from src.constants.enums import LoginStatus, LoginType, NotificationEvent, SystemRoleCode, UserStatus
 from src.core.exceptions import AuthenticationException
 from src.core.logger import logger
 from src.core.tokens import (
@@ -77,8 +77,8 @@ class AuthService:
             success = verify_password(password, user.password_hash or "")
         self._write_login_log(
             user_id=user.id if user else None,
-            login_type="password",
-            status=LOGIN_STATUS_SUCCESS if success else LOGIN_STATUS_FAILED,
+            login_type=LoginType.PASSWORD.mark,
+            status=LoginStatus.SUCCESS.mark if success else LoginStatus.FAILED.mark,
             ip_address=ip_address,
         )
         if not success or user is None:

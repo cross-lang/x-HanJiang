@@ -15,7 +15,7 @@ from datetime import datetime
 
 from sqlalchemy import func, select
 
-from src.constants.constants import LOGIN_STATUS_FAILED, LOGIN_STATUS_SUCCESS
+from src.constants.enums import LoginStatus
 from src.core.exceptions import DatabaseException
 from src.models.entities.log_entity import LoginLogEntity
 from src.repositories.base_repository import BaseRepository
@@ -82,7 +82,7 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
             .select_from(LoginLogEntity)
             .where(
                 LoginLogEntity.user_id == user_id,
-                LoginLogEntity.status == LOGIN_STATUS_FAILED,
+                LoginLogEntity.status == LoginStatus.FAILED.mark,
                 LoginLogEntity.created_at >= cutoff,
             )
         )
@@ -107,7 +107,7 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
             select(LoginLogEntity)
             .where(
                 LoginLogEntity.user_id == user_id,
-                LoginLogEntity.status == LOGIN_STATUS_SUCCESS,
+                LoginLogEntity.status == LoginStatus.SUCCESS.mark,
             )
             .order_by(LoginLogEntity.created_at.desc())
             .offset(skip)
