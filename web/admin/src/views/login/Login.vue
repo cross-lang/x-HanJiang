@@ -80,6 +80,9 @@
         </div>
       </div>
     </el-card>
+
+    <!-- 底部版权声明 -->
+    <footer class="login-footer">Copyright © 2026 汉江管理系统 All Rights Reserved</footer>
   </div>
 </template>
 
@@ -362,5 +365,17 @@ async function handleLogin() {
   .login-right {
     padding: 40px 32px;
   }
+}
+
+/* ── 底部版权声明 ───────────────────────────────────── */
+.login-footer {
+  position: fixed;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  color: #606266;
+  user-select: none;
 }
 </style>
