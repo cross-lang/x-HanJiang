@@ -34,11 +34,18 @@ class CommonStatus(Enum):
 # ── 用户域 ────────────────────────────────────────────
 
 
-class UserStatus(Enum):
+class UserStatus(StrBaseEnum):
     """用户状态（对齐 users.status 列：enabled 启用 / disabled 禁用）。"""
 
-    ENABLED = "enabled"
-    DISABLED = "disabled"
+    ENABLED = "enabled", "启用"
+    DISABLED = "disabled", "禁用"
+
+
+class Gender(StrBaseEnum):
+    """用户性别（对齐 users.gender 列：male 男 / female 女）。"""
+
+    MALE = "male", "男"
+    FEMALE = "female", "女"
 
 
 # ── 角色权限域 ────────────────────────────────────────

@@ -27,6 +27,7 @@ from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.core.exceptions import ValidationException
 from src.schemas.auth import CurrentUser
+from src.constants.enums import Gender, UserStatus
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import (
     AdminResetPasswordRequest,
@@ -131,6 +132,8 @@ def export_users(
         data = row.model_dump()
         if isinstance(data.get("roles"), list):
             data["roles"] = ";".join(r.get("role_name", "") for r in data["roles"])
+        data["gender"] = Gender.get_desc_by_mark(data["gender"]) if data.get("gender") else ""
+        data["status"] = UserStatus.get_desc_by_mark(data["status"], default=data.get("status") or "")
         csv_rows.append(data)
     return build_csv_stream_response(
         fieldnames=fieldnames,
