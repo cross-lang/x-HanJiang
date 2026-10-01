@@ -64,3 +64,54 @@ def collect_permissions_from_app(app) -> list[dict]:
             seen.add(p["perm_code"])
             unique.append(p)
     return unique
+
+
+def sync_permissions_to_db(app) -> tuple[int, int]:
+    """启动时将路由上的 @permission 声明对账同步到 permissions 表。
+
+    以代码中的 PermissionCode 声明为唯一事实来源：
+      - 代码中存在、表中已存在 → 按最新元数据更新并取消废弃标记；
+      - 代码中存在、表中不存在 → 新增；
+      - 表中存在、代码中已不存在 → 标记 is_deprecated=True（不物理删除）。
+    任一步骤失败由 session 上下文自动回滚并向上抛出，由调用方决定是否阻断启动。
+
+    Args:
+        app: FastAPI 应用实例
+
+    Returns:
+        (active_count, deprecated_count): 本次启用权限数与新标记废弃权限数
+    """
+    from src.infras.database import get_cached_database_provider
+    from src.models.entities.user_entity import PermissionEntity
+
+    collected = collect_permissions_from_app(app)
+    logger.debug(f"Collected permissions: {[p['perm_code'] for p in collected]}")
+    active_codes = {p["perm_code"] for p in collected}
+
+    with get_cached_database_provider().session() as session:
+        for perm in collected:
+            existing = session.query(PermissionEntity).filter_by(perm_code=perm["perm_code"]).first()
+            if existing:
+                existing.perm_name = perm["perm_name"]
+                existing.module = perm["module"]
+                existing.operation = perm["operation"]
+                existing.description = perm["description"]
+                existing.sort_order = perm["sort_order"]
+                existing.is_deprecated = False
+            else:
+                session.add(PermissionEntity(**perm, is_deprecated=False))
+
+        deprecated = (
+            session.query(PermissionEntity)
+            .filter(
+                PermissionEntity.is_deprecated.is_(False),
+                ~PermissionEntity.perm_code.in_(active_codes),
+            )
+            .all()
+        )
+        for d in deprecated:
+            d.is_deprecated = True
+            logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
+
+    logger.info(f"Permissions auto-synced: {len(collected)} active, {len(deprecated)} deprecated")
+    return len(collected), len(deprecated)

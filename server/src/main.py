@@ -25,6 +25,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.api_permission_decorator import sync_permissions_to_db
+from src.api.openapi_scope_decorator import sync_scopes_to_db
 from src.api.router import api_router, open_router
 from src.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from src.core.config import settings
@@ -35,8 +37,11 @@ from src.core.middleware import (
     RequestIDMiddleware,
     RequestLoggingMiddleware,
 )
+from src.core.seed import init_seed_data
 from src.infras.cache import get_cached_cache_provider
+from src.infras.database import get_cached_database_provider, init_db
 from src.infras.rate_limiter import get_cached_rate_limiter_provider
+from src.notification.bootstrap import setup_notification_system
 
 
 @asynccontextmanager
@@ -45,101 +50,31 @@ async def lifespan(app: FastAPI):
     setup_logging()
     logger.info(f"{APP_NAME} v{APP_VERSION} starting up (env={settings.app_env}, debug={settings.server.debug})")
     # 创建数据库引擎对象和连接池
-    from src.infras.database import get_cached_database_provider
-
     get_cached_database_provider()
+    logger.info("Database connection established")
     # 初始化数据库（表）
-    from src.infras.database import init_db
-
     init_db()
     logger.info("Database initialized successfully")
     # 初始化种子数据
-    from src.core.seed import init_seed_data
-
     init_seed_data()
+    logger.info("Seed data initialized successfully")
     # 初始化 Redis
     get_cached_cache_provider()
     logger.info("Redis connection established")
     # 自动扫描路由中的权限声明，同步到 permissions 表
     # 权限元数据（含描述 / 排序号）全部来自 PermissionCode 统一目录
-    try:
-        from src.api.api_permission_decorator import collect_permissions_from_app
-        from src.models.entities.user_entity import PermissionEntity
-
-        collected = collect_permissions_from_app(app)
-        logger.debug(f"Collected permissions: {[p['perm_code'] for p in collected]}")
-        session = get_cached_database_provider().get_session_factory()()
-        active_codes = {p["perm_code"] for p in collected}
-        for perm in collected:
-            existing = session.query(PermissionEntity).filter_by(perm_code=perm["perm_code"]).first()
-            if existing:
-                existing.perm_name = perm["perm_name"]
-                existing.module = perm["module"]
-                existing.operation = perm["operation"]
-                existing.description = perm["description"]
-                existing.sort_order = perm["sort_order"]
-                existing.is_deprecated = False
-            else:
-                session.add(PermissionEntity(**perm, is_deprecated=False))
-        deprecated = (
-            session.query(PermissionEntity)
-            .filter(
-                PermissionEntity.is_deprecated.is_(False),
-                ~PermissionEntity.perm_code.in_(active_codes),
-            )
-            .all()
-        )
-        for d in deprecated:
-            d.is_deprecated = True
-            logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
-        session.commit()
-        logger.info(f"Permissions auto-synced: {len(collected)} active, {len(deprecated)} deprecated")
-    except Exception as e:
-        logger.warning(f"Permission auto-sync failed: {e}")
+    sync_permissions_to_db(app)
+    logger.info("Permissions synchronized successfully")
     # 自动扫描开放平台路由的 scope 声明，同步到 openapi_scopes 表
-    try:
-        from src.api.openapi_scope_decorator import collect_scopes_from_app
-        from src.models.entities.app_entity import OpenApiScopeEntity
-
-        collected_scopes = collect_scopes_from_app(app)
-        logger.debug(f"Collected scopes: {[s['scope_code'] for s in collected_scopes]}")
-        scope_session = get_cached_database_provider().get_session_factory()()
-        active_scope_codes = {s["scope_code"] for s in collected_scopes}
-        for idx, sc in enumerate(collected_scopes, start=1):
-            existing = scope_session.query(OpenApiScopeEntity).filter_by(scope_code=sc["scope_code"]).first()
-            if existing:
-                existing.scope_name = sc["scope_name"]
-                existing.module = sc["module"]
-                existing.operation = sc["operation"]
-                if sc["description"]:
-                    existing.description = (sc["description"] or "")[:250]
-                existing.sort_order = idx
-                existing.is_deprecated = False
-            else:
-                s = dict(sc)
-                s["description"] = (s.get("description") or "")[:250]
-                s["sort_order"] = idx
-                scope_session.add(OpenApiScopeEntity(**s, is_deprecated=False))
-        deprecated_scopes = (
-            scope_session.query(OpenApiScopeEntity)
-            .filter(
-                OpenApiScopeEntity.is_deprecated.is_(False),
-                ~OpenApiScopeEntity.scope_code.in_(active_scope_codes),
-            )
-            .all()
-        )
-        for d in deprecated_scopes:
-            d.is_deprecated = True
-            logger.info(f"Scope deprecated (not found in routes): {d.scope_code}")
-        scope_session.commit()
-        logger.info(f"OpenAPI scopes auto-synced: {len(collected_scopes)} active, {len(deprecated_scopes)} deprecated")
-    except Exception as e:
-        logger.warning(f"OpenAPI scope auto-sync failed: {e}")
+    # scope 元数据（含描述 / 排序号）全部来自 OpenApiScopeEntity 统一目录
+    sync_scopes_to_db(app)
+    logger.info("OpenAPI scopes synchronized successfully")
     # 初始化通知子系统
-    from src.notification.bootstrap import setup_notification_system
-
     retry_task = setup_notification_system()
+    logger.info("Notification system initialized successfully")
+
     yield
+    
     logger.info(f"{APP_NAME} shutting down...")
     if retry_task is not None:
         retry_task.cancel()
@@ -243,7 +178,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         prog="x-HanJiang",
-        description="汉江（HanJiang） — 基于 FastAPI 的生产级 Web 应用框架",
+        description="一个基于 FastAPI 的生产级 Web 应用框架",
     )
     parser.add_argument(
         "-V",
