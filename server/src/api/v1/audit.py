@@ -15,6 +15,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.constants import AUDIT_ACTION_CN, LOGIN_STATUS_CN, LOGIN_TYPE_CN
+from src.constants.permissions import PermissionCode
 from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
 from src.schemas.auth import CurrentUser
@@ -32,9 +33,9 @@ router = APIRouter(prefix="/audit", tags=["审计日志"])
     "/logs",
     summary="业务审计日志列表",
     description="查询业务审计日志（数据变更记录）",
-    dependencies=[Depends(require_user_permission("audit_log:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.AUDIT_LOG_VIEW.mark))],
 )
-@permission("audit_log:view", "查看审计日志", "audit_log", "view")
+@permission(PermissionCode.AUDIT_LOG_VIEW)
 def list_audit_logs(
     request: Request,
     entity_type: str | None = Query(
@@ -94,9 +95,9 @@ def list_audit_logs(
     "/logs/export",
     summary="导出审计日志",
     description="按筛选条件导出审计日志为 CSV 文件",
-    dependencies=[Depends(require_user_permission("audit_log:export"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.AUDIT_LOG_EXPORT.mark))],
 )
-@permission("audit_log:export", "导出审计日志", "audit_log", "export")
+@permission(PermissionCode.AUDIT_LOG_EXPORT)
 def export_audit_logs(
     entity_type: str | None = None,
     action: str | None = None,
@@ -157,9 +158,9 @@ def export_audit_logs(
     "/logs/{log_id}",
     summary="业务审计日志详情",
     description="根据 ID 查询单条业务审计日志详情",
-    dependencies=[Depends(require_user_permission("audit_log:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.AUDIT_LOG_VIEW.mark))],
 )
-@permission("audit_log:view", "查看审计日志", "audit_log", "view")
+@permission(PermissionCode.AUDIT_LOG_VIEW)
 def get_audit_log(
     log_id: int,
     request: Request,
@@ -190,9 +191,9 @@ def get_audit_log(
     "/login-logs",
     summary="登录日志列表",
     description="查询登录日志",
-    dependencies=[Depends(require_user_permission("login_log:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.LOGIN_LOG_VIEW.mark))],
 )
-@permission("login_log:view", "查看登录日志", "login_log", "view")
+@permission(PermissionCode.LOGIN_LOG_VIEW)
 def list_login_logs(
     request: Request,
     user_id: int | None = Query(default=None, description="用户 ID"),
@@ -229,9 +230,9 @@ def list_login_logs(
     "/login-logs/export",
     summary="导出登录日志",
     description="按筛选条件导出登录日志为 CSV 文件",
-    dependencies=[Depends(require_user_permission("login_log:export"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.LOGIN_LOG_EXPORT.mark))],
 )
-@permission("login_log:export", "导出登录日志", "login_log", "export")
+@permission(PermissionCode.LOGIN_LOG_EXPORT)
 def export_login_logs(
     request: Request,
     status: str | None = None,
@@ -287,9 +288,9 @@ def export_login_logs(
     "/login-logs/{log_id}",
     summary="登录日志详情",
     description="根据 ID 查询单条登录日志详情",
-    dependencies=[Depends(require_user_permission("login_log:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.LOGIN_LOG_VIEW.mark))],
 )
-@permission("login_log:view", "查看登录日志", "login_log", "view")
+@permission(PermissionCode.LOGIN_LOG_VIEW)
 def get_login_log(
     log_id: int,
     request: Request,

@@ -17,14 +17,22 @@ class OpenApiAppCreateRequest(BaseModel):
 
 
 class OpenApiAppUpdateRequest(BaseModel):
-    """管理员更新开放应用（改 scope / 限流 / 鉴权模式 / 状态）。"""
+    """管理员更新开放应用（改 scope / 限流 / 鉴权模式）。
+
+    启停状态不在此更新，走独立的 PUT /{app_id}/status 端点（单独权限）。
+    """
 
     name: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=255)
     scopes: list[str] | None = None
     rate_limit_per_minute: int | None = Field(default=None, ge=1, le=100000)
     auth_mode: str | None = Field(default=None, pattern="^(plain|hmac|both)$")
-    status: str | None = Field(default=None, pattern="^(active|disabled)$")
+
+
+class OpenApiAppStatusUpdateRequest(BaseModel):
+    """管理员启停开放应用请求。"""
+
+    status: str = Field(pattern="^(active|disabled)$")
 
 
 class OpenApiAppScopesUpdateRequest(BaseModel):

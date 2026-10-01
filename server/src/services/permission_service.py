@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from src.constants.enums import NotificationEvent, SystemRoleCode
-from src.core.exceptions import ConflictException, NotFoundException
+from src.core.exceptions import NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import (
     PermissionEntity,
@@ -91,103 +91,6 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             "page": page,
             "page_size": page_size,
         }
-
-    def create(self, data: dict[str, Any], operator: dict[str, Any] | None = None) -> PermissionResponse:
-        """创建权限。"""
-        perm_code = data.get("perm_code")
-        if perm_code and self._repository.get_by_code(perm_code) is not None:
-            raise ConflictException(message=f"权限编码 {perm_code} 已存在")
-        entity = PermissionEntity(
-            perm_code=data["perm_code"],
-            perm_name=data["perm_name"],
-            module=data.get("module", ""),
-            operation=data.get("operation", ""),
-            description=data.get("description"),
-            sort_order=data.get("sort_order", 0),
-        )
-        created = self._repository.create(entity)
-        self._commit()
-        self._audit(
-            entity_id=created.id,
-            action="create",
-            operator=operator,
-            before_data=None,
-            after_data={"perm_code": created.perm_code, "perm_name": created.perm_name},
-            remarks="创建新权限",
-        )
-        result = self._to_response(created)
-        logger.info(f"Permission created: id={result.id} code={result.perm_code}")
-        return result
-
-    def update(self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None) -> PermissionResponse:
-        """更新权限信息。"""
-        existing = self._repository.get_by_id(id)
-        if existing is None:
-            raise NotFoundException(message=f"权限 {id} 不存在")
-        if "perm_code" in data and data["perm_code"] != existing.perm_code:
-            other = self._repository.get_by_code(data["perm_code"])
-            if other is not None and other.id != id:
-                raise ConflictException(message=f"权限编码 {data['perm_code']} 已被其他权限占用")
-        patch = PermissionEntity(
-            id=id,
-            perm_code=existing.perm_code,
-            perm_name=existing.perm_name,
-            module=existing.module,
-            operation=existing.operation,
-            description=existing.description,
-            sort_order=existing.sort_order,
-        )
-        for key in ("perm_code", "perm_name", "module", "operation", "description", "sort_order"):
-            if key in data:
-                setattr(patch, key, data[key])
-        updated = self._repository.update(id, patch)
-        if updated is None:
-            raise NotFoundException(message=f"权限 {id} 不存在")
-        self._commit()
-        self._audit(
-            entity_id=updated.id,
-            action="update",
-            operator=operator,
-            before_data={
-                "perm_code": existing.perm_code,
-                "perm_name": existing.perm_name,
-                "module": existing.module,
-                "operation": existing.operation,
-            },
-            after_data={
-                "perm_code": updated.perm_code,
-                "perm_name": updated.perm_name,
-                "module": updated.module,
-                "operation": updated.operation,
-            },
-            remarks="更新权限",
-        )
-        result = self._to_response(updated)
-        logger.info(f"Permission updated: id={result.id} code={result.perm_code}")
-        return result
-
-    def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
-        """删除权限（同时清理角色绑定关系）。"""
-        existing = self._repository.get_by_id(id)
-        if existing is None:
-            raise NotFoundException(message=f"权限 {id} 不存在")
-        self._repository.delete(id)
-        self._commit()
-        self._audit(
-            entity_id=id,
-            action="delete",
-            operator=operator,
-            before_data={
-                "perm_code": existing.perm_code,
-                "perm_name": existing.perm_name,
-                "module": existing.module,
-                "operation": existing.operation,
-            },
-            after_data=None,
-            remarks="删除权限",
-        )
-        logger.info(f"Permission deleted: id={id}")
-        return True
 
     def get_role_permissions(self, role_id: int) -> list[RolePermissionResponse]:
         """查询角色权限详情（含权限详情）。"""

@@ -1,33 +1,35 @@
 #!/usr/bin/env python3
 """权限装饰器。
 用法：
-    @router.get("", dependencies=[Depends(require_user_permission("user:view"))])
-    @permission("user:view", "查看用户", "user", "view")
+    @router.get("", dependencies=[Depends(require_user_permission(PermissionCode.USER_VIEW.mark))])
+    @permission(PermissionCode.USER_VIEW)
     async def list_users():
         ...
-启动时自动扫描所有路由的 _permission_code 属性，upsert 到 permissions 表。
+启动时自动扫描所有路由的 _permission_* 属性，upsert 到 permissions 表。
+权限的全部元数据均来自 src.constants.permissions.PermissionCode 统一目录。
 """
 
 from collections.abc import Callable
 
+from src.constants.permissions import PermissionCode
 from src.core.logger import logger
 
 
-def permission(code: str, name: str = "", module: str = "", operation: str = ""):
+def permission(code: PermissionCode):
     """声明路由所需权限（仅挂载元数据，鉴权仍用 Depends）。
 
     Args:
-        code: 权限编码，如 user:view
-        name: 权限中文名，如 查看用户
-        module: 模块名，如 user
-        operation: 操作类型，如 view
+        code: PermissionCode 枚举成员，携带权限码 / 中文名 / 模块 /
+              操作类型 / 描述 / 排序号全部元数据
     """
 
     def decorator(func: Callable):
-        func._permission_code = code
-        func._permission_name = name
-        func._permission_module = module
-        func._permission_operation = operation
+        func._permission_code = code.mark
+        func._permission_name = code.perm_name
+        func._permission_module = code.module
+        func._permission_operation = code.operation
+        func._permission_description = code.description
+        func._permission_sort_order = code.sort_order
         return func
 
     return decorator
@@ -48,7 +50,8 @@ def collect_permissions_from_app(app) -> list[dict]:
                         "perm_name": endpoint._permission_name or endpoint._permission_code,
                         "module": endpoint._permission_module or "",
                         "operation": endpoint._permission_operation or "",
-                        "description": (endpoint.__doc__ or "")[:250],
+                        "description": endpoint._permission_description or "",
+                        "sort_order": endpoint._permission_sort_order,
                     }
                 )
             else:

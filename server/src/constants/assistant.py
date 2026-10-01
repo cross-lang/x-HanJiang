@@ -6,6 +6,7 @@
 """
 
 from src.constants.base import BaseEnum
+from src.constants.permissions import PermissionCode
 
 # ── AI 助手 SSE 事件类型 ────────────────────────────────
 
@@ -43,10 +44,9 @@ NAVIGATE_TOOL_NAME: str = "navigate"
 
 # ── 权限元数据 ───────────────────────────────────────────
 
-#: AI 助手对话权限码（仅作元数据声明；对话接口不强制该权限，仅要求登录）
-ASSISTANT_PERMISSION_CHAT: str = "assistant:chat"
-#: AI 助手反馈权限码
-ASSISTANT_PERMISSION_FEEDBACK: str = "assistant:feedback"
+#: AI 助手对话 / 反馈权限码统一在 PermissionCode 中维护：
+#: PermissionCode.ASSISTANT_CHAT / PermissionCode.ASSISTANT_FEEDBACK。
+#: 对话接口不强制该权限，仅要求登录，权限码仅作元数据声明。
 
 
 # ── 编排参数 ─────────────────────────────────────────────
@@ -68,7 +68,7 @@ ASSISTANT_MESSAGE_LIST_LIMIT: int = 100
 # ── 系统入口清单（跳转工具的知识源）────────────────────────
 
 #: 系统入口清单：page 标识 / 前端路径 / 标题 / 用途说明 / 所需权限码（空 = 登录即可访问）。
-#: 权限码与 api/v1 各业务路由的 @permission 声明保持一致；
+#: 权限码引用 PermissionCode 统一目录，与 api/v1 各业务路由的 @permission 声明一致；
 #: 后续可替换为从菜单表（menu）动态生成，此处为 P0 静态清单。
 ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (
     {
@@ -83,42 +83,42 @@ ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (
         "path": "/users",
         "title": "用户管理",
         "description": "用户列表、新增、编辑与启用停用",
-        "permission": "user:view",
+        "permission": PermissionCode.USER_VIEW.mark,
     },
     {
         "page": "roles",
         "path": "/roles",
         "title": "角色管理",
         "description": "角色创建、编辑与权限绑定",
-        "permission": "role:view",
+        "permission": PermissionCode.ROLE_VIEW.mark,
     },
     {
         "page": "permissions",
         "path": "/permissions",
         "title": "权限管理",
         "description": "系统权限列表与说明",
-        "permission": "role:view",
+        "permission": PermissionCode.PERMISSION_VIEW.mark,
     },
     {
         "page": "audit",
         "path": "/audit",
         "title": "审计日志",
         "description": "查看操作审计与登录日志",
-        "permission": "audit_log:view",
+        "permission": PermissionCode.AUDIT_LOG_VIEW.mark,
     },
     {
         "page": "apps",
         "path": "/apps",
         "title": "开放平台应用",
         "description": "开放平台应用与密钥管理",
-        "permission": "openapi_app:view",
+        "permission": PermissionCode.OPENAPI_APP_VIEW.mark,
     },
     {
         "page": "files",
         "path": "/files",
         "title": "文件管理",
         "description": "上传文件与文件列表管理",
-        "permission": "file:view",
+        "permission": PermissionCode.FILE_VIEW.mark,
     },
     {
         "page": "profile",

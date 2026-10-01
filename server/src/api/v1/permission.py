@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
 """
-权限接口
-提供权限管理的 RESTful API 端点（CRUD）。
+权限接口（只读）
+权限元数据的唯一事实来源是 src.constants.permissions.PermissionCode 目录，
+启动同步与种子初始化均从目录派生，故本模块仅提供查询能力，
+新增 / 更新 / 删除权限的写接口已移除（页面手工维护会与目录冲突）。
 
 Endpoints:
-    GET    /permissions:      权限列表（分页/过滤）
-    POST   /permissions:      创建权限
-    GET    /permissions/{id}: 权限详情
-    POST   /permissions/{id}/update: 更新权限
-    POST   /permissions/{id}/delete: 删除权限
+    GET    /permissions/meta:  权限元数据（模块 / 操作类型去重列表）
+    GET    /permissions:       权限列表（分页/过滤）
+    GET    /permissions/{id}:  权限详情
 """
 
 from fastapi import APIRouter, Depends, Request
 
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
-    get_current_user,
     get_permission_service,
-    get_user_operator_context,
     require_user_permission,
 )
 from src.api.response import success_response
-from src.schemas.auth import CurrentUser
+from src.constants.permissions import PermissionCode
 from src.schemas.common import PaginatedResponse
-from src.schemas.role import PermissionCreateRequest, PermissionResponse, PermissionUpdateRequest
+from src.schemas.role import PermissionResponse
 from src.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/permissions", tags=["权限管理"])
@@ -33,9 +31,9 @@ router = APIRouter(prefix="/permissions", tags=["权限管理"])
     "/meta",
     summary="权限元数据",
     description="返回所有去重的模块列表和操作类型列表，供前端下拉选择",
-    dependencies=[Depends(require_user_permission("role:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PERMISSION_VIEW.mark))],
 )
-@permission("role:view", "查看角色", "role", "view")
+@permission(PermissionCode.PERMISSION_VIEW)
 def permission_meta(
     request: Request,
     service: PermissionService = Depends(get_permission_service),
@@ -50,9 +48,9 @@ def permission_meta(
     "",
     summary="权限列表",
     description="查询权限列表（分页，支持关键字/模块/操作类型过滤）",
-    dependencies=[Depends(require_user_permission("role:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PERMISSION_VIEW.mark))],
 )
-@permission("role:view", "查看角色", "role", "view")
+@permission(PermissionCode.PERMISSION_VIEW)
 def list_permissions(
     request: Request,
     page: int = 1,
@@ -82,32 +80,13 @@ def list_permissions(
     return success_response(page_result.model_dump(), request)
 
 
-@router.post(
-    "",
-    summary="创建权限",
-    description="创建一个新权限（校验编码唯一）",
-    status_code=201,
-    dependencies=[Depends(require_user_permission("role:edit"))],
-)
-@permission("role:edit", "编辑角色", "role", "edit")
-def create_permission(
-    body: PermissionCreateRequest,
-    request: Request,
-    service: PermissionService = Depends(get_permission_service),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """创建权限接口。"""
-    result = service.create(body.model_dump(), operator=get_user_operator_context(current_user, request))
-    return success_response(result.model_dump(), request, code=201)
-
-
 @router.get(
     "/{perm_id}",
     summary="权限详情",
     description="根据 ID 查询权限详情",
-    dependencies=[Depends(require_user_permission("role:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PERMISSION_VIEW.mark))],
 )
-@permission("role:view", "查看角色", "role", "view")
+@permission(PermissionCode.PERMISSION_VIEW)
 def get_permission(
     perm_id: int,
     request: Request,
@@ -120,44 +99,3 @@ def get_permission(
     if result is None:
         raise NotFoundException(message=f"权限 {perm_id} 不存在")
     return success_response(result.model_dump(), request)
-
-
-@router.post(
-    "/{perm_id}/update",
-    summary="更新权限",
-    description="更新权限信息",
-    dependencies=[Depends(require_user_permission("role:edit"))],
-)
-@permission("role:edit", "编辑角色", "role", "edit")
-def update_permission(
-    perm_id: int,
-    body: PermissionUpdateRequest,
-    request: Request,
-    service: PermissionService = Depends(get_permission_service),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """更新权限接口。"""
-    result = service.update(
-        perm_id,
-        body.model_dump(exclude_unset=True),
-        operator=get_user_operator_context(current_user, request),
-    )
-    return success_response(result.model_dump(), request)
-
-
-@router.post(
-    "/{perm_id}/delete",
-    summary="删除权限",
-    description="根据 ID 删除权限",
-    dependencies=[Depends(require_user_permission("role:delete"))],
-)
-@permission("role:delete", "删除角色", "role", "delete")
-def delete_permission(
-    perm_id: int,
-    request: Request,
-    service: PermissionService = Depends(get_permission_service),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """删除权限接口。"""
-    service.delete(perm_id, operator=get_user_operator_context(current_user, request))
-    return success_response({"message": "权限删除成功"}, request)

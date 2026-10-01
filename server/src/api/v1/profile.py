@@ -33,6 +33,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.schemas.auth import CurrentUser
 from src.schemas.profile import (
     ChangePasswordRequest,
@@ -52,9 +53,9 @@ router = APIRouter(prefix="/profile", tags=["个人中心"])
     "/me",
     summary="当前用户信息",
     description="获取当前登录用户信息（需 Bearer 令牌）",
-    dependencies=[Depends(require_user_permission("profile:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_VIEW.mark))],
 )
-@permission("profile:view", "查看个人中心", "profile", "view")
+@permission(PermissionCode.PROFILE_VIEW)
 def me(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -68,9 +69,9 @@ def me(
     "/me",
     summary="修改个人信息",
     description="当前用户修改自己的基本信息（不能修改登录名）",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_EDIT)
 def update_me(
     body: UpdateMeRequest,
     request: Request,
@@ -86,9 +87,9 @@ def update_me(
     "/change-password",
     summary="修改密码",
     description="当前用户修改自己的密码（需提供原密码 + 验证码二次认证）",
-    dependencies=[Depends(require_user_permission("profile:password"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_PASSWORD.mark))],
 )
-@permission("profile:password", "修改密码", "profile", "password")
+@permission(PermissionCode.PROFILE_PASSWORD)
 def change_password(
     body: ChangePasswordRequest,
     request: Request,
@@ -104,9 +105,9 @@ def change_password(
     "/menus",
     summary="当前用户菜单树",
     description="根据当前用户权限返回可见菜单树",
-    dependencies=[Depends(require_user_permission("profile:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_VIEW.mark))],
 )
-@permission("profile:view", "查看个人中心", "profile", "view")
+@permission(PermissionCode.PROFILE_VIEW)
 def get_menus(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -122,9 +123,9 @@ def get_menus(
 @router.get(
     "/notification-preferences",
     summary="获取我的通知偏好",
-    dependencies=[Depends(require_user_permission("profile:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_VIEW.mark))],
 )
-@permission("profile:view", "查看个人中心", "profile", "view")
+@permission(PermissionCode.PROFILE_VIEW)
 def get_my_preferences(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -137,9 +138,9 @@ def get_my_preferences(
 @router.put(
     "/notification-preferences",
     summary="更新我的通知偏好",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_EDIT)
 def update_my_preferences(
     request: Request,
     body: UpdateNotificationPreferencesRequest,
@@ -157,9 +158,9 @@ def update_my_preferences(
 @router.get(
     "/notification-recipients",
     summary="获取我的通知接收人列表",
-    dependencies=[Depends(require_user_permission("profile:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_VIEW.mark))],
 )
-@permission("profile:view", "查看个人中心", "profile", "view")
+@permission(PermissionCode.PROFILE_VIEW)
 def get_my_recipients(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -172,9 +173,9 @@ def get_my_recipients(
 @router.post(
     "/notification-recipients",
     summary="添加通知接收人",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_EDIT)
 def add_recipient(
     request: Request,
     body: NotificationRecipientCreateRequest,
@@ -189,9 +190,9 @@ def add_recipient(
 @router.put(
     "/notification-recipients/{recipient_id}",
     summary="更新通知接收人",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_EDIT)
 def update_recipient(
     recipient_id: int,
     request: Request,
@@ -207,9 +208,9 @@ def update_recipient(
 @router.delete(
     "/notification-recipients/{recipient_id}",
     summary="删除通知接收人",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_EDIT)
 def delete_recipient(
     recipient_id: int,
     request: Request,
@@ -228,9 +229,9 @@ def delete_recipient(
     "/send-verify-code",
     summary="发送验证码",
     description="安全设置二次认证：向当前用户邮箱发送 6 位验证码，5 分钟有效",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_EDIT)
 def send_verify_code(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -245,9 +246,9 @@ def send_verify_code(
     "/update-phone",
     summary="修改手机号",
     description="需通过验证码二次认证",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_PHONE.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_PHONE)
 def update_phone(
     request: Request,
     body: UpdatePhoneRequest,
@@ -263,9 +264,9 @@ def update_phone(
     "/update-email",
     summary="修改邮箱",
     description="需通过原验证码二次认证",
-    dependencies=[Depends(require_user_permission("profile:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EMAIL.mark))],
 )
-@permission("profile:edit", "编辑个人中心", "profile", "edit")
+@permission(PermissionCode.PROFILE_EMAIL)
 def update_email(
     request: Request,
     body: UpdateEmailRequest,

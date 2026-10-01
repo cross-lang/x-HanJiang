@@ -20,11 +20,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_assistant_service, get_current_user
 from src.api.response import success_response
-from src.constants.assistant import (
-    ASSISTANT_PERMISSION_CHAT,
-    ASSISTANT_PERMISSION_FEEDBACK,
-    AssistantEventType,
-)
+from src.constants.assistant import AssistantEventType
+from src.constants.enums import HttpMediaType
+from src.constants.permissions import PermissionCode
 from src.core.logger import logger
 from src.models.entities.assistant_entity import (
     AssistantConversationEntity,
@@ -81,7 +79,7 @@ def _to_message_response(entity: AssistantMessageEntity) -> MessageResponse:
     description="流式返回回复文本与跳转指令；仅要求登录，不强制权限（系统全部登录用户可用）",
     response_class=StreamingResponse,
 )
-@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+@permission(PermissionCode.ASSISTANT_CHAT)
 def chat(
     body: ChatRequest,
     current_user: CurrentUser = Depends(get_current_user),
@@ -121,7 +119,7 @@ def chat(
 
     return StreamingResponse(
         generate(),
-        media_type="text/event-stream",
+        media_type=HttpMediaType.TEXT_EVENT_STREAM.value,
         headers=_SSE_HEADERS,
     )
 
@@ -131,7 +129,7 @@ def chat(
     summary="创建会话",
     description="创建一个新的 AI 助手会话",
 )
-@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+@permission(PermissionCode.ASSISTANT_CONVERSATION)
 def create_conversation(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -156,7 +154,7 @@ def create_conversation(
     summary="会话列表",
     description="查询当前用户的 AI 助手会话列表",
 )
-@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+@permission(PermissionCode.ASSISTANT_CONVERSATION)
 def list_conversations(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -184,7 +182,7 @@ def list_conversations(
     summary="会话消息列表",
     description="查询指定会话的消息列表（校验归属）",
 )
-@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+@permission(PermissionCode.ASSISTANT_CONVERSATION)
 def list_conversation_messages(
     conversation_id: int,
     request: Request,
@@ -214,7 +212,7 @@ def list_conversation_messages(
     summary="删除会话",
     description="软删除指定会话（标记 deleted_at，消息与反馈保留留档；校验归属）",
 )
-@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+@permission(PermissionCode.ASSISTANT_CONVERSATION)
 def delete_conversation(
     conversation_id: int,
     request: Request,
@@ -241,7 +239,7 @@ def delete_conversation(
     summary="置顶 / 取消置顶会话",
     description="设置会话置顶状态（校验归属）",
 )
-@permission(ASSISTANT_PERMISSION_CHAT, "AI助手对话", "assistant", "chat")
+@permission(PermissionCode.ASSISTANT_CONVERSATION)
 def pin_conversation(
     conversation_id: int,
     body: ConversationPinRequest,
@@ -270,7 +268,7 @@ def pin_conversation(
     summary="消息反馈",
     description="用户对助手回复进行 👍👎 反馈（提示词调优数据源）",
 )
-@permission(ASSISTANT_PERMISSION_FEEDBACK, "AI助手反馈", "assistant", "feedback")
+@permission(PermissionCode.ASSISTANT_FEEDBACK)
 def submit_feedback(
     body: FeedbackRequest,
     request: Request,

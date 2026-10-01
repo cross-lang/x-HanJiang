@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from src.constants.constants import SUPERADMIN_USERNAME
 from src.constants.enums import SystemRoleCode
+from src.constants.permissions import PERMISSION_CATALOG, PermissionCode
 from src.core.logger import logger
 from src.infras.database import get_cached_database_provider
 from src.models.entities.menu_entity import MenuEntity
@@ -43,50 +44,8 @@ _SEED_ADMIN_PASSWORD = "admin@123456"
 _SEED_ADMIN_EMAIL = "superadmin@system.local"
 
 # ── 内置权限定义 ──────────────────────────────────────────────
-# (perm_code, perm_name, module, operation, description, sort_order)
-_SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
-    ("user:view", "查看用户", "user", "view", "查看用户列表与详情", 1),
-    ("user:create", "创建用户", "user", "create", "创建新用户", 2),
-    ("user:edit", "编辑用户", "user", "edit", "编辑用户信息", 3),
-    ("user:delete", "删除用户", "user", "delete", "删除用户", 4),
-    ("user:export", "导出用户", "user", "export", "导出用户列表", 5),
-    ("user:import", "导入用户", "user", "import", "导入用户列表", 6),
-    ("role:view", "查看角色", "role", "view", "查看角色列表与详情", 10),
-    ("role:create", "创建角色", "role", "create", "创建新角色", 11),
-    ("role:edit", "编辑角色", "role", "edit", "编辑角色信息", 12),
-    ("role:delete", "删除角色", "role", "delete", "删除角色", 13),
-    ("file:view", "查看文件", "file", "view", "查看文件列表与详情", 20),
-    ("file:create", "上传文件", "file", "create", "上传文件", 21),
-    ("file:delete", "删除文件", "file", "delete", "删除文件", 22),
-    ("audit_log:view", "查看审计日志", "audit_log", "view", "查看业务审计日志", 30),
-    ("audit_log:export", "导出审计日志", "audit_log", "export", "导出审计日志CSV", 31),
-    ("login_log:view", "查看登录日志", "login_log", "view", "查看登录日志", 35),
-    ("login_log:export", "导出登录日志", "login_log", "export", "导出登录日志CSV", 36),
-    ("notification:view", "查看通知", "notification", "view", "查看通知记录", 40),
-    ("notification:create", "创建通知", "notification", "create", "手动发送通知", 41),
-    ("alert:broadcast", "广播告警", "alert", "broadcast", "向全体用户广播告警", 50),
-    ("alert:send", "发送告警", "alert", "send", "向指定用户或全体用户发送告警", 50),
-    ("maintenance:notify", "发送维护通知", "maintenance", "notify", "向全体用户发送维护通知", 51),
-    ("notification:config", "通知配置管理", "notification", "config", "系统通知渠道配置管理", 52),
-    ("announcement:view", "查看公告", "announcement", "view", "查看公告列表与详情", 53),
-    ("announcement:create", "创建公告", "announcement", "create", "创建新公告", 54),
-    ("announcement:edit", "编辑公告", "announcement", "edit", "编辑公告信息", 55),
-    ("announcement:delete", "删除公告", "announcement", "delete", "删除公告", 56),
-    ("announcement:publish", "发布公告", "announcement", "publish", "发布/下架公告", 57),
-    ("openapi_app:view", "查看开放平台应用", "openapi_app", "view", "查看开放平台应用列表", 60),
-    ("openapi_app:create", "创建开放平台应用", "openapi_app", "create", "创建开放平台应用", 61),
-    ("openapi_app:edit", "编辑开放平台应用", "openapi_app", "edit", "编辑开放平台应用", 62),
-    ("openapi_app:delete", "删除开放平台应用", "openapi_app", "delete", "删除开放平台应用", 63),
-    ("openapi_scope:view", "查看开放平台权限", "openapi_scope", "view", "查看开放平台 scope 列表", 64),
-    ("dashboard:view", "查看仪表盘", "dashboard", "view", "获取仪表盘关键指标", 70),
-    ("profile:view", "查看个人中心", "profile", "view", "查看个人资料与通知设置", 71),
-    ("profile:edit", "编辑个人中心", "profile", "edit", "修改个人资料与通知设置", 72),
-    ("profile:password", "修改密码", "profile", "password", "修改个人登录密码", 73),
-    ("station:view", "查看站内信", "station", "view", "查看站内信列表与未读数", 74),
-    ("station:edit", "管理站内信", "station", "edit", "标记站内信已读", 75),
-    ("global_search:search", "全局搜索", "global_search", "search", "跨模块关键字搜索", 76),
-    ("swagger:view", "查看Swagger文档", "swagger", "view", "查看API Swagger文档", 80),
-]
+# 权限元数据唯一事实来源为 src.constants.permissions.PermissionCode，
+# 不再在种子模块维护副本；PERMISSION_CATALOG 按定义顺序（sort_order）遍历。
 
 # ── 内置菜单定义 ──────────────────────────────────────────────
 # (parent_title 或 0, title, path, icon, perm_code, sort_order, type)
@@ -94,24 +53,24 @@ _SEED_PERMISSIONS: list[tuple[str, str, str, str, str, int]] = [
 _SEED_MENUS = [
     # 根菜单
     (0, "首页", "/dashboard", "Odometer", None, 1, "menu"),
-    (0, "仪表盘", "/panel", "DataAnalysis", "dashboard:view", 2, "menu"),
+    (0, "仪表盘", "/panel", "DataAnalysis", PermissionCode.DASHBOARD_VIEW.mark, 2, "menu"),
     (0, "系统管理", "/system", "Setting", None, 3, "directory"),
     # 系统管理子菜单
-    ("系统管理", "用户管理", "/users", "User", "user:view", 1, "menu"),
-    ("系统管理", "角色管理", "/roles", "UserFilled", "role:view", 2, "menu"),
-    ("系统管理", "权限管理", "/permissions", "Lock", "role:view", 3, "menu"),
-    ("系统管理", "文件管理", "/files", "Folder", "file:view", 4, "menu"),
-    ("系统管理", "通知管理", "/system-notification", "Bell", "notification:config", 5, "menu"),
-    ("系统管理", "公告管理", "/announcements", "Tickets", "announcement:view", 6, "menu"),
-    ("系统管理", "审计日志", "/audit", "Document", "audit_log:view", 7, "menu"),
-    ("系统管理", "登录日志", "/audit/login", "User", "login_log:view", 8, "menu"),
+    ("系统管理", "用户管理", "/users", "User", PermissionCode.USER_VIEW.mark, 1, "menu"),
+    ("系统管理", "角色管理", "/roles", "UserFilled", PermissionCode.ROLE_VIEW.mark, 2, "menu"),
+    ("系统管理", "权限管理", "/permissions", "Lock", PermissionCode.PERMISSION_VIEW.mark, 3, "menu"),
+    ("系统管理", "文件管理", "/files", "Folder", PermissionCode.FILE_VIEW.mark, 4, "menu"),
+    ("系统管理", "通知管理", "/system-notification", "Bell", PermissionCode.NOTIFICATION_CONFIG.mark, 5, "menu"),
+    ("系统管理", "公告管理", "/announcements", "Tickets", PermissionCode.ANNOUNCEMENT_VIEW.mark, 6, "menu"),
+    ("系统管理", "审计日志", "/audit", "Document", PermissionCode.AUDIT_LOG_VIEW.mark, 7, "menu"),
+    ("系统管理", "登录日志", "/audit/login", "User", PermissionCode.LOGIN_LOG_VIEW.mark, 8, "menu"),
     # 接口管理
     (0, "接口管理", "/apis", "Link", None, 4, "directory"),
-    ("接口管理", "Swagger文档", "/apis/swagger", "Document", "swagger:view", 1, "menu"),
+    ("接口管理", "Swagger文档", "/apis/swagger", "Document", PermissionCode.SWAGGER_VIEW.mark, 1, "menu"),
     # 开放平台
     (0, "开放平台", "/open", "Connection", None, 5, "directory"),
-    ("开放平台", "应用管理", "/apps", "Grid", "openapi_app:view", 1, "menu"),
-    ("开放平台", "权限管理", "/app-scopes", "Lock", "openapi_app:view", 2, "menu"),
+    ("开放平台", "应用管理", "/apps", "Grid", PermissionCode.OPENAPI_APP_VIEW.mark, 1, "menu"),
+    ("开放平台", "权限管理", "/app-scopes", "Lock", PermissionCode.OPENAPI_APP_VIEW.mark, 2, "menu"),
 ]
 
 
@@ -119,18 +78,19 @@ def init_seed_data() -> None:
     """初始化系统种子数据（幂等，可重复调用）。"""
     session = get_cached_database_provider().get_session_factory()()
     try:
-        # 1. 权限
+        # 1. 权限（元数据全部来自 PermissionCode 统一目录）
         perm_map: dict[str, PermissionEntity] = {}
-        for code, name, module, op, desc, sort in _SEED_PERMISSIONS:
+        for perm_def in PERMISSION_CATALOG:
+            code = perm_def.mark
             perm = session.execute(select(PermissionEntity).where(PermissionEntity.perm_code == code)).scalars().first()
             if perm is None:
                 perm = PermissionEntity(
                     perm_code=code,
-                    perm_name=name,
-                    module=module,
-                    operation=op,
-                    description=desc,
-                    sort_order=sort,
+                    perm_name=perm_def.perm_name,
+                    module=perm_def.module,
+                    operation=perm_def.operation,
+                    description=perm_def.description,
+                    sort_order=perm_def.sort_order,
                 )
                 session.add(perm)
                 session.flush()
@@ -187,12 +147,14 @@ def init_seed_data() -> None:
             logger.info(f"Seed role created: role_code={_SEED_USER_ROLE_CODE}")
         # 3.7 普通用户角色 → 绑定个人基础功能权限（幂等）
         user_basic_codes = [
-            "profile:view",
-            "profile:edit",
-            "profile:password",
-            "station:view",
-            "station:edit",
-            "global_search:search",
+            PermissionCode.PROFILE_VIEW.mark,
+            PermissionCode.PROFILE_EDIT.mark,
+            PermissionCode.PROFILE_PASSWORD.mark,
+            PermissionCode.PROFILE_EMAIL.mark,
+            PermissionCode.PROFILE_PHONE.mark,
+            PermissionCode.STATION_VIEW.mark,
+            PermissionCode.STATION_EDIT.mark,
+            PermissionCode.GLOBAL_SEARCH_SEARCH.mark,
         ]
         for code in user_basic_codes:
             target_perm = perm_map.get(code)

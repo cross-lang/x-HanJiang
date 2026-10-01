@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_current_user, get_file_service, is_admin_user, require_user_permission
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.schemas.auth import CurrentUser
 from src.services.file_service import FileStorageService
 
@@ -15,9 +16,9 @@ router = APIRouter(prefix="/files", tags=["文件管理"])
 @router.post(
     "/upload",
     summary="上传文件",
-    dependencies=[Depends(require_user_permission("file:create"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.FILE_CREATE.mark))],
 )
-@permission("file:create", "上传文件", "file", "create")
+@permission(PermissionCode.FILE_CREATE)
 def upload_file(
     request: Request,
     file: UploadFile = File(...),
@@ -36,9 +37,9 @@ def upload_file(
 @router.get(
     "",
     summary="文件列表",
-    dependencies=[Depends(require_user_permission("file:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.FILE_VIEW.mark))],
 )
-@permission("file:view", "查看文件", "file", "view")
+@permission(PermissionCode.FILE_VIEW)
 def list_files(
     request: Request,
     folder: str | None = Query(default=None),
@@ -57,9 +58,9 @@ def list_files(
 @router.get(
     "/{file_path:path}",
     summary="获取文件",
-    dependencies=[Depends(require_user_permission("file:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.FILE_VIEW.mark))],
 )
-@permission("file:view", "查看文件", "file", "view")
+@permission(PermissionCode.FILE_VIEW)
 def get_file(
     file_path: str = Path(...),
     service: FileStorageService = Depends(get_file_service),
@@ -75,9 +76,9 @@ def get_file(
 @router.delete(
     "/{file_id}",
     summary="删除文件",
-    dependencies=[Depends(require_user_permission("file:delete"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.FILE_DELETE.mark))],
 )
-@permission("file:delete", "删除文件", "file", "delete")
+@permission(PermissionCode.FILE_DELETE)
 def delete_file(
     file_id: int,
     request: Request,

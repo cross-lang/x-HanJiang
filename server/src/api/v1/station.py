@@ -11,6 +11,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.services.station_service import StationMessageService
 
 router = APIRouter(prefix="/station/messages", tags=["站内信"])
@@ -19,9 +20,9 @@ router = APIRouter(prefix="/station/messages", tags=["站内信"])
 @router.get(
     "/unread-count",
     summary="未读消息数",
-    dependencies=[Depends(require_user_permission("station:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.STATION_VIEW.mark))],
 )
-@permission("station:view", "查看站内信", "station", "view")
+@permission(PermissionCode.STATION_VIEW)
 def unread_count(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -34,9 +35,9 @@ def unread_count(
 @router.get(
     "",
     summary="我的消息列表",
-    dependencies=[Depends(require_user_permission("station:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.STATION_VIEW.mark))],
 )
-@permission("station:view", "查看站内信", "station", "view")
+@permission(PermissionCode.STATION_VIEW)
 def my_messages(
     request: Request,
     page: int = Query(default=1, ge=1),
@@ -51,9 +52,9 @@ def my_messages(
 @router.post(
     "/{msg_id}/read",
     summary="标记单条已读",
-    dependencies=[Depends(require_user_permission("station:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.STATION_EDIT.mark))],
 )
-@permission("station:edit", "管理站内信", "station", "edit")
+@permission(PermissionCode.STATION_EDIT)
 def mark_read(
     msg_id: int,
     request: Request,
@@ -67,9 +68,9 @@ def mark_read(
 @router.post(
     "/read-all",
     summary="全部已读",
-    dependencies=[Depends(require_user_permission("station:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.STATION_EDIT.mark))],
 )
-@permission("station:edit", "管理站内信", "station", "edit")
+@permission(PermissionCode.STATION_EDIT)
 def mark_all_read(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),

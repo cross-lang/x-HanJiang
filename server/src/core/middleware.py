@@ -20,13 +20,12 @@ from collections.abc import Callable
 from contextlib import suppress
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
 
 from src.api.response import error_response
 from src.constants import REQUEST_ID_HEADER
-from src.core.config import settings
 from src.core.logger import logger
 from src.utils.helpers import get_client_ip, mask_sensitive
 

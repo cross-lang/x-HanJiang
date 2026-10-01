@@ -24,6 +24,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.core.exceptions import ValidationException
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
@@ -44,9 +45,9 @@ router = APIRouter(prefix="/users", tags=["用户管理"])
     summary="创建用户",
     description="创建一个新用户（校验邮箱/用户名全局唯一）",
     status_code=201,
-    dependencies=[Depends(require_user_permission("user:create"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_CREATE.mark))],
 )
-@permission("user:create", "创建用户", "user", "create")
+@permission(PermissionCode.USER_CREATE)
 def create_user(
     body: UserCreateRequest,
     request: Request,
@@ -61,9 +62,9 @@ def create_user(
     "",
     summary="用户列表",
     description="查询用户列表（分页，支持关键字/状态过滤）",
-    dependencies=[Depends(require_user_permission("user:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_VIEW.mark))],
 )
-@permission("user:view", "查看用户", "user", "view")
+@permission(PermissionCode.USER_VIEW)
 def list_users(
     request: Request,
     page: int = 1,
@@ -90,9 +91,9 @@ def list_users(
     "/export",
     summary="导出用户列表",
     description="按筛选条件导出全部匹配用户为 CSV 文件（支持关键字/状态过滤）",
-    dependencies=[Depends(require_user_permission("user:export"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_EXPORT.mark))],
 )
-@permission("user:export", "导出用户", "user", "export")
+@permission(PermissionCode.USER_EXPORT)
 def export_users(
     keyword: str | None = None,
     status: str | None = None,
@@ -143,9 +144,9 @@ def export_users(
     "/{user_id}",
     summary="查询用户",
     description="根据 ID 查询用户详情",
-    dependencies=[Depends(require_user_permission("user:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_VIEW.mark))],
 )
-@permission("user:view", "查看用户", "user", "view")
+@permission(PermissionCode.USER_VIEW)
 def get_user(
     user_id: int,
     request: Request,
@@ -163,9 +164,9 @@ def get_user(
     "/{user_id}/update",
     summary="更新用户",
     description="更新用户信息（密码提供时重新哈希）",
-    dependencies=[Depends(require_user_permission("user:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_EDIT.mark))],
 )
-@permission("user:edit", "编辑用户", "user", "edit")
+@permission(PermissionCode.USER_EDIT)
 def update_user(
     user_id: int,
     body: UserUpdateRequest,
@@ -183,9 +184,9 @@ def update_user(
     "/{user_id}/reset-password",
     summary="重置用户密码",
     description="管理员重置指定用户的密码",
-    dependencies=[Depends(require_user_permission("user:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_EDIT.mark))],
 )
-@permission("user:edit", "编辑用户", "user", "edit")
+@permission(PermissionCode.USER_EDIT)
 def reset_user_password(
     user_id: int,
     body: AdminResetPasswordRequest,
@@ -201,9 +202,9 @@ def reset_user_password(
     "/{user_id}/delete",
     summary="删除用户",
     description="根据 ID 软删除用户",
-    dependencies=[Depends(require_user_permission("user:delete"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_DELETE.mark))],
 )
-@permission("user:delete", "删除用户", "user", "delete")
+@permission(PermissionCode.USER_DELETE)
 def delete_user(
     user_id: int,
     request: Request,
@@ -218,9 +219,9 @@ def delete_user(
     "/import",
     summary="导入用户列表",
     description="上传 CSV 文件批量导入用户（基础版本）",
-    dependencies=[Depends(require_user_permission("user:import"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_IMPORT.mark))],
 )
-@permission("user:import", "导入用户", "user", "import")
+@permission(PermissionCode.USER_IMPORT)
 def import_users(
     request: Request,
     file: UploadFile = File(...),

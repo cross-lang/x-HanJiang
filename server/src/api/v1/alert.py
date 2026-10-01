@@ -17,6 +17,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.schemas.alert import AlertSendRequest
 from src.services.alert_service import AlertService
 
@@ -27,9 +28,9 @@ router = APIRouter(prefix="/alerts", tags=["系统告警"])
     "",
     summary="发送系统告警",
     description="发送系统告警到指定接收人（需登录态与 alert:send 权限）",
-    dependencies=[Depends(require_user_permission("alert:send"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ALERT_SEND.mark))],
 )
-@permission("alert:send", "发送告警", "alert", "send")
+@permission(PermissionCode.ALERT_SEND)
 def send_alert(
     body: AlertSendRequest,
     request: Request,
@@ -60,9 +61,9 @@ def send_alert(
     "/broadcast",
     summary="广播系统告警",
     description="广播系统告警给全体活跃用户（管理员操作）",
-    dependencies=[Depends(require_user_permission("alert:broadcast"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ALERT_BROADCAST.mark))],
 )
-@permission("alert:broadcast", "广播告警", "alert", "broadcast")
+@permission(PermissionCode.ALERT_BROADCAST)
 def broadcast_alert(
     body: AlertSendRequest,
     request: Request,

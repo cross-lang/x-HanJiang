@@ -25,6 +25,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.schemas.role import (
@@ -43,9 +44,9 @@ router = APIRouter(prefix="/roles", tags=["角色管理"])
     "",
     summary="角色列表",
     description="查询角色列表（分页，支持关键字/类型/状态过滤）",
-    dependencies=[Depends(require_user_permission("role:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_VIEW.mark))],
 )
-@permission("role:view", "查看角色", "role", "view")
+@permission(PermissionCode.ROLE_VIEW)
 def list_roles(
     request: Request,
     page: int = 1,
@@ -80,9 +81,9 @@ def list_roles(
     summary="创建角色",
     description="创建一个新角色（校验编码/名称唯一）",
     status_code=201,
-    dependencies=[Depends(require_user_permission("role:create"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_CREATE.mark))],
 )
-@permission("role:create", "创建角色", "role", "create")
+@permission(PermissionCode.ROLE_CREATE)
 def create_role(
     body: RoleCreateRequest,
     request: Request,
@@ -98,9 +99,9 @@ def create_role(
     "/{role_id}",
     summary="角色详情",
     description="根据 ID 查询角色详情",
-    dependencies=[Depends(require_user_permission("role:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_VIEW.mark))],
 )
-@permission("role:view", "查看角色", "role", "view")
+@permission(PermissionCode.ROLE_VIEW)
 def get_role(
     role_id: int,
     request: Request,
@@ -119,9 +120,9 @@ def get_role(
     "/{role_id}/update",
     summary="更新角色",
     description="更新角色信息（名称/描述/状态）",
-    dependencies=[Depends(require_user_permission("role:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_EDIT.mark))],
 )
-@permission("role:edit", "编辑角色", "role", "edit")
+@permission(PermissionCode.ROLE_EDIT)
 def update_role(
     role_id: int,
     body: RoleUpdateRequest,
@@ -142,9 +143,9 @@ def update_role(
     "/{role_id}/delete",
     summary="删除角色",
     description="根据 ID 软删除角色",
-    dependencies=[Depends(require_user_permission("role:delete"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_DELETE.mark))],
 )
-@permission("role:delete", "删除角色", "role", "delete")
+@permission(PermissionCode.ROLE_DELETE)
 def delete_role(
     role_id: int,
     request: Request,
@@ -160,9 +161,9 @@ def delete_role(
     "/{role_id}/permissions",
     summary="角色权限列表",
     description="查询角色绑定的权限列表（含权限详情）",
-    dependencies=[Depends(require_user_permission("role:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_VIEW.mark))],
 )
-@permission("role:view", "查看角色", "role", "view")
+@permission(PermissionCode.ROLE_VIEW)
 def get_role_permissions(
     role_id: int,
     request: Request,
@@ -176,11 +177,11 @@ def get_role_permissions(
 @router.post(
     "/{role_id}/permissions",
     summary="绑定权限",
-    description="为角色绑定一个权限",
+    description="为角色绑定一个权限（独立于编辑角色信息的权限）",
     status_code=201,
-    dependencies=[Depends(require_user_permission("role:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_PERMISSION.mark))],
 )
-@permission("role:edit", "编辑角色", "role", "edit")
+@permission(PermissionCode.ROLE_PERMISSION)
 def bind_permission(
     role_id: int,
     body: BindPermissionRequest,
@@ -200,10 +201,10 @@ def bind_permission(
 @router.post(
     "/{role_id}/permissions/{permission_id}/unbind",
     summary="解绑权限",
-    description="解除角色与指定权限的绑定",
-    dependencies=[Depends(require_user_permission("role:edit"))],
+    description="解除角色与指定权限的绑定（独立于编辑角色信息的权限）",
+    dependencies=[Depends(require_user_permission(PermissionCode.ROLE_PERMISSION.mark))],
 )
-@permission("role:edit", "编辑角色", "role", "edit")
+@permission(PermissionCode.ROLE_PERMISSION)
 def unbind_permission(
     role_id: int,
     permission_id: int,

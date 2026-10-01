@@ -60,6 +60,7 @@ class ApiModuleCode(BaseEnum):
     PROFILE = ("profile", "个人中心")
     STATION = ("station", "站内信")
     GLOBAL_SEARCH = ("global_search", "全局搜索")
+    ASSISTANT = ("assistant", "AI助手")
 
 
 # ── 开放平台域 ────────────────────────────────────────
@@ -130,7 +131,7 @@ class NotificationEvent(BaseEnum):
     PERMISSION_REVOKED = "permission.revoked", "权限回收"
     # ── 系统域 ──────────────────────────────────
     SYSTEM_ALERT = "system.alert", "系统告警"
-    SYSTEM_MAINTENANCE = "system.maintenance", "系统维护通知"
+    SYSTEM_MAINTENANCE = "system.maintenance", "系统维护"
     # ── 文件域 ──────────────────────────────────
     FILE_UPLOADED = "file.uploaded", "文件上传完成"
     FILE_DELETED = "file.deleted", "文件已删除"
@@ -141,39 +142,74 @@ class NotificationEvent(BaseEnum):
 # 未显式指定渠道的 dispatch 调用使用该路由表决定发送渠道。
 DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
     # 用户域
-    NotificationEvent.USER_PASSWORD_CHANGED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
-    NotificationEvent.USER_PROFILE_UPDATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_PASSWORD_CHANGED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL
+    ],
+    NotificationEvent.USER_PROFILE_UPDATED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL
+    ],
     NotificationEvent.USER_STATUS_CHANGED: [
         NotificationChannel.STATION,
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
     ],
-    NotificationEvent.USER_LOGIN_FAILED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
-    NotificationEvent.USER_CREATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
-    NotificationEvent.USER_DELETED: [NotificationChannel.EMAIL],
-    NotificationEvent.LOGIN_NEW_DEVICE: [NotificationChannel.EMAIL],
+    NotificationEvent.USER_LOGIN_FAILED: [
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK
+    ],
+    NotificationEvent.USER_CREATED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL
+    ],
+    NotificationEvent.USER_DELETED: [
+        NotificationChannel.EMAIL
+    ],
+    NotificationEvent.LOGIN_NEW_DEVICE: [
+        NotificationChannel.EMAIL
+    ],
     # 角色权限域
     NotificationEvent.ROLE_ASSIGNED: [
         NotificationChannel.STATION,
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
     ],
-    NotificationEvent.PERMISSION_GRANTED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.PERMISSION_GRANTED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL
+    ],
     NotificationEvent.PERMISSION_REVOKED: [
         NotificationChannel.STATION,
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
     ],
-    NotificationEvent.ROLE_DELETED: [NotificationChannel.STATION],
+    NotificationEvent.ROLE_DELETED: [
+        NotificationChannel.STATION
+    ],
     # 文件域
-    NotificationEvent.FILE_UPLOADED: [NotificationChannel.STATION],
-    NotificationEvent.FILE_DELETED: [NotificationChannel.STATION],
-    NotificationEvent.FILE_DOWNLOADED: [NotificationChannel.STATION],
+    NotificationEvent.FILE_UPLOADED: [
+        NotificationChannel.STATION
+    ],
+    NotificationEvent.FILE_DELETED: [
+        NotificationChannel.STATION
+    ],
+    NotificationEvent.FILE_DOWNLOADED: [
+        NotificationChannel.STATION
+    ],
     # 开放应用域
-    NotificationEvent.OPENAPI_APP_CREATED: [NotificationChannel.STATION],
-    NotificationEvent.OPENAPI_APP_UPDATED: [NotificationChannel.STATION],
-    NotificationEvent.OPENAPI_APP_DELETED: [NotificationChannel.STATION],
-    NotificationEvent.OPENAPI_APP_KEY_RESET: [NotificationChannel.EMAIL],
+    NotificationEvent.OPENAPI_APP_CREATED: [
+        NotificationChannel.STATION
+    ],
+    NotificationEvent.OPENAPI_APP_UPDATED: [
+        NotificationChannel.STATION
+    ],
+    NotificationEvent.OPENAPI_APP_DELETED: [
+        NotificationChannel.STATION
+    ],
+    NotificationEvent.OPENAPI_APP_KEY_RESET: [
+        NotificationChannel.EMAIL
+    ],
     # 系统域
     NotificationEvent.SYSTEM_ALERT: [
         NotificationChannel.EMAIL,
@@ -268,10 +304,10 @@ class HttpStatus(BaseEnum):
     GATEWAY_TIMEOUT = 504, "Gateway Timeout"
 
 
-class HttpMediaType(Enum):
-    """HTTP 内容类型（Content-Type）。"""
-
-    JSON = "application/json"
-    FILE = "application/octet-stream"
-    FORM_URLENCODED = "application/x-www-form-urlencoded"
-    MULTIPART = "multipart/form-data"
+class HttpMediaType(BaseEnum):
+    """HTTP Content-Type 媒体类型枚举。"""
+    APPLICATION_JSON = "application/json", "JSON"
+    APPLICATION_OCTET_STREAM = "application/octet-stream", "二进制流"
+    APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded", "表单数据编码"
+    MULTIPART_FORM_DATA = "multipart/form-data", "表单数据编码"
+    TEXT_EVENT_STREAM = "text/event-stream", "事件流（SSE）"

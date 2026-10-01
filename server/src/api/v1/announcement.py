@@ -16,6 +16,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.enums import AnnouncementStatus
+from src.constants.permissions import PermissionCode
 from src.models.entities.announcement_entity import AnnouncementEntity
 from src.schemas.announcement import (
     AnnouncementCreateRequest,
@@ -48,9 +49,9 @@ def _to_response(entity: AnnouncementEntity) -> AnnouncementResponse:
     "/",
     summary="创建公告",
     description="创建公告（初始为草稿状态）",
-    dependencies=[Depends(require_user_permission("announcement:create"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ANNOUNCEMENT_CREATE.mark))],
 )
-@permission("announcement:create", "创建公告", "announcement", "create")
+@permission(PermissionCode.ANNOUNCEMENT_CREATE)
 def create_announcement(
     body: AnnouncementCreateRequest,
     request: Request,
@@ -79,9 +80,9 @@ def create_announcement(
     "/{announcement_id}/update",
     summary="修改公告",
     description="修改公告信息（所有字段可选）",
-    dependencies=[Depends(require_user_permission("announcement:edit"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ANNOUNCEMENT_EDIT.mark))],
 )
-@permission("announcement:edit", "编辑公告", "announcement", "edit")
+@permission(PermissionCode.ANNOUNCEMENT_EDIT)
 def update_announcement(
     announcement_id: int,
     body: AnnouncementUpdateRequest,
@@ -113,9 +114,9 @@ def update_announcement(
     "/{announcement_id}/delete",
     summary="删除公告",
     description="删除公告（物理删除）",
-    dependencies=[Depends(require_user_permission("announcement:delete"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ANNOUNCEMENT_DELETE.mark))],
 )
-@permission("announcement:delete", "删除公告", "announcement", "delete")
+@permission(PermissionCode.ANNOUNCEMENT_DELETE)
 def delete_announcement(
     announcement_id: int,
     request: Request,
@@ -144,9 +145,9 @@ def delete_announcement(
     "/{announcement_id}/publish",
     summary="发布公告",
     description="发布公告（草稿/已下架 → 已发布，校验有效期）",
-    dependencies=[Depends(require_user_permission("announcement:publish"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ANNOUNCEMENT_PUBLISH.mark))],
 )
-@permission("announcement:publish", "发布公告", "announcement", "publish")
+@permission(PermissionCode.ANNOUNCEMENT_PUBLISH)
 def publish_announcement(
     announcement_id: int,
     request: Request,
@@ -175,9 +176,9 @@ def publish_announcement(
     "/{announcement_id}/unpublish",
     summary="下架公告",
     description="下架公告（已发布 → 已下架）",
-    dependencies=[Depends(require_user_permission("announcement:publish"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ANNOUNCEMENT_PUBLISH.mark))],
 )
-@permission("announcement:publish", "发布公告", "announcement", "publish")
+@permission(PermissionCode.ANNOUNCEMENT_PUBLISH)
 def unpublish_announcement(
     announcement_id: int,
     request: Request,
@@ -206,9 +207,9 @@ def unpublish_announcement(
     "/",
     summary="公告列表",
     description="分页查询公告（管理视角，含草稿/已下架）",
-    dependencies=[Depends(require_user_permission("announcement:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ANNOUNCEMENT_VIEW.mark))],
 )
-@permission("announcement:view", "查看公告", "announcement", "view")
+@permission(PermissionCode.ANNOUNCEMENT_VIEW)
 def list_announcements(
     request: Request,
     page: int = Query(1, ge=1, description="页码"),
@@ -284,9 +285,9 @@ def available_announcements(
     "/{announcement_id}",
     summary="公告详情",
     description="查询单条公告详情",
-    dependencies=[Depends(require_user_permission("announcement:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.ANNOUNCEMENT_VIEW.mark))],
 )
-@permission("announcement:view", "查看公告", "announcement", "view")
+@permission(PermissionCode.ANNOUNCEMENT_VIEW)
 def get_announcement(
     announcement_id: int,
     request: Request,

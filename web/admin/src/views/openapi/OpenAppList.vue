@@ -330,7 +330,7 @@ async function handleToggleStatus(row: any) {
     )
   } catch { return }
   try {
-    await request.put(`/admin/apps/${row.id}`, { status: newStatus })
+    await request.put(`/admin/apps/${row.id}/status`, { status: newStatus })
     ElMessage.success(newStatus === 'active' ? '已启用' : '已禁用')
     fetchList()
   } catch (e) {

@@ -17,6 +17,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.enums import SystemNotificationType
+from src.constants.permissions import PermissionCode
 from src.schemas.auth import CurrentUser
 from src.schemas.notification import (
     NotificationStatsResponse,
@@ -40,9 +41,9 @@ router = APIRouter(prefix="/notifications", tags=["通知管理"])
     "/publish",
     summary="发布系统通知",
     description="面向全体活跃用户发布系统通知（普通通知/系统维护），推送站内信产生未读红点",
-    dependencies=[Depends(require_user_permission("notification:create"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CREATE.mark))],
 )
-@permission("notification:create", "创建通知", "notification", "create")
+@permission(PermissionCode.NOTIFICATION_CREATE)
 def publish_notice(
     request: Request,
     body: PublishNotificationRequest,
@@ -92,9 +93,9 @@ def publish_notice(
     "/{notice_id}/withdraw",
     summary="撤回系统通知",
     description="撤回已发布的系统通知（幂等）",
-    dependencies=[Depends(require_user_permission("notification:create"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_WITHDRAW.mark))],
 )
-@permission("notification:create", "创建通知", "notification", "create")
+@permission(PermissionCode.NOTIFICATION_WITHDRAW)
 def withdraw_notice(
     notice_id: int,
     request: Request,
@@ -123,9 +124,9 @@ def withdraw_notice(
     "/published",
     summary="系统通知列表",
     description="分页查询已发布的系统通知（普通通知/系统维护）",
-    dependencies=[Depends(require_user_permission("notification:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
-@permission("notification:view", "查看通知", "notification", "view")
+@permission(PermissionCode.NOTIFICATION_VIEW)
 def list_published_notices(
     request: Request,
     page: int = Query(1, ge=1, description="页码"),
@@ -163,9 +164,9 @@ def list_published_notices(
     "/published/{notice_id}",
     summary="系统通知详情",
     description="查询单条系统通知详情",
-    dependencies=[Depends(require_user_permission("notification:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
-@permission("notification:view", "查看通知", "notification", "view")
+@permission(PermissionCode.NOTIFICATION_VIEW)
 def get_published_notice(
     notice_id: int,
     request: Request,
@@ -189,9 +190,9 @@ def get_published_notice(
     "",
     summary="通知列表",
     description="分页查询当前用户的通知发送记录",
-    dependencies=[Depends(require_user_permission("notification:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
-@permission("notification:view", "查看通知", "notification", "view")
+@permission(PermissionCode.NOTIFICATION_VIEW)
 def list_notifications(
     request: Request,
     page: int = Query(1, ge=1, description="页码"),
@@ -229,9 +230,9 @@ def list_notifications(
     "/stats",
     summary="通知统计",
     description="查询通知发送的成功/失败/待发送统计",
-    dependencies=[Depends(require_user_permission("notification:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
-@permission("notification:view", "查看通知", "notification", "view")
+@permission(PermissionCode.NOTIFICATION_VIEW)
 def get_notification_stats(
     request: Request,
     notification_service: NotificationService = Depends(get_notification_service),
@@ -253,9 +254,9 @@ def get_notification_stats(
     "/{notification_id}",
     summary="通知详情",
     description="查询单条通知记录详情",
-    dependencies=[Depends(require_user_permission("notification:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
-@permission("notification:view", "查看通知", "notification", "view")
+@permission(PermissionCode.NOTIFICATION_VIEW)
 def get_notification(
     request: Request,
     notification_id: int,
@@ -285,9 +286,9 @@ admin_router = APIRouter(prefix="/admin/notification-configs", tags=["通知管�
 @admin_router.get(
     "",
     summary="获取所有系统通知渠道配置",
-    dependencies=[Depends(require_user_permission("notification:config"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CONFIG.mark))],
 )
-@permission("notification:config", "通知配置管理", "notification", "config")
+@permission(PermissionCode.NOTIFICATION_CONFIG)
 def list_configs(
     request: Request,
     service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
@@ -316,9 +317,9 @@ def list_configs(
 @admin_router.put(
     "/{channel}",
     summary="更新某渠道配置",
-    dependencies=[Depends(require_user_permission("notification:config"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CONFIG.mark))],
 )
-@permission("notification:config", "通知配置管理", "notification", "config")
+@permission(PermissionCode.NOTIFICATION_CONFIG)
 def update_config(
     channel: str,
     request: Request,
@@ -354,9 +355,9 @@ def update_config(
 @admin_router.get(
     "/monitor/system",
     summary="系统监控状态",
-    dependencies=[Depends(require_user_permission("notification:config"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CONFIG.mark))],
 )
-@permission("notification:config", "通知配置管理", "notification", "config")
+@permission(PermissionCode.NOTIFICATION_CONFIG)
 def system_monitor(
     request: Request,
     service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
@@ -376,9 +377,9 @@ def system_monitor(
 @admin_router.post(
     "/{channel}/test",
     summary="发送测试消息",
-    dependencies=[Depends(require_user_permission("notification:config"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CONFIG.mark))],
 )
-@permission("notification:config", "通知配置管理", "notification", "config")
+@permission(PermissionCode.NOTIFICATION_CONFIG)
 def test_channel(
     channel: str,
     request: Request,

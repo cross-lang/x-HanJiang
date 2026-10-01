@@ -11,6 +11,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.services.dashboard_service import DashboardService
 
 router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
@@ -19,9 +20,9 @@ router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
 @router.get(
     "/stats",
     summary="仪表盘统计数据",
-    dependencies=[Depends(require_user_permission("dashboard:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.DASHBOARD_VIEW.mark))],
 )
-@permission("dashboard:view", "查看仪表盘", "dashboard", "view")
+@permission(PermissionCode.DASHBOARD_VIEW)
 def get_stats(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
@@ -35,9 +36,9 @@ def get_stats(
 @router.get(
     "/my-activity",
     summary="我的最近活动",
-    dependencies=[Depends(require_user_permission("dashboard:view"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.DASHBOARD_VIEW.mark))],
 )
-@permission("dashboard:view", "查看仪表盘", "dashboard", "view")
+@permission(PermissionCode.DASHBOARD_VIEW)
 def get_my_activity(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),

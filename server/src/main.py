@@ -61,12 +61,11 @@ async def lifespan(app: FastAPI):
     get_cached_cache_provider()
     logger.info("Redis connection established")
     # 自动扫描路由中的权限声明，同步到 permissions 表
+    # 权限元数据（含描述 / 排序号）全部来自 PermissionCode 统一目录
     try:
         from src.api.api_permission_decorator import collect_permissions_from_app
-        from src.core.seed import _SEED_PERMISSIONS
         from src.models.entities.user_entity import PermissionEntity
 
-        seed_sorts: dict[str, int] = {code: sort for code, _n, _m, _o, _d, sort in _SEED_PERMISSIONS}
         collected = collect_permissions_from_app(app)
         logger.debug(f"Collected permissions: {[p['perm_code'] for p in collected]}")
         session = get_cached_database_provider().get_session_factory()()
@@ -77,16 +76,11 @@ async def lifespan(app: FastAPI):
                 existing.perm_name = perm["perm_name"]
                 existing.module = perm["module"]
                 existing.operation = perm["operation"]
-                if perm["description"]:
-                    existing.description = (perm["description"] or "")[:250]
-                seed_sort = seed_sorts.get(perm["perm_code"])
-                if seed_sort is not None:
-                    existing.sort_order = seed_sort
+                existing.description = perm["description"]
+                existing.sort_order = perm["sort_order"]
                 existing.is_deprecated = False
             else:
-                p = dict(perm)
-                p["description"] = (p.get("description") or "")[:250]
-                session.add(PermissionEntity(**p, is_deprecated=False))
+                session.add(PermissionEntity(**perm, is_deprecated=False))
         deprecated = (
             session.query(PermissionEntity)
             .filter(

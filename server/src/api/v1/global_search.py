@@ -11,6 +11,7 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.permissions import PermissionCode
 from src.schemas.auth import CurrentUser
 from src.services.global_search_service import GlobalSearchService
 from src.services.permission_service import PermissionService
@@ -19,13 +20,13 @@ router = APIRouter(prefix="/search", tags=["全局搜索"])
 
 # 分类 → 查看权限编码
 _CATEGORY_PERMS: dict[str, str] = {
-    "users": "user:view",
-    "roles": "role:view",
-    "permissions": "role:view",
-    "apps": "openapi_app:view",
-    "files": "file:view",
-    "notices": "notification:view",
-    "announcements": "announcement:view",
+    "users": PermissionCode.USER_VIEW.mark,
+    "roles": PermissionCode.ROLE_VIEW.mark,
+    "permissions": PermissionCode.ROLE_VIEW.mark,
+    "apps": PermissionCode.OPENAPI_APP_VIEW.mark,
+    "files": PermissionCode.FILE_VIEW.mark,
+    "notices": PermissionCode.NOTIFICATION_VIEW.mark,
+    "announcements": PermissionCode.ANNOUNCEMENT_VIEW.mark,
 }
 
 
@@ -33,9 +34,9 @@ _CATEGORY_PERMS: dict[str, str] = {
     "",
     summary="全局搜索",
     description="按关键字搜索用户/角色/权限/开放平台应用/文件/通知/公告，按分类返回前 N 条",
-    dependencies=[Depends(require_user_permission("global_search:search"))],
+    dependencies=[Depends(require_user_permission(PermissionCode.GLOBAL_SEARCH_SEARCH.mark))],
 )
-@permission("global_search:search", "全局搜索", "global_search", "search")
+@permission(PermissionCode.GLOBAL_SEARCH_SEARCH)
 def global_search(
     request: Request,
     keyword: str,

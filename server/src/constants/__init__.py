@@ -6,8 +6,6 @@ from src.constants.assistant import (
     ASSISTANT_ENTRY_CATALOG,
     ASSISTANT_FALLBACK_MESSAGE,
     ASSISTANT_MESSAGE_LIST_LIMIT,
-    ASSISTANT_PERMISSION_CHAT,
-    ASSISTANT_PERMISSION_FEEDBACK,
     ASSISTANT_ROLL_CHUNK_SIZE,
     ASSISTANT_ROLL_TRIGGER_FACTOR,
     NAVIGATE_TOOL_NAME,
@@ -63,6 +61,7 @@ from src.constants.enums import (
     NotificationChannel,
     UserStatus,
 )
+from src.constants.permissions import PERMISSION_CATALOG, PermissionCode
 
 __all__ = [
     "APP_ID",
@@ -108,8 +107,6 @@ __all__ = [
     "ASSISTANT_ENTITY_TYPE",
     "ASSISTANT_FALLBACK_MESSAGE",
     "ASSISTANT_MESSAGE_LIST_LIMIT",
-    "ASSISTANT_PERMISSION_CHAT",
-    "ASSISTANT_PERMISSION_FEEDBACK",
     "ASSISTANT_ROLL_CHUNK_SIZE",
     "ASSISTANT_ROLL_TRIGGER_FACTOR",
     "NAVIGATE_TOOL_NAME",
@@ -121,4 +118,6 @@ __all__ = [
     "NotificationChannel",
     "HttpMediaType",
     "HttpStatus",
+    "PermissionCode",
+    "PERMISSION_CATALOG",
 ]
