@@ -231,8 +231,7 @@ server/
 │   └── versions/             # Migration version scripts (8 versions currently)
 ├── docs/                     # Project docs (DDL SQL, Postman OpenAPI collection)
 ├── examples/                 # Usage examples
-│   ├── basic_usage.py        # Basic usage
-│   ├── custom_api.py         # Custom API example
+│   ├── layered_architecture.py  # Three-layer architecture CRUD example
 │   └── openapi_client.py     # Open platform client example
 ├── logs/                     # Runtime log output
 ├── scripts/                  # Engineering scripts

@@ -17,7 +17,7 @@
     - API 层仅做参数注入和响应包装
 
 Usage:
-    uv run python examples/custom_api.py
+    uv run python examples/layered_architecture.py
 """
 
 from typing import Any

@@ -231,8 +231,7 @@ server/
 │   └── versions/             # 迁移版本脚本（当前 8 个版本）
 ├── docs/                     # 项目文档（建表 SQL、Postman OpenAPI 集合）
 ├── examples/                 # 使用示例脚本
-│   ├── basic_usage.py        # 基础用法示例
-│   ├── custom_api.py         # 自定义 API 示例
+│   ├── layered_architecture.py  # 三层架构 CRUD 示例
 │   └── openapi_client.py     # 开放平台客户端示例
 ├── logs/                     # 运行日志输出
 ├── scripts/                  # 工程脚本

@@ -6,8 +6,10 @@ LLMProvider，切换供应商只需新增实现类并修改配置，业务代码
 本模块属于 infras/ 基础设施层，不依赖任何上层业务模块。
 
 扩展约定：
-    - 新增供应商：继承 LLMProvider 实现 chat_stream / chat / embed / summarize，
+    - 新增供应商：继承 LLMProvider 实现 chat_stream / chat / summarize，
       在 get_llm_provider 工厂中按配置 provider 分发即可
+    - 文本向量化（embedding）与对话是两类独立模型能力，待 RAG / 长期记忆
+      落地时在独立的 EmbeddingProvider 中提供，不混入本接口
     - 客户端初始化失败抛出 ExternalServiceException，不直接抛出第三方原生异常
 
 同步形态说明：遵循工程规范「统一全同步形态」，使用 openai 同步客户端，
@@ -126,17 +128,6 @@ class LLMProvider(ABC):
         """
 
     @abstractmethod
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        """文本向量化（预留：长期记忆 / RAG 接入时使用）。
-
-        Args:
-            texts: 待向量化文本列表
-
-        Returns:
-            list[list[float]]: 向量列表，与输入一一对应
-        """
-
-    @abstractmethod
     def summarize(self, text: str) -> str:
         """将一段对话文本压缩为摘要（第 2 层滚动摘要使用）。
 
@@ -168,7 +159,6 @@ class OpenAICompatProvider(LLMProvider):
         base_url: str,
         api_key: str,
         model: str,
-        embedding_model: str = "",
         timeout_seconds: int = 60,
     ) -> None:
         """初始化 OpenAI 兼容客户端。
@@ -177,7 +167,6 @@ class OpenAICompatProvider(LLMProvider):
             base_url: OpenAI 兼容服务地址
             api_key: API 密钥（敏感信息，来自配置，禁止打印）
             model: 对话模型名称
-            embedding_model: 向量模型名称（为空则复用对话模型）
             timeout_seconds: 请求超时秒数
 
         Raises:
@@ -191,7 +180,6 @@ class OpenAICompatProvider(LLMProvider):
             timeout=timeout_seconds,
         )
         self._model: str = model
-        self._embedding_model: str = embedding_model or model
         logger.info(f"OpenAICompatProvider initialized: model={model}, base_url={base_url}")
 
     def chat_stream(
@@ -277,13 +265,6 @@ class OpenAICompatProvider(LLMProvider):
             tools,
         )
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        try:
-            response = self._client.embeddings.create(model=self._embedding_model, input=texts)
-            return [item.embedding for item in response.data]
-        except Exception as exc:  # noqa: BLE001 - 统一转换为系统异常
-            raise ExternalServiceException(message=f"文本向量化失败: {exc}") from exc
-
     def summarize(self, text: str) -> str:
         messages: ChatMessage = [
             {"role": "system", "content": self._SUMMARY_SYSTEM_PROMPT},
@@ -315,7 +296,6 @@ def _create_llm_provider() -> LLMProvider:
             base_url=llm_cfg.base_url,
             api_key=llm_cfg.api_key,
             model=llm_cfg.model,
-            embedding_model=llm_cfg.embedding_model,
             timeout_seconds=llm_cfg.timeout_seconds,
         )
     raise ExternalServiceException(message=f"不支持的模型供应商类型: {llm_cfg.provider}")

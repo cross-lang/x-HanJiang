@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from src.constants.assistant import (
@@ -29,6 +30,7 @@ from src.schemas.auth import CurrentUser
 ToolArgs = dict[str, Any]
 
 
+@dataclass(frozen=True)
 class ToolResult:
     """工具执行结果（回填给模型 + 可选透出前端的动作）。
 
@@ -38,22 +40,9 @@ class ToolResult:
         event_data: 动作附加数据（如跳转路径）
     """
 
-    def __init__(
-        self,
-        content: str,
-        event_type: AssistantEventType | None = None,
-        event_data: dict[str, object] | None = None,
-    ) -> None:
-        """初始化工具执行结果。
-
-        Args:
-            content: 回填给模型的文本内容
-            event_type: 动作类型（可空）
-            event_data: 动作附加数据（可空）
-        """
-        self.content: str = content
-        self.event_type: AssistantEventType | None = event_type
-        self.event_data: dict[str, object] | None = event_data
+    content: str
+    event_type: AssistantEventType | None = None
+    event_data: dict[str, object] | None = None
 
 
 class BaseTool(ABC):

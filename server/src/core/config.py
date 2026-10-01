@@ -253,7 +253,6 @@ class AILLMConfig:
     base_url: str = "https://api.xiaomimimo.com/v1"
     api_key: str = ""  # 敏感信息，仅通过环境变量 / .env 注入
     model: str = "mimo-v2.5-pro"
-    embedding_model: str = ""  # 备用：长期记忆 / RAG 接入时使用，为空则复用主模型
     temperature: float = 0.7
     max_tokens: int = 2048
     timeout_seconds: int = 60
@@ -521,7 +520,6 @@ class Settings:
                     "base_url": "https://api.xiaomimimo.com/v1",
                     "api_key": "",
                     "model": "mimo-v2.5-pro",
-                    "embedding_model": "",
                     "temperature": 0.7,
                     "max_tokens": 2048,
                     "timeout_seconds": 60,
@@ -708,7 +706,6 @@ class Settings:
             "AI_LLM_BASE_URL": (ai_llm, "base_url"),
             "AI_LLM_API_KEY": (ai_llm, "api_key"),
             "AI_LLM_MODEL": (ai_llm, "model"),
-            "AI_LLM_EMBEDDING_MODEL": (ai_llm, "embedding_model"),
             "AI_MEMORY_SUMMARY_MODEL": (ai_memory, "summary_model"),
             "AI_RETRIEVER_PROVIDER": (ai_retriever, "provider"),
             "AI_TOOLS_MCP_SERVER_URL": (ai_tools, "mcp_server_url"),
