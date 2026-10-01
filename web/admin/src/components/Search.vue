@@ -1,5 +1,5 @@
 <template>
-  <div ref="wrapRef" class="global-search">
+  <div ref="wrapRef" class="search">
     <div class="search-input-wrap">
       <el-icon class="search-icon"><Search /></el-icon>
       <input
@@ -211,7 +211,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.global-search {
+.search {
   position: relative;
   margin-right: 16px;
 }

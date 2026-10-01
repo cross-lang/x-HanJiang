@@ -82,7 +82,7 @@ admin/
 │   │   └── assistant.ts    # AI 助手接口（会话 CRUD / 反馈 / SSE 对话）
 │   ├── assets/             # 静态资源
 │   ├── components/         # 通用组件
-│   │   ├── GlobalSearch.vue     # 顶栏全局搜索
+│   │   ├── Search.vue           # 顶栏全局搜索
 │   │   └── NotificationBell.vue # 顶栏通知铃铛（站内信未读数）
 │   ├── router/
 │   │   └── index.ts        # 路由配置 + 登录守卫

@@ -140,7 +140,7 @@ def init_seed_data() -> None:
             PermissionCode.PROFILE_PHONE.mark,
             PermissionCode.STATION_VIEW.mark,
             PermissionCode.STATION_EDIT.mark,
-            PermissionCode.GLOBAL_SEARCH_SEARCH.mark,
+            PermissionCode.SEARCH.mark,
         ]
         for code in user_basic_codes:
             target_perm = perm_map.get(code)

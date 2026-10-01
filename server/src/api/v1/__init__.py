@@ -13,13 +13,13 @@ from src.api.v1 import (
     auth,
     dashboard,
     file,
-    global_search,
     health,
     notification,
     openapi_app,
     permission,
     profile,
     role,
+    search,
     station,
     user,
 )
@@ -70,8 +70,8 @@ v1_router.include_router(station.router)
 # 注册开放平台管理路由
 v1_router.include_router(openapi_app.router)
 
-# 注册全局搜索路由
-v1_router.include_router(global_search.router)
+# 注册搜索路由
+v1_router.include_router(search.router)
 
 # 注册 AI 助手路由
 v1_router.include_router(assistant.router)

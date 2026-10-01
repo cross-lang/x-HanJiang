@@ -6,15 +6,15 @@ from fastapi import APIRouter, Depends, Request
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
-    get_global_search_service,
     get_permission_service,
+    get_search_service,
     require_user_permission,
 )
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.auth import CurrentUser
-from src.services.global_search_service import GlobalSearchService
 from src.services.permission_service import PermissionService
+from src.services.search_service import SearchService
 
 router = APIRouter(prefix="/search", tags=["全局搜索"])
 
@@ -34,16 +34,16 @@ _CATEGORY_PERMS: dict[str, str] = {
     "",
     summary="全局搜索",
     description="按关键字搜索用户/角色/权限/开放平台应用/文件/通知/公告，按分类返回前 N 条",
-    dependencies=[Depends(require_user_permission(PermissionCode.GLOBAL_SEARCH_SEARCH.mark))],
+    dependencies=[Depends(require_user_permission(PermissionCode.SEARCH.mark))],
 )
-@permission(PermissionCode.GLOBAL_SEARCH_SEARCH)
-def global_search(
+@permission(PermissionCode.SEARCH)
+def search(
     request: Request,
     keyword: str,
     limit: int = 5,
     current_user: CurrentUser = Depends(get_current_user),
     permission_service: PermissionService = Depends(get_permission_service),
-    service: GlobalSearchService = Depends(get_global_search_service),
+    service: SearchService = Depends(get_search_service),
 ):
     kw = (keyword or "").strip()
     if not kw:

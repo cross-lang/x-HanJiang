@@ -108,7 +108,12 @@ def chat(
                 yield build_sse_event(event)
         except Exception as exc:  # noqa: BLE001 - SSE 通道最后防线，仅兜底不可预期异常
             logger.error(f"AI 助手 SSE 通道异常: {exc}")
-            yield build_sse_event({"type": AssistantEventType.ERROR.mark, "message": "服务异常，请稍后再试"})
+            yield build_sse_event(
+                {
+                    "type": AssistantEventType.ERROR.mark,
+                    "message": AssistantEventType.ERROR.desc,
+                }
+            )
             yield build_sse_event(
                 {
                     "type": AssistantEventType.DONE.mark,

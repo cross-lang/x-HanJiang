@@ -70,7 +70,7 @@ class ApiModuleCode(StrBaseEnum):
     SWAGGER = ("swagger", "接口文档")
     PROFILE = ("profile", "个人中心")
     STATION = ("station", "站内信")
-    GLOBAL_SEARCH = ("global_search", "全局搜索")
+    SEARCH = ("search", "全局搜索")
     ASSISTANT = ("assistant", "AI助手")
 
 
@@ -230,11 +230,7 @@ DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
         NotificationChannel.DINGTALK,
         NotificationChannel.FEISHU,
     ],
-    NotificationEvent.SYSTEM_MAINTENANCE: [
-        NotificationChannel.EMAIL,
-        NotificationChannel.DINGTALK,
-        NotificationChannel.FEISHU,
-    ],
+
     # 系统通知 / 站内信：直接入库型事件，仅走站内信；
     # 显式配置以防 dispatch 未传渠道时兜底误发邮件
     NotificationEvent.SYSTEM_NOTICE: [

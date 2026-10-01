@@ -180,7 +180,7 @@ class SystemNotificationService:
             try:
                 self._dispatcher.dispatch_for_user(
                     user_id=user.id,
-                    event_type=NotificationEvent.SYSTEM_MAINTENANCE,
+                    event_type=NotificationEvent.SYSTEM_NOTICE.mark,
                     variables=variables,
                     metadata={"operator": operator.get("operator_name") if operator else None},
                 )

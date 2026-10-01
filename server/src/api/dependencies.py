@@ -51,11 +51,11 @@ if TYPE_CHECKING:
     from src.services.announcement_service import AnnouncementService
     from src.services.assistant_service import AssistantService
     from src.services.dashboard_service import DashboardService
-    from src.services.global_search_service import GlobalSearchService
     from src.services.login_log_service import LoginLogService
     from src.services.openapi_app_service import OpenApiAppService
     from src.services.profile_service import ProfileService
     from src.services.role_service import RoleService
+    from src.services.search_service import SearchService
     from src.services.station_service import StationMessageService
     from src.services.system_notification_config_service import SystemNotificationConfigService
     from src.services.system_notification_service import SystemNotificationService
@@ -326,14 +326,14 @@ def get_openapi_app_service(
     return OpenApiAppService(repo=OpenApiAppRepository(session=db_session))
 
 
-def get_global_search_service(
+def get_search_service(
     db_session: Session = Depends(get_db_session),
-) -> GlobalSearchService:
-    """获取全局搜索服务。"""
-    from src.repositories.global_search_repository import GlobalSearchRepository
-    from src.services.global_search_service import GlobalSearchService
+) -> SearchService:
+    """获取搜索服务。"""
+    from src.repositories.search_repository import SearchRepository
+    from src.services.search_service import SearchService
 
-    return GlobalSearchService(repository=GlobalSearchRepository(session=db_session))
+    return SearchService(repository=SearchRepository(session=db_session))
 
 
 def get_current_user(

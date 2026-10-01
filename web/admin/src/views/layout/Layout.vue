@@ -48,7 +48,7 @@
     </el-aside>
     <el-container>
       <el-header style="background: #fff; border-bottom: 1px solid #eee; display: flex; justify-content: flex-end; align-items: center; user-select: none; -webkit-user-select: none">
-        <GlobalSearch />
+        <Search />
         <NotificationBell />
         <el-tooltip content="我是小江，您的 AI 助手" placement="bottom" effect="light" :show-after="200">
           <div class="ai-btn" @click="openAiDrawer">
@@ -356,7 +356,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import GlobalSearch from '@/components/GlobalSearch.vue'
+import Search from '@/components/Search.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
 import xiaoJiangLogo from '@/assets/xiaojiang-logo.png'
 import {

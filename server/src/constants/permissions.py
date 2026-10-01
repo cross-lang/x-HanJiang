@@ -142,7 +142,7 @@ class PermissionCode(BaseEnum):
     PROFILE_PHONE = ("profile:phone", "更换手机号", "profile", "phone", "通过验证码二次认证更换手机号", 75)
     STATION_VIEW = ("station:view", "查看站内信", "station", "view", "查看站内信列表与未读数", 76)
     STATION_EDIT = ("station:edit", "管理站内信", "station", "edit", "标记站内信已读", 77)
-    GLOBAL_SEARCH_SEARCH = ("global_search:search", "全局搜索", "global_search", "search", "跨模块关键字搜索", 78)
+    SEARCH = ("search:search", "全局搜索", "search", "search", "跨模块关键字搜索", 78)
 
     # ── 接口文档域 ────────────────────────────────────────
     SWAGGER_VIEW = ("swagger:view", "查看Swagger文档", "swagger", "view", "查看API Swagger文档", 80)

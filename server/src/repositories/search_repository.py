@@ -13,8 +13,8 @@ from src.models.entities.system_notification_entity import SystemNotificationEnt
 from src.models.entities.user_entity import PermissionEntity, RoleEntity, UserEntity
 
 
-class GlobalSearchRepository:
-    """全局搜索仓库。"""
+class SearchRepository:
+    """搜索仓库。"""
 
     def __init__(self, session: Session) -> None:
         self._session = session

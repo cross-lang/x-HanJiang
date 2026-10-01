@@ -254,7 +254,7 @@ server/
 │   │   │   ├── announcement.py # 公告管理（创建/修改/删除/发布/下架/首页生效公告）
 │   │   │   ├── station.py    # 站内信（未读数 / 列表 / 已读）
 │   │   │   ├── openapi_app.py # 开放平台应用管理
-│   │   │   ├── global_search.py # 全局搜索
+│   │   │   ├── search.py      # 全局搜索
 │   │   │   ├── assistant.py # AI 助手（SSE 对话 / 会话 / 反馈）
 │   │   │   └── health.py     # 健康检查与版本信息
 │   │   ├── open/             # 开放平台路由（AppId/AppKey 鉴权，/api/open/v1/...）

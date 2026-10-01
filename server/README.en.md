@@ -254,7 +254,7 @@ server/
 │   │   │   ├── announcement.py # Announcements (create/update/delete/publish/unpublish/active)
 │   │   │   ├── station.py    # Station messages (unread count / list / read)
 │   │   │   ├── openapi_app.py # Open platform app management
-│   │   │   ├── global_search.py # Global search
+│   │   │   ├── search.py      # Global search
 │   │   │   ├── assistant.py # AI assistant (SSE chat / conversations / feedback)
 │   │   │   └── health.py     # Health check & version info
 │   │   ├── open/             # Open platform routes (AppId/AppKey auth, /api/open/v1/...)

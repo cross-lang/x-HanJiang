@@ -8,7 +8,7 @@ from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.file_entity import FileEntity
 from src.models.entities.system_notification_entity import SystemNotificationEntity
 from src.models.entities.user_entity import PermissionEntity, RoleEntity, UserEntity
-from src.repositories.global_search_repository import GlobalSearchRepository
+from src.repositories.search_repository import SearchRepository
 
 # 支持搜索的实体分类（与仓库方法一一对应）
 SEARCHABLE_CATEGORIES: tuple[str, ...] = (
@@ -22,10 +22,10 @@ SEARCHABLE_CATEGORIES: tuple[str, ...] = (
 )
 
 
-class GlobalSearchService:
-    """全局搜索服务。"""
+class SearchService:
+    """搜索服务。"""
 
-    def __init__(self, repository: GlobalSearchRepository) -> None:
+    def __init__(self, repository: SearchRepository) -> None:
         self._repository = repository
 
     def search(
