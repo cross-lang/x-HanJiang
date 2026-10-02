@@ -49,12 +49,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'update:modelValue': [value: (string | number)[]] }>()
 
-// 折叠面板默认全开；分组数据变化时同步
-const openGroups = ref<(string | number)[]>(props.groups.map(g => g.label))
+// 折叠面板默认全折叠（用户单击分组标题后展开）；分组数据变化时重置回折叠态
+const openGroups = ref<(string | number)[]>([])
 watch(
   () => props.groups,
-  groups => {
-    openGroups.value = groups.map(g => g.label)
+  () => {
+    openGroups.value = []
   },
 )
 

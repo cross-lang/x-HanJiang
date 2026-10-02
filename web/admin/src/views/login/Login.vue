@@ -41,7 +41,7 @@
             </el-form-item>
 
             <div class="remember-row">
-              <el-checkbox v-model="rememberMe">记住账号</el-checkbox>
+              <el-checkbox v-model="rememberMe">记住账号与密码</el-checkbox>
             </div>
 
             <!-- 滑动验证：拖到最右端后才允许登录 -->
@@ -100,7 +100,7 @@ const userStore = useUserStore()
 const form = ref({ username: '', password: '' })
 const loading = ref(false)
 
-// ── 记住账号（仅用户名；出于安全考虑不持久化密码） ──────
+// ── 记住账号与密码（勾选后本地持久化，下次登录自动回填） ──────
 const REMEMBER_KEY = 'hanjiang_login_remember'
 const rememberMe = ref(true)
 
@@ -111,11 +111,10 @@ onMounted(() => {
       const data = JSON.parse(saved)
       if (typeof data.username === 'string') {
         form.value.username = data.username
+        if (typeof data.password === 'string') {
+          form.value.password = data.password
+        }
         rememberMe.value = true
-      }
-      // 迁移：清除历史版本遗留的明文密码字段
-      if (data && 'password' in data) {
-        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username: form.value.username }))
       }
     }
   } catch {
@@ -125,7 +124,7 @@ onMounted(() => {
 
 function persistCredentials() {
   if (rememberMe.value) {
-    localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username: form.value.username }))
+    localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username: form.value.username, password: form.value.password }))
   } else {
     localStorage.removeItem(REMEMBER_KEY)
   }

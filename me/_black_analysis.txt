@@ -1,0 +1,4 @@
+﻿orig size: 1920 x 883 | sampled: 480 x 220
+total black: 0 ( 0.0 %)
+--- rows (sampled) with >60% black ---
+--- cols (sampled) with >60% black ---
