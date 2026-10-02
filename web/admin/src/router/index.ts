@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '@/utils/storage'
+import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,11 +19,13 @@ const router = createRouter({
           path: 'dashboard',
           name: 'Dashboard',
           component: () => import('@/views/dashboard/Dashboard.vue'),
+          meta: { perm: 'dashboard:view' },
         },
         {
           path: 'panel',
           name: 'DashboardPanel',
           component: () => import('@/views/dashboard/DashboardPanel.vue'),
+          meta: { perm: 'dashboard:view' },
         },
         {
           path: 'users',
@@ -90,10 +93,43 @@ const router = createRouter({
   ],
 })
 
-// 路由守卫：未登录跳登录页
-router.beforeEach(to => {
-  if (to.path !== '/login' && !getToken()) {
-    return '/login'
+// 无需登录即可访问的公共路径
+const PUBLIC_PATHS: ReadonlySet<string> = new Set(['/login'])
+// 登录后无目标路由权限时的兜底落点（个人中心对所有登录用户默认可见）
+const FALLBACK_PATH = '/profile'
+
+/**
+ * 全局路由守卫：登录态校验 + 按路由 meta.perm 做权限拦截。
+ *
+ * 校验顺序：
+ * 1. 未登录：仅放行公共路径，其余一律跳登录页；
+ * 2. 已登录访问登录页：回到首页；
+ * 3. 权限尚未加载（刷新直达/首次进入）时，先拉取当前用户信息；
+ * 4. 目标路由声明了 meta.perm 且当前用户无该权限：重定向到 FALLBACK_PATH。
+ */
+router.beforeEach(async to => {
+  if (!getToken()) {
+    return PUBLIC_PATHS.has(to.path) ? true : '/login'
+  }
+  if (to.path === '/login') {
+    return '/'
+  }
+
+  const userStore = useUserStore()
+  // 权限列表未加载时先获取用户信息，避免刷新/直达路由时误判
+  if (!userStore.permissions.length) {
+    try {
+      await userStore.fetchUserInfo()
+    } catch {
+      // token 失效或网络异常：清除登录态并回到登录页
+      userStore.logout()
+      return '/login'
+    }
+  }
+
+  const requiredPerm = to.meta.perm
+  if (requiredPerm && !userStore.hasPerm(requiredPerm)) {
+    return FALLBACK_PATH
   }
   return true
 })

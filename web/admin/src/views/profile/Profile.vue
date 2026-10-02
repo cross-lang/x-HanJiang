@@ -56,6 +56,13 @@
                   <el-radio value="female">女</el-radio>
                 </el-radio-group>
               </el-form-item>
+              <!-- 邮箱/手机号仅展示，换绑请前往「安全设置」标签页 -->
+              <el-form-item label="邮箱">
+                <el-input :model-value="userStore.userInfo?.email" placeholder="未绑定" disabled />
+              </el-form-item>
+              <el-form-item label="手机号">
+                <el-input :model-value="userStore.userInfo?.phone" placeholder="未绑定" disabled />
+              </el-form-item>
               <el-form-item>
                 <el-button type="primary" round @click="saveInfo">保存修改</el-button>
               </el-form-item>

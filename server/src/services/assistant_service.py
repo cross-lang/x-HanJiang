@@ -498,10 +498,12 @@ class AssistantService:
         """从回复正文中识别模型以文本形式输出的工具调用（兜底）。
 
         部分推理模型（如 mimo-v2.5-pro）偶发把函数调用写进正文而非结构化
-        tool_calls，常见两种形式：
+        tool_calls，常见形式：
             - XML：<tool_call><tool_name>navigate</tool_name><path>/roles</path></tool_call>
-            - JSON：{"action": "navigate", "path": "/roles"}
+            - JSON 对象：{"action": "navigate", "path": "/roles"}
             或 OpenAI 文本形式：{"tool_calls": [{"function": {"name": ..., "arguments": ...}}]}
+            - JSON 数组：[{"action": "navigate", "action_input": {"path": "/users"}}]
+                （部分模型以数组形式输出候选动作，元素可为 navigate 动作或 function 调用）
         识别后转为 ToolCall，交由 agent 循环正常执行，避免把内部结构
         作为回复正文展示给用户。
 
@@ -527,63 +529,110 @@ class AssistantService:
             for tag, value in re.findall(r"<(\w+)>([^<]+)</\1>", args_xml):
                 args[tag] = value.strip()
             return ToolCall(id="text-call", name=name, arguments=json.dumps(args, ensure_ascii=False))
-        # 形式 B：JSON 对象（navigate 动作 或 tool_calls 数组）
+        # 形式 B：JSON 对象或数组（navigate 动作 / tool_calls / function 调用）
         try:
             payload: object = json.loads(text)
         except json.JSONDecodeError:
             return None
-        if isinstance(payload, dict):
-            action = payload.get("action")
-            page = payload.get("page")
-            path = payload.get("path")
-            action_input = payload.get("action_input")
-            if isinstance(action, str) and action == "navigate":
-                if isinstance(page, str) and page:
-                    return ToolCall(
-                        id="text-call",
-                        name="navigate",
-                        arguments=json.dumps({"page": page}, ensure_ascii=False),
-                    )
-                if isinstance(path, str) and path:
-                    mapped = _page_of_path(path)
-                    if mapped is not None:
+        candidates: list[object] = payload if isinstance(payload, list) else [payload]
+        for item in candidates:
+            if not isinstance(item, dict):
+                continue
+            call = AssistantService._parse_text_call_item(item)
+            if call is not None:
+                return call
+        return None
+
+    @staticmethod
+    def _parse_text_call_item(item: dict[str, object]) -> ToolCall | None:
+        """从单个 JSON 对象识别文本工具调用。
+
+        支持三类：
+            1. navigate 动作：{"action": "navigate", "page"/"path"/"action_input"}
+            2. tool_calls 数组：{"tool_calls": [{"function": {"name", "arguments"}}]}
+            3. function 调用：{"function": {"name": ..., "arguments": ...}}（数组元素常见序列化）
+        """
+        action = item.get("action")
+        if isinstance(action, str) and action == "navigate":
+            return AssistantService._build_navigate_call(item)
+        calls = item.get("tool_calls")
+        if isinstance(calls, list) and calls:
+            first: object = calls[0]
+            if isinstance(first, dict):
+                fn = first.get("function")
+                if isinstance(fn, dict):
+                    fn_name: object = fn.get("name")
+                    fn_args: object = fn.get("arguments")
+                    if isinstance(fn_name, str) and isinstance(fn_args, str):
                         return ToolCall(
-                            id="text-call",
-                            name="navigate",
-                            arguments=json.dumps({"page": mapped}, ensure_ascii=False),
+                            id=str(first.get("id") or "text-call"),
+                            name=fn_name,
+                            arguments=fn_args,
                         )
-                    return ToolCall(
-                        id="text-call",
-                        name="navigate",
-                        arguments=json.dumps({"page": ""}, ensure_ascii=False),
-                    )
-                if isinstance(action_input, str) and action_input:
-                    mapped = _page_of_path(action_input)
-                    if mapped is not None:
-                        return ToolCall(
-                            id="text-call",
-                            name="navigate",
-                            arguments=json.dumps({"page": mapped}, ensure_ascii=False),
-                        )
-                    return ToolCall(
-                        id="text-call",
-                        name="navigate",
-                        arguments=json.dumps({"page": action_input}, ensure_ascii=False),
-                    )
-            calls = payload.get("tool_calls")
-            if isinstance(calls, list) and calls:
-                first: object = calls[0]
-                if isinstance(first, dict):
-                    fn = first.get("function")
-                    if isinstance(fn, dict):
-                        fn_name: object = fn.get("name")
-                        fn_args: object = fn.get("arguments")
-                        if isinstance(fn_name, str) and isinstance(fn_args, str):
-                            return ToolCall(
-                                id=str(first.get("id") or "text-call"),
-                                name=fn_name,
-                                arguments=fn_args,
-                            )
+        fn = item.get("function")
+        if isinstance(fn, dict):
+            fn_name = fn.get("name")
+            fn_args = fn.get("arguments")
+            if isinstance(fn_name, str) and isinstance(fn_args, str):
+                return ToolCall(
+                    id=str(item.get("id") or "text-call"),
+                    name=fn_name,
+                    arguments=fn_args,
+                )
+        return None
+
+    @staticmethod
+    def _build_navigate_call(item: dict[str, object]) -> ToolCall | None:
+        """从 navigate 动作对象构造 ToolCall。
+
+        支持 page / path / action_input 三种字段定位目标页；
+        action_input 既可为字符串（页面标识或路由）也可为嵌套 dict（含 page/path）。
+
+        Returns:
+            ToolCall | None: 参数有效时返回 navigate 调用；参数缺失返回 None
+        """
+        page = item.get("page")
+        if isinstance(page, str) and page:
+            return ToolCall(
+                id="text-call",
+                name="navigate",
+                arguments=json.dumps({"page": page}, ensure_ascii=False),
+            )
+        path = item.get("path")
+        if isinstance(path, str) and path:
+            mapped = _page_of_path(path)
+            return ToolCall(
+                id="text-call",
+                name="navigate",
+                arguments=json.dumps({"page": mapped if mapped is not None else ""}, ensure_ascii=False),
+            )
+        action_input = item.get("action_input")
+        if isinstance(action_input, dict):
+            sub_page = action_input.get("page")
+            if isinstance(sub_page, str) and sub_page:
+                return ToolCall(
+                    id="text-call",
+                    name="navigate",
+                    arguments=json.dumps({"page": sub_page}, ensure_ascii=False),
+                )
+            sub_path = action_input.get("path")
+            if isinstance(sub_path, str) and sub_path:
+                mapped = _page_of_path(sub_path)
+                return ToolCall(
+                    id="text-call",
+                    name="navigate",
+                    arguments=json.dumps({"page": mapped if mapped is not None else ""}, ensure_ascii=False),
+                )
+        if isinstance(action_input, str) and action_input:
+            mapped = _page_of_path(action_input)
+            return ToolCall(
+                id="text-call",
+                name="navigate",
+                arguments=json.dumps(
+                    {"page": mapped if mapped is not None else action_input},
+                    ensure_ascii=False,
+                ),
+            )
         return None
 
     def _build_navigate_reply(self, query: str, event_data: dict[str, object]) -> str:

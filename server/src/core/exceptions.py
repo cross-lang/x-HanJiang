@@ -44,7 +44,7 @@ class AppException(Exception):
 
     def __init__(
         self,
-        message: str = HttpStatusCode.INTERNAL_SERVER_ERROR.desc,
+        message: str = "Application error",
         code: int = HttpStatusCode.INTERNAL_SERVER_ERROR.mark,
         details: Any | None = None,
     ) -> None:

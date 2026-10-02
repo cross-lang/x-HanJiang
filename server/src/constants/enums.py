@@ -59,28 +59,6 @@ class SystemRoleCode(StrBaseEnum):
     USER = ("user", "普通用户")
 
 
-class ApiModuleCode(StrBaseEnum):
-    """用户态权限模块编码与中文名映射。"""
-
-    USER = ("user", "用户管理")
-    ROLE = ("role", "角色管理")
-    FILE = ("file", "文件管理")
-    AUDIT_LOG = ("audit_log", "审计日志")
-    LOGIN_LOG = ("login_log", "登录日志")
-    NOTIFICATION = ("notification", "通知管理")
-    ANNOUNCEMENT = ("announcement", "公告管理")
-    ALERT = ("alert", "告警管理")
-    MAINTENANCE = ("maintenance", "维护管理")
-    OPENAPI_APP = ("openapi_app", "开放平台应用")
-    OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
-    DASHBOARD = ("dashboard", "仪表盘")
-    SWAGGER = ("swagger", "接口文档")
-    PROFILE = ("profile", "个人中心")
-    STATION = ("station", "站内信")
-    SEARCH = ("search", "全局搜索")
-    ASSISTANT = ("assistant", "AI助手")
-
-
 # ── 开放平台域 ────────────────────────────────────────
 
 

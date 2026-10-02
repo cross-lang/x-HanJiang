@@ -84,8 +84,8 @@
       </el-col>
     </el-row>
 
-    <!-- 我的最近动态 -->
-    <el-row :gutter="20" style="margin-top: 20px">
+    <!-- 我的最近动态（仅 dashboard:view 权限可见） -->
+    <el-row v-if="canViewDashboard" :gutter="20" style="margin-top: 20px">
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
@@ -188,6 +188,8 @@ const allQuickLinks = [
 ]
 
 const permissions = userStore.userInfo?.permissions || []
+// 仪表盘页面权限：无 dashboard:view 时不请求"我的最近活动"，避免 403
+const canViewDashboard = userStore.hasPerm('dashboard:view')
 const quickLinks = allQuickLinks.filter(l => !l.perm || permissions.includes('*') || permissions.includes(l.perm))
 const myLogins = ref<MyActivity['recent_logins']>([])
 const myAudits = ref<MyActivity['recent_audits']>([])
@@ -214,12 +216,14 @@ function openAnnouncement(item: AnnouncementItem) {
 }
 
 onMounted(async () => {
-  try {
-    const res = await getMyActivity()
-    myLogins.value = res.data.recent_logins
-    myAudits.value = res.data.recent_audits
-  } catch {
-    // 静默处理
+  if (canViewDashboard) {
+    try {
+      const res = await getMyActivity()
+      myLogins.value = res.data.recent_logins
+      myAudits.value = res.data.recent_audits
+    } catch {
+      // 静默处理
+    }
   }
   await fetchAnnouncements()
 })

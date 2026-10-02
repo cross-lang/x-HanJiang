@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""系统权限码统一目录（权限元数据的唯一事实来源）。
+"""用户态系统权限码统一目录（权限元数据的唯一事实来源）。
 
 权限的编码 / 中文名 / 所属模块 / 操作类型 / 描述 / 排序号全部在
-PermissionCode 中定义一次，以下消费方均从本目录派生，禁止再硬编码权限码：
+PermissionCode 中定义一次；模块编码与中文名映射集中在 PermissionModule。
+以下消费方均从本目录派生，禁止再硬编码权限码：
     - api 路由：@permission(PermissionCode.XXX) 挂载元数据，
       require_user_permission(PermissionCode.XXX.mark) 做鉴权
     - core/seed.py：初始化 permissions 表、绑定内置角色
@@ -16,7 +17,31 @@ permissions 表并绑定给内置角色，但会被启动同步标记为 depreca
 
 from __future__ import annotations
 
-from src.constants.base import BaseEnum
+from src.constants.base import StrBaseEnum, BaseEnum
+
+
+
+class PermissionModule(StrBaseEnum):
+    """用户态权限模块编码与中文名映射（与 PermissionCode.module 一一对应）。"""
+
+    USER = ("user", "用户管理")
+    ROLE = ("role", "角色管理")
+    PERMISSION = ("permission", "权限管理")
+    FILE = ("file", "文件管理")
+    AUDIT_LOG = ("audit_log", "审计日志")
+    LOGIN_LOG = ("login_log", "登录日志")
+    NOTIFICATION = ("notification", "通知管理")
+    ANNOUNCEMENT = ("announcement", "公告管理")
+    ALERT = ("alert", "告警管理")
+    MAINTENANCE = ("maintenance", "维护管理")
+    OPENAPI_APP = ("openapi_app", "开放平台应用")
+    OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
+    DASHBOARD = ("dashboard", "仪表盘")
+    SWAGGER = ("swagger", "接口文档")
+    PROFILE = ("profile", "个人中心")
+    STATION = ("station", "站内信")
+    SEARCH = ("search", "全局搜索")
+    ASSISTANT = ("assistant", "AI助手")
 
 
 class PermissionCode(BaseEnum):
@@ -133,15 +158,21 @@ class PermissionCode(BaseEnum):
         "openapi_scope:view", "查看开放平台权限", "openapi_scope", "view", "查看开放平台 scope 列表", 67
     )
 
-    # ── 个人功能域 ────────────────────────────────────────
+    # ── 仪表盘域 ────────────────────────────────────────
     DASHBOARD_VIEW = ("dashboard:view", "查看仪表盘", "dashboard", "view", "获取仪表盘关键指标", 70)
+
+    # ── 个人中心域 ────────────────────────────────────────
     PROFILE_VIEW = ("profile:view", "查看个人中心", "profile", "view", "查看个人资料与通知设置", 71)
     PROFILE_EDIT = ("profile:edit", "编辑个人中心", "profile", "edit", "修改个人资料与通知设置", 72)
     PROFILE_PASSWORD = ("profile:password", "修改密码", "profile", "password", "修改个人登录密码", 73)
     PROFILE_EMAIL = ("profile:email", "更换邮箱", "profile", "email", "通过验证码二次认证更换登录邮箱", 74)
     PROFILE_PHONE = ("profile:phone", "更换手机号", "profile", "phone", "通过验证码二次认证更换手机号", 75)
+
+    # ── 站内信域 ────────────────────────────────────────
     STATION_VIEW = ("station:view", "查看站内信", "station", "view", "查看站内信列表与未读数", 76)
     STATION_EDIT = ("station:edit", "管理站内信", "station", "edit", "标记站内信已读", 77)
+
+    # ── 全局搜索域 ────────────────────────────────────────
     SEARCH = ("search:search", "全局搜索", "search", "search", "跨模块关键字搜索", 78)
 
     # ── 接口文档域 ────────────────────────────────────────

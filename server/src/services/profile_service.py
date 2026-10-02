@@ -31,7 +31,8 @@ from src.constants.constants import (
     VERIFY_CODE_MIN,
     VERIFY_CODE_TTL_SECONDS,
 )
-from src.constants.enums import ApiModuleCode, NotificationChannel, NotificationEvent
+from src.constants.enums import NotificationChannel, NotificationEvent
+from src.constants.permissions import PermissionModule
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.cache import CacheProvider, get_cached_cache_provider
@@ -99,19 +100,22 @@ class ProfileService:
         Returns:
             dict[str, Any]: 用户资料字典，包含 roles / permission_list 字段
         """
-        data: dict[str, Any] = current_user.model_dump()
+        # 多角色体系下以下方实时查询的 roles 为准，避免响应字段冗余。
+        data: dict[str, Any] = current_user.model_dump(exclude={"role_id", "role_code"})
         roles = self._user_repository.get_roles_by_user_id(current_user.id)
-        data["roles"] = [{"id": r.id, "name": r.role_name, "code": r.role_code} for r in roles]
+        # 字段命名与用户列表接口的 roles 结构保持一致（role_name/role_code）
+        data["roles"] = [
+            {"id": r.id, "role_name": r.role_name, "role_code": r.role_code} for r in roles
+        ]
         if "*" not in current_user.permissions:
             role_ids = [r.id for r in roles]
             perms = self._user_repository.get_permissions_by_role_ids(role_ids)
-            module_label_map = {m.mark: m.desc for m in ApiModuleCode}
             data["permission_list"] = [
                 {
                     "code": p.perm_code,
                     "name": p.perm_name,
                     "module": p.module,
-                    "module_label": module_label_map.get(p.module, p.module),
+                    "module_label": PermissionModule.get_desc_by_mark(p.module, p.module),
                 }
                 for p in perms
             ]
