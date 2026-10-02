@@ -48,7 +48,7 @@
                 <el-input v-model="form.name" placeholder="请输入姓名" />
               </el-form-item>
               <el-form-item label="生日">
-                <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+                <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" class="hj-w-full" />
               </el-form-item>
               <el-form-item label="性别">
                 <el-radio-group v-model="form.gender">

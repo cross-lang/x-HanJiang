@@ -1,8 +1,8 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center">
+    <div class="hj-toolbar">
       <el-button type="primary" @click="handleCreate">新建角色</el-button>
-      <div style="display: flex; gap: 8px">
+      <div class="hj-flex hj-gap-8">
         <el-input
           v-model="keyword"
           placeholder="按角色名称/编码搜索"
@@ -47,7 +47,7 @@
       </el-table-column>
     </el-table>
     <el-pagination
-      style="margin-top: 20px; justify-content: flex-end; display: flex"
+      class="hj-pagination hj-mt-20"
       v-model:current-page="page"
       v-model:page-size="pageSize"
       :total="total"
@@ -55,98 +55,18 @@
     />
   </el-card>
 
-  <!-- 新建弹窗 -->
-  <el-dialog v-model="dialogVisible" title="新建角色" width="600px">
-    <el-form :model="form" label-width="80px">
-      <el-form-item label="名称">
-        <el-input v-model="form.role_name" />
-      </el-form-item>
-      <el-form-item label="编码">
-        <el-input v-model="form.role_code" placeholder="如 auditor" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="form.description" type="textarea" />
-      </el-form-item>
-      <el-form-item label="权限">
-        <el-collapse v-model="activeGroups">
-          <el-collapse-item v-for="(items, module) in groupedPermissions" :key="module" :name="module">
-            <template #title>
-              <el-checkbox
-                :model-value="isGroupAllChecked(items, selectedPermissions)"
-                :indeterminate="isGroupIndeterminate(items, selectedPermissions)"
-                @change="(val: string | number | boolean) => toggleGroup(items, selectedPermissions, Boolean(val))"
-                @click.stop
-                >{{ moduleLabel(module, items) }}</el-checkbox
-              >
-            </template>
-            <el-checkbox-group v-model="selectedPermissions">
-              <div v-for="p in items" :key="p.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="p.id"> {{ p.perm_name }}（{{ p.perm_code }}） </el-checkbox>
-              </div>
-            </el-checkbox-group>
-          </el-collapse-item>
-        </el-collapse>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleSubmit">确定</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 编辑弹窗 -->
-  <el-dialog v-model="editDialogVisible" title="编辑角色" width="600px">
-    <el-form :model="editForm" label-width="80px">
-      <el-form-item label="名称">
-        <el-input v-model="editForm.role_name" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="editForm.description" type="textarea" />
-      </el-form-item>
-      <el-form-item label="权限">
-        <el-collapse v-model="editActiveGroups">
-          <el-collapse-item v-for="(items, module) in groupedPermissions" :key="module" :name="module">
-            <template #title>
-              <el-checkbox
-                :model-value="isGroupAllChecked(items, editSelectedPermissions)"
-                :indeterminate="isGroupIndeterminate(items, editSelectedPermissions)"
-                @change="(val: string | number | boolean) => toggleGroup(items, editSelectedPermissions, Boolean(val))"
-                @click.stop
-                >{{ moduleLabel(module, items) }}</el-checkbox
-              >
-            </template>
-            <el-checkbox-group v-model="editSelectedPermissions">
-              <div v-for="p in items" :key="p.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="p.id"> {{ p.perm_name }}（{{ p.perm_code }}） </el-checkbox>
-              </div>
-            </el-checkbox-group>
-          </el-collapse-item>
-        </el-collapse>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="editDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleUpdate">确定</el-button>
-    </template>
-  </el-dialog>
+  <RoleFormDialog v-model:visible="dialogVisible" mode="create" @submitted="onDialogSubmitted" />
+  <RoleFormDialog v-model:visible="editDialogVisible" mode="edit" :record="editRecord" @submitted="onDialogSubmitted" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
-import {
-  listRoles,
-  createRole,
-  updateRole,
-  deleteRole,
-  listRolePermissions,
-  bindRolePermission,
-  unbindRolePermission,
-} from '@/api/role'
-import { listPermissions } from '@/api/permission'
-import type { RoleItem, PermissionItem } from '@/types/role'
+import { listRoles, updateRole, deleteRole } from '@/api/role'
+import type { RoleItem } from '@/types/role'
+import RoleFormDialog from './components/RoleFormDialog.vue'
 
 const route = useRoute()
 
@@ -157,55 +77,10 @@ const pageSize = ref(20)
 const total = ref(0)
 const keyword = ref('')
 
-// 新建
+// 新建 / 编辑弹窗（表单逻辑下沉至 RoleFormDialog）
 const dialogVisible = ref(false)
-const form = ref({ role_name: '', role_code: '', description: '' })
-const selectedPermissions = ref<number[]>([])
-const permissionList = ref<PermissionItem[]>([])
-const activeGroups = ref<string[]>([])
-const editActiveGroups = ref<string[]>([])
-
-const groupedPermissions = computed(() => {
-  const groups: Record<string, PermissionItem[]> = {}
-  for (const p of permissionList.value) {
-    const mod = p.module || '其他'
-    if (!groups[mod]) groups[mod] = []
-    groups[mod].push(p)
-  }
-  return groups
-})
-
-function isGroupAllChecked(items: PermissionItem[], selected: number[]): boolean {
-  return items.length > 0 && items.every(p => selected.includes(p.id))
-}
-
-function isGroupIndeterminate(items: PermissionItem[], selected: number[]): boolean {
-  const checked = items.filter(p => selected.includes(p.id)).length
-  return checked > 0 && checked < items.length
-}
-
-function toggleGroup(items: PermissionItem[], selected: number[], val: boolean) {
-  const ids = items.map(p => p.id)
-  if (val) {
-    for (const id of ids) {
-      if (!selected.includes(id)) selected.push(id)
-    }
-  } else {
-    for (const id of ids) {
-      const idx = selected.indexOf(id)
-      if (idx > -1) selected.splice(idx, 1)
-    }
-  }
-}
-
-function moduleLabel(mod: string, items: PermissionItem[]): string {
-  return items[0]?.module_label || mod
-}
-
-// 编辑
 const editDialogVisible = ref(false)
-const editForm = ref({ id: 0, role_name: '', description: '' })
-const editSelectedPermissions = ref<number[]>([])
+const editRecord = ref<RoleItem | null>(null)
 
 async function fetchList() {
   loading.value = true
@@ -230,97 +105,20 @@ function handleSearch() {
   fetchList()
 }
 
-async function fetchPermissions() {
-  const res = await listPermissions({ page: 1, page_size: 200 })
-  permissionList.value = res.data.items.filter(p => !p.is_deprecated)
-}
-
 function handleCreate() {
-  form.value = { role_name: '', role_code: '', description: '' }
-  selectedPermissions.value = []
   dialogVisible.value = true
 }
 
-async function handleSubmit() {
-  if (!form.value.role_name?.trim()) {
-    ElMessage.warning('请输入角色名称')
-    return
-  }
-  if (!form.value.role_code?.trim()) {
-    ElMessage.warning('请输入角色编码')
-    return
-  }
-  if (!form.value.description?.trim()) {
-    ElMessage.warning('请输入角色描述')
-    return
-  }
-  if (selectedPermissions.value.length === 0) {
-    ElMessage.warning('请至少选择一个权限')
-    return
-  }
-  try {
-    const res = await createRole(form.value)
-    const roleId = res.data.id
-    for (const permId of selectedPermissions.value) {
-      await bindRolePermission(roleId, permId)
-    }
-    ElMessage.success('创建成功')
-    dialogVisible.value = false
-    fetchList()
-  } catch {
-    // 错误已处理
-  }
-}
-
-async function handleEdit(row: RoleItem) {
-  editForm.value = { id: row.id, role_name: row.role_name, description: row.description || '' }
-  // 查角色已有权限
-  const res = await listRolePermissions(row.id)
-  editSelectedPermissions.value = res.data.map(p => p.permission.id)
+function handleEdit(row: RoleItem) {
+  editRecord.value = row
   editDialogVisible.value = true
 }
 
-async function handleUpdate() {
-  if (!editForm.value.role_name?.trim()) {
-    ElMessage.warning('请输入角色名称')
-    return
-  }
-  if (!editForm.value.description?.trim()) {
-    ElMessage.warning('请输入角色描述')
-    return
-  }
-  if (editSelectedPermissions.value.length === 0) {
-    ElMessage.warning('请至少选择一个权限')
-    return
-  }
-  try {
-    // 更新基本信息
-    await updateRole(editForm.value.id, {
-      role_name: editForm.value.role_name,
-      description: editForm.value.description,
-    })
-    // 对比权限：先解绑不在新列表里的，再绑定新的
-    const currentPerms = editSelectedPermissions.value
-    const oldRes = await listRolePermissions(editForm.value.id)
-    const oldPerms = oldRes.data.map(p => p.permission.id)
-    // 解绑旧的
-    for (const pid of oldPerms) {
-      if (!currentPerms.includes(pid)) {
-        await unbindRolePermission(editForm.value.id, pid)
-      }
-    }
-    // 绑定新的
-    for (const pid of currentPerms) {
-      if (!oldPerms.includes(pid)) {
-        await bindRolePermission(editForm.value.id, pid)
-      }
-    }
-    ElMessage.success('更新成功')
-    editDialogVisible.value = false
-    fetchList()
-  } catch {
-    // 错误已处理
-  }
+/** 弹窗提交成功：关闭并刷新列表 */
+function onDialogSubmitted() {
+  dialogVisible.value = false
+  editDialogVisible.value = false
+  fetchList()
 }
 
 async function handleToggleStatus(row: RoleItem) {
@@ -353,7 +151,6 @@ onMounted(() => {
   const q = route.query.keyword
   if (q) keyword.value = String(q)
   fetchList()
-  fetchPermissions()
 })
 
 // 全局搜索跳转携带 keyword 时自动过滤

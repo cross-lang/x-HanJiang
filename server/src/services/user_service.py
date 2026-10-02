@@ -14,13 +14,14 @@ from typing import TYPE_CHECKING, Any
 
 from src.constants.constants import SUPERADMIN_USERNAME
 from src.constants.enums import NotificationEvent, UserStatus
+from src.constants.permissions import PermissionAction
 from src.core.exceptions import AuthorizationException, ConflictException, NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import UserEntity
 from src.notification.decorators import notify
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
-from src.services.base_service import BaseService
+from src.services.base_service import BaseService, audit_crud
 from src.utils.security import hash_password, verify_password
 
 if TYPE_CHECKING:
@@ -65,6 +66,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             "page_size": page_size,
         }
 
+    @audit_crud(PermissionAction.CREATE.mark)
     def create(self, data: dict[str, Any], operator: dict[str, Any] | None = None) -> UserResponse:
         """创建新用户.
         业务校验：
@@ -99,18 +101,11 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         if role_ids:
             self._repository.replace_user_roles(created.id, role_ids)
             self._commit()
-        self._audit(
-            entity_id=created.id,
-            action="create",
-            operator=operator,
-            before_data=None,
-            after_data={"username": created.username, "email": created.email},
-            remarks=f"创建用户{created.username}（{created.name or '-'}）",
-        )
         result = self._to_response(created)
         logger.info(f"User created: id={result.id} username={result.username}")
         return result
 
+    @audit_crud(PermissionAction.EDIT.mark)
     def update(self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None) -> UserResponse:
         """更新用户信息（密码提供时重新哈希）。"""
         request = UserUpdateRequest(**data)
@@ -163,14 +158,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         if updated is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
         self._commit()
-        self._audit(
-            entity_id=updated.id,
-            action="update",
-            operator=operator,
-            before_data={"username": existing.username, "email": existing.email},
-            after_data={"username": updated.username, "email": updated.email},
-            remarks=f"更新用户{updated.username}的信息",
-        )
         result = self._to_response(updated)
         logger.info(f"User updated: id={result.id} username={result.username}")
         # 角色变更通知由 @notify 装饰器处理
@@ -204,6 +191,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         return result
 
     @notify(NotificationEvent.USER_DELETED, target="self")
+    @audit_crud(PermissionAction.DELETE.mark)
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
         """软删除用户。"""
         existing = self._repository.get_by_id(id)
@@ -219,14 +207,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         deleted = self._repository.delete(id)
         if deleted:
             self._commit()
-            self._audit(
-                entity_id=id,
-                action="delete",
-                operator=operator,
-                before_data={"username": existing.username, "email": existing.email},
-                after_data=None,
-                remarks=f"删除用户{existing.username}",
-            )
             logger.info(f"User deleted: id={id} username={existing.username}")
         return deleted
 
@@ -246,7 +226,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         self._commit()
         self._audit(
             entity_id=id,
-            action="update",
+            action=PermissionAction.EDIT.mark,
             operator=operator,
             before_data={"username": existing.username},
             after_data={"username": existing.username, "action": "password_reset"},

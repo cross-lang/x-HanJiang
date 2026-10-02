@@ -33,11 +33,146 @@ Usage:
     RepoType: Repository 类型（如 UserRepository）
 """
 
+import functools
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Generic, TypeVar
 
+from src.constants.permissions import PermissionAction
 from src.core.logger import logger
 from src.repositories.base_repository import BaseRepository
+
+# 审计快照中必须剔除的敏感字段
+_SENSITIVE_SNAPSHOT_FIELDS = frozenset({
+    "password_hash",
+    "hashed_password",
+    "app_key_hash",
+    "app_key_encrypted",
+})
+# 从快照中挑选用于 remarks 的展示标签字段（按优先级）
+_LABEL_FIELDS = ("username", "role_name", "title", "name")
+
+
+def _json_safe(value: Any) -> Any:
+    """将不可 JSON 序列化的标量值转为可序列化形式。"""
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
+
+
+def _snapshot(entity: Any) -> dict[str, Any] | None:
+    """将 ORM 实体或 Pydantic DTO 转为审计快照字典。
+
+    自动剔除密码等敏感字段；datetime/Decimal 转字符串以保证 JSON 可序列化。
+
+    Args:
+        entity: ORM 实体（含 ``__table__.columns``）或 Pydantic DTO（含 ``model_dump``）。
+
+    Returns:
+        dict | None: 快照字典；实体为 None 或无法识别时返回 None。
+    """
+    if entity is None:
+        return None
+    table = getattr(entity, "__table__", None)
+    if table is not None:
+        return {
+            c.name: _json_safe(getattr(entity, c.name, None))
+            for c in table.columns
+            if c.name not in _SENSITIVE_SNAPSHOT_FIELDS
+        } or None
+    dump = getattr(entity, "model_dump", None)
+    if callable(dump):
+        try:
+            raw = dump()
+        except Exception:
+            return None
+        return {
+            k: _json_safe(v)
+            for k, v in raw.items()
+            if k not in _SENSITIVE_SNAPSHOT_FIELDS
+        } or None
+    return None
+
+
+def _pick_label(snapshot: dict[str, Any] | None) -> str:
+    """从快照中挑选用于 remarks 展示的实体名称。"""
+    if not snapshot:
+        return ""
+    for field in _LABEL_FIELDS:
+        value = snapshot.get(field)
+        if value:
+            return str(value)
+    return ""
+
+
+def audit_crud(action: str) -> Callable:
+    """CRUD 审计切面装饰器（BaseService 子类专用）。
+
+    自动在方法成功返回后写入审计日志，约定如下：
+
+    - CREATE：被装饰方法返回新建的 ORM 实体或 DTO，entity_id 取返回值 ``.id``，
+      before_data=None，after_data=返回值快照；
+    - EDIT：第一个位置参数为 entity_id，执行前自动查库取 before_data 快照，
+      after_data=返回值快照；
+    - DELETE：第一个位置参数为 entity_id，执行前自动查库取 before_data 快照，
+      after_data=None；若方法返回 falsy（软删未生效）则不写审计。
+
+    通用约定：
+    - operator 由被装饰方法的 ``operator`` 关键字参数传入；
+    - 快照自动剔除密码等敏感字段，datetime/Decimal 自动转字符串；
+    - 方法抛异常时不写审计（异常向上传播，审计失败本身不阻断业务）。
+
+    Args:
+        action: 审计动作 mark，取 :class:`PermissionAction` 的成员。
+
+    Returns:
+        方法装饰器。
+    """
+    action_desc = PermissionAction.get_desc_by_mark(action, action)
+
+    def decorator(fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def wrapper(self: "BaseService", *args: Any, **kwargs: Any) -> Any:
+            operator = kwargs.get("operator")
+            before_data: dict[str, Any] | None = None
+            entity_id: Any = None
+
+            if action != PermissionAction.CREATE.mark:
+                entity_id = args[0] if args else None
+                before_data = _snapshot(self._repository.get_by_id(entity_id))
+
+            result = fn(self, *args, **kwargs)
+
+            if action == PermissionAction.DELETE.mark:
+                if not result:
+                    return result
+                after_data = None
+            elif action == PermissionAction.CREATE.mark:
+                # 部分创建方法返回 (实体, 附属值) 元组（如明文密钥），实体取首元素
+                entity = result[0] if isinstance(result, tuple) else result
+                entity_id = getattr(entity, "id", None)
+                after_data = _snapshot(entity)
+            else:
+                after_data = _snapshot(result)
+
+            label = _pick_label(after_data) or _pick_label(before_data)
+            self._audit(
+                entity_id=entity_id,
+                action=action,
+                operator=operator,
+                before_data=before_data,
+                after_data=after_data,
+                remarks=f"{action_desc} {self.entity_type}「{label}」" if label else None,
+            )
+            return result
+
+        return wrapper
+
+    return decorator
 
 T = TypeVar("T")
 ID = TypeVar("ID")

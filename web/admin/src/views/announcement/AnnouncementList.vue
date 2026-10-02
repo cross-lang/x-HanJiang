@@ -1,9 +1,9 @@
 <template>
   <div>
     <el-card>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px">
+      <div class="hj-toolbar">
         <el-button type="primary" @click="openCreate">新建公告</el-button>
-        <div style="display: flex; gap: 8px">
+        <div class="hj-flex hj-gap-8">
           <el-select v-model="filter.status" placeholder="状态" clearable style="width: 130px" @change="fetchList">
             <el-option label="草稿" value="draft" />
             <el-option label="已发布" value="published" />
@@ -76,7 +76,7 @@
         </el-table-column>
       </el-table>
       <el-pagination
-        style="margin-top: 12px; justify-content: flex-end; display: flex"
+        class="hj-pagination hj-mt-12"
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
@@ -85,62 +85,12 @@
       />
     </el-card>
 
-    <el-dialog v-model="editVisible" :title="isEdit ? '编辑公告' : '新建公告'" width="760px">
-      <el-form :model="form" label-width="90px">
-        <el-form-item label="标题" required>
-          <el-input v-model="form.title" maxlength="200" placeholder="公告标题" />
-        </el-form-item>
-        <el-form-item label="展示位置" required>
-          <el-radio-group v-model="form.position">
-            <el-radio value="board">首页板块</el-radio>
-            <el-radio value="banner">首页横幅</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="正文格式" required>
-          <el-radio-group v-model="form.content_type">
-            <el-radio value="markdown">Markdown</el-radio>
-            <el-radio value="richtext">富文本</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="正文" required>
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="10"
-            maxlength="20000"
-            :placeholder="form.content_type === 'richtext' ? '输入 HTML 富文本内容' : '支持 Markdown 语法'"
-          />
-          <div v-if="form.content" style="margin-top: 8px">
-            <el-divider content-position="left">预览</el-divider>
-            <div class="announcement-preview" v-html="previewHtml" />
-          </div>
-        </el-form-item>
-        <el-form-item label="有效期" required>
-          <el-date-picker
-            v-model="form.start_at"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="开始时间"
-            style="width: 240px; margin-right: 8px"
-          />
-          <el-date-picker
-            v-model="form.end_at"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="结束时间"
-            style="width: 240px"
-          />
-        </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="0" :max="9999" />
-          <span style="color: #999; margin-left: 8px; font-size: 12px">数值越小越靠前</span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
-      </template>
-    </el-dialog>
+    <AnnouncementFormDialog
+      v-model:visible="editVisible"
+      :mode="isEdit ? 'edit' : 'create'"
+      :record="editRecord"
+      @submitted="onDialogSubmitted"
+    />
 
     <el-dialog v-model="detailVisible" title="公告详情" width="720px">
       <template v-if="detail">
@@ -175,20 +125,19 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { renderAnnouncement } from '@/utils/announcement'
 import { formatDateTimeShort } from '@/utils/format'
 import {
   listAnnouncements,
   getAnnouncement,
-  createAnnouncement,
-  updateAnnouncement,
   publishAnnouncement,
   unpublishAnnouncement,
   deleteAnnouncement,
 } from '@/api/announcement'
-import type { AnnouncementItem, AnnouncementFormPayload } from '@/types/announcement'
+import type { AnnouncementItem } from '@/types/announcement'
+import AnnouncementFormDialog from './components/AnnouncementFormDialog.vue'
 
 const items = ref<AnnouncementItem[]>([])
 const loading = ref(false)
@@ -199,22 +148,10 @@ const filter = ref<{ status: string; position: string; keyword: string }>({ stat
 
 const editVisible = ref(false)
 const isEdit = ref(false)
-const saving = ref(false)
-const editingId = ref<number | null>(null)
-const form = ref<AnnouncementFormPayload>({
-  title: '',
-  content: '',
-  content_type: 'markdown',
-  position: 'board',
-  start_at: '',
-  end_at: '',
-  sort_order: 0,
-})
+const editRecord = ref<AnnouncementItem | null>(null)
 
 const detailVisible = ref(false)
 const detail = ref<AnnouncementItem | null>(null)
-
-const previewHtml = computed(() => renderAnnouncement(form.value.content || '', form.value.content_type))
 
 function fmtTime(v: string | null | undefined): string {
   return formatDateTimeShort(v)
@@ -253,81 +190,20 @@ async function fetchList() {
 
 function openCreate() {
   isEdit.value = false
-  editingId.value = null
-  form.value = {
-    title: '',
-    content: '',
-    content_type: 'markdown',
-    position: 'board',
-    start_at: '',
-    end_at: '',
-    sort_order: 0,
-  }
+  editRecord.value = null
   editVisible.value = true
 }
 
 function openEdit(row: AnnouncementItem) {
   isEdit.value = true
-  editingId.value = row.id
-  form.value = {
-    title: row.title,
-    content: row.content,
-    content_type: row.content_type,
-    position: row.position,
-    start_at: row.start_at || '',
-    end_at: row.end_at || '',
-    sort_order: row.sort_order,
-  }
+  editRecord.value = row
   editVisible.value = true
 }
 
-function validate(): boolean {
-  if (!form.value.title.trim()) {
-    ElMessage.warning('请输入公告标题')
-    return false
-  }
-  if (!form.value.content.trim()) {
-    ElMessage.warning('请输入公告正文')
-    return false
-  }
-  if (!form.value.start_at || !form.value.end_at) {
-    ElMessage.warning('请设置公告有效期')
-    return false
-  }
-  if (new Date(form.value.end_at) <= new Date(form.value.start_at)) {
-    ElMessage.warning('结束时间必须晚于开始时间')
-    return false
-  }
-  return true
-}
-
-async function save() {
-  if (!validate()) return
-  saving.value = true
-  try {
-    const body = {
-      title: form.value.title.trim(),
-      content: form.value.content,
-      content_type: form.value.content_type,
-      position: form.value.position,
-      start_at: form.value.start_at,
-      end_at: form.value.end_at,
-      sort_order: form.value.sort_order,
-    }
-    if (isEdit.value && editingId.value != null) {
-      await updateAnnouncement(editingId.value, body)
-      ElMessage.success('已保存')
-    } else {
-      await createAnnouncement(body)
-      ElMessage.success('已创建，可在草稿中发布')
-    }
-    editVisible.value = false
-    fetchList()
-  } catch {
-    /* 拦截器已处理 */
-  } finally {
-    saving.value = false
-  }
+/** 表单保存成功：关闭并刷新列表 */
+function onDialogSubmitted() {
+  editVisible.value = false
+  fetchList()
 }
 
 async function publish(row: AnnouncementItem) {

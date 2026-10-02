@@ -1,34 +1,26 @@
 <template>
   <el-popover placement="bottom" :width="360" trigger="click" @show="fetchList">
     <template #reference>
-      <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" style="margin-right: 20px; cursor: pointer">
-        <el-icon :size="20" style="color: #666; cursor: pointer"><Bell /></el-icon>
+      <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" class="bell-badge">
+        <el-icon :size="20" class="bell-icon"><Bell /></el-icon>
       </el-badge>
     </template>
-    <div style="max-height: 400px; overflow-y: auto">
-      <div v-if="list.length === 0" style="text-align: center; color: #999; padding: 30px 0">暂无消息</div>
-      <div v-for="item in list" :key="item.id" style="border-bottom: 1px solid #f0f0f0">
-        <div style="padding: 12px; cursor: pointer" @click="toggleExpand(item)">
-          <div style="display: flex; align-items: center; gap: 8px">
-            <span
-              v-if="!item.is_read"
-              style="width: 8px; height: 8px; background: #f56c6c; border-radius: 50%; flex-shrink: 0"
-            ></span>
-            <span style="font-weight: 500; color: #333">{{ item.title }}</span>
+    <div class="bell-list">
+      <div v-if="list.length === 0" class="bell-empty">暂无消息</div>
+      <div v-for="item in list" :key="item.id" class="bell-item">
+        <div class="bell-item-head" @click="toggleExpand(item)">
+          <div class="hj-flex-center hj-gap-8">
+            <span v-if="!item.is_read" class="bell-dot"></span>
+            <span class="bell-title">{{ item.title }}</span>
           </div>
-          <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">
-            {{ formatDateTime(item.created_at) }}
-          </div>
+          <div class="bell-time">{{ formatDateTime(item.created_at) }}</div>
         </div>
-        <div
-          v-if="expandedId === item.id"
-          style="padding: 8px 12px 12px 16px; background: #fafafa; font-size: 13px; color: #666"
-        >
+        <div v-if="expandedId === item.id" class="bell-content">
           {{ item.content }}
         </div>
       </div>
     </div>
-    <div style="padding: 8px; text-align: center; border-top: 1px solid #f0f0f0">
+    <div class="bell-footer">
       <el-button text size="small" @click="markAllRead">全部已读</el-button>
     </div>
   </el-popover>
@@ -93,3 +85,58 @@ onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
 })
 </script>
+
+<style scoped>
+.bell-badge {
+  margin-right: 20px;
+  cursor: pointer;
+}
+.bell-icon {
+  color: #666;
+  cursor: pointer;
+}
+.bell-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.bell-empty {
+  text-align: center;
+  color: #999;
+  padding: 30px 0;
+}
+.bell-item {
+  border-bottom: 1px solid #f0f0f0;
+}
+.bell-item-head {
+  padding: 12px;
+  cursor: pointer;
+}
+.bell-dot {
+  width: 8px;
+  height: 8px;
+  background: #f56c6c;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.bell-title {
+  font-weight: 500;
+  color: #333;
+}
+.bell-time {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  margin-left: 16px;
+}
+.bell-content {
+  padding: 8px 12px 12px 16px;
+  background: #fafafa;
+  font-size: 13px;
+  color: #666;
+}
+.bell-footer {
+  padding: 8px;
+  text-align: center;
+  border-top: 1px solid #f0f0f0;
+}
+</style>

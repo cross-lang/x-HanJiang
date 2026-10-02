@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from src.constants.enums import NotificationEvent, SystemRoleCode
+from src.constants.enums import AuditAction, NotificationEvent, SystemRoleCode
 from src.constants.permissions import PermissionModule
 from src.core.exceptions import NotFoundException
 from src.core.logger import logger
@@ -150,7 +150,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         self._commit()
         self._audit(
             entity_id=role_id,
-            action="bind_permission",
+            action=AuditAction.BIND_PERMISSION.mark,
             operator=operator,
             before_data={"role_id": role_id, "permission_id": permission_id},
             after_data={"role_id": role_id, "permission_id": permission_id},
@@ -172,7 +172,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             self._commit()
             self._audit(
                 entity_id=role_id,
-                action="unbind_permission",
+                action=AuditAction.UNBIND_PERMISSION.mark,
                 operator=operator,
                 before_data={"role_id": role_id, "permission_id": permission_id},
                 after_data=None,

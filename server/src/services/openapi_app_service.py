@@ -25,12 +25,13 @@ from src.constants.constants import (
     OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
 from src.constants.enums import AppAuthMode, AppStatus, NotificationEvent
+from src.constants.permissions import PermissionAction
 from src.core.exceptions import AuthenticationException, NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
-from src.services.base_service import BaseService
+from src.services.base_service import BaseService, audit_crud
 from src.utils import security
 from src.utils.security import generate_secret_key
 
@@ -247,6 +248,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     # ── 创建 ────────────────────────────────────────────
 
+    @audit_crud(PermissionAction.CREATE.mark)
     def create_app(
         self,
         *,
@@ -255,6 +257,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         rate_limit_per_minute: int,
         auth_mode: str,
         owner_user_id: int | None,
+        operator: dict[str, Any] | None = None,
     ) -> tuple[OpenApiAppResponse, str]:
         """新建应用，返回 (DTO, 明文 AppKey)。明文 AppKey 仅此次返回。"""
         app_id = generate_app_id()
@@ -274,7 +277,6 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         )
         created = self._repository.create(entity)
         self._commit()
-        self._log_action("created", created.id, app_id=app_id, name=name)
         return self._to_response(created), app_key_plain
 
     # ── 查询 ────────────────────────────────────────────
@@ -341,19 +343,49 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         target="owner",
         vars_extractor=lambda r: {"app_name": r.name, "app_id": r.app_id},
     )
-    def update(self, id: int, patch: dict[str, Any]) -> OpenApiAppResponse:
+    @audit_crud(PermissionAction.EDIT.mark)
+    def update(self, id: int, patch: dict[str, Any], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
+        """更新应用基本信息（不含 scopes / status，走专用方法）。"""
         e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
-        if "scopes" in patch and patch["scopes"] is not None:
-            e.scopes = ",".join(patch["scopes"])
-            patch.pop("scopes")
         for k, v in patch.items():
             if v is not None and hasattr(e, k):
                 setattr(e, k, v)
         self._repository.flush()
         self._commit()
-        self._log_action("updated", id)
+        return self._to_response(e)
+
+    @notify(
+        NotificationEvent.OPENAPI_APP_UPDATED,
+        target="owner",
+        vars_extractor=lambda r: {"app_name": r.name, "app_id": r.app_id},
+    )
+    @audit_crud(PermissionAction.SCOPES.mark)
+    def update_scopes(self, id: int, scopes: list[str], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
+        """覆盖更新应用 scope 列表。"""
+        e = self._repository.get_by_id(id)
+        if e is None:
+            raise NotFoundException(message=f"应用 {id} 不存在")
+        e.scopes = ",".join(scopes)
+        self._repository.flush()
+        self._commit()
+        return self._to_response(e)
+
+    @notify(
+        NotificationEvent.OPENAPI_APP_UPDATED,
+        target="owner",
+        vars_extractor=lambda r: {"app_name": r.name, "app_id": r.app_id},
+    )
+    @audit_crud(PermissionAction.STATUS.mark)
+    def update_status(self, id: int, status: str, operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
+        """启用或禁用应用。"""
+        e = self._repository.get_by_id(id)
+        if e is None:
+            raise NotFoundException(message=f"应用 {id} 不存在")
+        e.status = status
+        self._repository.flush()
+        self._commit()
         return self._to_response(e)
 
     # ── 重置 AppKey（轮换）────────────────────────────
@@ -368,15 +400,15 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         e.app_key_encrypted = security.encrypt_text(new_plain)
         self._repository.flush()
         self._commit()
-        self._log_action("key rotated", id, app_id=e.app_id)
+        self._log_action(PermissionAction.ROTATE_KEY.mark, id, app_id=e.app_id)
         return self._to_response(e), new_plain
 
     # ── 删除 ────────────────────────────────────────────
 
-    def delete(self, id: int) -> bool:
+    @audit_crud(PermissionAction.DELETE.mark)
+    def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
         ok = self._repository.soft_delete(id)
         self._commit()
-        self._log_action("deleted", id)
         return ok
 
     # ── Entity → DTO ────────────────────────────────────

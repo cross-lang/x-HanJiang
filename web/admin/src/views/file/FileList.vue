@@ -1,10 +1,10 @@
 <template>
   <el-card>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px">
+    <div class="hj-toolbar">
       <el-upload :show-file-list="false" :http-request="handleUpload" :headers="uploadHeaders">
         <el-button type="primary" icon="Upload">上传文件</el-button>
       </el-upload>
-      <div style="display: flex; gap: 8px">
+      <div class="hj-flex hj-gap-8">
         <el-input
           v-model="keyword"
           placeholder="按文件名搜索"
@@ -37,7 +37,7 @@
     </el-table>
 
     <el-pagination
-      style="margin-top: 20px; justify-content: flex-end; display: flex"
+      class="hj-pagination hj-mt-20"
       :current-page="page"
       :page-size="pageSize"
       :total="total"

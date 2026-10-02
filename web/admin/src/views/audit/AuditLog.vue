@@ -65,7 +65,7 @@
       </template>
     </el-table>
     <el-pagination
-      style="margin-top: 20px; justify-content: flex-end; display: flex"
+      class="hj-pagination hj-mt-20"
       v-model:current-page="page"
       v-model:page-size="pageSize"
       :total="total"
@@ -102,13 +102,9 @@
           </el-descriptions>
           <el-divider />
           <h4>变更前数据</h4>
-          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{
-            JSON.stringify(auditDetail.before_data, null, 2)
-          }}</pre>
+          <pre class="json-block">{{ JSON.stringify(auditDetail.before_data, null, 2) }}</pre>
           <h4>变更后数据</h4>
-          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{
-            JSON.stringify(auditDetail.after_data, null, 2)
-          }}</pre>
+          <pre class="json-block">{{ JSON.stringify(auditDetail.after_data, null, 2) }}</pre>
         </template>
       </div>
     </el-dialog>
@@ -228,3 +224,14 @@ watch(
   },
 )
 </script>
+
+<style scoped>
+/* 审计详情中的 JSON 数据块 */
+.json-block {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  overflow: auto;
+}
+</style>

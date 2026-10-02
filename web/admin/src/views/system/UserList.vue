@@ -1,8 +1,8 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center">
+    <div class="hj-toolbar">
       <el-button type="primary" @click="handleCreate">新建用户</el-button>
-      <div style="display: flex; gap: 8px">
+      <div class="hj-flex hj-gap-8">
         <el-input
           v-model="keyword"
           placeholder="按用户名/姓名/邮箱搜索"
@@ -72,7 +72,7 @@
       </el-table-column>
     </el-table>
     <el-pagination
-      style="margin-top: 20px; justify-content: flex-end; display: flex"
+      class="hj-pagination hj-mt-20"
       v-model:current-page="page"
       v-model:page-size="pageSize"
       :total="total"
@@ -81,54 +81,12 @@
     />
   </el-card>
 
-  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑用户' : '新建用户'" width="500px">
-    <el-form :model="form" label-width="80px">
-      <el-form-item v-if="!isEdit" label="用户名">
-        <el-input v-model="form.username" />
-      </el-form-item>
-      <el-form-item label="姓名">
-        <el-input v-model="form.name" />
-      </el-form-item>
-      <el-form-item label="邮箱">
-        <el-input v-model="form.email" />
-      </el-form-item>
-      <el-form-item label="手机号">
-        <el-input v-model="form.phone" />
-      </el-form-item>
-      <el-form-item label="生日">
-        <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" placeholder="选择生日" />
-      </el-form-item>
-      <el-form-item label="性别">
-        <el-radio-group v-model="form.gender">
-          <el-radio value="male">男</el-radio>
-          <el-radio value="female">女</el-radio>
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item label="角色">
-        <el-select v-model="form.role_ids" multiple style="width: 100%">
-          <el-option v-for="r in roles" :key="r.id" :label="r.role_name" :value="r.id">
-            <span style="float: left">{{ r.role_name }}</span>
-            <el-tag v-if="r.role_type === 'system'" size="small" type="warning" style="float: right; margin-left: 10px"
-              >系统内置</el-tag
-            >
-          </el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item v-if="!isEdit" label="密码">
-        <el-input v-model="form.password" type="password" show-password />
-      </el-form-item>
-      <el-form-item label="状态">
-        <el-radio-group v-model="form.status">
-          <el-radio value="enabled">启用</el-radio>
-          <el-radio value="disabled">禁用</el-radio>
-        </el-radio-group>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleSubmit">确定</el-button>
-    </template>
-  </el-dialog>
+  <UserFormDialog
+    v-model:visible="dialogVisible"
+    :mode="isEdit ? 'edit' : 'create'"
+    :record="editRecord"
+    @submitted="onUserSubmitted"
+  />
 
   <el-dialog v-model="resetVisible" title="重置密码">
     <p style="margin-bottom: 15px">
@@ -149,15 +107,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/format'
 import { downloadResponseBlob } from '@/utils/download'
-import { listUsers, createUser, updateUser, resetUserPassword, exportUsersCsv } from '@/api/user'
-import { listRoles } from '@/api/role'
-import type { UserItem, UserFormPayload } from '@/types/user'
-import type { RoleItem } from '@/types/role'
+import { listUsers, updateUser, resetUserPassword, exportUsersCsv } from '@/api/user'
+import type { UserItem } from '@/types/user'
+import UserFormDialog from './components/UserFormDialog.vue'
 
 const route = useRoute()
 const userStore = useUserStore()
 const list = ref<UserItem[]>([])
-const roles = ref<RoleItem[]>([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
@@ -166,18 +122,7 @@ const keyword = ref('')
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
-const editId = ref(0)
-const form = ref<UserFormPayload>({
-  username: '',
-  name: '',
-  email: '',
-  phone: '',
-  birthday: '',
-  gender: 'male',
-  role_ids: [],
-  password: '',
-  status: 'enabled',
-})
+const editRecord = ref<UserItem | null>(null)
 
 const resetVisible = ref(false)
 const resetUser = ref<UserItem | null>(null)
@@ -210,69 +155,22 @@ function handleSizeChange() {
   fetchList()
 }
 
-async function fetchRoles() {
-  try {
-    const res = await listRoles()
-    roles.value = Array.isArray(res.data) ? res.data : res.data.items
-    const adminRole = roles.value.find(r => r.role_code === 'admin')
-    if (adminRole && !isEdit.value) form.value.role_ids = [adminRole.id]
-  } catch {
-    // 错误已处理
-  }
-}
-
 function handleCreate() {
   isEdit.value = false
-  form.value = {
-    username: '',
-    name: '',
-    email: '',
-    phone: '',
-    birthday: '',
-    gender: 'male',
-    role_ids: [],
-    password: '',
-    status: 'enabled',
-  }
-  fetchRoles()
+  editRecord.value = null
   dialogVisible.value = true
 }
 
 function handleEdit(row: UserItem) {
   isEdit.value = true
-  editId.value = row.id
-  form.value = {
-    username: row.username,
-    name: row.name || '',
-    email: row.email || '',
-    phone: row.phone || '',
-    birthday: row.birthday ? row.birthday.split('T')[0] : '',
-    gender: row.gender || 'male',
-    role_ids: row.roles ? row.roles.map(r => r.id) : row.role_id ? [row.role_id] : [],
-    password: '',
-    status: row.status,
-  }
-  fetchRoles()
+  editRecord.value = row
   dialogVisible.value = true
 }
 
-async function handleSubmit() {
-  try {
-    if (isEdit.value) {
-      const { name, email, phone, birthday, gender, role_ids, status } = form.value
-      const birthdayStr = birthday ? (typeof birthday === 'string' ? birthday.split('T')[0] : '') : ''
-      await updateUser(editId.value, { name, email, phone, birthday: birthdayStr, gender, role_ids, status })
-      ElMessage.success('更新成功')
-    } else {
-      // 创建时直接提交多角色 role_ids（后端 UserCreateRequest 已支持）
-      await createUser({ ...form.value, role_ids: form.value.role_ids })
-      ElMessage.success('创建成功')
-    }
-    dialogVisible.value = false
-    fetchList()
-  } catch {
-    // 错误已处理
-  }
+/** 表单弹窗提交成功：关闭并刷新列表 */
+function onUserSubmitted() {
+  dialogVisible.value = false
+  fetchList()
 }
 
 async function handleToggleStatus(row: UserItem, status: string) {

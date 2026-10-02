@@ -9,6 +9,7 @@ Classes:
 
 from typing import Any
 
+from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import (
@@ -24,7 +25,7 @@ from src.schemas.role import (
     RoleResponse,
     RoleUpdateRequest,
 )
-from src.services.base_service import BaseService
+from src.services.base_service import BaseService, audit_crud
 
 
 class RoleService(BaseService[RoleResponse, int, RoleRepository]):
@@ -74,6 +75,7 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
             "page_size": page_size,
         }
 
+    @audit_crud(PermissionAction.CREATE.mark)
     def create(self, data: dict[str, Any], operator: dict[str, Any] | None = None) -> RoleResponse:
         """创建角色。"""
         request = RoleCreateRequest(**data)
@@ -90,18 +92,11 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         )
         created = self._repository.create(entity)
         self._commit()
-        self._audit(
-            entity_id=created.id,
-            action="create",
-            operator=operator,
-            before_data=None,
-            after_data={"role_name": created.role_name, "role_code": created.role_code},
-            remarks=f"创建角色{created.role_name}",
-        )
         result = self._to_response(created)
         logger.info(f"Role created: id={result.id} code={result.role_code}")
         return result
 
+    @audit_crud(PermissionAction.EDIT.mark)
     def update(self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None) -> RoleResponse:
         """更新角色信息。"""
         request = RoleUpdateRequest(**data)
@@ -124,18 +119,11 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         if updated is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
         self._commit()
-        self._audit(
-            entity_id=updated.id,
-            action="update",
-            operator=operator,
-            before_data={"role_name": existing.role_name, "role_code": existing.role_code, "status": existing.status},
-            after_data={"role_name": updated.role_name, "role_code": updated.role_code, "status": updated.status},
-            remarks=f"更新角色{existing.role_name}",
-        )
         result = self._to_response(updated)
         logger.info(f"Role updated: id={result.id} code={result.role_code}")
         return result
 
+    @audit_crud(PermissionAction.DELETE.mark)
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
         """软删除角色。有关联用户的角色不允许删除。"""
         existing = self._repository.get_by_id(id)
@@ -148,18 +136,6 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         deleted = self._repository.delete(id)
         if deleted:
             self._commit()
-            self._audit(
-                entity_id=id,
-                action="delete",
-                operator=operator,
-                before_data={
-                    "role_name": existing.role_name,
-                    "role_code": existing.role_code,
-                    "status": existing.status,
-                },
-                after_data=None,
-                remarks=f"删除角色{existing.role_name}",
-            )
             logger.info(f"Role deleted: id={id} code={existing.role_code}")
         return deleted
 

@@ -9,11 +9,13 @@ from datetime import datetime
 from typing import Any
 
 from src.constants.enums import AnnouncementStatus
+from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException, ValidationException
 from src.core.logger import logger
 from src.models.entities.announcement_entity import AnnouncementEntity
 from src.repositories.announcement_repository import AnnouncementRepository
 from src.schemas.announcement import AnnouncementCreateRequest, AnnouncementUpdateRequest
+from src.services.base_service import audit_crud
 
 
 class AnnouncementService:
@@ -26,6 +28,7 @@ class AnnouncementService:
 
     # ── 创建 / 修改 / 删除 ────────────────────────────────
 
+    @audit_crud(PermissionAction.CREATE.mark)
     def create(
         self,
         request: AnnouncementCreateRequest,
@@ -56,21 +59,10 @@ class AnnouncementService:
         )
         entity = self._repository.create(entity)
         self._repository.commit()
-        self._audit(
-            entity_id=entity.id,
-            action="create",
-            operator=operator,
-            after_data={
-                "title": entity.title,
-                "content_type": entity.content_type,
-                "position": entity.position,
-                "status": entity.status,
-            },
-            remarks=f"创建公告{entity.title}",
-        )
         logger.info("Announcement created: id=%s title=%s", entity.id, entity.title)
         return entity
 
+    @audit_crud(PermissionAction.EDIT.mark)
     def update(
         self,
         announcement_id: int,
@@ -91,61 +83,39 @@ class AnnouncementService:
             NotFoundException: 公告不存在时抛出
         """
         entity = self._get_entity(announcement_id)
-        before = {
-            "title": entity.title,
-            "content_type": entity.content_type,
-            "position": entity.position,
-            "status": entity.status,
-        }
         patch_data = request.model_dump(exclude_unset=True, exclude_none=True)
         for key, value in patch_data.items():
             if hasattr(entity, key) and value is not None:
                 setattr(entity, key, value.value if hasattr(value, "value") else value)
         entity.updated_at = datetime.now()
         self._repository.commit()
-        self._audit(
-            entity_id=announcement_id,
-            action="update",
-            operator=operator,
-            before_data=before,
-            after_data={
-                "title": entity.title,
-                "content_type": entity.content_type,
-                "position": entity.position,
-                "status": entity.status,
-            },
-            remarks=f"修改公告{entity.title}",
-        )
         logger.info("Announcement updated: id=%s", announcement_id)
         return entity
 
-    def delete(self, announcement_id: int, operator: dict[str, Any] | None = None) -> None:
+    @audit_crud(PermissionAction.DELETE.mark)
+    def delete(self, announcement_id: int, operator: dict[str, Any] | None = None) -> bool:
         """删除公告（物理删除）。
 
         Args:
             announcement_id: 公告 ID
             operator: 操作人上下文
 
+        Returns:
+            bool: 删除成功返回 True
+
         Raises:
             NotFoundException: 公告不存在时抛出
         """
         entity = self._get_entity(announcement_id)
-        before = {"title": entity.title, "position": entity.position, "status": entity.status}
         self._repository.delete(announcement_id)
         self._repository.commit()
-        self._audit(
-            entity_id=announcement_id,
-            action="delete",
-            operator=operator,
-            before_data=before,
-            remarks=f"删除公告{entity.title}",
-        )
         logger.info(
             "Announcement deleted: id=%s title=%s operator=%s",
             announcement_id,
             entity.title,
             operator.get("operator_name") if operator else None,
         )
+        return True
 
     # ── 发布 / 下架 ───────────────────────────────────────
 
@@ -180,7 +150,7 @@ class AnnouncementService:
         self._repository.commit()
         self._audit(
             entity_id=announcement_id,
-            action="publish",
+            action=PermissionAction.PUBLISH.mark,
             operator=operator,
             after_data={"status": AnnouncementStatus.PUBLISHED.value},
             remarks=f"发布公告{entity.title}",
@@ -210,7 +180,7 @@ class AnnouncementService:
         self._repository.commit()
         self._audit(
             entity_id=announcement_id,
-            action="unpublish",
+            action=PermissionAction.UNPUBLISH.mark,
             operator=operator,
             after_data={"status": AnnouncementStatus.UNPUBLISHED.value},
             remarks=f"下架公告{entity.title}",

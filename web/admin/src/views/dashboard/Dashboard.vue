@@ -2,45 +2,37 @@
   <div>
     <!-- 欢迎信息 -->
     <el-card>
-      <div style="display: flex; justify-content: space-between; align-items: center">
+      <div class="hj-flex-between">
         <div>
-          <div style="font-size: 20px; font-weight: 500">
-            欢迎回来，{{ userStore.userInfo?.name || userStore.userInfo?.username }}
-          </div>
-          <div style="color: #999; margin-top: 5px">今天是 {{ today }}</div>
+          <div class="welcome-title">欢迎回来，{{ userStore.userInfo?.name || userStore.userInfo?.username }}</div>
+          <div class="welcome-sub">今天是 {{ today }}</div>
         </div>
       </div>
     </el-card>
 
     <!-- 公告横幅（首页通栏） -->
-    <div v-if="bannerAnnouncements.length" style="margin-top: 20px">
+    <div v-if="bannerAnnouncements.length" class="hj-mt-20">
       <div
         v-for="item in bannerAnnouncements"
         :key="'b-' + item.id"
         class="announcement-banner"
         @click="openAnnouncement(item)"
       >
-        <el-icon style="font-size: 20px; flex-shrink: 0"><Notification /></el-icon>
-        <div style="flex: 1; min-width: 0">
-          <div
-            style="font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-          >
-            {{ item.title }}
-          </div>
-          <div style="font-size: 12px; margin-top: 4px; opacity: 0.9">
-            有效期至 {{ formatDateTimeShort(item.end_at) }}
-          </div>
+        <el-icon class="banner-icon"><Notification /></el-icon>
+        <div class="hj-flex-1">
+          <div class="banner-title">{{ item.title }}</div>
+          <div class="banner-sub">有效期至 {{ formatDateTimeShort(item.end_at) }}</div>
         </div>
-        <el-icon style="font-size: 18px"><ArrowRight /></el-icon>
+        <el-icon class="banner-arrow"><ArrowRight /></el-icon>
       </div>
     </div>
 
     <!-- 公告板块（列表） -->
-    <el-card v-if="boardAnnouncements.length" style="margin-top: 20px">
+    <el-card v-if="boardAnnouncements.length" class="hj-mt-20">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
+        <div class="hj-flex-between">
           <span>公告</span>
-          <span style="font-size: 12px; color: #999">{{ boardAnnouncements.length }} 条进行中</span>
+          <span class="hj-text-12 hj-text-gray">{{ boardAnnouncements.length }} 条进行中</span>
         </div>
       </template>
       <div
@@ -50,34 +42,22 @@
         @click="openAnnouncement(item)"
       >
         <span class="announcement-dot" />
-        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ item.title }}</span>
-        <span style="color: #999; font-size: 12px">{{ formatDateTimeShort(item.end_at) }}</span>
+        <span class="hj-ellipsis hj-flex-1">{{ item.title }}</span>
+        <span class="hj-text-gray hj-text-12">{{ formatDateTimeShort(item.end_at) }}</span>
       </div>
     </el-card>
 
     <!-- 快捷入口 -->
-    <el-row :gutter="20" style="margin-top: 20px">
+    <el-row :gutter="20" class="hj-mt-20">
       <el-col :span="6" v-for="item in quickLinks" :key="item.path">
-        <el-card shadow="hover" style="cursor: pointer" @click="$router.push(item.path)">
-          <div style="display: flex; align-items: center; gap: 16px">
-            <div
-              :style="{
-                width: '48px',
-                height: '48px',
-                borderRadius: '8px',
-                background: item.color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontSize: '24px',
-              }"
-            >
+        <el-card shadow="hover" class="quick-card" @click="$router.push(item.path)">
+          <div class="quick-inner">
+            <div class="quick-icon" :style="{ background: item.color }">
               <el-icon><component :is="item.icon" /></el-icon>
             </div>
             <div>
-              <div style="font-weight: 500; font-size: 15px">{{ item.title }}</div>
-              <div style="color: #999; font-size: 12px; margin-top: 4px">{{ item.desc }}</div>
+              <div class="quick-title">{{ item.title }}</div>
+              <div class="quick-desc">{{ item.desc }}</div>
             </div>
           </div>
         </el-card>
@@ -85,11 +65,11 @@
     </el-row>
 
     <!-- 我的最近动态（仅 dashboard:view 权限可见） -->
-    <el-row v-if="canViewDashboard" :gutter="20" style="margin-top: 20px">
+    <el-row v-if="canViewDashboard" :gutter="20" class="hj-mt-20">
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
+            <div class="hj-flex-between">
               <span>我的最近登录</span>
               <el-button text type="primary" size="small" @click="$router.push('/audit/login?mine=true')"
                 >查看全部</el-button
@@ -114,7 +94,7 @@
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
-            <div style="justify-content: space-between; align-items: center; display: flex">
+            <div class="hj-flex-between">
               <span>我的最近操作</span>
               <el-button text type="primary" size="small" @click="$router.push('/audit?mine=true')">查看全部</el-button>
             </div>
@@ -134,8 +114,8 @@
     <!-- 公告详情对话框 -->
     <el-dialog v-model="announcementVisible" title="公告详情" width="680px">
       <template v-if="announcementDetail">
-        <div style="font-size: 18px; font-weight: 600; margin-bottom: 12px">{{ announcementDetail.title }}</div>
-        <div style="color: #999; font-size: 12px; margin-bottom: 12px">
+        <div class="dialog-title">{{ announcementDetail.title }}</div>
+        <div class="dialog-meta">
           有效期：{{ formatDateTimeShort(announcementDetail.start_at) }} ~
           {{ formatDateTimeShort(announcementDetail.end_at) }}
         </div>
@@ -230,6 +210,71 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.welcome-title {
+  font-size: 20px;
+  font-weight: 500;
+}
+.welcome-sub {
+  color: #999;
+  margin-top: 5px;
+}
+.quick-card {
+  cursor: pointer;
+}
+.quick-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.quick-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.quick-title {
+  font-weight: 500;
+  font-size: 15px;
+}
+.quick-desc {
+  color: #999;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.banner-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.banner-title {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.banner-sub {
+  font-size: 12px;
+  margin-top: 4px;
+  opacity: 0.9;
+}
+.banner-arrow {
+  font-size: 18px;
+}
+.dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.dialog-meta {
+  color: #999;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
 .announcement-banner {
   display: flex;
   align-items: center;

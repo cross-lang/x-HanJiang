@@ -300,22 +300,17 @@ class LoginType(StrBaseEnum):
 
 
 class AuditAction(StrBaseEnum):
-    """审计日志动作类型（对齐 audit_logs.action 列；mark 为存储值，desc 为展示文案）。"""
+    """审计日志动作中"无权限码对应"的独有事件。
 
-    CREATE = "create", "新增"
-    UPDATE = "update", "更新"
-    DELETE = "delete", "删除"
-    BIND_PERMISSION = "bind_permission", "绑定权限"
-    UNBIND_PERMISSION = "unbind_permission", "解绑权限"
+    重合的 CRUD / 文件 / 发布类动作统一使用
+    :class:`src.constants.permissions.PermissionAction` 的 mark，本枚举只保留
+    登录 / 登出 / 绑定权限等不对应任何权限码的审计事件。
+    """
+
     LOGIN = "login", "登录"
     LOGOUT = "logout", "退出登录"
-    EXPORT = "export", "导出"
-    UPLOAD = "upload", "上传"
-    DOWNLOAD = "download", "下载"
-    PUBLISH = "publish", "发布"
-    UNPUBLISH = "unpublish", "下架"
-    WITHDRAW = "withdraw", "撤回"
-    RESET_PASSWORD = "reset_password", "重置密码"
+    BIND_PERMISSION = "bind_permission", "绑定权限"
+    UNBIND_PERMISSION = "unbind_permission", "解绑权限"
 
 
 # ── HTTP 域 ───────────────────────────────────────────

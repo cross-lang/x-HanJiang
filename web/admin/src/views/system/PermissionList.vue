@@ -1,6 +1,6 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px">
+    <div class="hj-toolbar-end">
       <el-input
         v-model="keyword"
         placeholder="按权限编码/名称/模块搜索"
@@ -31,7 +31,7 @@
       </el-table-column>
     </el-table>
     <el-pagination
-      style="margin-top: 20px; justify-content: flex-end; display: flex"
+      class="hj-pagination hj-mt-20"
       v-model:current-page="page"
       v-model:page-size="pageSize"
       :total="total"

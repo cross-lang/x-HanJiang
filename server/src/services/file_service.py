@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
+from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.storage import StorageProvider, get_cached_storage_provider
@@ -71,7 +72,7 @@ class FileStorageService:
         self._repository.commit()
         self._audit(
             entity_id=entity.id,
-            action="upload",
+            action=PermissionAction.UPLOAD.mark,
             operator=operator,
             after_data={"filename": file_name, "key": result.key, "size": result.size, "folder": folder},
             remarks=f"上传文件{file_name}",
@@ -149,7 +150,7 @@ class FileStorageService:
         media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         self._audit(
             entity_id=normalized_path,
-            action="download",
+            action=PermissionAction.DOWNLOAD.mark,
             operator=operator,
             remarks=f"下载文件{filename}",
         )
@@ -193,7 +194,7 @@ class FileStorageService:
         self._repository.commit()
         self._audit(
             entity_id=file_id,
-            action="delete",
+            action=PermissionAction.DELETE.mark,
             operator=operator,
             before_data={"filename": filename, "uploaded_by": uploaded_by},
             remarks=f"删除文件{filename}",

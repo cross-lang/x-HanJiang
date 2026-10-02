@@ -1,0 +1,138 @@
+/* =========================================================
+ * 全局布局/工具类（跨视图高频模式收敛，命名前缀 hj-）
+ * 仅收录跨组件重复 ≥2 次的通用样式；单组件内部样式请用 scoped class
+ * ========================================================= */
+
+/* ---- 布局 ---- */
+.hj-flex {
+  display: flex;
+}
+.hj-flex-center {
+  display: flex;
+  align-items: center;
+}
+.hj-flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hj-flex-column {
+  display: flex;
+  flex-direction: column;
+}
+.hj-flex-1 {
+  flex: 1;
+  min-width: 0;
+}
+.hj-gap-4 {
+  gap: 4px;
+}
+.hj-gap-6 {
+  gap: 6px;
+}
+.hj-gap-8 {
+  gap: 8px;
+}
+.hj-gap-10 {
+  gap: 10px;
+}
+.hj-gap-12 {
+  gap: 12px;
+}
+.hj-gap-16 {
+  gap: 16px;
+}
+
+/* ---- 间距 ---- */
+.hj-mt-4 {
+  margin-top: 4px;
+}
+.hj-mt-8 {
+  margin-top: 8px;
+}
+.hj-mt-12 {
+  margin-top: 12px;
+}
+.hj-mt-16 {
+  margin-top: 16px;
+}
+.hj-mt-20 {
+  margin-top: 20px;
+}
+.hj-mt-24 {
+  margin-top: 24px;
+}
+.hj-mb-4 {
+  margin-bottom: 4px;
+}
+.hj-mb-8 {
+  margin-bottom: 8px;
+}
+.hj-mb-12 {
+  margin-bottom: 12px;
+}
+.hj-mb-16 {
+  margin-bottom: 16px;
+}
+.hj-mb-20 {
+  margin-bottom: 20px;
+}
+.hj-ml-8 {
+  margin-left: 8px;
+}
+.hj-ml-10 {
+  margin-left: 10px;
+}
+.hj-mr-4 {
+  margin-right: 4px;
+}
+.hj-mr-8 {
+  margin-right: 8px;
+}
+
+/* ---- 文本 ---- */
+.hj-text-center {
+  text-align: center;
+}
+.hj-text-gray {
+  color: #999;
+}
+.hj-text-12 {
+  font-size: 12px;
+}
+.hj-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- 尺寸 ---- */
+.hj-w-full {
+  width: 100%;
+}
+
+/* ---- 组件容器 ---- */
+/* 列表页分页条：右对齐（上间距由调用方用 hj-mt-12 / hj-mt-20 控制） */
+.hj-pagination {
+  display: flex;
+  justify-content: flex-end;
+}
+/* 列表页工具栏：上下留白 + 左右两端对齐 */
+.hj-toolbar {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+/* 工具栏右对齐变体（过滤区在右侧） */
+.hj-toolbar-end {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+/* 图表容器（Dashboard 类） */
+.hj-chart-box {
+  height: 280px;
+}

@@ -1,8 +1,8 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center">
+    <div class="hj-toolbar">
       <el-button type="primary" @click="handleCreate">新建应用</el-button>
-      <div style="display: flex; gap: 8px">
+      <div class="hj-flex hj-gap-8">
         <el-input
           v-model="keyword"
           placeholder="按应用名称/App ID搜索"
@@ -27,7 +27,7 @@
       </el-table-column>
       <el-table-column prop="scopes" label="权限范围">
         <template #default="{ row }">
-          <el-tag v-for="s in row.scopes" :key="s" size="small" style="margin-right: 4px">{{ s }}</el-tag>
+          <el-tag v-for="s in row.scopes" :key="s" size="small" class="hj-mr-4">{{ s }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
@@ -57,7 +57,7 @@
       </el-table-column>
     </el-table>
     <el-pagination
-      style="margin-top: 20px; justify-content: flex-end; display: flex"
+      class="hj-pagination hj-mt-20"
       v-model:current-page="page"
       v-model:page-size="pageSize"
       :total="total"
@@ -66,136 +66,28 @@
     />
   </el-card>
 
-  <!-- 新建弹窗 -->
-  <el-dialog v-model="dialogVisible" title="新建应用" width="640px">
-    <el-form :model="form" label-width="80px">
-      <el-form-item label="名称">
-        <el-input v-model="form.name" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="form.description" type="textarea" />
-      </el-form-item>
-      <el-form-item label="鉴权模式">
-        <el-select v-model="form.auth_mode" style="width: 100%">
-          <el-option label="明文 (plain)" value="plain" />
-          <el-option label="HMAC 签名 (hmac)" value="hmac" />
-          <el-option label="双模式 (both)" value="both" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="权限范围">
-        <el-collapse v-model="activeGroups">
-          <el-collapse-item v-for="(items, module) in groupedScopes" :key="module" :name="module">
-            <template #title>
-              <el-checkbox
-                :model-value="isGroupAllChecked(items, form.scopes)"
-                :indeterminate="isGroupIndeterminate(items, form.scopes)"
-                @change="(val: string | number | boolean) => toggleGroup(items, form.scopes, Boolean(val))"
-                @click.stop
-                >{{ moduleLabel(module, items) }}</el-checkbox
-              >
-            </template>
-            <el-checkbox-group v-model="form.scopes">
-              <div v-for="s in items" :key="s.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="s.scope_code"> {{ s.scope_name }}（{{ s.scope_code }}） </el-checkbox>
-              </div>
-            </el-checkbox-group>
-          </el-collapse-item>
-        </el-collapse>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleSubmit">确定</el-button>
-    </template>
-  </el-dialog>
+  <AppFormDialog v-model:visible="dialogVisible" mode="create" @created="onAppCreated" />
+  <AppFormDialog v-model:visible="editDialogVisible" mode="edit" :record="editRecord" @submitted="onDialogSubmitted" />
 
-  <!-- 编辑弹窗 -->
-  <el-dialog v-model="editDialogVisible" title="编辑应用" width="640px">
-    <el-form :model="editForm" label-width="80px">
-      <el-form-item label="名称">
-        <el-input v-model="editForm.name" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="editForm.description" type="textarea" />
-      </el-form-item>
-      <el-form-item label="鉴权模式">
-        <el-select v-model="editForm.auth_mode" style="width: 100%">
-          <el-option label="明文 (plain)" value="plain" />
-          <el-option label="HMAC 签名 (hmac)" value="hmac" />
-          <el-option label="双模式 (both)" value="both" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="权限范围">
-        <el-collapse v-model="editActiveGroups">
-          <el-collapse-item v-for="(items, module) in groupedScopes" :key="module" :name="module">
-            <template #title>
-              <el-checkbox
-                :model-value="isGroupAllChecked(items, editForm.scopes)"
-                :indeterminate="isGroupIndeterminate(items, editForm.scopes)"
-                @change="(val: string | number | boolean) => toggleGroup(items, editForm.scopes, Boolean(val))"
-                @click.stop
-                >{{ moduleLabel(module, items) }}</el-checkbox
-              >
-            </template>
-            <el-checkbox-group v-model="editForm.scopes">
-              <div v-for="s in items" :key="s.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="s.scope_code"> {{ s.scope_name }}（{{ s.scope_code }}） </el-checkbox>
-              </div>
-            </el-checkbox-group>
-          </el-collapse-item>
-        </el-collapse>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="editDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleUpdate">确定</el-button>
-    </template>
-  </el-dialog>
+  <SecretResultDialog v-model:visible="resultVisible" title="应用创建成功" type="success" :secret="createdApp" />
 
-  <!-- 创建成功弹窗 -->
-  <el-dialog v-model="resultVisible" title="应用创建成功">
-    <el-alert type="success" :closable="false" style="margin-bottom: 16px">
-      请妥善保存 App Key，关闭后将无法再次查看！
-    </el-alert>
-    <p style="display: flex; align-items: center; gap: 8px">
-      <strong>App ID：</strong><span>{{ createdApp.app_id }}</span>
-      <el-button size="small" @click="copyText(createdApp.app_id)">复制</el-button>
-    </p>
-    <p style="display: flex; align-items: center; gap: 8px">
-      <strong>App Key：</strong><span>{{ createdApp.app_key }}</span>
-      <el-button size="small" @click="copyText(createdApp.app_key)">复制</el-button>
-    </p>
-    <template #footer>
-      <el-button type="primary" @click="resultVisible = false">我已保存</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 重置密钥成功弹窗 -->
-  <el-dialog v-model="rotateResultVisible" title="App Key 重置成功">
-    <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
-      旧 App Key 已失效，请立即通知调用方更新！新 Key 关闭后无法再次查看。
-    </el-alert>
-    <p style="display: flex; align-items: center; gap: 8px">
-      <strong>App ID：</strong><span>{{ rotateResult.app_id }}</span>
-      <el-button size="small" @click="copyText(rotateResult.app_id)">复制</el-button>
-    </p>
-    <p style="display: flex; align-items: center; gap: 8px">
-      <strong>新 App Key：</strong><span>{{ rotateResult.app_key }}</span>
-      <el-button size="small" @click="copyText(rotateResult.app_key)">复制</el-button>
-    </p>
-    <template #footer>
-      <el-button type="primary" @click="rotateResultVisible = false">我已保存</el-button>
-    </template>
-  </el-dialog>
+  <SecretResultDialog
+    v-model:visible="rotateResultVisible"
+    title="App Key 重置成功"
+    type="warning"
+    :secret="rotateResult"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
-import { listApps, listScopes, createApp, updateApp, updateAppStatus, rotateAppKey, deleteApp } from '@/api/openapi'
-import type { OpenAppItem, OpenScope, OpenAppFormPayload } from '@/types/openapi'
+import { listApps, updateAppStatus, rotateAppKey, deleteApp } from '@/api/openapi'
+import type { OpenAppItem } from '@/types/openapi'
+import AppFormDialog, { type AppSecret } from './components/AppFormDialog.vue'
+import SecretResultDialog from './components/SecretResultDialog.vue'
 
 const route = useRoute()
 
@@ -207,66 +99,14 @@ const total = ref(0)
 const keyword = ref('')
 
 const dialogVisible = ref(false)
+const editDialogVisible = ref(false)
+const editRecord = ref<OpenAppItem | null>(null)
+
 const resultVisible = ref(false)
-const form = ref<OpenAppFormPayload>({ name: '', description: '', auth_mode: 'plain', scopes: [] })
-const createdApp = ref<{ app_id: string; app_key: string }>({ app_id: '', app_key: '' })
+const createdApp = ref<AppSecret>({ app_id: '', app_key: '' })
 
 const rotateResultVisible = ref(false)
-const rotateResult = ref<{ app_id: string; app_key: string }>({ app_id: '', app_key: '' })
-
-const editDialogVisible = ref(false)
-const editForm = ref<{ id: number } & OpenAppFormPayload>({
-  id: 0,
-  name: '',
-  description: '',
-  auth_mode: 'plain',
-  scopes: [],
-})
-
-const scopeList = ref<OpenScope[]>([])
-const activeGroups = ref<string[]>([])
-const editActiveGroups = ref<string[]>([])
-
-const groupedScopes = computed(() => {
-  const groups: Record<string, OpenScope[]> = {}
-  for (const s of scopeList.value) {
-    const mod = s.module || '其他'
-    if (!groups[mod]) groups[mod] = []
-    groups[mod].push(s)
-  }
-  return groups
-})
-
-function isGroupAllChecked(items: OpenScope[], selected: string[]): boolean {
-  return items.length > 0 && items.every(s => selected.includes(s.scope_code))
-}
-
-function isGroupIndeterminate(items: OpenScope[], selected: string[]): boolean {
-  const checked = items.filter(s => selected.includes(s.scope_code)).length
-  return checked > 0 && checked < items.length
-}
-
-function toggleGroup(items: OpenScope[], selected: string[], val: boolean) {
-  const codes = items.map(s => s.scope_code)
-  if (val) {
-    for (const c of codes) {
-      if (!selected.includes(c)) selected.push(c)
-    }
-  } else {
-    for (const c of codes) {
-      const idx = selected.indexOf(c)
-      if (idx > -1) selected.splice(idx, 1)
-    }
-  }
-}
-
-function moduleLabel(mod: string, items: OpenScope[]): string {
-  return items[0]?.module_label || mod
-}
-
-function copyText(text: string) {
-  navigator.clipboard.writeText(text).then(() => ElMessage.success('已复制'))
-}
+const rotateResult = ref<AppSecret>({ app_id: '', app_key: '' })
 
 async function fetchList() {
   loading.value = true
@@ -295,55 +135,26 @@ function handleSizeChange() {
   fetchList()
 }
 
-async function fetchScopes() {
-  const res = await listScopes()
-  scopeList.value = res.data
-}
-
 function handleCreate() {
-  form.value = { name: '', description: '', auth_mode: 'plain', scopes: [] }
   dialogVisible.value = true
-  fetchScopes()
-}
-
-async function handleSubmit() {
-  try {
-    const res = await createApp(form.value)
-    createdApp.value = { app_id: res.data.app_id, app_key: res.data.app_key }
-    dialogVisible.value = false
-    resultVisible.value = true
-    fetchList()
-  } catch {
-    // 错误已处理
-  }
 }
 
 function handleEdit(row: OpenAppItem) {
-  editForm.value = {
-    id: row.id,
-    name: row.name,
-    description: row.description || '',
-    auth_mode: row.auth_mode,
-    scopes: [...row.scopes],
-  }
+  editRecord.value = row
   editDialogVisible.value = true
-  fetchScopes()
 }
 
-async function handleUpdate() {
-  try {
-    await updateApp(editForm.value.id, {
-      name: editForm.value.name,
-      description: editForm.value.description,
-      auth_mode: editForm.value.auth_mode,
-      scopes: editForm.value.scopes,
-    })
-    ElMessage.success('更新成功')
-    editDialogVisible.value = false
-    fetchList()
-  } catch {
-    // 错误已处理
-  }
+/** 创建成功：展示密钥弹窗并刷新列表 */
+function onAppCreated(secret: AppSecret) {
+  createdApp.value = secret
+  resultVisible.value = true
+  fetchList()
+}
+
+/** 编辑成功：关闭并刷新列表 */
+function onDialogSubmitted() {
+  editDialogVisible.value = false
+  fetchList()
 }
 
 async function handleToggleStatus(row: OpenAppItem) {

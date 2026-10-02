@@ -1,6 +1,6 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px">
+    <div class="hj-toolbar-end">
       <el-input
         v-model="keyword"
         placeholder="按Scope编码/名称/模块搜索"

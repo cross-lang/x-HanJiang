@@ -1,0 +1,22 @@
+/* =========================================================
+ * 全局基础样式（非 scoped）
+ * 1. 后台管理端全局禁止拖选文本（防误选黑框），输入类控件除外
+ * 2. AI 助手抽屉拖拽期间全局禁止文本选中
+ * ========================================================= */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 拖拽期间全局禁止文本选中（防黑框圈选） */
+body.ai-resizing {
+  user-select: none;
+  -webkit-user-select: none;
+}

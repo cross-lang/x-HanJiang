@@ -1,120 +1,118 @@
 <template>
   <div>
     <!-- 关键指标卡片 -->
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="6">
         <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 32px; font-weight: 600; color: #409eff">{{ stats.userCount }}</div>
-            <div style="color: #999; margin-top: 8px">用户总数</div>
+          <div class="hj-text-center">
+            <div class="stat-value stat-blue">{{ stats.userCount }}</div>
+            <div class="stat-label">用户总数</div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 32px; font-weight: 600; color: #67c23a">{{ stats.roleCount }}</div>
-            <div style="color: #999; margin-top: 8px">角色总数</div>
+          <div class="hj-text-center">
+            <div class="stat-value stat-green">{{ stats.roleCount }}</div>
+            <div class="stat-label">角色总数</div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 32px; font-weight: 600; color: #e6a23c">{{ stats.appCount }}</div>
-            <div style="color: #999; margin-top: 8px">开放应用数</div>
+          <div class="hj-text-center">
+            <div class="stat-value stat-orange">{{ stats.appCount }}</div>
+            <div class="stat-label">开放应用数</div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 32px; font-weight: 600; color: #f56c6c">{{ stats.todayLogin }}</div>
-            <div style="color: #999; margin-top: 8px">今日登录</div>
+          <div class="hj-text-center">
+            <div class="stat-value stat-red">{{ stats.todayLogin }}</div>
+            <div class="stat-label">今日登录</div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 趋势图表 -->
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>近7天登录趋势</template>
-          <v-chart :option="loginChartOption" style="height: 280px" />
+          <v-chart :option="loginChartOption" class="hj-chart-box" />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>近7天操作日志趋势</template>
-          <v-chart :option="auditChartOption" style="height: 280px" />
+          <v-chart :option="auditChartOption" class="hj-chart-box" />
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>近30天新增用户趋势</template>
-          <v-chart :option="newUsersChartOption" style="height: 280px" />
+          <v-chart :option="newUsersChartOption" class="hj-chart-box" />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>近7天登录失败趋势</template>
-          <v-chart :option="loginFailedChartOption" style="height: 280px" />
+          <v-chart :option="loginFailedChartOption" class="hj-chart-box" />
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 分布饼图 -->
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="8">
         <el-card shadow="hover">
           <template #header>用户角色分布</template>
-          <v-chart :option="rolePieOption" style="height: 280px" />
+          <v-chart :option="rolePieOption" class="hj-chart-box" />
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card shadow="hover">
           <template #header>用户状态分布</template>
-          <v-chart :option="userStatusPieOption" style="height: 280px" />
+          <v-chart :option="userStatusPieOption" class="hj-chart-box" />
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card shadow="hover">
           <template #header>通知渠道分布</template>
-          <v-chart :option="channelPieOption" style="height: 280px" />
+          <v-chart :option="channelPieOption" class="hj-chart-box" />
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 通知发送趋势 -->
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="24">
         <el-card shadow="hover">
           <template #header>近7天通知发送趋势（成功 vs 失败）</template>
-          <v-chart :option="notifyChartOption" style="height: 280px" />
+          <v-chart :option="notifyChartOption" class="hj-chart-box" />
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 存储用量 -->
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="24">
         <el-card shadow="hover">
           <template #header>存储用量</template>
-          <div style="display: flex; gap: 40px; align-items: center">
+          <div class="storage-wrap">
             <div>
-              <div style="font-size: 28px; font-weight: 600; color: #409eff">
-                {{ formatSize(storage.total_size_bytes) }}
-              </div>
-              <div style="color: #999; margin-top: 4px">总用量（{{ storage.total_count }} 个文件）</div>
+              <div class="stat-value-lg stat-blue">{{ formatSize(storage.total_size_bytes) }}</div>
+              <div class="stat-label-sm">总用量（{{ storage.total_count }} 个文件）</div>
             </div>
-            <el-divider direction="vertical" style="height: 50px" />
-            <div v-for="f in storage.by_folder" :key="f.folder" style="text-align: center">
-              <div style="font-size: 20px; font-weight: 500">{{ formatSize(f.size_bytes) }}</div>
-              <div style="color: #999; font-size: 12px; margin-top: 4px">{{ f.folder }}（{{ f.count }}）</div>
+            <el-divider direction="vertical" class="storage-divider" />
+            <div v-for="f in storage.by_folder" :key="f.folder" class="hj-text-center">
+              <div class="stat-value-md">{{ formatSize(f.size_bytes) }}</div>
+              <div class="stat-sub">{{ f.folder }}（{{ f.count }}）</div>
             </div>
           </div>
         </el-card>
@@ -122,77 +120,58 @@
     </el-row>
 
     <!-- 系统监控 -->
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="24">
         <el-card v-if="canMonitor">
           <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
+            <div class="hj-flex-between">
               <span>系统监控</span>
-              <span style="font-size: 12px; color: #999">已运行 {{ monitor.uptime?.uptime_text || '-' }}</span>
+              <span class="hj-text-12 hj-text-gray">已运行 {{ monitor.uptime?.uptime_text || '-' }}</span>
             </div>
           </template>
           <el-row :gutter="20">
             <!-- CPU -->
             <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div style="font-size: 28px; font-weight: bold; color: #409eff">{{ monitor.cpu?.percent ?? 0 }}%</div>
-                <div style="color: #999; margin: 8px 0">CPU 使用率</div>
-                <div style="font-size: 12px; color: #999">
-                  {{ monitor.cpu?.core_count }}核 / {{ monitor.cpu?.thread_count }}线程
-                </div>
-                <el-tag :type="statusType(monitor.cpu?.status)" size="small" style="margin-top: 6px">
+              <div class="hj-text-center">
+                <div class="stat-value stat-blue">{{ monitor.cpu?.percent ?? 0 }}%</div>
+                <div class="stat-label">CPU 使用率</div>
+                <div class="stat-sub">{{ monitor.cpu?.core_count }}核 / {{ monitor.cpu?.thread_count }}线程</div>
+                <el-tag :type="statusType(monitor.cpu?.status)" size="small" class="stat-tag">
                   {{ statusText(monitor.cpu?.status) }}
                 </el-tag>
               </div>
             </el-col>
             <!-- 内存 -->
             <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div style="font-size: 28px; font-weight: bold; color: #67c23a">
-                  {{ monitor.memory?.percent ?? 0 }}%
-                </div>
-                <div style="color: #999; margin: 8px 0">内存使用率</div>
-                <div style="font-size: 12px; color: #999">
-                  {{ monitor.memory?.used_gb }} / {{ monitor.memory?.total_gb }} GB
-                </div>
-                <el-tag :type="statusType(monitor.memory?.status)" size="small" style="margin-top: 6px">
+              <div class="hj-text-center">
+                <div class="stat-value stat-green">{{ monitor.memory?.percent ?? 0 }}%</div>
+                <div class="stat-label">内存使用率</div>
+                <div class="stat-sub">{{ monitor.memory?.used_gb }} / {{ monitor.memory?.total_gb }} GB</div>
+                <el-tag :type="statusType(monitor.memory?.status)" size="small" class="stat-tag">
                   {{ statusText(monitor.memory?.status) }}
                 </el-tag>
               </div>
             </el-col>
             <!-- 磁盘 -->
             <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div style="font-size: 28px; font-weight: bold; color: #e6a23c">
-                  {{ monitor.disk?.used_percent ?? 0 }}%
-                </div>
-                <div style="color: #999; margin: 8px 0">磁盘使用率</div>
-                <div style="font-size: 12px; color: #999">
-                  {{ monitor.disk?.used_gb }} / {{ monitor.disk?.total_gb }} GB
-                </div>
-                <el-tag :type="statusType(monitor.disk?.status)" size="small" style="margin-top: 6px">
+              <div class="hj-text-center">
+                <div class="stat-value stat-orange">{{ monitor.disk?.used_percent ?? 0 }}%</div>
+                <div class="stat-label">磁盘使用率</div>
+                <div class="stat-sub">{{ monitor.disk?.used_gb }} / {{ monitor.disk?.total_gb }} GB</div>
+                <el-tag :type="statusType(monitor.disk?.status)" size="small" class="stat-tag">
                   {{ statusText(monitor.disk?.status) }}
                 </el-tag>
               </div>
             </el-col>
             <!-- 网络 -->
             <el-col :xs="12" :sm="6">
-              <div style="text-align: center">
-                <div
-                  style="
-                    display: flex;
-                    justify-content: center;
-                    gap: 16px;
-                    font-size: 18px;
-                    font-weight: bold;
-                    color: #909399;
-                  "
-                >
+              <div class="hj-text-center">
+                <div class="net-stat">
                   <span>↓ {{ monitor.network?.recv_kbps ?? 0 }} KB/s</span>
                   <span>↑ {{ monitor.network?.send_kbps ?? 0 }} KB/s</span>
                 </div>
-                <div style="color: #999; margin: 8px 0">网络 IO</div>
-                <div style="font-size: 12px; color: #999">
+                <div class="stat-label">网络 IO</div>
+                <div class="stat-sub">
                   收 {{ monitor.network?.bytes_recv_total_mb }} MB / 发 {{ monitor.network?.bytes_sent_total_mb }} MB
                 </div>
               </div>
@@ -203,11 +182,11 @@
     </el-row>
 
     <!-- 最近动态 -->
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
+            <div class="hj-flex-between">
               <span>最近登录记录</span>
               <el-button text type="primary" size="small" @click="goAudit('login')">查看更多</el-button>
             </div>
@@ -233,7 +212,7 @@
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
+            <div class="hj-flex-between">
               <span>最近操作记录</span>
               <el-button text type="primary" size="small" @click="goAudit('audit')">查看更多</el-button>
             </div>
@@ -456,3 +435,66 @@ onUnmounted(() => {
   if (monitorTimer) clearInterval(monitorTimer)
 })
 </script>
+
+<style scoped>
+/* 指标卡片 */
+.stat-value {
+  font-size: 32px;
+  font-weight: 600;
+}
+.stat-value-lg {
+  font-size: 28px;
+  font-weight: 600;
+}
+.stat-value-md {
+  font-size: 20px;
+  font-weight: 500;
+}
+.stat-blue {
+  color: #409eff;
+}
+.stat-green {
+  color: #67c23a;
+}
+.stat-orange {
+  color: #e6a23c;
+}
+.stat-red {
+  color: #f56c6c;
+}
+.stat-label {
+  color: #999;
+  margin-top: 8px;
+}
+.stat-label-sm {
+  color: #999;
+  margin-top: 4px;
+}
+.stat-sub {
+  font-size: 12px;
+  color: #999;
+}
+.stat-tag {
+  margin-top: 6px;
+}
+
+/* 存储用量 */
+.storage-wrap {
+  display: flex;
+  gap: 40px;
+  align-items: center;
+}
+.storage-divider {
+  height: 50px;
+}
+
+/* 网络 IO */
+.net-stat {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #909399;
+}
+</style>

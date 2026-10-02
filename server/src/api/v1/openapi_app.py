@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from src.api.api_permission_decorator import permission
-from src.api.dependencies import get_current_user, get_openapi_app_service, require_user_permission
+from src.api.dependencies import (
+    get_current_user,
+    get_openapi_app_service,
+    get_user_operator_context,
+    require_user_permission,
+)
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.common import PaginatedResponse
@@ -61,6 +66,7 @@ def create_app(
         rate_limit_per_minute=body.rate_limit_per_minute,
         auth_mode=body.auth_mode,
         owner_user_id=current_user.id,
+        operator=get_user_operator_context(current_user, request),
     )
     data = OpenApiAppCreatedResponse(**resp.model_dump(), app_key=app_key).model_dump()
     return success_response(data, request)
@@ -117,10 +123,15 @@ def update_app(
     app_id: int,
     body: OpenApiAppUpdateRequest,
     request: Request,
+    current_user=Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     return success_response(
-        service.update(app_id, body.model_dump(exclude_unset=True)).model_dump(),
+        service.update(
+            app_id,
+            body.model_dump(exclude_unset=True),
+            operator=get_user_operator_context(current_user, request),
+        ).model_dump(),
         request,
     )
 
@@ -136,11 +147,16 @@ def update_app_scopes(
     app_id: int,
     body: OpenApiAppScopesUpdateRequest,
     request: Request,
+    current_user=Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     """覆盖更新应用的 scope 列表。传入的 scopes 会完全覆盖原有值。"""
     return success_response(
-        service.update(app_id, {"scopes": body.scopes}).model_dump(),
+        service.update_scopes(
+            app_id,
+            body.scopes,
+            operator=get_user_operator_context(current_user, request),
+        ).model_dump(),
         request,
     )
 
@@ -156,11 +172,16 @@ def update_app_status(
     app_id: int,
     body: OpenApiAppStatusUpdateRequest,
     request: Request,
+    current_user=Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     """启用或禁用应用（独立于通用更新，单独权限控制）。"""
     return success_response(
-        service.update(app_id, {"status": body.status}).model_dump(),
+        service.update_status(
+            app_id,
+            body.status,
+            operator=get_user_operator_context(current_user, request),
+        ).model_dump(),
         request,
     )
 
@@ -193,7 +214,8 @@ def rotate_key(
 def delete_app(
     app_id: int,
     request: Request,
+    current_user=Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
-    ok = service.delete(app_id)
+    ok = service.delete(app_id, operator=get_user_operator_context(current_user, request))
     return success_response({"deleted": ok}, request)

@@ -18,6 +18,7 @@ from src.constants.enums import (
     SystemNotificationType,
     UserStatus,
 )
+from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException
 from src.core.logger import logger
 from src.models.entities.system_notification_entity import SystemNotificationEntity
@@ -108,7 +109,7 @@ class SystemNotificationService:
         )
         self._audit(
             entity_id=entity.id,
-            action="publish",
+            action=PermissionAction.PUBLISH.mark,
             operator=operator,
             after_data={"title": title, "notice_type": entity.notice_type, "status": entity.status},
             remarks=f"发布通知{title}",
@@ -211,7 +212,7 @@ class SystemNotificationService:
         self._notice_repository.commit()
         self._audit(
             entity_id=notice_id,
-            action="withdraw",
+            action=PermissionAction.WITHDRAW.mark,
             operator=operator,
             before_data={"status": SystemNotificationStatus.PUBLISHED.value},
             after_data={"status": SystemNotificationStatus.WITHDRAWN.value},

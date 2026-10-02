@@ -1,9 +1,9 @@
 <template>
   <div>
-    <el-card style="margin-bottom: 16px">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px">
+    <el-card class="hj-mb-16">
+      <div class="hj-toolbar">
         <el-button type="primary" @click="openPublish">发布通知</el-button>
-        <div style="display: flex; gap: 8px">
+        <div class="hj-flex hj-gap-8">
           <el-select
             v-model="noticeFilter.notice_type"
             placeholder="类型"
@@ -71,7 +71,7 @@
         </el-table-column>
       </el-table>
       <el-pagination
-        style="margin-top: 12px; justify-content: flex-end; display: flex"
+        class="hj-pagination hj-mt-12"
         v-model:current-page="noticePage"
         v-model:page-size="noticePageSize"
         :total="noticeTotal"
@@ -105,51 +105,7 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="publishVisible" title="发布通知" width="560px">
-      <el-form :model="publishForm" label-width="90px">
-        <el-form-item label="通知类型">
-          <el-radio-group v-model="publishForm.notice_type">
-            <el-radio value="notice">普通通知</el-radio>
-            <el-radio value="maintenance">系统维护</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="标题">
-          <el-input v-model="publishForm.title" maxlength="200" placeholder="通知标题" />
-        </el-form-item>
-        <el-form-item v-if="publishForm.notice_type !== 'maintenance'" label="正文">
-          <el-input
-            v-model="publishForm.content"
-            type="textarea"
-            :rows="5"
-            maxlength="5000"
-            placeholder="通知正文，将推送至全体用户的站内信"
-          />
-        </el-form-item>
-        <template v-if="publishForm.notice_type === 'maintenance'">
-          <el-form-item label="维护时间">
-            <el-date-picker
-              v-model="publishForm.maintenance_time"
-              type="datetime"
-              placeholder="选择维护开始时间"
-              style="width: 100%"
-              format="YYYY-MM-DD HH:mm"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              :disabled-date="disablePastDate"
-            />
-          </el-form-item>
-          <el-form-item label="预计时长">
-            <el-input v-model="publishForm.duration" placeholder="如 2 小时（需包含单位）" />
-          </el-form-item>
-          <el-form-item label="维护原因">
-            <el-input v-model="publishForm.reason" placeholder="可选" />
-          </el-form-item>
-        </template>
-      </el-form>
-      <template #footer>
-        <el-button @click="publishVisible = false">取消</el-button>
-        <el-button type="primary" :loading="publishing" @click="doPublish">发布</el-button>
-      </template>
-    </el-dialog>
+    <PublishNoticeDialog v-model:visible="publishVisible" @submitted="onPublished" />
 
     <el-dialog v-model="detailVisible" title="通知详情" width="620px">
       <template v-if="detail">
@@ -180,23 +136,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="configDialogVisible" title="编辑渠道配置" width="500px">
-      <el-form :model="editForm" label-width="100px">
-        <el-form-item label="渠道">
-          <el-input v-model="editForm.channel" disabled />
-        </el-form-item>
-        <el-form-item label="配置JSON">
-          <el-input v-model="editForm.config_json" type="textarea" :rows="8" placeholder='{"webhook": "https://..."}' />
-        </el-form-item>
-        <el-form-item label="启用">
-          <el-switch v-model="editForm.enabled" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="configDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveConfig(editForm)">保存</el-button>
-      </template>
-    </el-dialog>
+    <ChannelConfigDialog v-model:visible="configDialogVisible" :record="configRecord" @saved="onConfigSaved" />
   </div>
 </template>
 <script setup lang="ts">
@@ -206,13 +146,14 @@ import { formatDateTime } from '@/utils/format'
 import {
   listPublishedNotifications,
   getPublishedNotification,
-  publishNotification,
   withdrawNotification,
   listNotificationConfigs,
   updateNotificationConfig,
   testNotificationConfig,
 } from '@/api/notification'
 import type { SystemNotificationItem, NotificationConfig, NoticeType } from '@/types/notification'
+import PublishNoticeDialog from './components/PublishNoticeDialog.vue'
+import ChannelConfigDialog from './components/ChannelConfigDialog.vue'
 
 const notices = ref<SystemNotificationItem[]>([])
 const noticeLoading = ref(false)
@@ -230,29 +171,13 @@ const noticeFilter = ref<{
 })
 
 const publishVisible = ref(false)
-const publishing = ref(false)
-const publishForm = ref<{
-  notice_type: NoticeType
-  title: string
-  content: string
-  maintenance_time: string
-  duration: string
-  reason: string
-}>({
-  notice_type: 'notice',
-  title: '',
-  content: '',
-  maintenance_time: '',
-  duration: '',
-  reason: '',
-})
 
 const detailVisible = ref(false)
 const detail = ref<SystemNotificationItem | null>(null)
 
 const configs = ref<NotificationConfig[]>([])
 const configDialogVisible = ref(false)
-const editForm = ref<Partial<NotificationConfig> & { channel?: string }>({})
+const configRecord = ref<NotificationConfig | null>(null)
 
 const channelNames: Record<string, string> = {
   dingtalk: '钉钉群机器人',
@@ -262,12 +187,6 @@ const channelNames: Record<string, string> = {
 
 function fmtTime(v: string | null | undefined): string {
   return formatDateTime(v)
-}
-
-function disablePastDate(date: Date): boolean {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return date.getTime() < today.getTime()
 }
 
 async function fetchNotices() {
@@ -290,55 +209,14 @@ async function fetchNotices() {
 }
 
 function openPublish() {
-  publishForm.value = { notice_type: 'notice', title: '', content: '', maintenance_time: '', duration: '', reason: '' }
   publishVisible.value = true
 }
 
-async function doPublish() {
-  const form = publishForm.value
-  if (!form.title.trim()) {
-    ElMessage.warning('请输入通知标题')
-    return
-  }
-  if (form.notice_type === 'maintenance' && (!form.maintenance_time.trim() || !form.duration.trim())) {
-    ElMessage.warning('系统维护通知必须填写维护时间与预计时长')
-    return
-  }
-  if (form.notice_type === 'maintenance' && !/(小时|时|h|分钟|分|天)/.test(form.duration.trim())) {
-    ElMessage.warning('预计持续时长需包含单位，如 2 小时')
-    return
-  }
-  if (form.notice_type === 'maintenance') {
-    const mt = new Date(form.maintenance_time.replace(/-/g, '/'))
-    if (isNaN(mt.getTime()) || mt.getTime() <= Date.now()) {
-      ElMessage.warning('维护时间不能早于当前时间')
-      return
-    }
-  }
-  if (form.notice_type !== 'maintenance' && !form.content.trim()) {
-    ElMessage.warning('请输入通知正文')
-    return
-  }
-  publishing.value = true
-  try {
-    const res = await publishNotification({
-      title: form.title.trim(),
-      notice_type: form.notice_type,
-      content: form.notice_type === 'maintenance' ? '' : form.content.trim(),
-      maintenance_time: form.notice_type === 'maintenance' ? form.maintenance_time.trim() : null,
-      duration: form.notice_type === 'maintenance' ? form.duration.trim() : null,
-      reason: form.notice_type === 'maintenance' ? form.reason.trim() || null : null,
-    })
-    const sent = res.data.sent_count
-    ElMessage.success(sent != null ? `已发布，站内信推送完成（多渠道推送 ${sent} 人）` : '已发布')
-    publishVisible.value = false
-    noticePage.value = 1
-    fetchNotices()
-  } catch {
-    /* 错误已由拦截器处理 */
-  } finally {
-    publishing.value = false
-  }
+/** 发布成功：重置分页并刷新列表 */
+function onPublished() {
+  publishVisible.value = false
+  noticePage.value = 1
+  fetchNotices()
 }
 
 async function viewNotice(row: SystemNotificationItem) {
@@ -381,20 +259,26 @@ onMounted(async () => {
 })
 
 function editConfig(row: NotificationConfig) {
-  editForm.value = { ...row }
+  configRecord.value = row
   configDialogVisible.value = true
 }
 
+/** 渠道启用开关（表格内直接保存） */
 async function saveConfig(row: Partial<NotificationConfig>) {
   if (!row.channel) return
   try {
     await updateNotificationConfig(row.channel, row)
     ElMessage.success('已保存')
-    configDialogVisible.value = false
     fetchConfigs()
   } catch {
     /* ignore */
   }
+}
+
+/** 渠道配置弹窗保存成功：关闭并刷新 */
+function onConfigSaved() {
+  configDialogVisible.value = false
+  fetchConfigs()
 }
 
 async function testConfig(row: NotificationConfig) {

@@ -15,7 +15,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.enums import AuditAction, LoginStatus, LoginType
-from src.constants.permissions import PermissionCode
+from src.constants.permissions import PermissionAction, PermissionCode
 from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
 from src.schemas.auth import CurrentUser
@@ -24,6 +24,15 @@ from src.services.login_log_service import LoginLogService
 from src.utils.csv import build_csv_stream_response
 
 router = APIRouter(prefix="/audit", tags=["审计日志"])
+
+
+def describe_audit_action(action: str) -> str:
+    """审计动作中文展示：优先查 AuditAction（独有动作），再回退 PermissionAction。"""
+    for enum_cls in (AuditAction, PermissionAction):
+        for member in enum_cls:
+            if member.mark == action:
+                return member.desc
+    return action
 
 
 # ============================================================
@@ -141,7 +150,7 @@ def export_audit_logs(
     csv_rows = []
     for row in result["items"]:
         data = AuditLogResponse.model_validate(row).model_dump()
-        data["action"] = AuditAction.get_desc_by_mark(row.action)
+        data["action"] = describe_audit_action(row.action)
         data["operator_id"] = row.operator_id or ""
         data["operator_name"] = username_map.get(row.operator_id, {}).get("name", "") if row.operator_id else ""
         csv_rows.append(data)
