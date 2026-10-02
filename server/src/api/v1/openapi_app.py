@@ -62,6 +62,7 @@ def create_app(
     """
     resp, app_key = service.create_app(
         name=body.name,
+        description=body.description,
         scopes=body.scopes,
         rate_limit_per_minute=body.rate_limit_per_minute,
         auth_mode=body.auth_mode,
@@ -69,7 +70,7 @@ def create_app(
         operator=get_user_operator_context(current_user, request),
     )
     data = OpenApiAppCreatedResponse(**resp.model_dump(), app_key=app_key).model_dump()
-    return success_response(data, request)
+    return success_response(data, request, code=201)
 
 
 @router.get(

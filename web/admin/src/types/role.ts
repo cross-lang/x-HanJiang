@@ -18,6 +18,7 @@ export interface PermissionItem {
   module: string
   module_label: string
   operation: string
+  operation_label: string
   description: string | null
   sort_order: number
   is_deprecated?: boolean

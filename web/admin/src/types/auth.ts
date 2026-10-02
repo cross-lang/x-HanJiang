@@ -32,7 +32,6 @@ export interface UserInfo {
   username: string
   email: string
   name: string | null
-  role_id: number | null
   role_code: string | null
   status: string
   avatar_url: string | null

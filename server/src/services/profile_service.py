@@ -101,7 +101,7 @@ class ProfileService:
             dict[str, Any]: 用户资料字典，包含 roles / permission_list 字段
         """
         # 多角色体系下以下方实时查询的 roles 为准，避免响应字段冗余。
-        data: dict[str, Any] = current_user.model_dump(exclude={"role_id", "role_code"})
+        data: dict[str, Any] = current_user.model_dump(exclude={"role_code"})
         roles = self._user_repository.get_roles_by_user_id(current_user.id)
         # 字段命名与用户列表接口的 roles 结构保持一致（role_name/role_code）
         data["roles"] = [

@@ -82,18 +82,13 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             username=request.username,
             email=request.email,
             password_hash=hash_password(request.password),
+            name=request.name,
             phone=request.phone,
+            gender=request.gender,
+            birthday=datetime.strptime(request.birthday, "%Y-%m-%d"),
             avatar_url=request.avatar_url,
             status=request.status.value if isinstance(request.status, UserStatus) else request.status,
         )
-        if getattr(request, "name", None) is not None:
-            entity.name = request.name
-        if getattr(request, "gender", None) is not None:
-            entity.gender = request.gender
-        if getattr(request, "birthday", None) is not None:
-            from datetime import datetime
-
-            entity.birthday = datetime.strptime(request.birthday, "%Y-%m-%d")
         created = self._repository.create(entity)
         self._commit()
         # 绑定多角色（经仓库）
@@ -261,7 +256,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         roles = []
         role_name = None
         user_roles = self._repository.get_roles_by_user_id(entity.id)
-        role_ids = [r.id for r in user_roles]
         for role in user_roles:
             roles.append({"id": role.id, "role_name": role.role_name, "role_code": role.role_code})
         if roles:
@@ -275,7 +269,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             birthday=getattr(entity, "birthday", None),
             phone=entity.phone,
             avatar_url=entity.avatar_url,
-            role_id=role_ids[0] if role_ids else None,
             role_name=role_name,
             roles=roles,
             status=entity.status or UserStatus.ENABLED.value,

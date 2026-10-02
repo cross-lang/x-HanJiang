@@ -27,20 +27,19 @@ class UserCreateRequest(BaseModel):
         password: 初始密码（8-64 位，服务端存储 bcrypt 哈希）
         phone: 手机号
         avatar_url: 头像URL
-        role_id: 主角色ID
+        role_ids: 角色ID列表（至少 1 个）
         status: 状态（active/inactive/locked）
     """
 
     username: str = Field(min_length=3, max_length=50, description="用户名")
     email: str = Field(max_length=100, description="邮箱（全局唯一）")
-    password: str = Field(default="ChangeMe@123", min_length=8, max_length=64, description="初始密码")
-    name: str | None = Field(default=None, max_length=100, description="姓名")
-    phone: str | None = Field(default=None, max_length=20, description="手机号")
-    gender: str | None = Field(default=None, description="性别（male/female）")
-    birthday: str | None = Field(default=None, description="生日（YYYY-MM-DD）")
+    password: str = Field(min_length=8, max_length=64, description="初始密码")
+    name: str = Field(max_length=100, description="姓名")
+    phone: str = Field(max_length=20, description="手机号")
+    gender: str = Field(min_length=1, description="性别（male/female）")
+    birthday: str = Field(min_length=1, description="生日（YYYY-MM-DD）")
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
-    role_id: int | None = Field(default=None, description="主角色ID")
-    role_ids: list[int] = Field(default_factory=list, description="角色ID列表")
+    role_ids: list[int] = Field(min_length=1, description="角色ID列表（至少 1 个）")
     role_name: str | None = Field(default=None, description="角色名称")
     roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: UserStatus = Field(default=UserStatus.ENABLED, description="状态")
@@ -84,7 +83,7 @@ class UserUpdateRequest(BaseModel):
         password: 新密码（提供时重新哈希）
         phone: 手机号
         avatar_url: 头像URL
-        role_id: 主角色ID
+        role_ids: 角色ID列表
         status: 状态
     """
 
@@ -96,7 +95,6 @@ class UserUpdateRequest(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
     birthday: str | None = Field(default=None, description="生日（YYYY-MM-DD）")
     gender: str | None = Field(default=None, description="性别（male/female）")
-    role_id: int | None = Field(default=None, description="主角色ID")
     role_ids: list[int] | None = Field(default=None, description="角色ID列表")
     role_name: str | None = Field(default=None, description="角色名称")
     roles: list[dict] = Field(default_factory=list, description="用户角色列表")
@@ -163,7 +161,7 @@ class UserResponse(BaseModel):
         email: 邮箱
         phone: 手机号
         avatar_url: 头像URL
-        role_id: 主角色ID
+        role_name: 角色名称
         status: 状态
         last_login_at: 最后登录时间
         last_login_ip: 最后登录IP
@@ -174,17 +172,16 @@ class UserResponse(BaseModel):
     id: int = Field(description="用户唯一标识")
     username: str = Field(description="用户名")
     email: str = Field(description="邮箱")
-    name: str | None = Field(default=None, description="姓名")
-    phone: str | None = Field(default=None, description="手机号")
+    name: str = Field(description="姓名")
+    phone: str = Field(description="手机号")
     avatar_url: str | None = Field(default=None, description="头像URL")
-    role_id: int | None = Field(default=None, description="主角色ID")
     role_name: str | None = Field(default=None, description="角色名称")
     roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: str = Field(description="状态")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
     last_login_ip: str | None = Field(default=None, description="最后登录IP")
-    gender: str | None = Field(default=None, description="性别（male/female）")
-    birthday: str | None = Field(default=None, description="生日（YYYY-MM-DD）")
+    gender: str = Field(description="性别（male/female）")
+    birthday: str = Field(description="生日（YYYY-MM-DD）")
 
     @field_validator("birthday", mode="before")
     @classmethod

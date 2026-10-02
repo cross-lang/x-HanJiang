@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from src.constants.enums import AuditAction, NotificationEvent, SystemRoleCode
-from src.constants.permissions import PermissionModule
+from src.constants.permissions import PermissionAction, PermissionModule
 from src.core.exceptions import NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import (
@@ -190,6 +190,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
     def _to_response(self, entity: PermissionEntity) -> PermissionResponse:
         """实体转响应 DTO。"""
         module_label = PermissionModule.get_desc_by_mark(entity.module, entity.module)
+        operation_label = PermissionAction.get_desc_by_mark(entity.operation, entity.operation)
         return PermissionResponse(
             id=entity.id,
             perm_code=entity.perm_code,
@@ -197,6 +198,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
             module=entity.module,
             module_label=module_label,
             operation=entity.operation,
+            operation_label=operation_label,
             description=entity.description,
             sort_order=entity.sort_order,
         )

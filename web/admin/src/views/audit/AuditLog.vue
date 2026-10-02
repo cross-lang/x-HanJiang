@@ -26,7 +26,7 @@
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" min-width="120" />
         <el-table-column prop="name" label="姓名" min-width="120" />
-        <el-table-column prop="login_type" label="登录方式" min-width="120" />
+        <el-table-column prop="login_type_label" label="登录方式" min-width="120" />
         <el-table-column prop="status" label="状态" min-width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ loginStatusText(row.status) }}</el-tag>
@@ -50,8 +50,12 @@
             }}{{ row.operator_real_name ? '（' + row.operator_real_name + '）' : '' }}</template
           >
         </el-table-column>
-        <el-table-column prop="entity_type" label="实体类型" min-width="120" />
-        <el-table-column prop="action" label="操作" min-width="120" />
+        <el-table-column label="实体类型" min-width="150">
+          <template #default="{ row }">{{ formatAuditEntity(row.entity_type) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" min-width="130">
+          <template #default="{ row }">{{ formatAuditAction(row.action) }}</template>
+        </el-table-column>
         <el-table-column prop="remarks" label="备注" min-width="200" show-overflow-tooltip />
         <el-table-column prop="ip_address" label="IP" min-width="140" />
         <el-table-column prop="created_at" label="时间" min-width="180">
@@ -79,7 +83,7 @@
               >{{ loginDetail.username }}（{{ loginDetail.name || '-' }}）</el-descriptions-item
             >
             <el-descriptions-item label="操作时间">{{ loginDetail.created_at }}</el-descriptions-item>
-            <el-descriptions-item label="登录方式">{{ loginDetail.login_type }}</el-descriptions-item>
+            <el-descriptions-item label="登录方式">{{ loginDetail.login_type_label }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-tag :type="loginDetail.status === 'success' ? 'success' : 'danger'">
                 {{ loginStatusText(loginDetail.status) }}
@@ -95,8 +99,10 @@
               >{{ auditDetail.operator_username }}（{{ auditDetail.operator_real_name || '-' }}）</el-descriptions-item
             >
             <el-descriptions-item label="操作时间">{{ auditDetail.created_at }}</el-descriptions-item>
-            <el-descriptions-item label="实体类型">{{ auditDetail.entity_type }}</el-descriptions-item>
-            <el-descriptions-item label="操作">{{ auditDetail.action }}</el-descriptions-item>
+            <el-descriptions-item label="实体类型">{{
+              formatAuditEntity(auditDetail.entity_type)
+            }}</el-descriptions-item>
+            <el-descriptions-item label="操作">{{ formatAuditAction(auditDetail.action) }}</el-descriptions-item>
             <el-descriptions-item label="IP">{{ auditDetail.ip_address }}</el-descriptions-item>
             <el-descriptions-item label="备注">{{ auditDetail.remarks }}</el-descriptions-item>
           </el-descriptions>
@@ -117,6 +123,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/format'
+import { formatAuditEntity, formatAuditAction } from '@/utils/audit-labels'
 import { downloadResponseBlob } from '@/utils/download'
 import {
   listAuditLogs,

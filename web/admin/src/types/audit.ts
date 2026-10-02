@@ -21,6 +21,7 @@ export interface LoginLogItem {
   username: string | null
   name: string | null
   login_type: string
+  login_type_label: string
   ip_address: string | null
   status: string
   created_at: string | null

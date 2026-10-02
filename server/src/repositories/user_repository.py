@@ -59,8 +59,12 @@ class UserRepository(BaseRepository[UserEntity, int]):
         return self.session.execute(stmt).scalars().first()
 
     def get_by_role_id(self, role_id: int) -> list[UserEntity]:
-        """根据角色 ID 查询所有未删除用户。"""
-        stmt = self._base_query().where(UserEntity.role_id == role_id)
+        """根据角色 ID 查询所有关联该角色的未删除用户（多对多）。"""
+        stmt = (
+            self._base_query()
+            .join(UserRoleEntity, UserRoleEntity.user_id == UserEntity.id)
+            .where(UserRoleEntity.role_id == role_id)
+        )
         return list(self.session.execute(stmt).scalars().all())
 
     def get_roles_by_user_id(self, user_id: int) -> list[RoleEntity]:

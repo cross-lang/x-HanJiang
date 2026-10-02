@@ -15,11 +15,11 @@ class UserEntity(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
     username: Mapped[str] = mapped_column(String(50), nullable=False, comment="用户名")
     email: Mapped[str] = mapped_column(String(100), nullable=False, comment="邮箱")
-    name: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="姓名")
-    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="密码哈希")
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="手机号")
-    gender: Mapped[str | None] = mapped_column(String(10), nullable=True, comment="性别：male/female")
-    birthday: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="生日")
+    name: Mapped[str] = mapped_column(String(100), nullable=False, comment="姓名")
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False, comment="密码哈希")
+    phone: Mapped[str] = mapped_column(String(20), nullable=False, server_default="", comment="手机号")
+    gender: Mapped[str] = mapped_column(String(10), nullable=False, comment="性别：male/female")
+    birthday: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="生日")
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="头像URL")
     status: Mapped[str] = mapped_column(
         String(20),
@@ -52,7 +52,7 @@ class RoleEntity(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
     role_name: Mapped[str] = mapped_column(String(50), nullable=False, comment="角色名称")
     role_code: Mapped[str] = mapped_column(String(50), nullable=False, comment="角色编码")
-    description: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="角色描述")
+    description: Mapped[str] = mapped_column(String(255), nullable=False, comment="角色描述")
     role_type: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

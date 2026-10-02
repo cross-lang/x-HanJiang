@@ -1,7 +1,9 @@
 <template>
   <el-container class="app-shell">
     <SidebarMenu :collapsed="isCollapsed" @toggle="toggleMenu" />
-    <el-container class="app-body">
+    <!-- direction="vertical"：el-container 靠检测直接子组件是否为 el-header/el-footer 判断纵向；
+         拆分后直接子组件是自定义 HeaderBar/MainArea，自动判断会失效导致横向并排，故显式声明 -->
+    <el-container class="app-body" direction="vertical">
       <HeaderBar @open-ai="aiVisible = true" @command="handleCommand" />
       <MainArea />
     </el-container>

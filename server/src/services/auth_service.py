@@ -182,7 +182,6 @@ class AuthService:
             username=user.username,
             email=user.email,
             name=user.name,
-            role_id=role_ids[0] if role_ids else None,
             role_code=role_code,
             status=user.status or UserStatus.ENABLED.value,
             avatar_url=user.avatar_url,

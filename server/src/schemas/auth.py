@@ -65,7 +65,6 @@ class CurrentUser(BaseModel):
         username: 用户名
         email: 邮箱
         name: 姓名
-        role_id: 主角色ID
         role_code: 角色编码
         status: 用户状态
         avatar_url: 头像URL
@@ -76,7 +75,6 @@ class CurrentUser(BaseModel):
     username: str = Field(description="用户名")
     email: str = Field(description="邮箱")
     name: str | None = Field(default=None, description="姓名")
-    role_id: int | None = Field(default=None, description="主角色ID")
     role_code: str | None = Field(default=None, description="角色编码")
     status: str = Field(description="用户状态")
     avatar_url: str | None = Field(default=None, description="头像URL")

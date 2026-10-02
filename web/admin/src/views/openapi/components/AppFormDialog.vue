@@ -1,13 +1,13 @@
 <template>
   <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑应用' : '新建应用'" width="640px">
-    <el-form :model="form" label-width="80px">
-      <el-form-item label="名称">
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+      <el-form-item label="名称" prop="name">
         <el-input v-model="form.name" />
       </el-form-item>
-      <el-form-item label="描述">
+      <el-form-item label="描述" prop="description">
         <el-input v-model="form.description" type="textarea" />
       </el-form-item>
-      <el-form-item label="鉴权模式">
+      <el-form-item label="鉴权模式" prop="auth_mode">
         <el-select v-model="form.auth_mode" class="hj-w-full">
           <el-option label="明文 (plain)" value="plain" />
           <el-option label="HMAC 签名 (hmac)" value="hmac" />
@@ -28,6 +28,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { listScopes, createApp, updateApp } from '@/api/openapi'
 import GroupCheckboxPanel, { type GroupCheckboxGroup } from '@/components/GroupCheckboxPanel.vue'
 import type { OpenAppItem, OpenScope, OpenAppFormPayload } from '@/types/openapi'
@@ -63,6 +64,14 @@ const dialogVisible = computed({
 const isEdit = computed(() => props.mode === 'edit')
 const form = ref<OpenAppFormPayload>({ name: '', description: '', auth_mode: 'plain', scopes: [] })
 const scopeList = ref<OpenScope[]>([])
+const formRef = ref<FormInstance>()
+
+/** 表单校验规则（名称/描述/鉴权模式必填；权限范围在提交时显式校验） */
+const rules: FormRules<OpenAppFormPayload> = {
+  name: [{ required: true, message: '请输入应用名称', trigger: 'blur' }],
+  description: [{ required: true, message: '请输入应用描述', trigger: 'blur' }],
+  auth_mode: [{ required: true, message: '请选择鉴权模式', trigger: 'change' }],
+}
 
 const groupedScopes = computed(() => {
   const groups: Record<string, OpenScope[]> = {}
@@ -107,6 +116,17 @@ async function fetchScopes() {
 }
 
 async function handleSubmit() {
+  try {
+    // 名称/描述/鉴权模式必填校验（失败时表单内联提示，不发起请求）
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
+  // 权限范围面板非 el-form 字段，保持显式校验（创建/编辑统一至少 1 个）
+  if (form.value.scopes.length === 0) {
+    ElMessage.warning('请至少勾选一个权限范围')
+    return
+  }
   if (isEdit.value) {
     await handleUpdate()
   } else {

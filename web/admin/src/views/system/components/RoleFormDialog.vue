@@ -1,13 +1,13 @@
 <template>
   <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑角色' : '新建角色'" width="600px">
-    <el-form :model="form" label-width="80px">
-      <el-form-item label="名称">
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+      <el-form-item label="名称" prop="role_name">
         <el-input v-model="form.role_name" />
       </el-form-item>
-      <el-form-item v-if="!isEdit" label="编码">
+      <el-form-item v-if="!isEdit" label="编码" prop="role_code">
         <el-input v-model="form.role_code" placeholder="如 auditor" />
       </el-form-item>
-      <el-form-item label="描述">
+      <el-form-item label="描述" prop="description">
         <el-input v-model="form.description" type="textarea" />
       </el-form-item>
       <el-form-item label="权限">
@@ -24,6 +24,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { createRole, updateRole, listRolePermissions, bindRolePermission, unbindRolePermission } from '@/api/role'
 import { listPermissions } from '@/api/permission'
 import GroupCheckboxPanel, { type GroupCheckboxGroup } from '@/components/GroupCheckboxPanel.vue'
@@ -53,6 +54,14 @@ const isEdit = computed(() => props.mode === 'edit')
 const form = ref({ role_name: '', role_code: '', description: '' })
 const selectedPermissions = ref<number[]>([])
 const permissionList = ref<PermissionItem[]>([])
+const formRef = ref<FormInstance>()
+
+/** 表单校验规则（role_code 仅新建时渲染，编辑时不触发） */
+const rules: FormRules<{ role_name: string; role_code: string; description: string }> = {
+  role_name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
+  role_code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }],
+  description: [{ required: true, message: '请输入角色描述', trigger: 'blur' }],
+}
 
 const groupedPermissions = computed(() => {
   const groups: Record<string, PermissionItem[]> = {}
@@ -104,8 +113,15 @@ async function loadRolePermissions(roleId: number) {
 }
 
 async function handleSubmit() {
-  if (!form.value.role_name?.trim()) {
-    ElMessage.warning('请输入角色名称')
+  try {
+    // 名称/编码/描述必填校验（失败时表单内联提示，不发起请求）
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
+  // 权限面板非 el-form 字段，保持显式校验
+  if (selectedPermissions.value.length === 0) {
+    ElMessage.warning('请至少选择一个权限')
     return
   }
   if (isEdit.value) {
@@ -116,18 +132,6 @@ async function handleSubmit() {
 }
 
 async function handleCreate() {
-  if (!form.value.role_code?.trim()) {
-    ElMessage.warning('请输入角色编码')
-    return
-  }
-  if (!form.value.description?.trim()) {
-    ElMessage.warning('请输入角色描述')
-    return
-  }
-  if (selectedPermissions.value.length === 0) {
-    ElMessage.warning('请至少选择一个权限')
-    return
-  }
   try {
     const res = await createRole(form.value)
     const roleId = res.data.id
@@ -142,14 +146,6 @@ async function handleCreate() {
 }
 
 async function handleUpdate() {
-  if (!form.value.description?.trim()) {
-    ElMessage.warning('请输入角色描述')
-    return
-  }
-  if (selectedPermissions.value.length === 0) {
-    ElMessage.warning('请至少选择一个权限')
-    return
-  }
   if (!props.record) return
   const roleId = props.record.id
   try {

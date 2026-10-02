@@ -223,8 +223,12 @@
                 >{{ row.operator_username }}{{ row.operator_name ? '（' + row.operator_name + '）' : '' }}</template
               >
             </el-table-column>
-            <el-table-column prop="entity_type" label="实体" width="100" />
-            <el-table-column prop="action" label="操作" width="80" />
+            <el-table-column label="实体" width="140">
+              <template #default="{ row }">{{ formatAuditEntity(row.entity_type) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="120">
+              <template #default="{ row }">{{ formatAuditAction(row.action) }}</template>
+            </el-table-column>
             <el-table-column prop="ip_address" label="IP" width="120" />
             <el-table-column prop="created_at" label="时间">
               <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
@@ -246,6 +250,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart, BarChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { formatMonthDayTime } from '@/utils/format'
+import { formatAuditEntity, formatAuditAction } from '@/utils/audit-labels'
 import { getDashboardStats, getNotificationMonitor } from '@/api/dashboard'
 import type {
   DashboardStats,

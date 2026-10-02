@@ -100,8 +100,12 @@
             </div>
           </template>
           <el-table :data="myAudits" size="small" empty-text="暂无记录">
-            <el-table-column prop="entity_type" label="实体" width="100" />
-            <el-table-column prop="action" label="操作" width="80" />
+            <el-table-column label="实体" width="140">
+              <template #default="{ row }">{{ formatAuditEntity(row.entity_type) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="120">
+              <template #default="{ row }">{{ formatAuditAction(row.action) }}</template>
+            </el-table-column>
             <el-table-column prop="ip_address" label="IP" width="120" />
             <el-table-column prop="created_at" label="时间">
               <template #default="{ row }">{{ formatMonthDayTime(row.created_at) }}</template>
@@ -133,6 +137,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { renderAnnouncement } from '@/utils/announcement'
 import { formatDateTimeShort, formatMonthDayTime } from '@/utils/format'
+import { formatAuditEntity, formatAuditAction } from '@/utils/audit-labels'
 import { getMyActivity } from '@/api/dashboard'
 import { listAvailableAnnouncements } from '@/api/announcement'
 import type { AnnouncementItem } from '@/types/announcement'

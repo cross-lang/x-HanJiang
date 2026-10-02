@@ -20,7 +20,11 @@
           {{ row.module_label || row.module }}
         </template>
       </el-table-column>
-      <el-table-column prop="operation" label="操作" width="100" />
+      <el-table-column prop="operation_label" label="操作" width="100">
+        <template #default="{ row }">
+          {{ row.operation_label || row.operation }}
+        </template>
+      </el-table-column>
       <el-table-column prop="description" label="描述" />
       <el-table-column prop="is_deprecated" label="状态" width="100">
         <template #default="{ row }">

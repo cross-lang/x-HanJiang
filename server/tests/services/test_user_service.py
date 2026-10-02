@@ -93,31 +93,46 @@ class TestUserService:
         self.repo = FakeUserRepository()
         self.service = UserService(user_repository=self.repo)
 
+    @staticmethod
+    def _payload(
+        username: str = "alice",
+        email: str = "alice@example.com",
+        name: str = "Alice",
+        **overrides,
+    ) -> dict:
+        """构造符合创建必填约束的请求参数（name/phone/gender/birthday/password/role_ids）。"""
+        payload = {
+            "username": username,
+            "email": email,
+            "password": "ChangeMe@123",
+            "name": name,
+            "phone": "13800000000",
+            "gender": "male",
+            "birthday": "1990-01-01",
+            "role_ids": [1],
+        }
+        payload.update(overrides)
+        return payload
+
     def test_create_user(self):
         """创建合法用户成功。"""
-        data = UserCreateRequest(username="alice", email="alice@example.com", name="Alice")
+        data = UserCreateRequest(**self._payload())
         result = self.service.create(data.model_dump())
         assert result.id == 1
         assert result.username == "alice"
 
     def test_create_duplicate_username(self):
         """用户名冲突抛 ConflictException。"""
-        first = UserCreateRequest(username="bob", email="bob1@example.com", name="Bob")
+        first = UserCreateRequest(**self._payload(username="bob", email="bob1@example.com", name="Bob"))
         self.service.create(first.model_dump())
 
-        dup = UserCreateRequest(username="bob", email="bob2@example.com", name="Bob2")
+        dup = UserCreateRequest(**self._payload(username="bob", email="bob2@example.com", name="Bob2"))
         with pytest.raises(ConflictException):
             self.service.create(dup.model_dump())
 
     def test_update_existing_user(self):
         """更新存在的用户成功。"""
-        created = self.service.create(
-            UserCreateRequest(
-                username="carol",
-                email="carol@example.com",
-                name="Carol",
-            ).model_dump()
-        )
+        created = self.service.create(UserCreateRequest(**self._payload(username="carol", name="Carol")).model_dump())
         updated = self.service.update(created.id, {"name": "Carol Updated"})
         assert updated.name == "Carol Updated"
         assert updated.username == "carol"  # 未变更字段保持
@@ -129,9 +144,7 @@ class TestUserService:
 
     def test_delete_existing_user(self):
         """删除存在的用户成功。"""
-        created = self.service.create(
-            UserCreateRequest(username="dave", email="dave@example.com", name="Dave").model_dump()
-        )
+        created = self.service.create(UserCreateRequest(**self._payload(username="dave", name="Dave")).model_dump())
         assert self.service.delete(created.id) is True
         assert self.service.get_by_id(created.id) is None
 
@@ -145,9 +158,7 @@ class TestUserService:
         for i in range(5):
             self.service.create(
                 UserCreateRequest(
-                    username=f"user_{i}",
-                    email=f"u{i}@example.com",
-                    name=f"User {i}",
+                    **self._payload(username=f"user_{i}", email=f"u{i}@example.com", name=f"User {i}")
                 ).model_dump()
             )
 

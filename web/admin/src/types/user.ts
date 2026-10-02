@@ -4,15 +4,14 @@ export interface UserItem {
   id: number
   username: string
   email: string
-  name: string | null
-  phone: string | null
+  name: string
+  phone: string
   avatar_url: string | null
-  role_id: number | null
   role_name: string | null
   roles: { id: number; role_name: string; role_code?: string }[]
   status: string
-  gender: string | null
-  birthday: string | null
+  gender: string
+  birthday: string
   last_login_at: string | null
   last_login_ip: string | null
   created_at: string | null

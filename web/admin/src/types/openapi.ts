@@ -4,7 +4,7 @@ export interface OpenAppItem {
   id: number
   app_id: string
   name: string
-  description: string | null
+  description: string
   scopes: string[]
   status: string
   auth_mode: string

@@ -295,7 +295,7 @@ class LoginStatus(StrBaseEnum):
 class LoginType(StrBaseEnum):
     """登录方式（对齐 login_logs.login_type 列）。"""
 
-    PASSWORD = "password", "密码登录"
+    PASSWORD = "password", "密码"
     SSO = "sso", "单点登录"
 
 
