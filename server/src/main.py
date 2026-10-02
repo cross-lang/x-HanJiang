@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
     sync_permissions_to_db(app)
     logger.info("Permissions synchronized successfully")
     # 自动扫描开放平台路由的 scope 声明，同步到 openapi_scopes 表
-    # scope 元数据（含描述 / 排序号）全部来自 OpenApiScopeEntity 统一目录
+    # scope 元数据（含描述 / 排序号）全部来自 OpenApiScopeCode 统一目录
     sync_scopes_to_db(app)
     logger.info("OpenAPI scopes synchronized successfully")
     # 初始化通知子系统
