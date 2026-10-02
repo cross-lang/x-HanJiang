@@ -7,6 +7,7 @@ from src.api.dependencies import CurrentApp, get_current_app, require_app_scope
 from src.api.openapi_scope_decorator import app_scope
 from src.api.response import success_response
 from src.constants import APP_NAME, APP_VERSION
+from src.constants.scopes import OpenApiScopeCode
 
 router = APIRouter(tags=["开放平台：健康管理"])
 
@@ -51,9 +52,9 @@ async def openapi_version(
 @router.get(
     "/ping",
     summary="开放平台连通性测试",
-    dependencies=[Depends(require_app_scope("ping:read"))],
+    dependencies=[Depends(require_app_scope(OpenApiScopeCode.HEALTH_PING.mark))],
 )
-@app_scope("ping:read", "连通性测试", "health", "read")
+@app_scope(OpenApiScopeCode.HEALTH_PING)
 async def ping(
     request: Request,
     app: CurrentApp = Depends(get_current_app),

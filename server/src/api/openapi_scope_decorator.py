@@ -1,33 +1,36 @@
 #!/usr/bin/env python3
-"""开放平台 scope 装饰器。
+"""开放平台 scope 装饰器（对齐用户态 permission 装饰器范式）。
 用法：
-    @router.get("/users", dependencies=[Depends(require_app_scope("user:read"))])
-    @app_scope("user:read", "读取用户列表", "user", "read")
+    @router.get("/users", dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_READ.mark))])
+    @app_scope(OpenApiScopeCode.USER_READ)
     async def list_users():
         ...
-启动时自动扫描开放平台路由的 _scope_code 属性，upsert 到 openapi_scopes 表。
+启动时自动扫描开放平台路由的 _scope_* 属性，upsert 到 openapi_scopes 表。
+scope 的全部元数据均来自 src.constants.scopes.OpenApiScopeCode 统一目录。
+本模块与开放平台 scope 目录自包含，不依赖用户态权限体系，可整体随开放平台独立部署。
 """
 
 from collections.abc import Callable
 
+from src.constants.scopes import OpenApiScopeCode
 from src.core.logger import logger
 
 
-def app_scope(code: str, name: str = "", module: str = "", operation: str = ""):
+def app_scope(code: OpenApiScopeCode):
     """声明开放平台路由所需 scope（仅挂载元数据，鉴权仍用 Depends(require_app_scope(...))）。
 
     Args:
-        code: scope 编码，如 user:read
-        name: scope 中文名，如 读取用户列表
-        module: 模块名，如 user
-        operation: 操作类型，如 read
+        code: OpenApiScopeCode 枚举成员，携带 scope 码 / 中文名 / 模块 /
+              操作类型 / 描述 / 排序号全部元数据
     """
 
     def decorator(func: Callable):
-        func._scope_code = code
-        func._scope_name = name
-        func._scope_module = module
-        func._scope_operation = operation
+        func._scope_code = code.mark
+        func._scope_name = code.scope_name
+        func._scope_module = code.module
+        func._scope_operation = code.operation
+        func._scope_description = code.description
+        func._scope_sort_order = code.sort_order
         return func
 
     return decorator
@@ -48,7 +51,9 @@ def collect_scopes_from_app(app) -> list[dict]:
                         "scope_name": endpoint._scope_name or endpoint._scope_code,
                         "module": endpoint._scope_module or "",
                         "operation": endpoint._scope_operation or "",
-                        "description": (endpoint.__doc__ or "")[:250],
+                        # 描述 / 排序号来自 OpenApiScopeCode 目录（非 docstring / 扫描顺序）
+                        "description": endpoint._scope_description or "",
+                        "sort_order": endpoint._scope_sort_order,
                     }
                 )
     # 按 scope_code 去重
@@ -64,11 +69,10 @@ def collect_scopes_from_app(app) -> list[dict]:
 def sync_scopes_to_db(app) -> tuple[int, int]:
     """启动时将开放平台路由上的 @app_scope 声明对账同步到 openapi_scopes 表。
 
-    以代码中的 scope 声明为唯一事实来源：
+    以代码中的 OpenApiScopeCode 声明为唯一事实来源：
       - 代码中存在、表中已存在 → 按最新元数据更新并取消废弃标记；
       - 代码中存在、表中不存在 → 新增；
       - 表中存在、代码中已不存在 → 标记 is_deprecated=True（不物理删除）。
-    sort_order 按扫描顺序从 1 递增；description 截断至 250 字。
     任一步骤失败由 session 上下文自动回滚并向上抛出，由调用方决定是否阻断启动。
 
     Args:
@@ -85,21 +89,17 @@ def sync_scopes_to_db(app) -> tuple[int, int]:
     active_scope_codes = {s["scope_code"] for s in collected_scopes}
 
     with get_cached_database_provider().session() as scope_session:
-        for idx, sc in enumerate(collected_scopes, start=1):
+        for sc in collected_scopes:
             existing = scope_session.query(OpenApiScopeEntity).filter_by(scope_code=sc["scope_code"]).first()
             if existing:
                 existing.scope_name = sc["scope_name"]
                 existing.module = sc["module"]
                 existing.operation = sc["operation"]
-                if sc["description"]:
-                    existing.description = (sc["description"] or "")[:250]
-                existing.sort_order = idx
+                existing.description = sc["description"]
+                existing.sort_order = sc["sort_order"]
                 existing.is_deprecated = False
             else:
-                payload = dict(sc)
-                payload["description"] = (payload.get("description") or "")[:250]
-                payload["sort_order"] = idx
-                scope_session.add(OpenApiScopeEntity(**payload, is_deprecated=False))
+                scope_session.add(OpenApiScopeEntity(**sc, is_deprecated=False))
 
         deprecated_scopes = (
             scope_session.query(OpenApiScopeEntity)
@@ -118,3 +118,6 @@ def sync_scopes_to_db(app) -> tuple[int, int]:
         f"{len(deprecated_scopes)} deprecated"
     )
     return len(collected_scopes), len(deprecated_scopes)
+
+
+__all__ = ["app_scope", "collect_scopes_from_app", "sync_scopes_to_db"]

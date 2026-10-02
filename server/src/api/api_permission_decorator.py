@@ -115,3 +115,6 @@ def sync_permissions_to_db(app) -> tuple[int, int]:
 
     logger.info(f"Permissions auto-synced: {len(collected)} active, {len(deprecated)} deprecated")
     return len(collected), len(deprecated)
+
+
+__all__ = ["permission", "collect_permissions_from_app", "sync_permissions_to_db"]

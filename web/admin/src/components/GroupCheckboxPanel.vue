@@ -12,7 +12,10 @@
       </template>
       <el-checkbox-group :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)">
         <div v-for="item in group.items" :key="String(item.value)" class="group-item">
-          <el-checkbox :value="item.value">{{ item.label }}</el-checkbox>
+          <el-checkbox :value="item.value">
+            <span class="item-label">{{ item.label }}</span>
+            <span v-if="item.desc" class="item-desc">{{ item.desc }}</span>
+          </el-checkbox>
         </div>
       </el-checkbox-group>
     </el-collapse-item>
@@ -27,6 +30,8 @@ export interface GroupCheckboxItem {
   value: string | number
   /** 展示文案 */
   label: string
+  /** 可选描述（勾选项下灰色小字，如 scope 描述） */
+  desc?: string
 }
 
 export interface GroupCheckboxGroup {
@@ -86,5 +91,21 @@ function toggleGroup(group: GroupCheckboxGroup, val: boolean) {
 .group-item {
   margin-bottom: 8px;
   margin-left: 10px;
+}
+
+.item-label {
+  vertical-align: middle;
+}
+
+.item-desc {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--hj-text-secondary, #909399);
+  vertical-align: middle;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
 }
 </style>

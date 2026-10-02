@@ -289,13 +289,13 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         Returns:
             list[dict[str, Any]]: scope 列表，含模块中文名映射
         """
-        from src.constants.enums import OpenApiModuleCode
+        from src.constants.scopes import OpenApiScopeModule
 
         entities = self._repository.list_active_scopes()
         result: list[dict[str, Any]] = []
         for e in entities:
             module_label = next(
-                (m.desc for m in OpenApiModuleCode if m.mark == e.module),
+                (m.desc for m in OpenApiScopeModule if m.mark == e.module),
                 e.module,
             )
             result.append(

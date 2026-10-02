@@ -27,7 +27,9 @@
       </el-table-column>
       <el-table-column prop="scopes" label="权限范围">
         <template #default="{ row }">
-          <el-tag v-for="s in row.scopes" :key="s" size="small" class="hj-mr-4">{{ s }}</el-tag>
+          <el-tag v-for="s in row.scopes" :key="s" size="small" class="hj-mr-4">
+            {{ scopeNameOf(s) === s ? s : `${scopeNameOf(s)}（${s}）` }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
@@ -85,6 +87,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import { listApps, updateAppStatus, rotateAppKey, deleteApp } from '@/api/openapi'
+import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
 import type { OpenAppItem } from '@/types/openapi'
 import AppFormDialog, { type AppSecret } from './components/AppFormDialog.vue'
 import SecretResultDialog from './components/SecretResultDialog.vue'
@@ -218,6 +221,8 @@ async function handleDelete(row: OpenAppItem) {
 onMounted(() => {
   const q = route.query.keyword
   if (q) keyword.value = String(q)
+  // scope 目录用于权限范围列中文名展示（失败时回退为裸编码）
+  void fetchScopes()
   fetchList()
 })
 

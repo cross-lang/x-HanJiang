@@ -47,6 +47,7 @@ from src.notification.bootstrap import setup_notification_system
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理。"""
+    # 初始化日志配置
     setup_logging()
     logger.info(f"{APP_NAME} v{APP_VERSION} starting up (env={settings.app_env}, debug={settings.server.debug})")
     # 创建数据库引擎对象和连接池
@@ -61,8 +62,8 @@ async def lifespan(app: FastAPI):
     # 初始化 Redis
     get_cached_cache_provider()
     logger.info("Redis connection established")
-    # 自动扫描路由中的权限声明，同步到 permissions 表
-    # 权限元数据（含描述 / 排序号）全部来自 PermissionCode 统一目录
+    # 自动扫描路由中的 permission 声明，同步到 permissions 表
+    # permission 元数据（含描述 / 排序号）全部来自 PermissionCode 统一目录
     sync_permissions_to_db(app)
     logger.info("Permissions synchronized successfully")
     # 自动扫描开放平台路由的 scope 声明，同步到 openapi_scopes 表

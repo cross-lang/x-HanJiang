@@ -81,13 +81,6 @@ class AppAuthMode(Enum):
     BOTH = "both"
 
 
-class OpenApiModuleCode(StrBaseEnum):
-    """开放平台 scope 模块编码与中文名映射。"""
-
-    USER = ("user", "用户管理")
-    HEALTH = ("health", "健康检查")
-
-
 # ── 通知域 ────────────────────────────────────────────
 
 

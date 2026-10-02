@@ -29,9 +29,10 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { listScopes, createApp, updateApp } from '@/api/openapi'
+import { createApp, updateApp } from '@/api/openapi'
 import GroupCheckboxPanel, { type GroupCheckboxGroup } from '@/components/GroupCheckboxPanel.vue'
-import type { OpenAppItem, OpenScope, OpenAppFormPayload } from '@/types/openapi'
+import { useScopeCatalog } from '@/composables/useScopeCatalog'
+import type { OpenAppItem, OpenAppFormPayload, OpenScope } from '@/types/openapi'
 
 /** 创建成功时携带的新密钥（父级用于展示结果弹窗） */
 export interface AppSecret {
@@ -63,7 +64,7 @@ const dialogVisible = computed({
 
 const isEdit = computed(() => props.mode === 'edit')
 const form = ref<OpenAppFormPayload>({ name: '', description: '', auth_mode: 'plain', scopes: [] })
-const scopeList = ref<OpenScope[]>([])
+const { scopeList, fetchScopes } = useScopeCatalog()
 const formRef = ref<FormInstance>()
 
 /** 表单校验规则（名称/描述/鉴权模式必填；权限范围在提交时显式校验） */
@@ -83,15 +84,19 @@ const groupedScopes = computed(() => {
   return groups
 })
 
-// 供共享分组勾选面板消费：模块 → 组，scope → 选项
+// 供共享分组勾选面板消费：模块 → 组，scope → 选项（含统一描述，来自后端 OpenApiScopeCode 目录）
 const scopeGroups = computed<GroupCheckboxGroup[]>(() =>
   Object.entries(groupedScopes.value).map(([module, items]) => ({
     label: items[0]?.module_label || module,
-    items: items.map(s => ({ value: s.scope_code, label: `${s.scope_name}（${s.scope_code}）` })),
+    items: items.map(s => ({
+      value: s.scope_code,
+      label: `${s.scope_name}（${s.scope_code}）`,
+      desc: s.description || '',
+    })),
   })),
 )
 
-/** 打开弹窗时初始化表单与 scope 选项 */
+/** 打开弹窗时初始化表单与 scope 选项（目录来自共享 composable，带缓存） */
 watch(
   () => props.visible,
   v => {
@@ -109,11 +114,6 @@ watch(
     }
   },
 )
-
-async function fetchScopes() {
-  const res = await listScopes()
-  scopeList.value = res.data
-}
 
 async function handleSubmit() {
   try {

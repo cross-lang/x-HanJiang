@@ -20,9 +20,9 @@
           <el-tag size="small">{{ row.module_label }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="operation" label="操作" width="100">
+      <el-table-column prop="operation" label="操作" width="110">
         <template #default="{ row }">
-          <el-tag :type="operationType(row.operation)" size="small">{{ row.operation }}</el-tag>
+          <el-tag :type="operationType(row.operation)" size="small">{{ operationLabel(row.operation) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="description" label="描述" />
@@ -32,17 +32,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { listScopes } from '@/api/openapi'
-import type { OpenScope } from '@/types/openapi'
+import { useScopeCatalog } from '@/composables/useScopeCatalog'
 
-const list = ref<OpenScope[]>([])
+const { scopeList, fetchScopes } = useScopeCatalog()
 const loading = ref(false)
 const keyword = ref('')
 
 const filteredList = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  if (!kw) return list.value
-  return list.value.filter(row =>
+  if (!kw) return scopeList.value
+  return scopeList.value.filter(row =>
     [row.scope_code, row.scope_name, row.module_label, row.module, row.operation, row.description]
       .filter(Boolean)
       .some(v => String(v).toLowerCase().includes(kw)),
@@ -62,11 +61,16 @@ function operationType(op: string): 'primary' | 'success' | 'warning' | 'info' |
   return map[op] || 'info'
 }
 
+/** 操作动作中文标签（read/write 为开放平台 scope 动作词表） */
+function operationLabel(op: string): string {
+  const map: Record<string, string> = { read: '读（read）', write: '写（write）' }
+  return map[op] || op
+}
+
 onMounted(async () => {
   loading.value = true
   try {
-    const res = await listScopes()
-    list.value = res.data
+    await fetchScopes()
   } catch {
     // 错误已处理
   } finally {
