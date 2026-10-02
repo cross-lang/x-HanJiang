@@ -10,17 +10,21 @@ from __future__ import annotations
 import mimetypes
 import urllib.parse
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
+from src.constants.enums import NotificationEvent
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.storage import StorageProvider, get_cached_storage_provider
 from src.models.entities.file_entity import FileEntity
 from src.repositories.file_repository import FileRepository
+
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
 
 
 class FileStorageService:
@@ -34,9 +38,11 @@ class FileStorageService:
         self,
         file_repository: FileRepository,
         provider: StorageProvider | None = None,
+        dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         self._provider = provider or get_cached_storage_provider()
         self._repository = file_repository
+        self._dispatcher = dispatcher
         logger.info(f"FileStorageService initialized with provider: {type(self._provider).__name__}")
 
     # ── 上传 ────────────────────────────────────────────
@@ -200,19 +206,16 @@ class FileStorageService:
             remarks=f"删除文件{filename}",
         )
         logger.info(f"File soft-deleted: id={file_id} key={entity.file_key}")
-        # 文件删除通知给上传者
-        if uploaded_by:
+        # 文件删除通知给上传者（经构造注入的 dispatcher，失败不阻断）
+        if uploaded_by and self._dispatcher is not None:
             try:
-                from src.api.dependencies import get_notification_dispatcher
-                from src.constants.enums import NotificationEvent
-
-                get_notification_dispatcher().dispatch_for_user(
+                self._dispatcher.dispatch_for_user(
                     user_id=uploaded_by,
                     event_type=NotificationEvent.FILE_DELETED,
                     variables={"filename": filename, "operator": operator.get("operator_name") if operator else ""},
                 )
-            except Exception:
-                pass
+            except Exception:  # noqa: BLE001
+                logger.warning("文件删除通知发送失败 file_id=%s", file_id)
         return True
 
     # ── 统计 ────────────────────────────────────────────

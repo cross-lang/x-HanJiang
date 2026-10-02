@@ -46,19 +46,6 @@ def login(
         body.password,
         ip_address=ip,
     )
-    # 新设备登录检测：与上一次成功登录 IP 不同则发邮件（检测失败不影响登录）
-    try:
-        from src.api.dependencies import get_notification_dispatcher
-        from src.constants.enums import NotificationEvent
-
-        if service.detect_new_device_login(result.user_id, ip or ""):
-            get_notification_dispatcher().dispatch_for_user(
-                user_id=result.user_id,
-                event_type=NotificationEvent.LOGIN_NEW_DEVICE,
-                variables={"ip": ip or "", "time": result.login_time if hasattr(result, "login_time") else ""},
-            )
-    except Exception:
-        pass
     return success_response(result.model_dump(), request)
 
 

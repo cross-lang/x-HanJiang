@@ -19,7 +19,6 @@ from fastapi import APIRouter, Depends, File, Request, UploadFile
 from src.api.api_permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
-    get_role_repository,
     get_user_operator_context,
     get_user_service,
     require_user_permission,
@@ -28,7 +27,6 @@ from src.api.response import success_response
 from src.constants.enums import Gender, UserStatus
 from src.constants.permissions import PermissionCode
 from src.core.exceptions import ValidationException
-from src.repositories.role_repository import RoleRepository
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import (
@@ -231,38 +229,12 @@ def import_users(
     request: Request,
     file: UploadFile = File(...),
     service: UserService = Depends(get_user_service),
-    role_repo: RoleRepository = Depends(get_role_repository),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise ValidationException(message="仅支持 CSV 文件导入")
     csv_content = file.file.read().decode("utf-8-sig")
     rows = parse_csv_rows(csv_content)
-    imported = 0
     operator_ctx = get_user_operator_context(current_user, request)
-    # 创建用户必填治理：CSV 缺省字段按默认值兜底；角色缺省绑定"普通用户"角色
-    default_role = role_repo.get_by_code("user")
-    default_role_id = default_role.id if default_role else None
-    for row in rows:
-        if not row.get("username") or not row.get("email"):
-            continue
-        csv_role_id = int(row["role_id"]) if row.get("role_id") else None
-        role_ids = [csv_role_id] if csv_role_id else ([default_role_id] if default_role_id else [])
-        if not role_ids:
-            # 系统无可用默认角色时跳过该行，避免必填校验失败
-            continue
-        payload = {
-            "username": row["username"],
-            "email": row["email"],
-            "password": row.get("password") or "ChangeMe@123",
-            "name": row.get("name") or row["username"],
-            "phone": row.get("phone") or "",
-            "gender": row.get("gender") or "male",
-            "birthday": row.get("birthday") or "1970-01-01",
-            "avatar_url": row.get("avatar_url"),
-            "role_ids": role_ids,
-            "status": row.get("status") or "enabled",
-        }
-        service.create(payload, operator=operator_ctx)
-        imported += 1
-    return success_response({"imported": imported, "filename": file.filename}, request)
+    result = service.import_users(rows, operator=operator_ctx)
+    return success_response({"imported": result["imported"], "filename": file.filename}, request)

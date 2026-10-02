@@ -19,6 +19,7 @@ from src.core.exceptions import AuthorizationException, ConflictException, NotFo
 from src.core.logger import logger
 from src.models.entities.user_entity import UserEntity
 from src.notification.decorators import notify
+from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.base_service import BaseService, audit_crud
@@ -44,10 +45,12 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         self,
         user_repository: UserRepository,
         dispatcher: NotificationDispatcher | None = None,
+        role_repository: RoleRepository | None = None,
     ) -> None:
         """初始化用户服务。"""
         self._repository: UserRepository = user_repository
         self._dispatcher = dispatcher
+        self._role_repository = role_repository
 
     def search(
         self,
@@ -99,6 +102,46 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         result = self._to_response(created)
         logger.info(f"User created: id={result.id} username={result.username}")
         return result
+
+    def import_users(self, rows: list[dict[str, Any]], operator: dict[str, Any] | None = None) -> dict[str, Any]:
+        """批量导入用户（业务编排层）。
+
+        CSV 文件读取/解码与表格解析由 API 层完成（入参接收），本方法负责：
+            1. 默认角色兜底：CSV 行未指定 role_id 时绑定"普通用户(user)"角色
+            2. 行级校验：缺 username/email 的行跳过
+            3. 逐行组装 payload 并调用 :meth:`create`
+
+        Returns:
+            dict[str, Any]: 导入统计 {"imported": int}
+        """
+        default_role_id: int | None = None
+        if self._role_repository is not None:
+            default_role = self._role_repository.get_by_code("user")
+            default_role_id = default_role.id if default_role else None
+        imported = 0
+        for row in rows:
+            if not row.get("username") or not row.get("email"):
+                continue
+            csv_role_id = int(row["role_id"]) if row.get("role_id") else None
+            role_ids = [csv_role_id] if csv_role_id else ([default_role_id] if default_role_id else [])
+            if not role_ids:
+                # 系统无可用默认角色时跳过该行，避免必填校验失败
+                continue
+            payload = {
+                "username": row["username"],
+                "email": row["email"],
+                "password": row.get("password") or "ChangeMe@123",
+                "name": row.get("name") or row["username"],
+                "phone": row.get("phone") or "",
+                "gender": row.get("gender") or "male",
+                "birthday": row.get("birthday") or "1970-01-01",
+                "avatar_url": row.get("avatar_url"),
+                "role_ids": role_ids,
+                "status": row.get("status") or "enabled",
+            }
+            self.create(payload, operator=operator)
+            imported += 1
+        return {"imported": imported}
 
     @audit_crud(PermissionAction.EDIT.mark)
     def update(self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None) -> UserResponse:

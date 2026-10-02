@@ -86,7 +86,23 @@ class AuthService:
             if user is not None:
                 self._check_login_failures(user, ip_address)
             raise AuthenticationException(message="用户名/邮箱或密码错误")
+        # 新设备登录检测并通知（失败不阻断登录主流程）
+        self._notify_new_device_login(user.id, ip_address or "")
         return self._issue_tokens(user, ip_address=ip_address)
+
+    def _notify_new_device_login(self, user_id: int, ip: str) -> None:
+        """检测新设备登录并发送通知（失败仅记录日志，不影响登录）。"""
+        if self._dispatcher is None:
+            return
+        try:
+            if self.detect_new_device_login(user_id, ip):
+                self._dispatcher.dispatch_for_user(
+                    user_id=user_id,
+                    event_type=NotificationEvent.LOGIN_NEW_DEVICE,
+                    variables={"ip": ip, "time": ""},
+                )
+        except Exception:  # noqa: BLE001
+            logger.warning("新设备登录通知发送失败 user_id=%s", user_id)
 
     def detect_new_device_login(self, user_id: int, current_ip: str) -> bool:
         """判断本次登录是否来自新设备。

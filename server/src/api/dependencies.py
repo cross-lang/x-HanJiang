@@ -30,6 +30,7 @@ from src.services.alert_service import AlertService
 from src.services.audit_service import AuditService
 from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
+from src.services.health_service import HealthService
 from src.services.notification_service import NotificationService
 from src.services.permission_service import PermissionService
 
@@ -136,14 +137,28 @@ def get_login_log_repository(
     return LoginLogRepository(session=db_session)
 
 
+def get_role_repository(
+    db_session: Session = Depends(get_db_session),
+) -> RoleRepository:
+    """获取角色仓库实例。"""
+    from src.repositories.role_repository import RoleRepository
+
+    return RoleRepository(session=db_session)
+
+
 def get_user_service(
     user_repository: UserRepository = Depends(get_user_repository),
+    role_repository: RoleRepository = Depends(get_role_repository),
     dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> UserService:
     """使用当前请求的 Repository 创建用户服务。"""
     from src.services.user_service import UserService
 
-    return UserService(user_repository=user_repository, dispatcher=dispatcher)
+    return UserService(
+        user_repository=user_repository,
+        role_repository=role_repository,
+        dispatcher=dispatcher,
+    )
 
 
 def get_alert_service(
@@ -152,6 +167,13 @@ def get_alert_service(
 ) -> AlertService:
     """获取告警服务实例。"""
     return AlertService(dispatcher=dispatcher, session=db_session)
+
+
+def get_health_service() -> HealthService:
+    """获取健康检查服务（下游探测与告警编排在 service 层）。"""
+    from src.services.health_service import HealthService
+
+    return HealthService()
 
 
 def get_announcement_service(
@@ -194,6 +216,7 @@ def get_audit_service(
 
 def get_file_service(
     db_session: Session = Depends(get_db_session),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> FileStorageService:
     """获取文件存储服务，使用 StorageProvider 抽象层 + 请求级仓库。"""
     from src.infras.storage import get_cached_storage_provider
@@ -202,6 +225,7 @@ def get_file_service(
     return FileStorageService(
         file_repository=FileRepository(session=db_session),
         provider=get_cached_storage_provider(),
+        dispatcher=dispatcher,
     )
 
 
@@ -225,15 +249,6 @@ def get_system_notification_config_service(
     from src.services.system_notification_config_service import SystemNotificationConfigService
 
     return SystemNotificationConfigService(repository=SystemNotificationConfigRepository(session=db_session))
-
-
-def get_role_repository(
-    db_session: Session = Depends(get_db_session),
-) -> RoleRepository:
-    """获取角色仓库实例。"""
-    from src.repositories.role_repository import RoleRepository
-
-    return RoleRepository(session=db_session)
 
 
 def get_permission_repository(
