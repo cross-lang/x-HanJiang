@@ -41,7 +41,7 @@
             </el-form-item>
 
             <div class="remember-row">
-              <el-checkbox v-model="rememberMe">记住账号和密码</el-checkbox>
+              <el-checkbox v-model="rememberMe">记住账号</el-checkbox>
             </div>
 
             <!-- 滑动验证：拖到最右端后才允许登录 -->
@@ -100,7 +100,7 @@ const userStore = useUserStore()
 const form = ref({ username: '', password: '' })
 const loading = ref(false)
 
-// ── 记住账号和密码（localStorage 持久化） ─────────────
+// ── 记住账号（仅用户名；出于安全考虑不持久化密码） ──────
 const REMEMBER_KEY = 'hanjiang_login_remember'
 const rememberMe = ref(true)
 
@@ -109,9 +109,14 @@ onMounted(() => {
     const saved = localStorage.getItem(REMEMBER_KEY)
     if (saved) {
       const data = JSON.parse(saved)
-      if (typeof data.username === 'string') form.value.username = data.username
-      if (typeof data.password === 'string') form.value.password = data.password
-      rememberMe.value = true
+      if (typeof data.username === 'string') {
+        form.value.username = data.username
+        rememberMe.value = true
+      }
+      // 迁移：清除历史版本遗留的明文密码字段
+      if (data && 'password' in data) {
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username: form.value.username }))
+      }
     }
   } catch {
     // 本地数据损坏时忽略，不影响登录
@@ -120,10 +125,7 @@ onMounted(() => {
 
 function persistCredentials() {
   if (rememberMe.value) {
-    localStorage.setItem(
-      REMEMBER_KEY,
-      JSON.stringify({ username: form.value.username, password: form.value.password }),
-    )
+    localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username: form.value.username }))
   } else {
     localStorage.removeItem(REMEMBER_KEY)
   }
@@ -186,7 +188,7 @@ async function handleLogin() {
     persistCredentials()
     ElMessage.success('登录成功')
     router.push('/')
-  } catch (e) {
+  } catch {
     // 登录失败重置滑块，需重新验证
     resetSlider()
   } finally {

@@ -1,68 +1,33 @@
 import request from './request'
+import { getToken, clearToken } from '@/utils/storage'
+import type { ConversationItem, MessageItem, ChatSSEHandlers } from '@/types/assistant'
 
-// ============================================================
-// AI 助手 API
-// 后端：POST /assistant/chat（SSE 流式）/ POST /assistant/conversations
-//      GET /assistant/conversations / GET /assistant/conversations/{id}/messages
-//      POST /assistant/feedback
-// 统一响应结构：{ code, message, data, timestamp, request_id }（data 为业务数据）
-// ============================================================
-
-export interface ConversationItem {
-  id: number
-  user_id: number
-  title: string | null
-  summary: string | null
-  is_pinned: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface MessageItem {
-  id: number
-  conversation_id: number
-  role: string
-  content: string
-  created_at: string
-}
-
-export interface ChatDoneInfo {
-  conversationId: number | null
-  messageId: number | null
-}
-
-export interface ChatSSEHandlers {
-  onThinking?: () => void
-  onToken: (text: string) => void
-  onNavigate: (path: string) => void
-  onDenied: () => void
-  onError: (message: string) => void
-  onDone: (info: ChatDoneInfo) => void
-}
+// 兼容导出：类型统一收敛在 types/assistant.ts
+export type { ConversationItem, MessageItem, ChatDoneInfo, ChatSSEHandlers } from '@/types/assistant'
 
 /** 查询当前用户会话列表 */
 export function listConversations() {
-  return request.get('/assistant/conversations')
+  return request.get<ConversationItem[]>('/assistant/conversations')
 }
 
 /** 查询指定会话消息（时间正序） */
 export function getConversationMessages(conversationId: number) {
-  return request.get(`/assistant/conversations/${conversationId}/messages`)
+  return request.get<MessageItem[]>(`/assistant/conversations/${conversationId}/messages`)
 }
 
 /** 创建新会话 */
 export function createConversation() {
-  return request.post('/assistant/conversations')
+  return request.post<ConversationItem>('/assistant/conversations')
 }
 
 /** 删除会话（级联删除其消息与反馈） */
 export function deleteConversation(conversationId: number) {
-  return request.delete(`/assistant/conversations/${conversationId}`)
+  return request.delete<{ message: string }>(`/assistant/conversations/${conversationId}`)
 }
 
 /** 置顶 / 取消置顶会话 */
 export function pinConversation(conversationId: number, pinned: boolean) {
-  return request.post(`/assistant/conversations/${conversationId}/pin`, { pinned })
+  return request.post<ConversationItem>(`/assistant/conversations/${conversationId}/pin`, { pinned })
 }
 
 /** 消息反馈（👍👎） */
@@ -72,7 +37,7 @@ export function submitFeedback(data: {
   positive: boolean
   comment?: string
 }) {
-  return request.post('/assistant/feedback', data)
+  return request.post<{ message: string }>('/assistant/feedback', data)
 }
 
 /**
@@ -88,7 +53,7 @@ export async function chatSSE(
   message: string,
   handlers: ChatSSEHandlers,
 ): Promise<void> {
-  const token = localStorage.getItem('access_token')
+  const token = getToken()
   const resp = await fetch('/api/v1/assistant/chat', {
     method: 'POST',
     headers: {
@@ -106,7 +71,7 @@ export async function chatSSE(
       /* 非 JSON 错误体，忽略 */
     }
     if (resp.status === 401) {
-      localStorage.removeItem('access_token')
+      clearToken()
       window.location.href = '/login'
     }
     throw new Error(msg)
@@ -117,49 +82,52 @@ export async function chatSSE(
   const reader = resp.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    let sep: number
-    while ((sep = buffer.indexOf('\n\n')) >= 0) {
-      const frame = buffer.slice(0, sep)
-      buffer = buffer.slice(sep + 2)
-      if (!frame.startsWith('data:')) continue
-      const payload = frame.replace(/^data:\s*/, '').trim()
-      if (!payload) continue
-      let event: Record<string, unknown>
-      try {
-        event = JSON.parse(payload)
-      } catch {
-        continue
-      }
-      switch (event.type) {
-        case 'thinking':
-          handlers.onThinking?.()
-          break
-        case 'token':
-          handlers.onToken(String(event.content ?? ''))
-          break
-        case 'navigate':
-          handlers.onNavigate(String(event.path ?? ''))
-          break
-        case 'denied':
-          handlers.onDenied()
-          break
-        case 'error':
-          handlers.onError(String(event.message ?? '服务异常，请稍后再试'))
-          break
-        case 'done':
-          handlers.onDone({
-            conversationId:
-              typeof event.conversation_id === 'number' ? event.conversation_id : null,
-            messageId: typeof event.message_id === 'number' ? event.message_id : null,
-          })
-          break
-        default:
-          break
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let sep: number
+      while ((sep = buffer.indexOf('\n\n')) >= 0) {
+        const frame = buffer.slice(0, sep)
+        buffer = buffer.slice(sep + 2)
+        if (!frame.startsWith('data:')) continue
+        const payload = frame.replace(/^data:\s*/, '').trim()
+        if (!payload) continue
+        let event: Record<string, unknown>
+        try {
+          event = JSON.parse(payload)
+        } catch {
+          continue
+        }
+        switch (event.type) {
+          case 'thinking':
+            handlers.onThinking?.()
+            break
+          case 'token':
+            handlers.onToken(String(event.content ?? ''))
+            break
+          case 'navigate':
+            handlers.onNavigate(String(event.path ?? ''))
+            break
+          case 'denied':
+            handlers.onDenied()
+            break
+          case 'error':
+            handlers.onError(String(event.message ?? '服务异常，请稍后再试'))
+            break
+          case 'done':
+            handlers.onDone({
+              conversationId: typeof event.conversation_id === 'number' ? event.conversation_id : null,
+              messageId: typeof event.message_id === 'number' ? event.message_id : null,
+            })
+            break
+          default:
+            break
+        }
       }
     }
+  } finally {
+    reader.releaseLock()
   }
 }

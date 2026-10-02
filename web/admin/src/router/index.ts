@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { getToken } from '@/utils/storage'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -90,13 +91,11 @@ const router = createRouter({
 })
 
 // 路由守卫：未登录跳登录页
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('access_token')
-  if (to.path !== '/login' && !token) {
-    next('/login')
-  } else {
-    next()
+router.beforeEach(to => {
+  if (to.path !== '/login' && !getToken()) {
+    return '/login'
   }
+  return true
 })
 
 export default router

@@ -13,7 +13,14 @@
             <el-option label="首页板块" value="board" />
             <el-option label="首页横幅" value="banner" />
           </el-select>
-          <el-input v-model="filter.keyword" placeholder="搜索标题/正文" clearable style="width: 200px" @keyup.enter="fetchList" @clear="fetchList" />
+          <el-input
+            v-model="filter.keyword"
+            placeholder="搜索标题/正文"
+            clearable
+            style="width: 200px"
+            @keyup.enter="fetchList"
+            @clear="fetchList"
+          />
           <el-button type="primary" icon="Search" @click="fetchList">搜索</el-button>
         </div>
       </div>
@@ -35,36 +42,36 @@
         </el-table-column>
         <el-table-column label="状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="statusTag(row)">
-              {{ statusText(row) }}
+            <el-tag :type="statusTag(row as AnnouncementItem)">
+              {{ statusText(row as AnnouncementItem) }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="有效期" width="240">
-          <template #default="{ row }">
-            {{ fmtTime(row.start_at) }} ~ {{ fmtTime(row.end_at) }}
-          </template>
+          <template #default="{ row }"> {{ fmtTime(row.start_at) }} ~ {{ fmtTime(row.end_at) }} </template>
         </el-table-column>
         <el-table-column prop="operator_name" label="操作人" width="110" />
         <el-table-column label="操作" width="220">
           <template #default="{ row }">
-            <el-button size="small" @click="viewDetail(row)">详情</el-button>
-            <el-button size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button size="small" @click="viewDetail(row as AnnouncementItem)">详情</el-button>
+            <el-button size="small" @click="openEdit(row as AnnouncementItem)">编辑</el-button>
             <el-button
               v-if="row.status === 'draft' || row.status === 'unpublished'"
               size="small"
               type="success"
               link
-              @click="publish(row)"
-            >发布</el-button>
+              @click="publish(row as AnnouncementItem)"
+              >发布</el-button
+            >
             <el-button
               v-if="row.status === 'published'"
               size="small"
               type="warning"
               link
-              @click="unpublish(row)"
-            >下架</el-button>
-            <el-button size="small" type="danger" link @click="remove(row)">删除</el-button>
+              @click="unpublish(row as AnnouncementItem)"
+              >下架</el-button
+            >
+            <el-button size="small" type="danger" link @click="remove(row as AnnouncementItem)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -145,7 +152,9 @@
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="格式">
-            <el-tag type="primary" effect="plain">{{ detail.content_type === 'richtext' ? '富文本' : 'Markdown' }}</el-tag>
+            <el-tag type="primary" effect="plain">{{
+              detail.content_type === 'richtext' ? '富文本' : 'Markdown'
+            }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="statusTag(detail)">{{ statusText(detail) }}</el-tag>
@@ -154,7 +163,9 @@
             {{ fmtTime(detail.start_at) }} ~ {{ fmtTime(detail.end_at) }}
           </el-descriptions-item>
           <el-descriptions-item label="发布人">{{ detail.operator_name || '-' }}</el-descriptions-item>
-          <el-descriptions-item v-if="detail.published_at" label="发布时间">{{ fmtTime(detail.published_at) }}</el-descriptions-item>
+          <el-descriptions-item v-if="detail.published_at" label="发布时间">{{
+            fmtTime(detail.published_at)
+          }}</el-descriptions-item>
           <el-descriptions-item label="正文">
             <div class="announcement-preview" v-html="renderAnnouncement(detail.content, detail.content_type)" />
           </el-descriptions-item>
@@ -163,25 +174,34 @@
     </el-dialog>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
 import { renderAnnouncement } from '@/utils/announcement'
+import { formatDateTimeShort } from '@/utils/format'
+import {
+  listAnnouncements,
+  getAnnouncement,
+  createAnnouncement,
+  updateAnnouncement,
+  publishAnnouncement,
+  unpublishAnnouncement,
+  deleteAnnouncement,
+} from '@/api/announcement'
+import type { AnnouncementItem, AnnouncementFormPayload } from '@/types/announcement'
 
-const items = ref<any[]>([])
+const items = ref<AnnouncementItem[]>([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-const filter = ref<any>({ status: '', position: '', keyword: '' })
+const filter = ref<{ status: string; position: string; keyword: string }>({ status: '', position: '', keyword: '' })
 
 const editVisible = ref(false)
 const isEdit = ref(false)
 const saving = ref(false)
 const editingId = ref<number | null>(null)
-const form = ref<any>({
+const form = ref<AnnouncementFormPayload>({
   title: '',
   content: '',
   content_type: 'markdown',
@@ -192,22 +212,21 @@ const form = ref<any>({
 })
 
 const detailVisible = ref(false)
-const detail = ref<any>(null)
+const detail = ref<AnnouncementItem | null>(null)
 
 const previewHtml = computed(() => renderAnnouncement(form.value.content || '', form.value.content_type))
 
 function fmtTime(v: string | null | undefined): string {
-  if (!v) return ''
-  return v.replace('T', ' ').slice(0, 16)
+  return formatDateTimeShort(v)
 }
 
-function statusText(row: any): string {
+function statusText(row: AnnouncementItem): string {
   if (row.status === 'published') return row.is_expired ? '已过期' : '已发布'
   if (row.status === 'draft') return '草稿'
   return '已下架'
 }
 
-function statusTag(row: any) {
+function statusTag(row: AnnouncementItem) {
   if (row.status === 'published') return row.is_expired ? 'danger' : 'success'
   if (row.status === 'draft') return 'info'
   return 'warning'
@@ -216,18 +235,16 @@ function statusTag(row: any) {
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/announcements/', {
-      params: {
-        page: page.value,
-        page_size: pageSize.value,
-        status: filter.value.status || undefined,
-        position: filter.value.position || undefined,
-        keyword: filter.value.keyword || undefined,
-      },
+    const res = await listAnnouncements({
+      page: page.value,
+      page_size: pageSize.value,
+      status: filter.value.status || undefined,
+      position: filter.value.position || undefined,
+      keyword: filter.value.keyword || undefined,
     })
-    items.value = res.data.items || []
-    total.value = res.data.total || 0
-  } catch (e) {
+    items.value = res.data.items
+    total.value = res.data.total
+  } catch {
     /* 拦截器已处理 */
   } finally {
     loading.value = false
@@ -237,11 +254,19 @@ async function fetchList() {
 function openCreate() {
   isEdit.value = false
   editingId.value = null
-  form.value = { title: '', content: '', content_type: 'markdown', position: 'board', start_at: '', end_at: '', sort_order: 0 }
+  form.value = {
+    title: '',
+    content: '',
+    content_type: 'markdown',
+    position: 'board',
+    start_at: '',
+    end_at: '',
+    sort_order: 0,
+  }
   editVisible.value = true
 }
 
-function openEdit(row: any) {
+function openEdit(row: AnnouncementItem) {
   isEdit.value = true
   editingId.value = row.id
   form.value = {
@@ -249,8 +274,8 @@ function openEdit(row: any) {
     content: row.content,
     content_type: row.content_type,
     position: row.position,
-    start_at: row.start_at,
-    end_at: row.end_at,
+    start_at: row.start_at || '',
+    end_at: row.end_at || '',
     sort_order: row.sort_order,
   }
   editVisible.value = true
@@ -289,33 +314,33 @@ async function save() {
       end_at: form.value.end_at,
       sort_order: form.value.sort_order,
     }
-    if (isEdit.value) {
-      await request.post(`/announcements/${editingId.value}/update`, body)
+    if (isEdit.value && editingId.value != null) {
+      await updateAnnouncement(editingId.value, body)
       ElMessage.success('已保存')
     } else {
-      await request.post('/announcements/', body)
+      await createAnnouncement(body)
       ElMessage.success('已创建，可在草稿中发布')
     }
     editVisible.value = false
     fetchList()
-  } catch (e) {
+  } catch {
     /* 拦截器已处理 */
   } finally {
     saving.value = false
   }
 }
 
-async function publish(row: any) {
+async function publish(row: AnnouncementItem) {
   try {
-    await request.post(`/announcements/${row.id}/publish`)
+    await publishAnnouncement(row.id)
     ElMessage.success('已发布')
     fetchList()
-  } catch (e) {
+  } catch {
     /* 拦截器已处理 */
   }
 }
 
-async function unpublish(row: any) {
+async function unpublish(row: AnnouncementItem) {
   try {
     await ElMessageBox.confirm(`确认下架公告「${row.title}」？下架后首页不再展示。`, '下架确认', {
       type: 'warning',
@@ -326,15 +351,15 @@ async function unpublish(row: any) {
     return
   }
   try {
-    await request.post(`/announcements/${row.id}/unpublish`)
+    await unpublishAnnouncement(row.id)
     ElMessage.success('已下架')
     fetchList()
-  } catch (e) {
+  } catch {
     /* 拦截器已处理 */
   }
 }
 
-async function remove(row: any) {
+async function remove(row: AnnouncementItem) {
   try {
     await ElMessageBox.confirm(`确认删除公告「${row.title}」？删除后不可恢复。`, '删除确认', {
       type: 'warning',
@@ -345,27 +370,26 @@ async function remove(row: any) {
     return
   }
   try {
-    await request.post(`/announcements/${row.id}/delete`)
+    await deleteAnnouncement(row.id)
     ElMessage.success('已删除')
     fetchList()
-  } catch (e) {
+  } catch {
     /* 拦截器已处理 */
   }
 }
 
-async function viewDetail(row: any) {
+async function viewDetail(row: AnnouncementItem) {
   try {
-    const res = await request.get(`/announcements/${row.id}`)
+    const res = await getAnnouncement(row.id)
     detail.value = res.data
     detailVisible.value = true
-  } catch (e) {
+  } catch {
     /* 拦截器已处理 */
   }
 }
 
 onMounted(fetchList)
 </script>
-
 <style scoped>
 .announcement-preview {
   border: 1px solid var(--el-border-color);

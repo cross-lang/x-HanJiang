@@ -10,12 +10,20 @@
       <div v-for="item in list" :key="item.id" style="border-bottom: 1px solid #f0f0f0">
         <div style="padding: 12px; cursor: pointer" @click="toggleExpand(item)">
           <div style="display: flex; align-items: center; gap: 8px">
-            <span v-if="!item.is_read" style="width: 8px; height: 8px; background: #f56c6c; border-radius: 50%; flex-shrink: 0"></span>
+            <span
+              v-if="!item.is_read"
+              style="width: 8px; height: 8px; background: #f56c6c; border-radius: 50%; flex-shrink: 0"
+            ></span>
             <span style="font-weight: 500; color: #333">{{ item.title }}</span>
           </div>
-          <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">{{ formatDateTime(item.created_at) }}</div>
+          <div style="font-size: 12px; color: #999; margin-top: 4px; margin-left: 16px">
+            {{ formatDateTime(item.created_at) }}
+          </div>
         </div>
-        <div v-if="expandedId === item.id" style="padding: 8px 12px 12px 16px; background: #fafafa; font-size: 13px; color: #666">
+        <div
+          v-if="expandedId === item.id"
+          style="padding: 8px 12px 12px 16px; background: #fafafa; font-size: 13px; color: #666"
+        >
           {{ item.content }}
         </div>
       </div>
@@ -29,39 +37,46 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Bell } from '@element-plus/icons-vue'
-import request from '@/api/request'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
+import { getToken } from '@/utils/storage'
+import {
+  getUnreadCount,
+  listStationMessages,
+  markAllStationMessagesRead,
+  markStationMessageRead,
+  type StationMessage,
+} from '@/api/notification'
 
 const unreadCount = ref(0)
-const list = ref<any[]>([])
+const list = ref<StationMessage[]>([])
 const expandedId = ref<number | null>(null)
 
 async function fetchUnread() {
   // 未登录不轮询，避免登录页持续 401
-  if (!localStorage.getItem('access_token')) {
+  if (!getToken()) {
     unreadCount.value = 0
     return
   }
-  const res = await request.get('/station/messages/unread-count')
+  const res = await getUnreadCount()
   unreadCount.value = res.data.count
 }
 
 async function fetchList() {
-  const res = await request.get('/station/messages', { params: { page: 1, page_size: 10 } })
+  const res = await listStationMessages()
   list.value = res.data.items
 }
 
-async function toggleExpand(item: any) {
+async function toggleExpand(item: StationMessage) {
   expandedId.value = expandedId.value === item.id ? null : item.id
   if (!item.is_read) {
-    await request.post(`/station/messages/${item.id}/read`)
+    await markStationMessageRead(item.id)
     fetchUnread()
   }
 }
 
 async function markAllRead() {
-  await request.post('/station/messages/read-all')
+  await markAllStationMessagesRead()
   ElMessage.success('全部已读')
   fetchUnread()
   fetchList()

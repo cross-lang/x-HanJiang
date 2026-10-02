@@ -38,11 +38,11 @@
       </el-table-column>
       <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button size="small" @click="handleToggleStatus(row)">
+          <el-button size="small" @click="handleEdit(row as RoleItem)">编辑</el-button>
+          <el-button size="small" @click="handleToggleStatus(row as RoleItem)">
             {{ row.status === 'enabled' ? '禁用' : '启用' }}
           </el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(row as RoleItem)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -74,15 +74,14 @@
               <el-checkbox
                 :model-value="isGroupAllChecked(items, selectedPermissions)"
                 :indeterminate="isGroupIndeterminate(items, selectedPermissions)"
-                @change="(val: any) => toggleGroup(items, selectedPermissions, val)"
+                @change="(val: string | number | boolean) => toggleGroup(items, selectedPermissions, Boolean(val))"
                 @click.stop
-              >{{ moduleLabel(module, items) }}</el-checkbox>
+                >{{ moduleLabel(module, items) }}</el-checkbox
+              >
             </template>
             <el-checkbox-group v-model="selectedPermissions">
               <div v-for="p in items" :key="p.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="p.id">
-                  {{ p.perm_name }}（{{ p.perm_code }}）
-                </el-checkbox>
+                <el-checkbox :value="p.id"> {{ p.perm_name }}（{{ p.perm_code }}） </el-checkbox>
               </div>
             </el-checkbox-group>
           </el-collapse-item>
@@ -111,15 +110,14 @@
               <el-checkbox
                 :model-value="isGroupAllChecked(items, editSelectedPermissions)"
                 :indeterminate="isGroupIndeterminate(items, editSelectedPermissions)"
-                @change="(val: any) => toggleGroup(items, editSelectedPermissions, val)"
+                @change="(val: string | number | boolean) => toggleGroup(items, editSelectedPermissions, Boolean(val))"
                 @click.stop
-              >{{ moduleLabel(module, items) }}</el-checkbox>
+                >{{ moduleLabel(module, items) }}</el-checkbox
+              >
             </template>
             <el-checkbox-group v-model="editSelectedPermissions">
               <div v-for="p in items" :key="p.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="p.id">
-                  {{ p.perm_name }}（{{ p.perm_code }}）
-                </el-checkbox>
+                <el-checkbox :value="p.id"> {{ p.perm_name }}（{{ p.perm_code }}） </el-checkbox>
               </div>
             </el-checkbox-group>
           </el-collapse-item>
@@ -137,12 +135,22 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
 import { formatDateTime } from '@/utils/format'
+import {
+  listRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  listRolePermissions,
+  bindRolePermission,
+  unbindRolePermission,
+} from '@/api/role'
+import { listPermissions } from '@/api/permission'
+import type { RoleItem, PermissionItem } from '@/types/role'
 
 const route = useRoute()
 
-const list = ref<any[]>([])
+const list = ref<RoleItem[]>([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
@@ -153,12 +161,12 @@ const keyword = ref('')
 const dialogVisible = ref(false)
 const form = ref({ role_name: '', role_code: '', description: '' })
 const selectedPermissions = ref<number[]>([])
-const permissionList = ref<any[]>([])
+const permissionList = ref<PermissionItem[]>([])
 const activeGroups = ref<string[]>([])
 const editActiveGroups = ref<string[]>([])
 
 const groupedPermissions = computed(() => {
-  const groups: Record<string, any[]> = {}
+  const groups: Record<string, PermissionItem[]> = {}
   for (const p of permissionList.value) {
     const mod = p.module || '其他'
     if (!groups[mod]) groups[mod] = []
@@ -167,17 +175,17 @@ const groupedPermissions = computed(() => {
   return groups
 })
 
-function isGroupAllChecked(items: any[], selected: number[]): boolean {
-  return items.length > 0 && items.every((p: any) => selected.includes(p.id))
+function isGroupAllChecked(items: PermissionItem[], selected: number[]): boolean {
+  return items.length > 0 && items.every(p => selected.includes(p.id))
 }
 
-function isGroupIndeterminate(items: any[], selected: number[]): boolean {
-  const checked = items.filter((p: any) => selected.includes(p.id)).length
+function isGroupIndeterminate(items: PermissionItem[], selected: number[]): boolean {
+  const checked = items.filter(p => selected.includes(p.id)).length
   return checked > 0 && checked < items.length
 }
 
-function toggleGroup(items: any[], selected: number[], val: any) {
-  const ids = items.map((p: any) => p.id)
+function toggleGroup(items: PermissionItem[], selected: number[], val: boolean) {
+  const ids = items.map(p => p.id)
   if (val) {
     for (const id of ids) {
       if (!selected.includes(id)) selected.push(id)
@@ -190,7 +198,7 @@ function toggleGroup(items: any[], selected: number[], val: any) {
   }
 }
 
-function moduleLabel(mod: string, items: any[]): string {
+function moduleLabel(mod: string, items: PermissionItem[]): string {
   return items[0]?.module_label || mod
 }
 
@@ -202,16 +210,15 @@ const editSelectedPermissions = ref<number[]>([])
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/roles', {
-      params: {
-        page: page.value,
-        page_size: pageSize.value,
-        keyword: keyword.value.trim() || undefined,
-      },
+    const res = await listRoles({
+      page: page.value,
+      page_size: pageSize.value,
+      keyword: keyword.value.trim() || undefined,
     })
-    list.value = res.data.items
-    total.value = res.data.total
-  } catch (e) {
+    // 兼容后端两种返回：分页包裹或纯数组
+    list.value = Array.isArray(res.data) ? res.data : res.data.items
+    total.value = Array.isArray(res.data) ? res.data.length : res.data.total
+  } catch {
     // 错误已处理
   } finally {
     loading.value = false
@@ -224,8 +231,8 @@ function handleSearch() {
 }
 
 async function fetchPermissions() {
-  const res = await request.get('/permissions', { params: { page: 1, page_size: 200 } })
-  permissionList.value = res.data.items.filter((p: any) => !p.is_deprecated)
+  const res = await listPermissions({ page: 1, page_size: 200 })
+  permissionList.value = res.data.items.filter(p => !p.is_deprecated)
 }
 
 function handleCreate() {
@@ -252,24 +259,24 @@ async function handleSubmit() {
     return
   }
   try {
-    const res = await request.post('/roles', form.value)
+    const res = await createRole(form.value)
     const roleId = res.data.id
     for (const permId of selectedPermissions.value) {
-      await request.post(`/roles/${roleId}/permissions`, { permission_id: permId })
+      await bindRolePermission(roleId, permId)
     }
     ElMessage.success('创建成功')
     dialogVisible.value = false
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-async function handleEdit(row: any) {
+async function handleEdit(row: RoleItem) {
   editForm.value = { id: row.id, role_name: row.role_name, description: row.description || '' }
   // 查角色已有权限
-  const res = await request.get(`/roles/${row.id}/permissions`)
-  editSelectedPermissions.value = res.data.map((p: any) => p.permission.id)
+  const res = await listRolePermissions(row.id)
+  editSelectedPermissions.value = res.data.map(p => p.permission.id)
   editDialogVisible.value = true
 }
 
@@ -288,56 +295,56 @@ async function handleUpdate() {
   }
   try {
     // 更新基本信息
-    await request.post(`/roles/${editForm.value.id}/update`, {
+    await updateRole(editForm.value.id, {
       role_name: editForm.value.role_name,
       description: editForm.value.description,
     })
     // 对比权限：先解绑不在新列表里的，再绑定新的
     const currentPerms = editSelectedPermissions.value
-    const oldRes = await request.get(`/roles/${editForm.value.id}/permissions`)
-    const oldPerms = oldRes.data.map((p: any) => p.permission.id)
+    const oldRes = await listRolePermissions(editForm.value.id)
+    const oldPerms = oldRes.data.map(p => p.permission.id)
     // 解绑旧的
     for (const pid of oldPerms) {
       if (!currentPerms.includes(pid)) {
-        await request.post(`/roles/${editForm.value.id}/permissions/${pid}/unbind`)
+        await unbindRolePermission(editForm.value.id, pid)
       }
     }
     // 绑定新的
     for (const pid of currentPerms) {
       if (!oldPerms.includes(pid)) {
-        await request.post(`/roles/${editForm.value.id}/permissions`, { permission_id: pid })
+        await bindRolePermission(editForm.value.id, pid)
       }
     }
     ElMessage.success('更新成功')
     editDialogVisible.value = false
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-async function handleToggleStatus(row: any) {
+async function handleToggleStatus(row: RoleItem) {
   const newStatus = row.status === 'enabled' ? 'disabled' : 'enabled'
   try {
-    await request.post(`/roles/${row.id}/update`, { status: newStatus })
+    await updateRole(row.id, { status: newStatus })
     ElMessage.success(newStatus === 'enabled' ? '已启用' : '已禁用')
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: RoleItem) {
   try {
     await ElMessageBox.confirm(`确定删除角色「${row.role_name}」吗？`, '提示', { type: 'warning' })
   } catch {
     return
   }
   try {
-    await request.post(`/roles/${row.id}/delete`)
+    await deleteRole(row.id)
     ElMessage.success('删除成功')
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
@@ -350,11 +357,14 @@ onMounted(() => {
 })
 
 // 全局搜索跳转携带 keyword 时自动过滤
-watch(() => route.query.keyword, (q) => {
-  if (q) {
-    keyword.value = String(q)
-    page.value = 1
-    fetchList()
-  }
-})
+watch(
+  () => route.query.keyword,
+  q => {
+    if (q) {
+      keyword.value = String(q)
+      page.value = 1
+      fetchList()
+    }
+  },
+)
 </script>

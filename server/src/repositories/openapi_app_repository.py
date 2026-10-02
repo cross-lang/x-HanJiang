@@ -3,7 +3,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 
 from src.core.exceptions import ConflictException
 from src.models.entities.app_entity import OpenApiAppEntity, OpenApiScopeEntity
@@ -35,12 +35,23 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         stmt = self._base_query().where(OpenApiAppEntity.app_id == app_id)
         return self.session.execute(stmt).scalars().first()
 
-    def search_by_keyword(self, keyword: str | None = None, limit: int = 100) -> list[OpenApiAppEntity]:
-        """按名称关键字查询应用（不含已软删除）。"""
-        stmt = self._base_query()
+    def search_by_keyword(
+        self,
+        keyword: str | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[list[OpenApiAppEntity], int]:
+        """按名称关键字分页查询应用（不含已软删除，按主键升序保证分页稳定）。
+
+        Returns:
+            (当前页实体列表, 匹配总数)
+        """
+        base = self._base_query()
         if keyword:
-            stmt = stmt.where(OpenApiAppEntity.name.like(f"%{keyword}%"))
-        return list(self.session.execute(stmt.limit(limit)).scalars().all())
+            base = base.where(OpenApiAppEntity.name.like(f"%{keyword}%"))
+        total = self.session.execute(select(func.count()).select_from(base.subquery())).scalar_one()
+        stmt = base.order_by(OpenApiAppEntity.id).offset(skip).limit(limit)
+        return list(self.session.execute(stmt).scalars().all()), total
 
     def get_owner_user(self, user_id: int) -> UserEntity | None:
         """查询应用所属用户（跨实体只读查询，用于组装 owner 名称）。"""

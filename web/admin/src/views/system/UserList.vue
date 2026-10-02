@@ -20,13 +20,15 @@
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="name" label="姓名" />
       <el-table-column label="性别" width="70">
-        <template #default="{ row }">{{ row.gender === 'male' ? '男' : row.gender === 'female' ? '女' : '-' }}</template>
+        <template #default="{ row }">{{
+          row.gender === 'male' ? '男' : row.gender === 'female' ? '女' : '-'
+        }}</template>
       </el-table-column>
       <el-table-column prop="email" label="邮箱" />
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column label="角色" width="150">
         <template #default="{ row }">
-          {{ row.roles ? row.roles.map((r: any) => r.role_name).join('；') : (row.role_name || '-') }}
+          {{ row.roles ? (row as UserItem).roles.map(r => r.role_name).join('；') : row.role_name || '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100">
@@ -41,21 +43,30 @@
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <template v-if="canOperate(row)">
+          <template v-if="canOperate(row as UserItem)">
             <el-button
               v-if="row.status !== 'enabled' && row.username !== 'superadmin'"
               size="small"
               type="success"
-              @click="handleToggleStatus(row, 'active')"
-            >启用</el-button>
+              @click="handleToggleStatus(row as UserItem, 'active')"
+              >启用</el-button
+            >
             <el-button
               v-if="row.status === 'enabled' && row.username !== 'superadmin'"
               size="small"
               type="warning"
-              @click="handleToggleStatus(row, 'disabled')"
-            >禁用</el-button>
-            <el-button v-if="row.username !== 'superadmin'" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button v-if="row.id !== userStore.userInfo?.id" size="small" @click="handleResetPassword(row)">重置密码</el-button>
+              @click="handleToggleStatus(row as UserItem, 'disabled')"
+              >禁用</el-button
+            >
+            <el-button v-if="row.username !== 'superadmin'" size="small" @click="handleEdit(row as UserItem)"
+              >编辑</el-button
+            >
+            <el-button
+              v-if="row.id !== userStore.userInfo?.id"
+              size="small"
+              @click="handleResetPassword(row as UserItem)"
+              >重置密码</el-button
+            >
           </template>
         </template>
       </el-table-column>
@@ -66,6 +77,7 @@
       v-model:page-size="pageSize"
       :total="total"
       @current-change="fetchList"
+      @size-change="handleSizeChange"
     />
   </el-card>
 
@@ -94,19 +106,11 @@
       </el-form-item>
       <el-form-item label="角色">
         <el-select v-model="form.role_ids" multiple style="width: 100%">
-          <el-option
-            v-for="r in roles"
-            :key="r.id"
-            :label="r.role_name"
-            :value="r.id"
-          >
+          <el-option v-for="r in roles" :key="r.id" :label="r.role_name" :value="r.id">
             <span style="float: left">{{ r.role_name }}</span>
-            <el-tag
-              v-if="r.role_type === 'system'"
-              size="small"
-              type="warning"
-              style="float: right; margin-left: 10px"
-            >系统内置</el-tag>
+            <el-tag v-if="r.role_type === 'system'" size="small" type="warning" style="float: right; margin-left: 10px"
+              >系统内置</el-tag
+            >
           </el-option>
         </el-select>
       </el-form-item>
@@ -127,7 +131,9 @@
   </el-dialog>
 
   <el-dialog v-model="resetVisible" title="重置密码">
-    <p style="margin-bottom: 15px">重置用户 <strong>{{ resetUser.username }}</strong> 的密码</p>
+    <p style="margin-bottom: 15px">
+      重置用户 <strong>{{ resetUser?.username }}</strong> 的密码
+    </p>
     <el-input v-model="resetPassword" type="password" placeholder="请输入新密码" show-password />
     <template #footer>
       <el-button @click="resetVisible = false">取消</el-button>
@@ -140,14 +146,18 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/format'
+import { downloadResponseBlob } from '@/utils/download'
+import { listUsers, createUser, updateUser, resetUserPassword, exportUsersCsv } from '@/api/user'
+import { listRoles } from '@/api/role'
+import type { UserItem, UserFormPayload } from '@/types/user'
+import type { RoleItem } from '@/types/role'
 
 const route = useRoute()
 const userStore = useUserStore()
-const list = ref<any[]>([])
-const roles = ref<any[]>([])
+const list = ref<UserItem[]>([])
+const roles = ref<RoleItem[]>([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
@@ -157,35 +167,33 @@ const keyword = ref('')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref(0)
-const form = ref({
+const form = ref<UserFormPayload>({
   username: '',
   name: '',
   email: '',
   phone: '',
   birthday: '',
   gender: 'male',
-  role_ids: [] as number[],
+  role_ids: [],
   password: '',
   status: 'enabled',
 })
 
 const resetVisible = ref(false)
-const resetUser = ref<any>({})
+const resetUser = ref<UserItem | null>(null)
 const resetPassword = ref('')
 
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/users', {
-      params: {
-        page: page.value,
-        page_size: pageSize.value,
-        keyword: keyword.value.trim() || undefined,
-      },
+    const res = await listUsers({
+      page: page.value,
+      page_size: pageSize.value,
+      keyword: keyword.value.trim() || undefined,
     })
     list.value = res.data.items
     total.value = res.data.total
-  } catch (e) {
+  } catch {
     // 错误已处理
   } finally {
     loading.value = false
@@ -197,13 +205,18 @@ function handleSearch() {
   fetchList()
 }
 
+function handleSizeChange() {
+  page.value = 1
+  fetchList()
+}
+
 async function fetchRoles() {
   try {
-    const res = await request.get('/roles')
-    roles.value = res.data.items || res.data || []
-    const adminRole = roles.value.find((r: any) => r.role_code === 'admin')
+    const res = await listRoles()
+    roles.value = Array.isArray(res.data) ? res.data : res.data.items
+    const adminRole = roles.value.find(r => r.role_code === 'admin')
     if (adminRole && !isEdit.value) form.value.role_ids = [adminRole.id]
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
@@ -225,7 +238,7 @@ function handleCreate() {
   dialogVisible.value = true
 }
 
-function handleEdit(row: any) {
+function handleEdit(row: UserItem) {
   isEdit.value = true
   editId.value = row.id
   form.value = {
@@ -235,7 +248,7 @@ function handleEdit(row: any) {
     phone: row.phone || '',
     birthday: row.birthday ? row.birthday.split('T')[0] : '',
     gender: row.gender || 'male',
-    role_ids: row.roles ? row.roles.map((r: any) => r.id) : (row.role_id ? [row.role_id] : []),
+    role_ids: row.roles ? row.roles.map(r => r.id) : row.role_id ? [row.role_id] : [],
     password: '',
     status: row.status,
   }
@@ -248,47 +261,49 @@ async function handleSubmit() {
     if (isEdit.value) {
       const { name, email, phone, birthday, gender, role_ids, status } = form.value
       const birthdayStr = birthday ? (typeof birthday === 'string' ? birthday.split('T')[0] : '') : ''
-      await request.post(`/users/${editId.value}/update`, { name, email, phone, birthday: birthdayStr, gender, role_ids, status })
+      await updateUser(editId.value, { name, email, phone, birthday: birthdayStr, gender, role_ids, status })
       ElMessage.success('更新成功')
     } else {
-      await request.post('/users', { ...form.value, role_id: form.value.role_ids[0] })
+      // 创建时直接提交多角色 role_ids（后端 UserCreateRequest 已支持）
+      await createUser({ ...form.value, role_ids: form.value.role_ids })
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-async function handleToggleStatus(row: any, status: string) {
+async function handleToggleStatus(row: UserItem, status: string) {
   const action = status === 'enabled' ? '启用' : '禁用'
   try {
     await ElMessageBox.confirm(`确定要${action}用户 ${row.username} 吗？`, '提示', { type: 'warning' })
-    await request.post(`/users/${row.id}/update`, { status })
+    await updateUser(row.id, { status })
     ElMessage.success(`${action}成功`)
     fetchList()
-  } catch (e) {
+  } catch {
     // 取消或错误
   }
 }
 
-function handleResetPassword(row: any) {
+function handleResetPassword(row: UserItem) {
   resetUser.value = row
   resetVisible.value = true
 }
 
 async function confirmResetPassword() {
+  if (!resetUser.value) return
   try {
-    await request.post(`/users/${resetUser.value.id}/reset-password`, { new_password: resetPassword.value, confirm_password: resetPassword.value })
+    await resetUserPassword(resetUser.value.id, resetPassword.value)
     ElMessage.success('密码已重置')
     resetVisible.value = false
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-function canOperate(row: any): boolean {
+function canOperate(row: UserItem): boolean {
   // 超级管理员才能操作超级管理员
   if (row.username === 'superadmin') {
     return userStore.userInfo?.username === 'superadmin'
@@ -296,18 +311,14 @@ function canOperate(row: any): boolean {
   return true
 }
 
-function handleExport() {
-  const token = localStorage.getItem('access_token') || ''
-  fetch('/api/v1/users/export', { headers: { Authorization: `Bearer ${token}` } })
-    .then(r => r.blob())
-    .then(blob => {
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'users_export.csv'
-      link.click()
-      URL.revokeObjectURL(url)
-    })
+async function handleExport() {
+  try {
+    const resp = await exportUsersCsv({})
+    if (!resp.ok) throw new Error(`导出失败（${resp.status}）`)
+    await downloadResponseBlob(resp, 'users_export.csv')
+  } catch {
+    ElMessage.error('导出失败，请稍后重试')
+  }
 }
 
 onMounted(() => {
@@ -317,11 +328,14 @@ onMounted(() => {
 })
 
 // 全局搜索跳转携带 keyword 时自动过滤
-watch(() => route.query.keyword, (q) => {
-  if (q) {
-    keyword.value = String(q)
-    page.value = 1
-    fetchList()
-  }
-})
+watch(
+  () => route.query.keyword,
+  q => {
+    if (q) {
+      keyword.value = String(q)
+      page.value = 1
+      fetchList()
+    }
+  },
+)
 </script>

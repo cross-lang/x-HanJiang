@@ -1,12 +1,22 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    // Element Plus 按需引入：组件 + v-loading 等指令按需注册并注入样式
+    Components({
+      resolvers: [ElementPlusResolver()],
+      directives: true,
+      dts: 'src/components.d.ts',
+    }),
+  ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   server: {
@@ -27,6 +37,19 @@ export default defineConfig({
       '/openapi.json': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    // 主包体积告警阈值（按需引入后主包预期 < 800KB）
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue', 'vue-router', 'pinia', 'axios', 'dayjs'],
+          'element-plus': ['element-plus'],
+          echarts: ['echarts/core', 'vue-echarts'],
+        },
       },
     },
   },

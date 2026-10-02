@@ -106,7 +106,9 @@
           <template #header>存储用量</template>
           <div style="display: flex; gap: 40px; align-items: center">
             <div>
-              <div style="font-size: 28px; font-weight: 600; color: #409eff">{{ formatSize(storage.total_size_bytes) }}</div>
+              <div style="font-size: 28px; font-weight: 600; color: #409eff">
+                {{ formatSize(storage.total_size_bytes) }}
+              </div>
               <div style="color: #999; margin-top: 4px">总用量（{{ storage.total_count }} 个文件）</div>
             </div>
             <el-divider direction="vertical" style="height: 50px" />
@@ -133,9 +135,7 @@
             <!-- CPU -->
             <el-col :xs="12" :sm="6">
               <div style="text-align: center">
-                <div style="font-size: 28px; font-weight: bold; color: #409eff">
-                  {{ monitor.cpu?.percent ?? 0 }}%
-                </div>
+                <div style="font-size: 28px; font-weight: bold; color: #409eff">{{ monitor.cpu?.percent ?? 0 }}%</div>
                 <div style="color: #999; margin: 8px 0">CPU 使用率</div>
                 <div style="font-size: 12px; color: #999">
                   {{ monitor.cpu?.core_count }}核 / {{ monitor.cpu?.thread_count }}线程
@@ -178,7 +178,16 @@
             <!-- 网络 -->
             <el-col :xs="12" :sm="6">
               <div style="text-align: center">
-                <div style="display: flex; justify-content: center; gap: 16px; font-size: 18px; font-weight: bold; color: #909399">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: center;
+                    gap: 16px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #909399;
+                  "
+                >
                   <span>↓ {{ monitor.network?.recv_kbps ?? 0 }} KB/s</span>
                   <span>↑ {{ monitor.network?.send_kbps ?? 0 }} KB/s</span>
                 </div>
@@ -231,7 +240,9 @@
           </template>
           <el-table :data="recentAudits" size="small" empty-text="暂无记录">
             <el-table-column label="操作人" min-width="140" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.operator_username }}{{ row.operator_name ? '（' + row.operator_name + '）' : '' }}</template>
+              <template #default="{ row }"
+                >{{ row.operator_username }}{{ row.operator_name ? '（' + row.operator_name + '）' : '' }}</template
+              >
             </el-table-column>
             <el-table-column prop="entity_type" label="实体" width="100" />
             <el-table-column prop="action" label="操作" width="80" />
@@ -250,28 +261,37 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import request from '@/api/request'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart, BarChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { formatMonthDayTime } from '@/utils/format'
+import { getDashboardStats, getNotificationMonitor } from '@/api/dashboard'
+import type {
+  DashboardStats,
+  NameValueItem,
+  NotificationMonitor,
+  TrendSeries,
+  NotifyTrend,
+  StorageUsage,
+} from '@/types/dashboard'
 
 use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent])
 
 const router = useRouter()
 const stats = ref({ userCount: 0, roleCount: 0, appCount: 0, todayLogin: 0 })
-const loginTrend = ref({ dates: [] as string[], counts: [] as number[] })
-const auditTrend = ref({ dates: [] as string[], counts: [] as number[] })
-const roleDistribution = ref<any[]>([])
-const userStatusDistribution = ref<any[]>([])
-const channelDistribution = ref<any[]>([])
-const newUsersTrend = ref({ dates: [] as string[], counts: [] as number[] })
-const loginFailedTrend = ref({ dates: [] as string[], counts: [] as number[] })
-const notifyTrend = ref({ dates: [] as string[], success: [] as number[], failed: [] as number[] })
-const storage = ref({ total_size_bytes: 0, total_count: 0, by_folder: [] as any[] })
-const recentLogins = ref<any[]>([])
-const recentAudits = ref<any[]>([])
+const loginTrend = ref<TrendSeries>({ dates: [], counts: [] })
+const auditTrend = ref<TrendSeries>({ dates: [], counts: [] })
+const roleDistribution = ref<NameValueItem[]>([])
+const userStatusDistribution = ref<NameValueItem[]>([])
+const channelDistribution = ref<NameValueItem[]>([])
+const newUsersTrend = ref<TrendSeries>({ dates: [], counts: [] })
+const loginFailedTrend = ref<TrendSeries>({ dates: [], counts: [] })
+const notifyTrend = ref<NotifyTrend>({ dates: [], success: [], failed: [] })
+const storage = ref<StorageUsage>({ total_size_bytes: 0, total_count: 0, by_folder: [] })
+const recentLogins = ref<DashboardStats['recent_logins']>([])
+const recentAudits = ref<DashboardStats['recent_audits']>([])
 
 const loginChartOption = computed(() => ({
   tooltip: { trigger: 'axis' },
@@ -304,38 +324,44 @@ const loginFailedChartOption = computed(() => ({
 const rolePieOption = computed(() => ({
   tooltip: { trigger: 'item' },
   legend: { orient: 'vertical', right: 10, top: 'center' },
-  series: [{
-    type: 'pie',
-    radius: ['40%', '70%'],
-    center: ['40%', '50%'],
-    label: { show: false },
-    data: roleDistribution.value,
-  }],
+  series: [
+    {
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['40%', '50%'],
+      label: { show: false },
+      data: roleDistribution.value,
+    },
+  ],
 }))
 
 const userStatusPieOption = computed(() => ({
   tooltip: { trigger: 'item' },
   legend: { orient: 'vertical', right: 10, top: 'center' },
-  series: [{
-    type: 'pie',
-    radius: ['40%', '70%'],
-    center: ['40%', '50%'],
-    label: { show: false },
-    data: userStatusDistribution.value,
-    color: ['#67c23a', '#909399', '#e6a23c'],
-  }],
+  series: [
+    {
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['40%', '50%'],
+      label: { show: false },
+      data: userStatusDistribution.value,
+      color: ['#67c23a', '#909399', '#e6a23c'],
+    },
+  ],
 }))
 
 const channelPieOption = computed(() => ({
   tooltip: { trigger: 'item' },
   legend: { orient: 'vertical', right: 10, top: 'center' },
-  series: [{
-    type: 'pie',
-    radius: ['40%', '70%'],
-    center: ['40%', '50%'],
-    label: { show: false },
-    data: channelDistribution.value,
-  }],
+  series: [
+    {
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['40%', '50%'],
+      label: { show: false },
+      data: channelDistribution.value,
+    },
+  ],
 }))
 
 const notifyChartOption = computed(() => ({
@@ -352,14 +378,14 @@ const notifyChartOption = computed(() => ({
 const userStore = useUserStore()
 const permissions = userStore.userInfo?.permissions || []
 const canMonitor = computed(() => permissions.includes('*') || permissions.includes('notification:config'))
-const monitor = ref<any>({})
+const monitor = ref<NotificationMonitor>({ stats: { total: 0, success: 0, failed: 0, pending: 0 }, channels: [] })
 
-function statusType(s: string) {
+function statusType(s: string | undefined) {
   if (s === 'critical') return 'danger'
   if (s === 'warning') return 'warning'
   return 'success'
 }
-function statusText(s: string) {
+function statusText(s: string | undefined) {
   if (s === 'critical') return '严重'
   if (s === 'warning') return '警告'
   return '正常'
@@ -369,16 +395,15 @@ let monitorTimer: number | undefined
 
 async function fetchMonitor() {
   try {
-    const res = await request.get('/admin/notification-configs/monitor/system')
+    const res = await getNotificationMonitor()
     monitor.value = res.data
-  } catch (e) {
+  } catch {
     // 普通用户可能没权限，忽略
   }
 }
 
-function formatTime(t: string) {
-  if (!t) return ''
-  return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+function formatTime(t: string | null | undefined): string {
+  return formatMonthDayTime(t)
 }
 
 function goAudit(type: 'login' | 'audit') {
@@ -399,7 +424,7 @@ function formatSize(bytes: number): string {
 
 onMounted(async () => {
   try {
-    const res = await request.get('/dashboard/stats')
+    const res = await getDashboardStats()
     const d = res.data
     stats.value = {
       userCount: d.cards.user_count,

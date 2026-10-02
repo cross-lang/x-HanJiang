@@ -12,9 +12,11 @@ from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_current_user, get_openapi_app_service, require_user_permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
+from src.schemas.common import PaginatedResponse
 from src.schemas.openapi_app import (
     OpenApiAppCreatedResponse,
     OpenApiAppCreateRequest,
+    OpenApiAppResponse,
     OpenApiAppScopesUpdateRequest,
     OpenApiAppStatusUpdateRequest,
     OpenApiAppUpdateRequest,
@@ -72,11 +74,23 @@ def create_app(
 @permission(PermissionCode.OPENAPI_APP_VIEW)
 def list_apps(
     request: Request,
+    page: int = 1,
+    page_size: int = 20,
     keyword: str | None = None,
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
-    items = service.list_apps(keyword=keyword)
-    return success_response([i.model_dump() for i in items], request)
+    """返回分页应用列表，结构与用户列表等接口一致：{items, total, page, page_size}。"""
+    result = service.list_apps(keyword=keyword, page=page, page_size=page_size)
+    page_result = PaginatedResponse[OpenApiAppResponse](
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+        total_pages=(
+            (result["total"] + result["page_size"] - 1) // result["page_size"] if result["page_size"] > 0 else 0
+        ),
+    )
+    return success_response(page_result.model_dump(), request)
 
 
 @router.get(

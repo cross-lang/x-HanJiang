@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# 前端提交门禁：对暂存的 TS/Vue 文件执行 ESLint 修复与 Prettier 格式化
+# 依赖缺失时不阻塞提交（开发环境未安装依赖时跳过）
+
+if [ ! -d "web/admin/node_modules" ]; then
+  echo "⚠  web/admin/node_modules 不存在，跳过 lint-staged"
+  exit 0
+fi
+
+cd web/admin && npx lint-staged

@@ -22,9 +22,13 @@
       >
         <el-icon style="font-size: 20px; flex-shrink: 0"><Notification /></el-icon>
         <div style="flex: 1; min-width: 0">
-          <div style="font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ item.title }}</div>
+          <div
+            style="font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+          >
+            {{ item.title }}
+          </div>
           <div style="font-size: 12px; margin-top: 4px; opacity: 0.9">
-            有效期至 {{ fmtTime(item.end_at) }}
+            有效期至 {{ formatDateTimeShort(item.end_at) }}
           </div>
         </div>
         <el-icon style="font-size: 18px"><ArrowRight /></el-icon>
@@ -47,7 +51,7 @@
       >
         <span class="announcement-dot" />
         <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ item.title }}</span>
-        <span style="color: #999; font-size: 12px">{{ fmtTime(item.end_at) }}</span>
+        <span style="color: #999; font-size: 12px">{{ formatDateTimeShort(item.end_at) }}</span>
       </div>
     </el-card>
 
@@ -56,11 +60,19 @@
       <el-col :span="6" v-for="item in quickLinks" :key="item.path">
         <el-card shadow="hover" style="cursor: pointer" @click="$router.push(item.path)">
           <div style="display: flex; align-items: center; gap: 16px">
-            <div :style="{
-              width: '48px', height: '48px', borderRadius: '8px',
-              background: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: '24px',
-            }">
+            <div
+              :style="{
+                width: '48px',
+                height: '48px',
+                borderRadius: '8px',
+                background: item.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '24px',
+              }"
+            >
               <el-icon><component :is="item.icon" /></el-icon>
             </div>
             <div>
@@ -79,7 +91,9 @@
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
               <span>我的最近登录</span>
-              <el-button text type="primary" size="small" @click="$router.push('/audit/login?mine=true')">查看全部</el-button>
+              <el-button text type="primary" size="small" @click="$router.push('/audit/login?mine=true')"
+                >查看全部</el-button
+              >
             </div>
           </template>
           <el-table :data="myLogins" size="small" empty-text="暂无记录">
@@ -92,7 +106,7 @@
               </template>
             </el-table-column>
             <el-table-column prop="created_at" label="时间">
-              <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+              <template #default="{ row }">{{ formatMonthDayTime(row.created_at) }}</template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -110,7 +124,7 @@
             <el-table-column prop="action" label="操作" width="80" />
             <el-table-column prop="ip_address" label="IP" width="120" />
             <el-table-column prop="created_at" label="时间">
-              <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+              <template #default="{ row }">{{ formatMonthDayTime(row.created_at) }}</template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -122,9 +136,13 @@
       <template v-if="announcementDetail">
         <div style="font-size: 18px; font-weight: 600; margin-bottom: 12px">{{ announcementDetail.title }}</div>
         <div style="color: #999; font-size: 12px; margin-bottom: 12px">
-          有效期：{{ fmtTime(announcementDetail.start_at) }} ~ {{ fmtTime(announcementDetail.end_at) }}
+          有效期：{{ formatDateTimeShort(announcementDetail.start_at) }} ~
+          {{ formatDateTimeShort(announcementDetail.end_at) }}
         </div>
-        <div class="announcement-preview" v-html="renderAnnouncement(announcementDetail.content, announcementDetail.content_type)" />
+        <div
+          class="announcement-preview"
+          v-html="renderAnnouncement(announcementDetail.content, announcementDetail.content_type)"
+        />
       </template>
     </el-dialog>
   </div>
@@ -133,61 +151,74 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-import request from '@/api/request'
 import { renderAnnouncement } from '@/utils/announcement'
+import { formatDateTimeShort, formatMonthDayTime } from '@/utils/format'
+import { getMyActivity } from '@/api/dashboard'
+import { listAvailableAnnouncements } from '@/api/announcement'
+import type { AnnouncementItem } from '@/types/announcement'
+import type { MyActivity } from '@/types/dashboard'
 
 const userStore = useUserStore()
-const today = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
+const today = new Date().toLocaleDateString('zh-CN', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  weekday: 'long',
+})
 
 const allQuickLinks = [
   { title: '用户管理', desc: '查看和管理系统用户', path: '/users', icon: 'User', color: '#409eff', perm: 'user:view' },
-  { title: '角色管理', desc: '分配角色和权限', path: '/roles', icon: 'UserFilled', color: '#67c23a', perm: 'role:view' },
-  { title: '开放应用', desc: '管理第三方接入应用', path: '/apps', icon: 'Grid', color: '#e6a23c', perm: 'openapi_app:view' },
+  {
+    title: '角色管理',
+    desc: '分配角色和权限',
+    path: '/roles',
+    icon: 'UserFilled',
+    color: '#67c23a',
+    perm: 'role:view',
+  },
+  {
+    title: '开放应用',
+    desc: '管理第三方接入应用',
+    path: '/apps',
+    icon: 'Grid',
+    color: '#e6a23c',
+    perm: 'openapi_app:view',
+  },
   { title: '个人中心', desc: '修改个人信息和密码', path: '/profile', icon: 'Setting', color: '#909399', perm: '' },
 ]
 
 const permissions = userStore.userInfo?.permissions || []
 const quickLinks = allQuickLinks.filter(l => !l.perm || permissions.includes('*') || permissions.includes(l.perm))
-const myLogins = ref<any[]>([])
-const myAudits = ref<any[]>([])
+const myLogins = ref<MyActivity['recent_logins']>([])
+const myAudits = ref<MyActivity['recent_audits']>([])
 
-const announcements = ref<any[]>([])
+const announcements = ref<AnnouncementItem[]>([])
 const announcementVisible = ref(false)
-const announcementDetail = ref<any>(null)
+const announcementDetail = ref<AnnouncementItem | null>(null)
 
 const bannerAnnouncements = computed(() => announcements.value.filter(a => a.position === 'banner'))
 const boardAnnouncements = computed(() => announcements.value.filter(a => a.position === 'board'))
 
-function fmtTime(v: string | null | undefined): string {
-  if (!v) return ''
-  return v.replace('T', ' ').slice(0, 16)
-}
-
 async function fetchAnnouncements() {
   try {
-    const res = await request.get('/announcements/available')
+    const res = await listAvailableAnnouncements()
     announcements.value = res.data.items || []
-  } catch (e) {
+  } catch {
     // 公告接口不可用时静默
   }
 }
 
-function openAnnouncement(item: any) {
+function openAnnouncement(item: AnnouncementItem) {
   announcementDetail.value = item
   announcementVisible.value = true
 }
 
-function formatTime(t: string) {
-  if (!t) return ''
-  return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
 onMounted(async () => {
   try {
-    const res = await request.get('/dashboard/my-activity')
+    const res = await getMyActivity()
     myLogins.value = res.data.recent_logins
     myAudits.value = res.data.recent_audits
-  } catch (e) {
+  } catch {
     // 静默处理
   }
   await fetchAnnouncements()

@@ -307,9 +307,25 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             )
         return result
 
-    def list_apps(self, keyword: str | None = None, limit: int = 100) -> list[OpenApiAppResponse]:
-        rows = self._repository.search_by_keyword(keyword=keyword, limit=limit)
-        return [self._to_response(r) for r in rows]
+    def list_apps(
+        self,
+        keyword: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """分页查询应用列表（不含已软删除）。
+
+        Returns:
+            {items, total, page, page_size}，与用户列表等接口分页口径一致。
+        """
+        skip = (page - 1) * page_size
+        rows, total = self._repository.search_by_keyword(keyword=keyword, skip=skip, limit=page_size)
+        return {
+            "items": [self._to_response(r) for r in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
 
     def get_by_id(self, id: int) -> OpenApiAppResponse:
         """根据 ID 查询应用详情，不存在抛 NotFound。"""

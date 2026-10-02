@@ -43,31 +43,29 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import request from '@/api/request'
+import { listPermissions } from '@/api/permission'
+import type { PermissionItem } from '@/types/role'
 
 const route = useRoute()
 
-const list = ref<any[]>([])
+const list = ref<PermissionItem[]>([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const keyword = ref('')
 
-
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/permissions', {
-      params: {
-        page: page.value,
-        page_size: pageSize.value,
-        keyword: keyword.value.trim() || undefined,
-      },
+    const res = await listPermissions({
+      page: page.value,
+      page_size: pageSize.value,
+      keyword: keyword.value.trim() || undefined,
     })
     list.value = res.data.items
     total.value = res.data.total
-  } catch (e) {
+  } catch {
     // 错误已处理
   } finally {
     loading.value = false
@@ -86,11 +84,14 @@ onMounted(() => {
 })
 
 // 全局搜索跳转携带 keyword 时自动过滤
-watch(() => route.query.keyword, (q) => {
-  if (q) {
-    keyword.value = String(q)
-    page.value = 1
-    fetchList()
-  }
-})
+watch(
+  () => route.query.keyword,
+  q => {
+    if (q) {
+      keyword.value = String(q)
+      page.value = 1
+      fetchList()
+    }
+  },
+)
 </script>

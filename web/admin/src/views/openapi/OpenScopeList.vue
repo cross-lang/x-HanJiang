@@ -32,19 +32,20 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import request from '@/api/request'
+import { listScopes } from '@/api/openapi'
+import type { OpenScope } from '@/types/openapi'
 
-const list = ref<any[]>([])
+const list = ref<OpenScope[]>([])
 const loading = ref(false)
 const keyword = ref('')
 
 const filteredList = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
   if (!kw) return list.value
-  return list.value.filter((row: any) =>
+  return list.value.filter(row =>
     [row.scope_code, row.scope_name, row.module_label, row.module, row.operation, row.description]
       .filter(Boolean)
-      .some((v: any) => String(v).toLowerCase().includes(kw))
+      .some(v => String(v).toLowerCase().includes(kw)),
   )
 })
 
@@ -52,8 +53,8 @@ function handleSearch() {
   // 前端过滤即时生效，无需重新请求
 }
 
-function operationType(op: string) {
-  const map: Record<string, string> = {
+function operationType(op: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' {
+  const map: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
     read: 'success',
     write: 'warning',
     delete: 'danger',
@@ -64,9 +65,9 @@ function operationType(op: string) {
 onMounted(async () => {
   loading.value = true
   try {
-    const res = await request.get('/admin/apps/scopes')
+    const res = await listScopes()
     list.value = res.data
-  } catch (e) {
+  } catch {
     // 错误已处理
   } finally {
     loading.value = false

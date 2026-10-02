@@ -1,6 +1,15 @@
 <template>
   <el-card>
-    <div style="margin-bottom: 16px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 8px">
+    <div
+      style="
+        margin-bottom: 16px;
+        text-align: right;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+      "
+    >
       <el-input
         v-model="keyword"
         :placeholder="searchPlaceholder"
@@ -29,14 +38,17 @@
         </el-table-column>
         <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <el-button size="small" link @click="showDetail(row)">详情</el-button>
+            <el-button size="small" link @click="showDetail(row as LoginLogItem)">详情</el-button>
           </template>
         </el-table-column>
       </template>
       <template v-else>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column label="操作人" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.operator_username }}{{ row.operator_real_name ? '（' + row.operator_real_name + '）' : '' }}</template>
+          <template #default="{ row }"
+            >{{ row.operator_username
+            }}{{ row.operator_real_name ? '（' + row.operator_real_name + '）' : '' }}</template
+          >
         </el-table-column>
         <el-table-column prop="entity_type" label="实体类型" min-width="120" />
         <el-table-column prop="action" label="操作" min-width="120" />
@@ -47,7 +59,7 @@
         </el-table-column>
         <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <el-button size="small" link @click="showDetail(row)">详情</el-button>
+            <el-button size="small" link @click="showDetail(row as AuditLogItem)">详情</el-button>
           </template>
         </el-table-column>
       </template>
@@ -61,34 +73,42 @@
     />
     <el-dialog v-model="detailVisible" :title="isLoginLog ? '登录详情' : '审计详情'" width="700px">
       <div v-if="detailRow">
-        <template v-if="isLoginLog">
+        <template v-if="loginDetail">
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="操作者">{{ detailRow.username }}（{{ detailRow.name || '-' }}）</el-descriptions-item>
-            <el-descriptions-item label="操作时间">{{ detailRow.created_at }}</el-descriptions-item>
-            <el-descriptions-item label="登录方式">{{ detailRow.login_type }}</el-descriptions-item>
+            <el-descriptions-item label="操作者"
+              >{{ loginDetail.username }}（{{ loginDetail.name || '-' }}）</el-descriptions-item
+            >
+            <el-descriptions-item label="操作时间">{{ loginDetail.created_at }}</el-descriptions-item>
+            <el-descriptions-item label="登录方式">{{ loginDetail.login_type }}</el-descriptions-item>
             <el-descriptions-item label="状态">
-              <el-tag :type="detailRow.status === 'success' ? 'success' : 'danger'">
-                {{ loginStatusText(detailRow.status) }}
+              <el-tag :type="loginDetail.status === 'success' ? 'success' : 'danger'">
+                {{ loginStatusText(loginDetail.status) }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="IP">{{ detailRow.ip_address }}</el-descriptions-item>
-            <el-descriptions-item label="用户ID">{{ detailRow.user_id ?? '-' }}</el-descriptions-item>
+            <el-descriptions-item label="IP">{{ loginDetail.ip_address }}</el-descriptions-item>
+            <el-descriptions-item label="用户ID">{{ loginDetail.user_id ?? '-' }}</el-descriptions-item>
           </el-descriptions>
         </template>
-        <template v-else>
+        <template v-else-if="auditDetail">
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="操作者">{{ detailRow.operator_username }}（{{ detailRow.operator_real_name || '-' }}）</el-descriptions-item>
-            <el-descriptions-item label="操作时间">{{ detailRow.created_at }}</el-descriptions-item>
-            <el-descriptions-item label="实体类型">{{ detailRow.entity_type }}</el-descriptions-item>
-            <el-descriptions-item label="操作">{{ detailRow.action }}</el-descriptions-item>
-            <el-descriptions-item label="IP">{{ detailRow.ip_address }}</el-descriptions-item>
-            <el-descriptions-item label="备注">{{ detailRow.remarks }}</el-descriptions-item>
+            <el-descriptions-item label="操作者"
+              >{{ auditDetail.operator_username }}（{{ auditDetail.operator_real_name || '-' }}）</el-descriptions-item
+            >
+            <el-descriptions-item label="操作时间">{{ auditDetail.created_at }}</el-descriptions-item>
+            <el-descriptions-item label="实体类型">{{ auditDetail.entity_type }}</el-descriptions-item>
+            <el-descriptions-item label="操作">{{ auditDetail.action }}</el-descriptions-item>
+            <el-descriptions-item label="IP">{{ auditDetail.ip_address }}</el-descriptions-item>
+            <el-descriptions-item label="备注">{{ auditDetail.remarks }}</el-descriptions-item>
           </el-descriptions>
           <el-divider />
           <h4>变更前数据</h4>
-          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.before_data, null, 2) }}</pre>
+          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{
+            JSON.stringify(auditDetail.before_data, null, 2)
+          }}</pre>
           <h4>变更后数据</h4>
-          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{ JSON.stringify(detailRow.after_data, null, 2) }}</pre>
+          <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow: auto">{{
+            JSON.stringify(auditDetail.after_data, null, 2)
+          }}</pre>
         </template>
       </div>
     </el-dialog>
@@ -99,30 +119,44 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/format'
+import { downloadResponseBlob } from '@/utils/download'
+import {
+  listAuditLogs,
+  listLoginLogs,
+  getAuditLogDetail,
+  getLoginLogDetail,
+  exportAuditCsv,
+  exportLoginLogCsv,
+} from '@/api/audit'
+import type { AuditLogItem, LoginLogItem } from '@/types/audit'
 
 const route = useRoute()
 const userStore = useUserStore()
 const props = defineProps<{ logType?: string }>()
 const isLoginLog = computed(() => props.logType === 'login')
-const searchPlaceholder = computed(() =>
-  isLoginLog.value ? '按IP/状态/登录方式搜索' : '按操作人/IP/备注搜索'
-)
+const searchPlaceholder = computed(() => (isLoginLog.value ? '按IP/状态/登录方式搜索' : '按操作人/IP/备注搜索'))
 
-const list = ref<any[]>([])
+const list = ref<(AuditLogItem | LoginLogItem)[]>([])
 const detailVisible = ref(false)
-const detailRow = ref<any>(null)
+const detailRow = ref<AuditLogItem | LoginLogItem | null>(null)
 const loading = ref(false)
 
-async function showDetail(row: any) {
+/** 详情弹窗按当前类型收窄为具体结构 */
+const loginDetail = computed<LoginLogItem | null>(() =>
+  isLoginLog.value ? (detailRow.value as LoginLogItem | null) : null,
+)
+const auditDetail = computed<AuditLogItem | null>(() =>
+  isLoginLog.value ? null : (detailRow.value as AuditLogItem | null),
+)
+
+async function showDetail(row: AuditLogItem | LoginLogItem) {
   try {
-    const url = isLoginLog.value ? `/audit/login-logs/${row.id}` : `/audit/logs/${row.id}`
-    const res = await request.get(url)
+    const res = isLoginLog.value ? await getLoginLogDetail(row.id) : await getAuditLogDetail(row.id)
     detailRow.value = res.data
     detailVisible.value = true
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
@@ -140,26 +174,22 @@ const isMine = computed(() => route.query.mine === 'true')
 async function fetchList() {
   loading.value = true
   try {
-    const url = isLoginLog.value ? '/audit/login-logs' : '/audit/logs'
-    const params: any = {
+    const base = {
       page: page.value,
       page_size: pageSize.value,
       keyword: keyword.value.trim() || undefined,
     }
-    if (isMine.value) {
-      const myId = userStore.userInfo?.id
-      if (myId) {
-        if (isLoginLog.value) {
-          params.user_id = myId
-        } else {
-          params.operator_id = myId
-        }
-      }
+    const myId = userStore.userInfo?.id
+    if (isLoginLog.value) {
+      const res = await listLoginLogs(isMine.value && myId ? { ...base, user_id: myId } : base)
+      list.value = res.data.items
+      total.value = res.data.total
+    } else {
+      const res = await listAuditLogs(isMine.value && myId ? { ...base, operator_id: myId } : base)
+      list.value = res.data.items
+      total.value = res.data.total
     }
-    const res = await request.get(url, { params })
-    list.value = res.data.items
-    total.value = res.data.total
-  } catch (e) {
+  } catch {
     // 错误已处理
   } finally {
     loading.value = false
@@ -171,42 +201,30 @@ function handleSearch() {
   fetchList()
 }
 
-function fileNameFromDisposition(disposition: string | null, fallback: string): string {
-  if (!disposition) return fallback
-  const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition)
-  if (star) return decodeURIComponent(star[1].trim())
-  const plain = /filename=([^;]+)/i.exec(disposition)
-  if (plain) return plain[1].trim().replace(/"/g, '')
-  return fallback
-}
-
 async function handleExport() {
-  const token = localStorage.getItem('access_token') || ''
-  const isLogin = isLoginLog.value
-  const api = isLogin ? '/api/v1/audit/login-logs/export' : '/api/v1/audit/logs/export'
-  const fallback = isLogin ? 'login_logs_export.csv' : 'audit_logs_export.csv'
-  const r = await fetch(api, { headers: { Authorization: `Bearer ${token}` } })
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({}))
-    ElMessage.error(err.message || `导出失败（${r.status}）`)
-    return
+  try {
+    const params = { keyword: keyword.value.trim() || undefined }
+    const resp = isLoginLog.value ? await exportLoginLogCsv(params) : await exportAuditCsv(params)
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}))
+      ElMessage.error(err.message || `导出失败（${resp.status}）`)
+      return
+    }
+    await downloadResponseBlob(resp, isLoginLog.value ? 'login_logs_export.csv' : 'audit_logs_export.csv')
+  } catch {
+    ElMessage.error('导出失败，请稍后重试')
   }
-  const blob = await r.blob()
-  const filename = fileNameFromDisposition(r.headers.get('content-disposition'), fallback)
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
 }
 
 onMounted(() => {
   fetchList()
 })
 
-watch(() => props.logType, () => {
-  page.value = 1
-  fetchList()
-})
+watch(
+  () => props.logType,
+  () => {
+    page.value = 1
+    fetchList()
+  },
+)
 </script>

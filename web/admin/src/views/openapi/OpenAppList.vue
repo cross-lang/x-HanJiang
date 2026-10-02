@@ -32,7 +32,9 @@
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'active' ? 'success' : 'danger'">{{ row.status === 'active' ? '启用' : '禁用' }}</el-tag>
+          <el-tag :type="row.status === 'active' ? 'success' : 'danger'">{{
+            row.status === 'active' ? '启用' : '禁用'
+          }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="owner_name" label="拥有者" width="120" />
@@ -41,12 +43,16 @@
       </el-table-column>
       <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button size="small" type="warning" @click="handleRotateKey(row)">重置密钥</el-button>
-          <el-button size="small" :type="row.status === 'active' ? 'warning' : 'success'" @click="handleToggleStatus(row)">
+          <el-button size="small" @click="handleEdit(row as OpenAppItem)">编辑</el-button>
+          <el-button size="small" type="warning" @click="handleRotateKey(row as OpenAppItem)">重置密钥</el-button>
+          <el-button
+            size="small"
+            :type="row.status === 'active' ? 'warning' : 'success'"
+            @click="handleToggleStatus(row as OpenAppItem)"
+          >
             {{ row.status === 'active' ? '禁用' : '启用' }}
           </el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(row as OpenAppItem)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -56,6 +62,7 @@
       v-model:page-size="pageSize"
       :total="total"
       @current-change="fetchList"
+      @size-change="handleSizeChange"
     />
   </el-card>
 
@@ -82,15 +89,14 @@
               <el-checkbox
                 :model-value="isGroupAllChecked(items, form.scopes)"
                 :indeterminate="isGroupIndeterminate(items, form.scopes)"
-                @change="(val: any) => toggleGroup(items, form.scopes, val)"
+                @change="(val: string | number | boolean) => toggleGroup(items, form.scopes, Boolean(val))"
                 @click.stop
-              >{{ moduleLabel(module, items) }}</el-checkbox>
+                >{{ moduleLabel(module, items) }}</el-checkbox
+              >
             </template>
             <el-checkbox-group v-model="form.scopes">
               <div v-for="s in items" :key="s.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="s.scope_code">
-                  {{ s.scope_name }}（{{ s.scope_code }}）
-                </el-checkbox>
+                <el-checkbox :value="s.scope_code"> {{ s.scope_name }}（{{ s.scope_code }}） </el-checkbox>
               </div>
             </el-checkbox-group>
           </el-collapse-item>
@@ -126,15 +132,14 @@
               <el-checkbox
                 :model-value="isGroupAllChecked(items, editForm.scopes)"
                 :indeterminate="isGroupIndeterminate(items, editForm.scopes)"
-                @change="(val: any) => toggleGroup(items, editForm.scopes, val)"
+                @change="(val: string | number | boolean) => toggleGroup(items, editForm.scopes, Boolean(val))"
                 @click.stop
-              >{{ moduleLabel(module, items) }}</el-checkbox>
+                >{{ moduleLabel(module, items) }}</el-checkbox
+              >
             </template>
             <el-checkbox-group v-model="editForm.scopes">
               <div v-for="s in items" :key="s.id" style="margin-bottom: 8px; margin-left: 10px">
-                <el-checkbox :value="s.scope_code">
-                  {{ s.scope_name }}（{{ s.scope_code }}）
-                </el-checkbox>
+                <el-checkbox :value="s.scope_code"> {{ s.scope_name }}（{{ s.scope_code }}） </el-checkbox>
               </div>
             </el-checkbox-group>
           </el-collapse-item>
@@ -152,11 +157,11 @@
     <el-alert type="success" :closable="false" style="margin-bottom: 16px">
       请妥善保存 App Key，关闭后将无法再次查看！
     </el-alert>
-    <p style="display:flex;align-items:center;gap:8px;">
+    <p style="display: flex; align-items: center; gap: 8px">
       <strong>App ID：</strong><span>{{ createdApp.app_id }}</span>
       <el-button size="small" @click="copyText(createdApp.app_id)">复制</el-button>
     </p>
-    <p style="display:flex;align-items:center;gap:8px;">
+    <p style="display: flex; align-items: center; gap: 8px">
       <strong>App Key：</strong><span>{{ createdApp.app_key }}</span>
       <el-button size="small" @click="copyText(createdApp.app_key)">复制</el-button>
     </p>
@@ -170,11 +175,11 @@
     <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
       旧 App Key 已失效，请立即通知调用方更新！新 Key 关闭后无法再次查看。
     </el-alert>
-    <p style="display:flex;align-items:center;gap:8px;">
+    <p style="display: flex; align-items: center; gap: 8px">
       <strong>App ID：</strong><span>{{ rotateResult.app_id }}</span>
       <el-button size="small" @click="copyText(rotateResult.app_id)">复制</el-button>
     </p>
-    <p style="display:flex;align-items:center;gap:8px;">
+    <p style="display: flex; align-items: center; gap: 8px">
       <strong>新 App Key：</strong><span>{{ rotateResult.app_key }}</span>
       <el-button size="small" @click="copyText(rotateResult.app_key)">复制</el-button>
     </p>
@@ -188,12 +193,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/request'
 import { formatDateTime } from '@/utils/format'
+import { listApps, listScopes, createApp, updateApp, updateAppStatus, rotateAppKey, deleteApp } from '@/api/openapi'
+import type { OpenAppItem, OpenScope, OpenAppFormPayload } from '@/types/openapi'
 
 const route = useRoute()
 
-const list = ref<any[]>([])
+const list = ref<OpenAppItem[]>([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
@@ -202,21 +208,27 @@ const keyword = ref('')
 
 const dialogVisible = ref(false)
 const resultVisible = ref(false)
-const form = ref({ name: '', description: '', auth_mode: 'plain', scopes: [] as string[] })
-const createdApp = ref({ app_id: '', app_key: '' })
+const form = ref<OpenAppFormPayload>({ name: '', description: '', auth_mode: 'plain', scopes: [] })
+const createdApp = ref<{ app_id: string; app_key: string }>({ app_id: '', app_key: '' })
 
 const rotateResultVisible = ref(false)
-const rotateResult = ref({ app_id: '', app_key: '' })
+const rotateResult = ref<{ app_id: string; app_key: string }>({ app_id: '', app_key: '' })
 
 const editDialogVisible = ref(false)
-const editForm = ref({ id: 0, name: '', description: '', auth_mode: 'plain', scopes: [] as string[] })
+const editForm = ref<{ id: number } & OpenAppFormPayload>({
+  id: 0,
+  name: '',
+  description: '',
+  auth_mode: 'plain',
+  scopes: [],
+})
 
-const scopeList = ref<any[]>([])
+const scopeList = ref<OpenScope[]>([])
 const activeGroups = ref<string[]>([])
 const editActiveGroups = ref<string[]>([])
 
 const groupedScopes = computed(() => {
-  const groups: Record<string, any[]> = {}
+  const groups: Record<string, OpenScope[]> = {}
   for (const s of scopeList.value) {
     const mod = s.module || '其他'
     if (!groups[mod]) groups[mod] = []
@@ -225,17 +237,17 @@ const groupedScopes = computed(() => {
   return groups
 })
 
-function isGroupAllChecked(items: any[], selected: string[]): boolean {
-  return items.length > 0 && items.every((s: any) => selected.includes(s.scope_code))
+function isGroupAllChecked(items: OpenScope[], selected: string[]): boolean {
+  return items.length > 0 && items.every(s => selected.includes(s.scope_code))
 }
 
-function isGroupIndeterminate(items: any[], selected: string[]): boolean {
-  const checked = items.filter((s: any) => selected.includes(s.scope_code)).length
+function isGroupIndeterminate(items: OpenScope[], selected: string[]): boolean {
+  const checked = items.filter(s => selected.includes(s.scope_code)).length
   return checked > 0 && checked < items.length
 }
 
-function toggleGroup(items: any[], selected: string[], val: any) {
-  const codes = items.map((s: any) => s.scope_code)
+function toggleGroup(items: OpenScope[], selected: string[], val: boolean) {
+  const codes = items.map(s => s.scope_code)
   if (val) {
     for (const c of codes) {
       if (!selected.includes(c)) selected.push(c)
@@ -248,7 +260,7 @@ function toggleGroup(items: any[], selected: string[], val: any) {
   }
 }
 
-function moduleLabel(mod: string, items: any[]): string {
+function moduleLabel(mod: string, items: OpenScope[]): string {
   return items[0]?.module_label || mod
 }
 
@@ -259,12 +271,14 @@ function copyText(text: string) {
 async function fetchList() {
   loading.value = true
   try {
-    const res = await request.get('/admin/apps', {
-      params: { page: page.value, page_size: pageSize.value, keyword: keyword.value.trim() || undefined },
+    const res = await listApps({
+      page: page.value,
+      page_size: pageSize.value,
+      keyword: keyword.value.trim() || undefined,
     })
-    list.value = res.data
-    total.value = res.data.length
-  } catch (e) {
+    list.value = res.data.items
+    total.value = res.data.total
+  } catch {
     // 错误已处理
   } finally {
     loading.value = false
@@ -276,8 +290,13 @@ function handleSearch() {
   fetchList()
 }
 
+function handleSizeChange() {
+  page.value = 1
+  fetchList()
+}
+
 async function fetchScopes() {
-  const res = await request.get('/admin/apps/scopes')
+  const res = await listScopes()
   scopeList.value = res.data
 }
 
@@ -289,24 +308,31 @@ function handleCreate() {
 
 async function handleSubmit() {
   try {
-    const res = await request.post('/admin/apps', form.value)
-    createdApp.value = res.data
+    const res = await createApp(form.value)
+    createdApp.value = { app_id: res.data.app_id, app_key: res.data.app_key }
     dialogVisible.value = false
     resultVisible.value = true
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-function handleEdit(row: any) {
-  editForm.value = { id: row.id, name: row.name, description: row.description || '', auth_mode: row.auth_mode, scopes: [...row.scopes] }
+function handleEdit(row: OpenAppItem) {
+  editForm.value = {
+    id: row.id,
+    name: row.name,
+    description: row.description || '',
+    auth_mode: row.auth_mode,
+    scopes: [...row.scopes],
+  }
   editDialogVisible.value = true
+  fetchScopes()
 }
 
 async function handleUpdate() {
   try {
-    await request.put(`/admin/apps/${editForm.value.id}`, {
+    await updateApp(editForm.value.id, {
       name: editForm.value.name,
       description: editForm.value.description,
       auth_mode: editForm.value.auth_mode,
@@ -315,58 +341,65 @@ async function handleUpdate() {
     ElMessage.success('更新成功')
     editDialogVisible.value = false
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-async function handleToggleStatus(row: any) {
+async function handleToggleStatus(row: OpenAppItem) {
   const newStatus = row.status === 'active' ? 'disabled' : 'active'
   try {
     await ElMessageBox.confirm(
       `确定${newStatus === 'active' ? '启用' : '禁用'}应用「${row.name}」吗？`,
       '危险操作确认',
-      { type: 'warning' }
+      { type: 'warning' },
     )
-  } catch { return }
+  } catch {
+    return
+  }
   try {
-    await request.put(`/admin/apps/${row.id}/status`, { status: newStatus })
+    await updateAppStatus(row.id, newStatus)
     ElMessage.success(newStatus === 'active' ? '已启用' : '已禁用')
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-async function handleRotateKey(row: any) {
+async function handleRotateKey(row: OpenAppItem) {
   try {
     await ElMessageBox.confirm(
       `确定重置应用「${row.name}」的 App Key 吗？重置后旧 Key 将立即失效，所有正在使用旧 Key 的调用都会失败！`,
       '危险操作确认',
-      { type: 'warning', confirmButtonText: '确定重置' }
+      { type: 'warning', confirmButtonText: '确定重置' },
     )
-  } catch { return }
+  } catch {
+    return
+  }
   try {
-    const res = await request.post(`/admin/apps/${row.id}/rotate-key`)
+    const res = await rotateAppKey(row.id)
     rotateResult.value = { app_id: res.data.app_id, app_key: res.data.app_key }
     rotateResultVisible.value = true
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
 
-async function handleDelete(row: any) {  try {
+async function handleDelete(row: OpenAppItem) {
+  try {
     await ElMessageBox.confirm(
       `确定删除应用「${row.name}」吗？删除后该应用将无法调用任何接口，此操作不可撤销！`,
       '危险操作确认',
-      { type: 'error', confirmButtonText: '确定删除' }
+      { type: 'error', confirmButtonText: '确定删除' },
     )
-  } catch { return }
+  } catch {
+    return
+  }
   try {
-    await request.delete(`/admin/apps/${row.id}`)
+    await deleteApp(row.id)
     ElMessage.success('删除成功')
     fetchList()
-  } catch (e) {
+  } catch {
     // 错误已处理
   }
 }
@@ -378,11 +411,14 @@ onMounted(() => {
 })
 
 // 全局搜索跳转携带 keyword 时自动过滤
-watch(() => route.query.keyword, (q) => {
-  if (q) {
-    keyword.value = String(q)
-    page.value = 1
-    fetchList()
-  }
-})
+watch(
+  () => route.query.keyword,
+  q => {
+    if (q) {
+      keyword.value = String(q)
+      page.value = 1
+      fetchList()
+    }
+  },
+)
 </script>

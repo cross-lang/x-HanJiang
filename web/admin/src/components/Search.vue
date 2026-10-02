@@ -20,19 +20,12 @@
       <template v-if="hasResults">
         <div v-for="cat in visibleCategories" :key="cat.key" class="search-group">
           <div class="group-title">{{ cat.label }}</div>
-          <div
-            v-for="item in results[cat.key]"
-            :key="item.id"
-            class="group-item"
-            @mousedown.prevent="goTo(cat, item)"
-          >
+          <div v-for="item in results[cat.key]" :key="item.id" class="group-item" @mousedown.prevent="goTo(cat)">
             <div class="item-main">{{ itemTitle(cat, item) }}</div>
             <div class="item-sub">{{ itemSub(cat, item) }}</div>
           </div>
         </div>
-        <div class="panel-footer" @mousedown.prevent="jumpAll">
-          在「{{ keyword }}」中搜索全部结果
-        </div>
+        <div class="panel-footer" @mousedown.prevent="jumpFirst">在「{{ keyword }}」中搜索全部结果</div>
       </template>
       <div v-else-if="!loading" class="search-empty">未找到与 “{{ keyword }}” 相关的结果</div>
     </div>
@@ -43,18 +36,21 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
-import request from '@/api/request'
+import { search as searchApi } from '@/api/search'
+import type { SearchHit } from '@/types/search'
 
 const router = useRouter()
 const wrapRef = ref<HTMLElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
 
 const keyword = ref('')
-const results = ref<Record<string, any[]>>({})
+const results = ref<Record<string, SearchHit[]>>({})
 const loading = ref(false)
 const panelVisible = ref(false)
 
 let debounceTimer: number | undefined
+/** 请求序号：丢弃过期响应，避免快速输入时结果乱序覆盖 */
+let searchSeq = 0
 
 const categories = [
   { key: 'users', label: '用户', path: '/users' },
@@ -66,9 +62,9 @@ const categories = [
   { key: 'announcements', label: '公告', path: '/announcements' },
 ] as const
 
-const visibleCategories = computed(() =>
-  categories.filter((c) => (results.value[c.key] || []).length > 0)
-)
+type SearchCategory = (typeof categories)[number]
+
+const visibleCategories = computed(() => categories.filter(c => (results.value[c.key] || []).length > 0))
 const hasResults = computed(() => visibleCategories.value.length > 0)
 
 function onInput() {
@@ -86,52 +82,57 @@ function onInput() {
 async function fetchSearch() {
   const kw = keyword.value.trim()
   if (!kw) return
+  const seq = ++searchSeq
   loading.value = true
   try {
-    const res = await request.get('/search', { params: { keyword: kw, limit: 5 } })
+    const res = await searchApi(kw, 5)
+    if (seq !== searchSeq) return
     results.value = res.data || {}
-  } catch (e) {
-    results.value = {}
+  } catch {
+    if (seq === searchSeq) results.value = {}
   } finally {
-    loading.value = false
+    if (seq === searchSeq) loading.value = false
   }
 }
 
-function itemTitle(cat: (typeof categories)[number], item: any): string {
+function itemTitle(cat: SearchCategory, item: SearchHit): string {
   switch (cat.key) {
     case 'users':
-      return item.name || item.username
+      return String(item.name || item.username || '')
     case 'roles':
-      return item.role_name
+      return String(item.role_name ?? '')
     case 'permissions':
-      return item.perm_name
+      return String(item.perm_name ?? '')
     case 'apps':
-      return item.name
+      return String(item.name ?? '')
     case 'notices':
-      return item.title
     case 'announcements':
-      return item.title
+      return String(item.title ?? '')
     default:
-      return item.original_name
+      return String(item.original_name ?? '')
   }
 }
 
-function itemSub(cat: (typeof categories)[number], item: any): string {
+function itemSub(cat: SearchCategory, item: SearchHit): string {
   switch (cat.key) {
     case 'users':
-      return `${item.username} · ${item.email || ''}`
+      return `${String(item.username ?? '')} · ${String(item.email ?? '')}`
     case 'roles':
-      return item.role_code
+      return String(item.role_code ?? '')
     case 'permissions':
-      return item.perm_code
+      return String(item.perm_code ?? '')
     case 'apps':
-      return item.app_id
+      return String(item.app_id ?? '')
     case 'notices':
-      return noticeTypeLabel(item.notice_type) + ' · ' + noticeStatusLabel(item.status)
+      return noticeTypeLabel(String(item.notice_type ?? '')) + ' · ' + noticeStatusLabel(String(item.status ?? ''))
     case 'announcements':
-      return announcementStatusLabel(item.status) + ' · ' + announcementPositionLabel(item.position)
+      return (
+        announcementStatusLabel(String(item.status ?? '')) +
+        ' · ' +
+        announcementPositionLabel(String(item.position ?? ''))
+      )
     default:
-      return item.folder || (item.extension ? item.extension.toUpperCase() : '')
+      return String(item.folder ?? (item.extension ? String(item.extension).toUpperCase() : ''))
   }
 }
 
@@ -151,16 +152,12 @@ function announcementPositionLabel(position: string): string {
   return position === 'banner' ? '首页横幅' : '首页板块'
 }
 
-function goTo(cat: (typeof categories)[number], item: any) {
+function goTo(cat: SearchCategory) {
   jumpTo(cat.path)
 }
 
+/** Enter / 底部“查看全部”：跳转到首个有结果的分类页面 */
 function jumpFirst() {
-  const first = visibleCategories.value[0]
-  if (first) jumpTo(first.path)
-}
-
-function jumpAll() {
   const first = visibleCategories.value[0]
   if (first) jumpTo(first.path)
 }
@@ -225,7 +222,9 @@ onBeforeUnmount(() => {
   border: 1px solid #dcdfe6;
   border-radius: 10px;
   background: #fff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .search-input-wrap:focus-within {

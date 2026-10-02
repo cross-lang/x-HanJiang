@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getCurrentUser, getMenus } from '@/api/auth'
+import { clearToken, getToken, setToken as persistToken } from '@/utils/storage'
+import type { MenuItem, UserInfo } from '@/types/auth'
 
 export const useUserStore = defineStore('user', () => {
-  const userInfo = ref<any>(null)
-  const token = ref(localStorage.getItem('access_token') || '')
-  const menus = ref<any[]>([])
+  const userInfo = ref<UserInfo | null>(null)
+  const token = ref(getToken() || '')
+  const menus = ref<MenuItem[]>([])
   const permissions = ref<string[]>([])
 
   async function fetchUserInfo() {
@@ -28,7 +30,7 @@ export const useUserStore = defineStore('user', () => {
 
   function setToken(t: string) {
     token.value = t
-    localStorage.setItem('access_token', t)
+    persistToken(t)
   }
 
   function logout() {
@@ -36,7 +38,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = null
     menus.value = []
     permissions.value = []
-    localStorage.removeItem('access_token')
+    clearToken()
   }
 
   return { userInfo, token, menus, permissions, fetchUserInfo, fetchMenus, hasPerm, setToken, logout }
