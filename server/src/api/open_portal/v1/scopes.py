@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """开放平台 scope 目录接口（门户 JWT，供开发者建应用/申请权限时勾选）。
-路由前缀：/api/open/v1/scopes
+路由前缀：/api/open-portal/v1/scopes
 说明：scope 元数据唯一来源为 constants/scopes.py 启动时对账的 openapi_scopes 表，
 与管理端 /api/v1/admin/apps/scopes 数据一致（共享 repository 与公共映射函数），
 入口归属开发者门户域，不反向依赖管理端服务。

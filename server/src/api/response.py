@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from src.constants import ApiResponseMessage, HttpStatusCode
+from src.constants import HttpStatusCode
 from src.schemas.common import ApiResponse
 
 

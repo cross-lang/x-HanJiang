@@ -24,6 +24,7 @@ API_PREFIX: str = "/api"
 ADMIN_PREFIX: str = "/admin"
 PORTAL_PREFIX: str = "/portal"
 OPEN_PREFIX: str = "/open"
+OPEN_PORTAL_PREFIX: str = "/open-portal"
 API_VERSION_V1_PREFIX: str = "/v1"
 
 

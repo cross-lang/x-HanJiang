@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.api_permission_decorator import sync_permissions_to_db
 from src.api.openapi_scope_decorator import sync_scopes_to_db
-from src.api.router import api_router, open_router
+from src.api.router import api_router, open_portal_api_router, open_router
 from src.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from src.core.config import settings
 from src.core.exceptions import register_exception_handlers
@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
     logger.info("Notification system initialized successfully")
 
     yield
-    
+
     logger.info(f"{APP_NAME} shutting down...")
     if retry_task is not None:
         retry_task.cancel()
@@ -159,7 +159,9 @@ def create_app() -> FastAPI:
     get_cached_rate_limiter_provider().setup(app)
     # 认证用户路由（面向用户，JWT 鉴权）
     app.include_router(api_router)
-    # 开放平台路由（面向应用，AppId/AppKey 鉴权）
+    # 开放平台门户路由（面向开发者网页端，会话 JWT + Redis 登录态）
+    app.include_router(open_portal_api_router)
+    # 开放接口路由（面向外部应用，AppId/AppKey 鉴权）
     app.include_router(open_router)
     return app
 

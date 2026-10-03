@@ -85,7 +85,7 @@ async function handleLogin() {
   loading.value = true
   try {
     const res = await login(form.value)
-    developerStore.setToken(res.data.access_token)
+    developerStore.setToken(res.data.access_token, res.data.refresh_token)
     ElMessage.success('登录成功')
     router.push('/home')
   } catch {

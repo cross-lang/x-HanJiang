@@ -17,8 +17,7 @@ permissions 表并绑定给内置角色，但会被启动同步标记为 depreca
 
 from __future__ import annotations
 
-from src.constants.base import StrBaseEnum, BaseEnum
-
+from src.constants.base import BaseEnum, StrBaseEnum
 
 
 class PermissionModule(StrBaseEnum):

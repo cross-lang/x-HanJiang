@@ -3,11 +3,9 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import CurrentApp, get_current_app, require_app_scope
-from src.api.openapi_scope_decorator import app_scope
+from src.api.dependencies import get_current_app
 from src.api.response import success_response
 from src.constants import APP_NAME, APP_VERSION
-from src.constants.scopes import OpenApiScopeCode
 
 router = APIRouter(tags=["开放平台：健康管理"])
 

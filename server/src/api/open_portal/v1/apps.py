@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """开放平台开发者应用接口（门户 JWT，owner 隔离）。
-路由前缀：/api/open/v1/apps
+路由前缀：/api/open-portal/v1/apps
 说明：数据表 openapi_apps 与管理端共用，归属 owner_type='developer' + owner_id=当前开发者；
 开发者只能查询/操作本人名下应用（他人应用一律 404，不暴露存在性）。
 """

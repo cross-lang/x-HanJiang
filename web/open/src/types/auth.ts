@@ -17,10 +17,12 @@ export interface LoginRequest {
   password: string
 }
 
-/** 登录结果 */
+/** 登录结果（有状态会话：JWT + 服务端登录态，登出/改密后旧令牌即失效） */
 export interface LoginResult {
   access_token: string
+  refresh_token: string
   token_type: string
+  expires_in: number
 }
 
 /** 修改密码请求 */

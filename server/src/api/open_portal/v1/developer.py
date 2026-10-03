@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """开放平台开发者资料与认证接口（门户 JWT）。
-路由前缀：/api/open/v1/developer
+路由前缀：/api/open-portal/v1/developer
 """
 
 from fastapi import APIRouter, Depends, Request

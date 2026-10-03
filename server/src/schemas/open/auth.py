@@ -28,10 +28,17 @@ class DeveloperLoginRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DeveloperRefreshRequest(BaseModel):
+    """开发者刷新令牌请求。"""
+
+    refresh_token: str = Field(min_length=1, description="刷新令牌")
+
+
 class DeveloperTokenResponse(BaseModel):
-    """开发者登录令牌响应。"""
+    """开发者登录令牌响应（有状态会话：JWT + Redis 登录态，登出/改密后可撤销）。"""
 
     access_token: str = Field(description="访问令牌")
+    refresh_token: str = Field(description="刷新令牌（用于续期，登出后失效）")
     token_type: str = Field(default="Bearer", description="令牌类型")
     expires_in: int = Field(description="访问令牌有效期（秒）")
 

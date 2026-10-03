@@ -4,8 +4,8 @@ import type { ApiResponse } from '@/types/api'
 import { clearToken, getToken } from '@/utils/storage'
 
 const http = axios.create({
-  // 开放平台门户自身接口统一挂在 /api/open/v1 前缀下（与管理系统 /api/v1 域隔离）
-  baseURL: '/api/open/v1',
+  // 开放平台门户自身接口统一挂在 /api/open-portal/v1 前缀下（与开放接口 /api/open/v1 网关鉴权完全隔离）
+  baseURL: '/api/open-portal/v1',
   timeout: 10000,
 })
 
