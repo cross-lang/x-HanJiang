@@ -28,7 +28,7 @@
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column label="角色" width="150">
         <template #default="{ row }">
-          {{ row.roles ? (row as UserItem).roles.map(r => r.role_name).join('；') : row.role_name || '-' }}
+          {{ (row as UserItem).roles?.length ? (row as UserItem).roles.map(r => r.role_name).join('；') : '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100">

@@ -161,7 +161,6 @@ class UserResponse(BaseModel):
         email: 邮箱
         phone: 手机号
         avatar_url: 头像URL
-        role_name: 角色名称
         status: 状态
         last_login_at: 最后登录时间
         last_login_ip: 最后登录IP
@@ -175,7 +174,6 @@ class UserResponse(BaseModel):
     name: str = Field(description="姓名")
     phone: str = Field(description="手机号")
     avatar_url: str | None = Field(default=None, description="头像URL")
-    role_name: str | None = Field(default=None, description="角色名称")
     roles: list[dict] = Field(default_factory=list, description="用户角色列表")
     status: str = Field(description="状态")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")

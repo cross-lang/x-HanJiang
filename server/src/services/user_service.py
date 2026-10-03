@@ -294,15 +294,12 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         return user
 
     def _to_response(self, entity: UserEntity) -> UserResponse:
-        """实体转响应 DTO，关联查询角色名称（经仓库）。"""
+        """实体转响应 DTO，关联查询角色列表（经仓库）。"""
         # 查询用户角色列表
         roles = []
-        role_name = None
         user_roles = self._repository.get_roles_by_user_id(entity.id)
         for role in user_roles:
             roles.append({"id": role.id, "role_name": role.role_name, "role_code": role.role_code})
-        if roles:
-            role_name = roles[0]["role_name"]
         return UserResponse(
             id=entity.id,
             username=entity.username,
@@ -312,7 +309,6 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             birthday=getattr(entity, "birthday", None),
             phone=entity.phone,
             avatar_url=entity.avatar_url,
-            role_name=role_name,
             roles=roles,
             status=entity.status or UserStatus.ENABLED.value,
             last_login_at=entity.last_login_at,

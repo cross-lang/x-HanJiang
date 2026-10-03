@@ -7,7 +7,6 @@ export interface UserItem {
   name: string
   phone: string
   avatar_url: string | null
-  role_name: string | null
   roles: { id: number; role_name: string; role_code?: string }[]
   status: string
   gender: string
