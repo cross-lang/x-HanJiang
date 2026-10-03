@@ -25,7 +25,7 @@ from src.schemas.role import (
     RoleResponse,
     RoleUpdateRequest,
 )
-from src.services.base_service import BaseService, audit_crud
+from src.services.admin.base_service import BaseService, audit_crud
 
 
 class RoleService(BaseService[RoleResponse, int, RoleRepository]):

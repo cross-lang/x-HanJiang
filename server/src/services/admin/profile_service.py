@@ -50,7 +50,7 @@ from src.schemas.profile import (
     NotificationRecipientUpdateRequest,
     UpdateMeRequest,
 )
-from src.services.station_service import StationMessageService
+from src.services.admin.station_service import StationMessageService
 from src.utils.security import hash_password, verify_password
 
 if TYPE_CHECKING:

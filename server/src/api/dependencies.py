@@ -26,12 +26,12 @@ from src.infras.database import get_db_session
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedRequest
 from src.schemas.openapi_app import CurrentApp
-from src.services.alert_service import AlertService
-from src.services.audit_service import AuditService
-from src.services.auth_service import AuthService
-from src.services.file_service import FileStorageService
-from src.services.health_service import HealthService
-from src.services.notification_service import NotificationService
+from src.services.admin.alert_service import AlertService
+from src.services.admin.audit_service import AuditService
+from src.services.admin.auth_service import AuthService
+from src.services.admin.file_service import FileStorageService
+from src.services.admin.health_service import HealthService
+from src.services.admin.notification_service import NotificationService
 from src.services.admin.permission_service import PermissionService
 
 if TYPE_CHECKING:
@@ -53,14 +53,14 @@ if TYPE_CHECKING:
     from src.services.admin.assistant_service import AssistantService
     from src.services.admin.dashboard_service import DashboardService
     from src.services.admin.login_log_service import LoginLogService
-    from src.services.openapi_app_service import OpenApiAppService
+    from src.services.admin.openapi_app_service import OpenApiAppService
     from src.services.admin.profile_service import ProfileService
     from src.services.admin.role_service import RoleService
     from src.services.admin.search_service import SearchService
-    from src.services.station_service import StationMessageService
-    from src.services.system_notification_config_service import SystemNotificationConfigService
-    from src.services.system_notification_service import SystemNotificationService
-    from src.services.user_service import UserService
+    from src.services.admin.station_service import StationMessageService
+    from src.services.admin.system_notification_config_service import SystemNotificationConfigService
+    from src.services.admin.system_notification_service import SystemNotificationService
+    from src.services.admin.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -152,7 +152,7 @@ def get_user_service(
     dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> UserService:
     """使用当前请求的 Repository 创建用户服务。"""
-    from src.services.user_service import UserService
+    from src.services.admin.user_service import UserService
 
     return UserService(
         user_repository=user_repository,
@@ -171,7 +171,7 @@ def get_alert_service(
 
 def get_health_service() -> HealthService:
     """获取健康检查服务（下游探测与告警编排在 service 层）。"""
-    from src.services.health_service import HealthService
+    from src.services.admin.health_service import HealthService
 
     return HealthService()
 
@@ -194,8 +194,8 @@ def get_system_notification_service(
     from src.repositories.station_message_repository import StationMessageRepository
     from src.repositories.system_notification_repository import SystemNotificationRepository
     from src.repositories.user_repository import UserRepository
-    from src.services.station_service import StationMessageService
-    from src.services.system_notification_service import SystemNotificationService
+    from src.services.admin.station_service import StationMessageService
+    from src.services.admin.system_notification_service import SystemNotificationService
 
     return SystemNotificationService(
         notice_repository=SystemNotificationRepository(session=db_session),
@@ -246,7 +246,7 @@ def get_system_notification_config_service(
     from src.repositories.system_notification_config_repository import (
         SystemNotificationConfigRepository,
     )
-    from src.services.system_notification_config_service import SystemNotificationConfigService
+    from src.services.admin.system_notification_config_service import SystemNotificationConfigService
 
     return SystemNotificationConfigService(repository=SystemNotificationConfigRepository(session=db_session))
 
@@ -336,7 +336,7 @@ def get_openapi_app_service(
 ) -> OpenApiAppService:
     """创建开放平台应用管理服务。"""
     from src.repositories.openapi_app_repository import OpenApiAppRepository
-    from src.services.openapi_app_service import OpenApiAppService
+    from src.services.admin.openapi_app_service import OpenApiAppService
 
     return OpenApiAppService(repo=OpenApiAppRepository(session=db_session))
 
@@ -458,7 +458,7 @@ def get_station_service(
 ) -> StationMessageService:
     """创建站内信服务。"""
     from src.repositories.station_message_repository import StationMessageRepository
-    from src.services.station_service import StationMessageService
+    from src.services.admin.station_service import StationMessageService
 
     return StationMessageService(repository=StationMessageRepository(session=db_session))
 

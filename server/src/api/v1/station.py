@@ -12,7 +12,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
-from src.services.station_service import StationMessageService
+from src.services.admin.station_service import StationMessageService
 
 router = APIRouter(prefix="/station/messages", tags=["站内信"])
 

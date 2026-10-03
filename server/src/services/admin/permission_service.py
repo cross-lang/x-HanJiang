@@ -26,7 +26,7 @@ from src.schemas.role import (
     PermissionResponse,
     RolePermissionResponse,
 )
-from src.services.base_service import BaseService
+from src.services.admin.base_service import BaseService
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher

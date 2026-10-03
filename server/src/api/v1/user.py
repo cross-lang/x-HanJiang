@@ -35,7 +35,7 @@ from src.schemas.user import (
     UserResponse,
     UserUpdateRequest,
 )
-from src.services.user_service import UserService
+from src.services.admin.user_service import UserService
 from src.utils.csv import build_csv_stream_response, parse_csv_rows
 
 router = APIRouter(prefix="/users", tags=["用户管理"])

@@ -15,7 +15,7 @@ from src.core.logger import logger
 from src.models.entities.announcement_entity import AnnouncementEntity
 from src.repositories.announcement_repository import AnnouncementRepository
 from src.schemas.announcement import AnnouncementCreateRequest, AnnouncementUpdateRequest
-from src.services.base_service import audit_crud
+from src.services.admin.base_service import audit_crud
 
 
 class AnnouncementService:
@@ -280,7 +280,7 @@ class AnnouncementService:
             remarks: 备注说明
         """
         try:
-            from src.services.audit_service import AuditService
+            from src.services.admin.audit_service import AuditService
 
             AuditService().log_event(
                 entity_type=self.entity_type,

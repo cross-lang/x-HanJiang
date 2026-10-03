@@ -79,7 +79,7 @@ class HealthService:
         try:
             from src.infras.notification import get_registry
             from src.notification.dispatcher import NotificationDispatcher
-            from src.services.alert_service import AlertService
+            from src.services.admin.alert_service import AlertService
 
             alert_email = settings.notification.alert_email
             if not alert_email:

@@ -249,7 +249,7 @@ class FileStorageService:
             remarks: 备注说明
         """
         try:
-            from src.services.audit_service import AuditService
+            from src.services.admin.audit_service import AuditService
 
             AuditService().log_event(
                 entity_type=self.entity_type,

@@ -28,7 +28,7 @@ def _disable_audit_writes(monkeypatch: pytest.MonkeyPatch) -> None:
         - 测试环境不连接真实数据库，符合模板"测试环境隔离"约束。
     """
     monkeypatch.setattr(
-        "src.services.audit_service.AuditService.log_event",
+        "src.services.admin.audit_service.AuditService.log_event",
         lambda *args, **kwargs: None,
     )
 

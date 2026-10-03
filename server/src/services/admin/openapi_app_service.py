@@ -31,7 +31,7 @@ from src.models.entities.app_entity import OpenApiAppEntity
 from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
-from src.services.base_service import BaseService, audit_crud
+from src.services.admin.base_service import BaseService, audit_crud
 from src.utils import security
 from src.utils.security import generate_secret_key
 

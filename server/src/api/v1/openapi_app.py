@@ -26,7 +26,7 @@ from src.schemas.openapi_app import (
     OpenApiAppStatusUpdateRequest,
     OpenApiAppUpdateRequest,
 )
-from src.services.openapi_app_service import OpenApiAppService
+from src.services.admin.openapi_app_service import OpenApiAppService
 
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
 

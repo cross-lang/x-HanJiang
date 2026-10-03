@@ -21,7 +21,7 @@ from src.schemas.auth import (
     LoginRequest,
     RefreshTokenRequest,
 )
-from src.services.auth_service import AuthService
+from src.services.admin.auth_service import AuthService
 from src.utils.helpers import get_client_ip
 
 router = APIRouter(prefix="/auth", tags=["身份认证"])

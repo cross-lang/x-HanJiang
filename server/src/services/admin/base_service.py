@@ -19,7 +19,7 @@
     └── AuditService       # 审计日志，是其他 Service 的依赖
 
 Usage:
-    from src.services.base_service import BaseService
+    from src.services.admin.base_service import BaseService
     from src.schemas.user import UserResponse
     class UserService(BaseService[UserResponse, int, UserRepository]):
         entity_type = "user"  # 用于审计日志
@@ -352,7 +352,7 @@ class BaseService(ABC, Generic[T, ID, RepoType]):
             remarks: 备注说明
         """
         try:
-            from src.services.audit_service import AuditService
+            from src.services.admin.audit_service import AuditService
 
             AuditService().log_event(
                 entity_type=self.entity_type,

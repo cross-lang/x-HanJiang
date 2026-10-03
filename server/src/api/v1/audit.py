@@ -19,7 +19,7 @@ from src.constants.permissions import PermissionAction, PermissionCode
 from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
 from src.schemas.auth import CurrentUser
-from src.services.audit_service import AuditService
+from src.services.admin.audit_service import AuditService
 from src.services.admin.login_log_service import LoginLogService
 from src.utils.csv import build_csv_stream_response
 

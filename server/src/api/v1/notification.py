@@ -25,9 +25,9 @@ from src.schemas.notification import (
     SystemNotificationResponse,
     UpdateNotificationConfigRequest,
 )
-from src.services.notification_service import NotificationService
-from src.services.system_notification_config_service import SystemNotificationConfigService
-from src.services.system_notification_service import SystemNotificationService
+from src.services.admin.notification_service import NotificationService
+from src.services.admin.system_notification_config_service import SystemNotificationConfigService
+from src.services.admin.system_notification_service import SystemNotificationService
 
 router = APIRouter(prefix="/notifications", tags=["通知管理"])
 

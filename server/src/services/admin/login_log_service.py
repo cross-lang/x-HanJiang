@@ -15,7 +15,7 @@ from src.models.entities.log_entity import LoginLogEntity
 from src.repositories.login_log_repository import LoginLogRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.login_log import LoginLogResponse
-from src.services.base_service import BaseService
+from src.services.admin.base_service import BaseService
 
 
 class LoginLogService(BaseService[LoginLogResponse, int, LoginLogRepository]):

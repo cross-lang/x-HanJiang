@@ -777,7 +777,7 @@ class AssistantService:
             event_data: navigate 事件数据（含 path）
         """
         try:
-            from src.services.audit_service import AuditService
+            from src.services.admin.audit_service import AuditService
 
             AuditService().log_event(
                 entity_type=ASSISTANT_ENTITY_TYPE,

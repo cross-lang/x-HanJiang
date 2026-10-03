@@ -18,7 +18,7 @@ from src.api.response import success_response
 from src.constants import APP_NAME
 from src.core.config import settings
 from src.schemas.health import HealthResponse, VersionResponse
-from src.services.health_service import HealthService
+from src.services.admin.health_service import HealthService
 
 router = APIRouter(tags=["健康检查"])
 

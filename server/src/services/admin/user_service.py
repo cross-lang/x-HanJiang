@@ -22,7 +22,7 @@ from src.notification.decorators import notify
 from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
-from src.services.base_service import BaseService, audit_crud
+from src.services.admin.base_service import BaseService, audit_crud
 from src.utils.security import hash_password, verify_password
 
 if TYPE_CHECKING:

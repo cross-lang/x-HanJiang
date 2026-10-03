@@ -27,7 +27,7 @@ from src.repositories.system_notification_repository import SystemNotificationRe
 from src.repositories.user_repository import UserRepository
 from src.schemas.common import PaginatedResponse
 from src.schemas.notification import SystemNotificationResponse
-from src.services.station_service import StationMessageService
+from src.services.admin.station_service import StationMessageService
 
 
 class SystemNotificationService:
@@ -299,7 +299,7 @@ class SystemNotificationService:
             remarks: 备注说明
         """
         try:
-            from src.services.audit_service import AuditService
+            from src.services.admin.audit_service import AuditService
 
             AuditService().log_event(
                 entity_type=self.entity_type,
