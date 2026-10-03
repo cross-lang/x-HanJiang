@@ -41,6 +41,13 @@ class OpenApiAppScopesUpdateRequest(BaseModel):
     scopes: list[str] = Field(description="最新 scope 列表，会完全覆盖原有值")
 
 
+class OpenApiAppApprovalRequest(BaseModel):
+    """审批开发者 scope 申请。"""
+
+    approved: bool = Field(description="是否通过（true 通过 / false 驳回）")
+    note: str | None = Field(default=None, max_length=255, description="审批意见/驳回原因")
+
+
 class OpenApiAppResponse(BaseModel):
     """应用列表/详情响应（绝不返回 AppKey 明文）。"""
 
@@ -52,8 +59,12 @@ class OpenApiAppResponse(BaseModel):
     status: str
     auth_mode: str
     rate_limit_per_minute: int
-    owner_user_id: int | None
+    owner_type: str
+    owner_id: int | None
+    owner_user_id: int | None = None
     owner_name: str | None = None
+    approval_status: str
+    approval_note: str | None = None
     last_used_at: datetime | None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)

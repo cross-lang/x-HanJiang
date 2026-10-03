@@ -81,6 +81,53 @@ class AppAuthMode(Enum):
     BOTH = "both"
 
 
+class AppOwnerType(StrBaseEnum):
+    """开放应用归属类型（对齐 openapi_apps.owner_type 列）。
+    DEVELOPER：开发者门户自助创建（owner_id → developers.id）；
+    ADMIN：    管理系统管理员分配/代建（owner_id → users.id）。
+    """
+
+    DEVELOPER = "developer", "开发者"
+    ADMIN = "admin", "管理员"
+
+
+class AppApprovalStatus(StrBaseEnum):
+    """开放应用 scope 审批状态（对齐 openapi_apps.approval_status 列）。
+    管理员直接配置 scope 的应用为 approved；开发者自助创建/申请 scope 后为 pending，
+    由管理员在管理系统审批通过（approved）或驳回（rejected）。
+    """
+
+    PENDING = "pending", "待审批"
+    APPROVED = "approved", "已通过"
+    REJECTED = "rejected", "已驳回"
+
+
+# ── 开放平台开发者域 ────────────────────────────────────
+
+
+class DeveloperStatus(StrBaseEnum):
+    """开放平台开发者账号状态（对齐 developers.status 列）。"""
+
+    ENABLED = "enabled", "启用"
+    DISABLED = "disabled", "禁用"
+
+
+class CertificationType(StrBaseEnum):
+    """开发者认证类型（对齐 developers.certification_type 列）。"""
+
+    PERSONAL = "personal", "个人认证"
+    ENTERPRISE = "enterprise", "企业认证"
+
+
+class CertificationStatus(StrBaseEnum):
+    """开发者认证状态（对齐 developers.certification_status 列）。"""
+
+    NONE = "none", "未认证"
+    PENDING = "pending", "审批中"
+    APPROVED = "approved", "已认证"
+    REJECTED = "rejected", "已驳回"
+
+
 # ── 通知域 ────────────────────────────────────────────
 
 

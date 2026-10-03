@@ -38,10 +38,15 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
     def search_by_keyword(
         self,
         keyword: str | None = None,
+        owner_type: str | None = None,
+        owner_id: int | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[OpenApiAppEntity], int]:
         """按名称关键字分页查询应用（不含已软删除，按主键升序保证分页稳定）。
+
+        归属过滤：传入 owner_type/owner_id 时仅返回该归属方名下的应用
+        （开发者门户"只看自己"、管理端按来源筛选共用此入口）。
 
         Returns:
             (当前页实体列表, 匹配总数)
@@ -49,13 +54,23 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         base = self._base_query()
         if keyword:
             base = base.where(OpenApiAppEntity.name.like(f"%{keyword}%"))
+        if owner_type:
+            base = base.where(OpenApiAppEntity.owner_type == owner_type)
+        if owner_id is not None:
+            base = base.where(OpenApiAppEntity.owner_id == owner_id)
         total = self.session.execute(select(func.count()).select_from(base.subquery())).scalar_one()
         stmt = base.order_by(OpenApiAppEntity.id).offset(skip).limit(limit)
         return list(self.session.execute(stmt).scalars().all()), total
 
     def get_owner_user(self, user_id: int) -> UserEntity | None:
-        """查询应用所属用户（跨实体只读查询，用于组装 owner 名称）。"""
+        """查询归属管理员用户（owner_type=admin 时组装 owner 名称）。"""
         return self.session.get(UserEntity, user_id)
+
+    def get_owner_developer(self, developer_id: int):
+        """查询归属开发者（owner_type=developer 时组装 owner 名称）。"""
+        from src.models.entities.developer_entity import DeveloperEntity
+
+        return self.session.get(DeveloperEntity, developer_id)
 
     def list_active_scopes(self) -> list[OpenApiScopeEntity]:
         """查询全部未废弃的开放平台 scope（按排序号与主键升序）。"""

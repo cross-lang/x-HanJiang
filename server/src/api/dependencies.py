@@ -25,6 +25,7 @@ from src.core.exceptions import AuthorizationException
 from src.infras.database import get_db_session
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedRequest
+from src.schemas.open.auth import CurrentDeveloper
 from src.schemas.openapi_app import CurrentApp
 from src.services.admin.alert_service import AlertService
 from src.services.admin.audit_service import AuditService
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
         AssistantFeedbackRepository,
         AssistantMessageRepository,
     )
+    from src.repositories.developer_repository import DeveloperRepository
     from src.repositories.login_log_repository import LoginLogRepository
     from src.repositories.menu_repository import MenuRepository
     from src.repositories.notification_preference_repository import NotificationPreferenceRepository
@@ -60,6 +62,9 @@ if TYPE_CHECKING:
     from src.services.admin.station_service import StationMessageService
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
     from src.services.admin.system_notification_service import SystemNotificationService
+    from src.services.open.auth_service import DeveloperAuthService
+    from src.services.open.developer_service import DeveloperService
+    from src.services.open.open_app_service import DeveloperOpenAppService
     from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -569,3 +574,56 @@ def require_app_scope(scope: str) -> Callable[..., CurrentApp]:
         return app
 
     return dependency
+
+
+# ============================================================
+
+# 开放平台开发者域（门户 JWT 鉴权）
+
+# ============================================================
+
+
+def get_developer_repository(
+    db_session: Session = Depends(get_db_session),
+) -> DeveloperRepository:
+    """获取开发者仓库实例。"""
+    from src.repositories.developer_repository import DeveloperRepository
+
+    return DeveloperRepository(session=db_session)
+
+
+def get_developer_auth_service(
+    developer_repository: DeveloperRepository = Depends(get_developer_repository),
+) -> DeveloperAuthService:
+    """获取开发者认证服务。"""
+    from src.services.open.auth_service import DeveloperAuthService
+
+    return DeveloperAuthService(repository=developer_repository)
+
+
+def get_developer_service(
+    developer_repository: DeveloperRepository = Depends(get_developer_repository),
+) -> DeveloperService:
+    """获取开发者资料服务。"""
+    from src.services.open.developer_service import DeveloperService
+
+    return DeveloperService(repository=developer_repository)
+
+
+def get_developer_open_app_service(
+    db_session: Session = Depends(get_db_session),
+) -> DeveloperOpenAppService:
+    """获取开发者应用管理服务。"""
+    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.services.open.open_app_service import DeveloperOpenAppService
+
+    return DeveloperOpenAppService(repo=OpenApiAppRepository(session=db_session))
+
+
+def get_current_developer(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    auth_service: DeveloperAuthService = Depends(get_developer_auth_service),
+) -> CurrentDeveloper:
+    """解析 Bearer 令牌，返回当前登录开发者（门户 JWT，与管理系统用户隔离）。"""
+    token = credentials.credentials if credentials is not None else None
+    return auth_service.get_current_developer(token)

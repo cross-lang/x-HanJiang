@@ -16,9 +16,11 @@ from src.api.dependencies import (
     require_user_permission,
 )
 from src.api.response import success_response
+from src.constants.enums import AppOwnerType
 from src.constants.permissions import PermissionCode
 from src.schemas.common import PaginatedResponse
 from src.schemas.openapi_app import (
+    OpenApiAppApprovalRequest,
     OpenApiAppCreatedResponse,
     OpenApiAppCreateRequest,
     OpenApiAppResponse,
@@ -66,7 +68,8 @@ def create_app(
         scopes=body.scopes,
         rate_limit_per_minute=body.rate_limit_per_minute,
         auth_mode=body.auth_mode,
-        owner_user_id=current_user.id,
+        owner_type=AppOwnerType.ADMIN.value,
+        owner_id=current_user.id,
         operator=get_user_operator_context(current_user, request),
     )
     data = OpenApiAppCreatedResponse(**resp.model_dump(), app_key=app_key).model_dump()
@@ -84,10 +87,11 @@ def list_apps(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
+    owner_type: str | None = None,
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
     """返回分页应用列表，结构与用户列表等接口一致：{items, total, page, page_size}。"""
-    result = service.list_apps(keyword=keyword, page=page, page_size=page_size)
+    result = service.list_apps(keyword=keyword, owner_type=owner_type, page=page, page_size=page_size)
     page_result = PaginatedResponse[OpenApiAppResponse](
         items=result["items"],
         total=result["total"],
@@ -156,6 +160,31 @@ def update_app_scopes(
         service.update_scopes(
             app_id,
             body.scopes,
+            operator=get_user_operator_context(current_user, request),
+        ).model_dump(),
+        request,
+    )
+
+
+@router.put(
+    "/{app_id}/approval",
+    summary="审批开发者 scope 申请",
+    description="通过/驳回开发者提交的 scope 申请并记录审批意见；通过仅置状态，scope 目标值由开发者申请端点写入",
+    dependencies=[Depends(require_user_permission(PermissionCode.OPENAPI_APP_SCOPES.mark))],
+)
+@permission(PermissionCode.OPENAPI_APP_SCOPES)
+def update_app_approval(
+    app_id: int,
+    body: OpenApiAppApprovalRequest,
+    request: Request,
+    current_user=Depends(get_current_user),
+    service: OpenApiAppService = Depends(get_openapi_app_service),
+):
+    return success_response(
+        service.update_approval(
+            app_id,
+            approved=body.approved,
+            note=body.note,
             operator=get_user_operator_context(current_user, request),
         ).model_dump(),
         request,

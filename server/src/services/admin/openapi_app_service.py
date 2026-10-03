@@ -2,13 +2,13 @@
 """开放平台应用业务逻辑。
 包含两部分：
 1. 管理员侧的应用 CRUD、密钥生成与重置（OpenApiAppService）；
-2. 开放平台协议相关的私有函数：AppId 生成规则、签名串拼装、scope 解析。
+2. 开放平台协议相关的私有函数：签名串拼装、HMAC 校验（通用函数 generate_app_id /
+   parse_scopes / scope 目录映射已抽至 src/utils/openapi_utils.py，此处 re-export 保持旧引用兼容）。
 通用加密原语（SHA256、Fernet、HMAC）在 src/utils/security.py。
 """
 
 from __future__ import annotations
 
-import secrets
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -24,7 +24,7 @@ from src.constants.constants import (
     OPENAPI_HEADER_DATE,
     OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
-from src.constants.enums import AppAuthMode, AppStatus, NotificationEvent
+from src.constants.enums import AppApprovalStatus, AppAuthMode, AppOwnerType, AppStatus, NotificationEvent
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import AuthenticationException, NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
@@ -33,28 +33,8 @@ from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
 from src.services.admin.base_service import BaseService, audit_crud
 from src.utils import security
+from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, parse_scopes
 from src.utils.security import generate_secret_key
-
-
-# ── 开放平台鉴权协议常量 ─────────────────────────────────
-# ============================================================
-# 开放平台协议：AppId 生成
-# ============================================================
-def generate_app_id() -> str:
-    """生成对外 AppId。
-    前缀 = 项目缩写 hj + 环境标识：
-        - 生产环境：hj_live_xxxxxxxx
-        - 其他环境：hj_test_xxxxxxxx
-    主体 16 字节随机 → 32 hex 字符，约 128bit 熵，抗枚举。
-    """
-    return f"hj_{secrets.token_hex(10)}"
-
-
-# ============================================================
-
-# 开放平台协议：HanJiang-1 签名串拼装
-
-# ============================================================
 
 
 def build_signing_string(
@@ -123,16 +103,9 @@ def _parse_http_date(date_str: str) -> datetime | None:
 
 # ============================================================
 
-# scope 解析
+# scope 解析（公共函数已抽至 src/utils/openapi_utils.py，此处 re-export 保持旧引用兼容）
 
 # ============================================================
-
-
-def parse_scopes(scopes: str | None) -> list[str]:
-    """库中逗号分隔的 scopes 字段 → list[str]，去空。"""
-    if not scopes:
-        return []
-    return [s.strip() for s in scopes.split(",") if s.strip()]
 
 
 # ============================================================
@@ -194,6 +167,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         return CurrentApp(
             app_id=app.app_id,
             name=app.name,
+            description=app.description,
             scopes=parse_scopes(app.scopes),
             auth_mode=mode.value,
             rate_limit_per_minute=app.rate_limit_per_minute,
@@ -257,10 +231,16 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         scopes: list[str],
         rate_limit_per_minute: int,
         auth_mode: str,
-        owner_user_id: int | None,
+        owner_type: str = AppOwnerType.ADMIN.value,
+        owner_id: int | None = None,
         operator: dict[str, Any] | None = None,
     ) -> tuple[OpenApiAppResponse, str]:
-        """新建应用，返回 (DTO, 明文 AppKey)。明文 AppKey 仅此次返回。"""
+        """新建应用，返回 (DTO, 明文 AppKey)。明文 AppKey 仅此次返回。
+
+        Args:
+            owner_type: 归属类型（admin=管理员分配，默认；developer=开发者自助，走开发者域接口）
+            owner_id: 归属方 ID（admin→users.id / developer→developers.id）
+        """
         app_id = generate_app_id()
         while self._repository.get_by_app_id(app_id) is not None:
             app_id = generate_app_id()
@@ -274,7 +254,9 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             scopes=",".join(scopes),
             rate_limit_per_minute=rate_limit_per_minute,
             auth_mode=auth_mode,
-            owner_user_id=owner_user_id,
+            owner_type=owner_type,
+            owner_id=owner_id,
+            approval_status=AppApprovalStatus.APPROVED.value,
             status=AppStatus.ACTIVE.value,
         )
         created = self._repository.create(entity)
@@ -289,41 +271,32 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         Returns:
             list[dict[str, Any]]: scope 列表，含模块中文名映射
         """
-        from src.constants.scopes import OpenApiScopeModule
-
         entities = self._repository.list_active_scopes()
-        result: list[dict[str, Any]] = []
-        for e in entities:
-            module_label = next(
-                (m.desc for m in OpenApiScopeModule if m.mark == e.module),
-                e.module,
-            )
-            result.append(
-                {
-                    "id": e.id,
-                    "scope_code": e.scope_code,
-                    "scope_name": e.scope_name,
-                    "module": e.module,
-                    "module_label": module_label,
-                    "operation": e.operation,
-                    "description": e.description,
-                }
-            )
-        return result
+        return build_scope_dict_list(entities)
 
     def list_apps(
         self,
         keyword: str | None = None,
+        owner_type: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
         """分页查询应用列表（不含已软删除）。
 
+        Args:
+            keyword: 按名称模糊搜索
+            owner_type: 按归属类型过滤（developer 开发者自助 / admin 管理员分配）
+
         Returns:
             {items, total, page, page_size}，与用户列表等接口分页口径一致。
         """
         skip = (page - 1) * page_size
-        rows, total = self._repository.search_by_keyword(keyword=keyword, skip=skip, limit=page_size)
+        rows, total = self._repository.search_by_keyword(
+            keyword=keyword,
+            owner_type=owner_type,
+            skip=skip,
+            limit=page_size,
+        )
         return {
             "items": [self._to_response(r) for r in rows],
             "total": total,
@@ -365,11 +338,36 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
     )
     @audit_crud(PermissionAction.SCOPES.mark)
     def update_scopes(self, id: int, scopes: list[str], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
-        """覆盖更新应用 scope 列表。"""
+        """覆盖更新应用 scope 列表（管理端授权操作，视为审批通过：置 approval_status=approved）。"""
         e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
         e.scopes = ",".join(scopes)
+        e.approval_status = AppApprovalStatus.APPROVED.value
+        self._repository.flush()
+        self._commit()
+        return self._to_response(e)
+
+    def update_approval(
+        self,
+        id: int,
+        *,
+        approved: bool,
+        note: str | None = None,
+        operator: dict[str, Any] | None = None,
+    ) -> OpenApiAppResponse:
+        """管理端审批开发者 scope 申请：通过（approved）或驳回（rejected）+ 审批意见。
+
+        通过仅置状态（scope 本身由开发者申请端点已写入目标值）；
+        驳回保留 pending 的 scopes 原值并记录驳回原因。
+        """
+        e = self._repository.get_by_id(id)
+        if e is None:
+            raise NotFoundException(message=f"应用 {id} 不存在")
+        e.approval_status = (
+            AppApprovalStatus.APPROVED.value if approved else AppApprovalStatus.REJECTED.value
+        )
+        e.approval_note = (note or "").strip() or None
         self._repository.flush()
         self._commit()
         return self._to_response(e)
@@ -417,9 +415,13 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     def _to_response(self, e: OpenApiAppEntity) -> OpenApiAppResponse:
         owner_name = None
-        if e.owner_user_id:
-            owner = self._repository.get_owner_user(e.owner_user_id)
-            owner_name = owner.name or owner.username if owner else None
+        if e.owner_id is not None:
+            if e.owner_type == AppOwnerType.DEVELOPER.value:
+                owner = self._repository.get_owner_developer(e.owner_id)
+                owner_name = owner.name or owner.username if owner else None
+            else:
+                owner = self._repository.get_owner_user(e.owner_id)
+                owner_name = owner.name or owner.username if owner else None
         return OpenApiAppResponse(
             id=e.id,
             app_id=e.app_id,
@@ -429,8 +431,12 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             status=e.status,
             auth_mode=e.auth_mode,
             rate_limit_per_minute=e.rate_limit_per_minute,
+            owner_type=e.owner_type,
+            owner_id=e.owner_id,
             owner_user_id=e.owner_user_id,
             owner_name=owner_name,
+            approval_status=e.approval_status,
+            approval_note=e.approval_note,
             last_used_at=e.last_used_at,
             created_at=e.created_at,
         )

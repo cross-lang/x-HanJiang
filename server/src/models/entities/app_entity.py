@@ -35,7 +35,30 @@ class OpenApiAppEntity(Base):
     # ── 元信息 ──────────────────────────────────────────
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment="应用名")
     description: Mapped[str] = mapped_column(String(255), nullable=False, comment="应用描述")
-    owner_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, comment="归属人（内部管理员用户ID）")
+    # 归属：owner_type 区分两类来源（developer=开发者门户自助 / admin=管理员分配），
+    # owner_id 按类型指向 developers.id 或 users.id。owner_user_id 为历史字段，
+    # 已由 owner_type/owner_id 取代，存量数据迁移时回填，新代码不再写入。
+    owner_type: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="admin",
+        comment="归属类型：developer 开发者自助创建 / admin 管理员分配",
+    )
+    owner_id: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True, comment="归属方ID：developer→developers.id / admin→users.id"
+    )
+    owner_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, comment="[已废弃] 历史归属用户ID，仅存量数据")  # noqa: E501
+    # ── 审批流（开发者自助申请 scope → 管理员审批）────────
+    approval_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="pending",
+        comment="审批状态：pending 待审批 / approved 已通过 / rejected 已驳回",
+    )
+    approval_note: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="审批意见/驳回原因")
+    scope_apply_reason: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, comment="开发者申请 scope 时填写的申请说明"
+    )
     scopes: Mapped[str] = mapped_column(
         String(500), nullable=False, server_default="", comment="逗号分隔的权限范围，如 order:read,order:write"
     )
@@ -65,6 +88,7 @@ class OpenApiAppEntity(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="软删除时间")
     __table_args__ = (
         Index("uk_app_id", "app_id", unique=True),
+        Index("idx_owner", "owner_type", "owner_id"),
         Index("idx_owner_user_id", "owner_user_id"),
     )
 
