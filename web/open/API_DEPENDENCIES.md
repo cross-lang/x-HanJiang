@@ -144,7 +144,7 @@
 | 注册 `/register` | auth/register | — |
 | 首页 `/home` | developer/profile、apps、scopes | — |
 | 应用管理 `/apps` | apps CRUD、apps/{id}/scopes、apps/{id}/rotate-key、scopes | 新应用创建后进入审批流 |
-| 开放接口 `/docs` | —（静态目录展示，健康/用户类接口示例走 /api/open/v1 网关） | docs/catalog 动态数据源接口尚未实现 |
+| 开放能力 `/capability/{user,role,file,app,health}` | —（内置目录 18 个开放接口，与 /api/open/v1 网关一一对应，数据源 `src/data/capability.ts`） | docs/catalog 动态数据源接口尚未实现；旧路径 `/docs`→`/api-docs` 已 redirect 到 `/capability/user` |
 | 站内信（右上角铃铛） | messages/unread-count、messages、messages/{id}/read、messages/read-all | 铃铛角标 15s 轮询未读数；左侧导航与 /messages 独立页已移除 |
 | 个人中心 `/profile` | developer/profile、developer/certification、auth/change-password | 改密成功需重新登录 |
 
