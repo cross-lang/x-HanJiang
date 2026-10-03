@@ -5,7 +5,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from src.api.api_permission_decorator import permission
+from src.api.admin.permission_decorator import permission
 from src.api.dependencies import (
     get_audit_service,
     get_current_user,

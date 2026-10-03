@@ -25,8 +25,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.api_permission_decorator import sync_permissions_to_db
-from src.api.openapi_scope_decorator import sync_scopes_to_db
+from src.api.admin.permission_decorator import sync_permissions_to_db
+from src.api.open.scope_decorator import sync_scopes_to_db
 from src.api.router import api_router, open_portal_api_router, open_router
 from src.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from src.core.config import settings

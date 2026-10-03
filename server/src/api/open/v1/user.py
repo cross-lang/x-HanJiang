@@ -13,7 +13,7 @@ from src.api.dependencies import (
     get_user_service,
     require_app_scope,
 )
-from src.api.openapi_scope_decorator import app_scope
+from src.api.open.scope_decorator import app_scope
 from src.api.response import success_response
 from src.constants.scopes import OpenApiScopeCode
 from src.schemas.admin.user import UserCreateRequest, UserResponse, UserUpdateRequest

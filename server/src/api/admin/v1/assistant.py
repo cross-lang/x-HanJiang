@@ -17,7 +17,7 @@ from collections.abc import Iterator
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from src.api.api_permission_decorator import permission
+from src.api.admin.permission_decorator import permission
 from src.api.dependencies import get_assistant_service, get_current_user
 from src.api.response import success_response
 from src.constants.assistant import AssistantEventType

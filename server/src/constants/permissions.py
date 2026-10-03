@@ -7,7 +7,7 @@ PermissionCode 中定义一次；模块编码与中文名映射集中在 Permiss
     - api 路由：@permission(PermissionCode.XXX) 挂载元数据，
       require_user_permission(PermissionCode.XXX.mark) 做鉴权
     - core/seed.py：初始化 permissions 表、绑定内置角色
-    - 启动时路由扫描同步（api/api_permission_decorator.sync_permissions_to_db）
+    - 启动时路由扫描同步（api/admin/permission_decorator.sync_permissions_to_db）
     - 前端菜单种子、全局搜索分类映射、AI 助手入口清单
 
 成员定义顺序即权限管理后台的展示顺序（sort_order 递增）。

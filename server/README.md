@@ -240,7 +240,9 @@ server/
 ├── src/                      # 核心业务代码
 │   ├── main.py               # 应用入口（应用工厂、生命周期、中间件编排、CLI 参数）
 │   ├── api/                  # API 路由层
-│   │   ├── v1/               # 用户态 v1 路由（JWT 鉴权，/api/v1/...）
+│   │   ├── admin/             # 管理系统路由（JWT 鉴权，/api/v1 与 /api/admin/v1 双路径兼容）
+│   │   │   ├── permission_decorator.py # @permission 装饰器 + 权限扫描注册
+│   │   │   └── v1/            # 管理端 v1 路由
 │   │   │   ├── auth.py       # 认证（登录 / 刷新 / 登出）
 │   │   │   ├── user.py       # 用户管理（CRUD / 导入导出）
 │   │   │   ├── profile.py    # 个人中心（资料 / 改密 / 菜单树 / 通知偏好）
@@ -258,12 +260,13 @@ server/
 │   │   │   ├── assistant.py # AI 助手（SSE 对话 / 会话 / 反馈）
 │   │   │   └── health.py     # 健康检查与版本信息
 │   │   ├── open/             # 开放平台路由（AppId/AppKey 鉴权，/api/open/v1/...）
+│   │   │   ├── scope_decorator.py # @app_scope 装饰器 + scope 扫描注册
 │   │   │   └── v1/
 │   │   │       ├── health.py # 健康检查与版本
 │   │   │       ├── app.py    # 当前应用信息
 │   │   │       └── user.py   # 开放平台用户管理（scope 控制）
-│   │   ├── api_permission_decorator.py # @permission 装饰器 + 权限扫描注册
-│   │   ├── openapi_scope_decorator.py  # @app_scope 装饰器 + scope 扫描注册
+│   │   ├── open_portal/      # 开放平台门户路由（会话 JWT 鉴权，/api/open-portal/v1/...）
+│   │   │   └── v1/           # 门户 v1 路由（auth / developer / apps / scopes）
 │   │   ├── dependencies.py   # DI 依赖函数
 │   │   ├── response.py       # 统一响应封装
 │   │   └── router.py         # 路由聚合注册

@@ -3,7 +3,7 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.api_permission_decorator import permission
+from src.api.admin.permission_decorator import permission
 from src.api.dependencies import (
     CurrentUser,
     get_current_user,

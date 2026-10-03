@@ -6,7 +6,7 @@ OpenApiScopeCode 中定义一次；模块编码与中文名映射集中在 OpenA
 以下消费方均从本目录派生，禁止再硬编码 scope 码：
     - 开放平台 api 路由：@app_scope(OpenApiScopeCode.XXX) 挂载元数据，
       require_app_scope(OpenApiScopeCode.XXX.mark) 做鉴权
-    - 启动时路由扫描同步（api/openapi_scope_decorator.sync_scopes_to_db）
+    - 启动时路由扫描同步（api/open/scope_decorator.sync_scopes_to_db）
     - 开放平台应用管理的 scope 勾选列表（openapi_app_service.list_scopes）
 
 成员定义顺序即 scope 管理后台的展示顺序（sort_order 递增）。

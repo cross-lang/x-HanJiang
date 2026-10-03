@@ -240,7 +240,9 @@ server/
 ├── src/                      # Core business code
 │   ├── main.py               # App entry (app factory, lifespan, middleware wiring, CLI args)
 │   ├── api/                  # API route layer
-│   │   ├── v1/               # User-facing v1 routes (JWT auth, /api/v1/...)
+│   │   ├── admin/             # Admin routes (JWT auth, dual /api/v1 & /api/admin/v1)
+│   │   │   ├── permission_decorator.py # @permission decorator + permission scan & sync
+│   │   │   └── v1/            # Admin v1 routes
 │   │   │   ├── auth.py       # Auth (login / refresh / logout)
 │   │   │   ├── user.py       # User management (CRUD / import-export)
 │   │   │   ├── profile.py    # Profile (info / password / menus / notification prefs)
@@ -258,12 +260,13 @@ server/
 │   │   │   ├── assistant.py # AI assistant (SSE chat / conversations / feedback)
 │   │   │   └── health.py     # Health check & version info
 │   │   ├── open/             # Open platform routes (AppId/AppKey auth, /api/open/v1/...)
+│   │   │   ├── scope_decorator.py # @app_scope decorator + scope scan & sync
 │   │   │   └── v1/
 │   │   │       ├── health.py # Health check & version
 │   │   │       ├── app.py    # Current app info
 │   │   │       └── user.py   # Open platform user management (scope-gated)
-│   │   ├── api_permission_decorator.py # @permission decorator + permission scan & sync
-│   │   ├── openapi_scope_decorator.py  # @app_scope decorator + scope scan & sync
+│   │   ├── open_portal/      # Open portal routes (session JWT auth, /api/open-portal/v1/...)
+│   │   │   └── v1/           # Portal v1 routes (auth / developer / apps / scopes)
 │   │   ├── dependencies.py   # DI dependency functions
 │   │   ├── response.py       # Unified response wrapper
 │   │   └── router.py         # Route aggregation & registration

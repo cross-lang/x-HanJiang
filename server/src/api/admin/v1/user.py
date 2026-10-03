@@ -16,7 +16,7 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 
-from src.api.api_permission_decorator import permission
+from src.api.admin.permission_decorator import permission
 from src.api.dependencies import (
     get_current_user,
     get_user_operator_context,
