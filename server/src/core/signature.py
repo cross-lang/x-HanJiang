@@ -16,7 +16,6 @@ API 层（src/api/dependencies.py）负责。
 """
 
 from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
 
 from src.constants.constants import (
     OPENAPI_ALGORITHM,
@@ -24,6 +23,7 @@ from src.constants.constants import (
     OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
 from src.utils import security
+from src.utils.time import parse_http_date
 
 
 def build_signing_string(
@@ -92,17 +92,6 @@ def verify_signature(
     return security.constant_time_equals(expected, signature)
 
 
-def parse_http_date(date_str: str) -> datetime | None:
-    """解析 HTTP 标准格式日期，如 'Wed, 23 Jan 2013 06:43:08 GMT'。"""
-    try:
-        dt = parsedate_to_datetime(date_str)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
-
-
 def is_request_date_valid(
     date_str: str,
     *,
@@ -123,6 +112,5 @@ __all__ = [
     "build_signing_string",
     "sign",
     "verify_signature",
-    "parse_http_date",
     "is_request_date_valid",
 ]

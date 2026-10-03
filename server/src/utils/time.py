@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import datetime
+from email.utils import parsedate_to_datetime
 
 
 def normalize_date_str(value: object) -> str | None:
@@ -47,3 +48,14 @@ def normalize_date_str(value: object) -> str | None:
     if dt.tzinfo is not None:
         dt = dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
     return dt.strftime("%Y-%m-%d")
+
+
+def parse_http_date(date_str: str) -> datetime.datetime | None:
+    """解析 HTTP 标准格式日期，如 'Wed, 23 Jan 2013 06:43:08 GMT'。"""
+    try:
+        dt = parsedate_to_datetime(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.UTC)
+        return dt
+    except (TypeError, ValueError):
+        return None
