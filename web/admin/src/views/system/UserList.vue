@@ -48,7 +48,7 @@
               v-if="row.status !== 'enabled' && row.username !== 'superadmin'"
               size="small"
               type="success"
-              @click="handleToggleStatus(row as UserItem, 'active')"
+              @click="handleToggleStatus(row as UserItem, 'enabled')"
               >启用</el-button
             >
             <el-button
