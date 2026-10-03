@@ -1,0 +1,25 @@
+/* 全局基础样式 */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: #303133;
+  background: #f5f7fa;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 避免页面元素被误选中，提升后台操作手感 */
+  user-select: none;
+}
+
+/* 表单输入框等可交互元素允许选中文本 */
+input,
+textarea,
+.code-block,
+.el-message,
+.el-message-box,
+.el-notification {
+  user-select: text;
+}

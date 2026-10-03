@@ -1,0 +1,58 @@
+/* 全局工具类：布局 / 间距 / 文本高频模式 */
+
+/* ── 布局 ─────────────────────────────────────────────── */
+.hj-flex {
+  display: flex;
+  align-items: center;
+}
+.hj-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hj-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.hj-flex-wrap {
+  flex-wrap: wrap;
+}
+.hj-flex-1 {
+  flex: 1;
+  min-width: 0;
+}
+.hj-w-full {
+  width: 100%;
+}
+.hj-text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 间距（4 的倍数） ─────────────────────────────────── */
+.hj-mt-4 { margin-top: 4px; }
+.hj-mt-8 { margin-top: 8px; }
+.hj-mt-12 { margin-top: 12px; }
+.hj-mt-16 { margin-top: 16px; }
+.hj-mt-20 { margin-top: 20px; }
+.hj-mb-8 { margin-bottom: 8px; }
+.hj-mb-12 { margin-bottom: 12px; }
+.hj-mb-16 { margin-bottom: 16px; }
+.hj-mb-20 { margin-bottom: 20px; }
+.hj-mr-4 { margin-right: 4px; }
+.hj-mr-8 { margin-right: 8px; }
+.hj-mr-12 { margin-right: 12px; }
+.hj-ml-8 { margin-left: 8px; }
+.hj-ml-12 { margin-left: 12px; }
+.hj-gap-4 { gap: 4px; }
+.hj-gap-8 { gap: 8px; }
+.hj-gap-12 { gap: 12px; }
+.hj-gap-16 { gap: 16px; }
+
+/* ── 分页统一底部间距 ─────────────────────────────────── */
+.hj-pagination {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
