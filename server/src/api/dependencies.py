@@ -32,7 +32,7 @@ from src.services.auth_service import AuthService
 from src.services.file_service import FileStorageService
 from src.services.health_service import HealthService
 from src.services.notification_service import NotificationService
-from src.services.permission_service import PermissionService
+from src.services.admin.permission_service import PermissionService
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
@@ -49,14 +49,14 @@ if TYPE_CHECKING:
     from src.repositories.role_permission_repository import RolePermissionRepository
     from src.repositories.role_repository import RoleRepository
     from src.repositories.user_repository import UserRepository
-    from src.services.announcement_service import AnnouncementService
-    from src.services.assistant_service import AssistantService
-    from src.services.dashboard_service import DashboardService
-    from src.services.login_log_service import LoginLogService
+    from src.services.admin.announcement_service import AnnouncementService
+    from src.services.admin.assistant_service import AssistantService
+    from src.services.admin.dashboard_service import DashboardService
+    from src.services.admin.login_log_service import LoginLogService
     from src.services.openapi_app_service import OpenApiAppService
-    from src.services.profile_service import ProfileService
-    from src.services.role_service import RoleService
-    from src.services.search_service import SearchService
+    from src.services.admin.profile_service import ProfileService
+    from src.services.admin.role_service import RoleService
+    from src.services.admin.search_service import SearchService
     from src.services.station_service import StationMessageService
     from src.services.system_notification_config_service import SystemNotificationConfigService
     from src.services.system_notification_service import SystemNotificationService
@@ -181,7 +181,7 @@ def get_announcement_service(
 ) -> AnnouncementService:
     """获取公告业务服务实例。"""
     from src.repositories.announcement_repository import AnnouncementRepository
-    from src.services.announcement_service import AnnouncementService
+    from src.services.admin.announcement_service import AnnouncementService
 
     return AnnouncementService(repository=AnnouncementRepository(session=db_session))
 
@@ -234,7 +234,7 @@ def get_dashboard_service(
 ) -> DashboardService:
     """获取仪表盘统计服务。"""
     from src.repositories.dashboard_repository import DashboardRepository
-    from src.services.dashboard_service import DashboardService
+    from src.services.admin.dashboard_service import DashboardService
 
     return DashboardService(repository=DashboardRepository(session=db_session))
 
@@ -290,7 +290,7 @@ def get_role_service(
     permission_repository: PermissionRepository = Depends(get_permission_repository),
 ) -> RoleService:
     """使用当前请求的 Repository 创建角色服务。"""
-    from src.services.role_service import RoleService
+    from src.services.admin.role_service import RoleService
 
     return RoleService(
         role_repository=role_repository,
@@ -307,7 +307,7 @@ def get_permission_service(
     dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> PermissionService:
     """使用当前请求的 Repository 创建权限服务。"""
-    from src.services.permission_service import PermissionService
+    from src.services.admin.permission_service import PermissionService
 
     return PermissionService(
         permission_repository=permission_repository,
@@ -323,7 +323,7 @@ def get_login_log_service(
     user_repository: UserRepository = Depends(get_user_repository),
 ) -> LoginLogService:
     """使用当前请求的 Repository 创建登录日志服务。"""
-    from src.services.login_log_service import LoginLogService
+    from src.services.admin.login_log_service import LoginLogService
 
     return LoginLogService(
         login_log_repository=login_log_repository,
@@ -346,7 +346,7 @@ def get_search_service(
 ) -> SearchService:
     """获取搜索服务。"""
     from src.repositories.search_repository import SearchRepository
-    from src.services.search_service import SearchService
+    from src.services.admin.search_service import SearchService
 
     return SearchService(repository=SearchRepository(session=db_session))
 
@@ -499,7 +499,7 @@ def get_profile_service(
     station_service: StationMessageService = Depends(get_station_service),
 ) -> ProfileService:
     """创建个人中心业务服务。"""
-    from src.services.profile_service import ProfileService
+    from src.services.admin.profile_service import ProfileService
 
     return ProfileService(
         user_repository=user_repository,
@@ -544,7 +544,7 @@ def get_assistant_service(
     feedback_repository: AssistantFeedbackRepository = Depends(get_assistant_feedback_repository),
 ) -> AssistantService:
     """创建 AI 助手编排服务（LLM / 工具注册表 / 知识库默认懒加载单例）。"""
-    from src.services.assistant_service import AssistantService
+    from src.services.admin.assistant_service import AssistantService
 
     return AssistantService(
         conversation_repository=conversation_repository,

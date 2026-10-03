@@ -12,7 +12,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
-from src.services.dashboard_service import DashboardService
+from src.services.admin.dashboard_service import DashboardService
 
 router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
 

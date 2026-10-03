@@ -34,8 +34,8 @@ from src.schemas.role import (
     RoleResponse,
     RoleUpdateRequest,
 )
-from src.services.permission_service import PermissionService
-from src.services.role_service import RoleService
+from src.services.admin.permission_service import PermissionService
+from src.services.admin.role_service import RoleService
 
 router = APIRouter(prefix="/roles", tags=["角色管理"])
 

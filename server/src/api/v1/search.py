@@ -13,8 +13,8 @@ from src.api.dependencies import (
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.auth import CurrentUser
-from src.services.permission_service import PermissionService
-from src.services.search_service import SearchService
+from src.services.admin.permission_service import PermissionService
+from src.services.admin.search_service import SearchService
 
 router = APIRouter(prefix="/search", tags=["全局搜索"])
 

@@ -20,7 +20,7 @@ from src.core.exceptions import NotFoundException
 from src.schemas.audit import AuditLogResponse
 from src.schemas.auth import CurrentUser
 from src.services.audit_service import AuditService
-from src.services.login_log_service import LoginLogService
+from src.services.admin.login_log_service import LoginLogService
 from src.utils.csv import build_csv_stream_response
 
 router = APIRouter(prefix="/audit", tags=["审计日志"])

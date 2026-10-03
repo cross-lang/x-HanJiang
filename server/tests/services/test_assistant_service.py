@@ -13,7 +13,7 @@ AI 助手文本工具调用识别测试
 import json
 
 from src.infras.llm import ToolCall
-from src.services.assistant_service import AssistantService
+from src.services.admin.assistant_service import AssistantService
 
 
 def _extract(content: str | None) -> ToolCall | None:

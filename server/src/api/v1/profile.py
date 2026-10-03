@@ -44,7 +44,7 @@ from src.schemas.profile import (
     UpdateNotificationPreferencesRequest,
     UpdatePhoneRequest,
 )
-from src.services.profile_service import ProfileService
+from src.services.admin.profile_service import ProfileService
 
 router = APIRouter(prefix="/profile", tags=["个人中心"])
 

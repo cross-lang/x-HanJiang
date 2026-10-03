@@ -25,7 +25,7 @@ from src.schemas.announcement import (
 )
 from src.schemas.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
-from src.services.announcement_service import AnnouncementService
+from src.services.admin.announcement_service import AnnouncementService
 
 router = APIRouter(prefix="/announcements", tags=["公告管理"])
 

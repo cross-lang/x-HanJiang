@@ -36,7 +36,7 @@ from src.schemas.assistant import (
     MessageResponse,
 )
 from src.schemas.auth import CurrentUser
-from src.services.assistant_service import AssistantService
+from src.services.admin.assistant_service import AssistantService
 from src.utils.sse import build_sse_event
 
 router = APIRouter(prefix="/assistant", tags=["AI 助手"])
