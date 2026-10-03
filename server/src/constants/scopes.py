@@ -23,7 +23,6 @@ class OpenApiScopeModule(StrBaseEnum):
     """开放平台 scope 模块编码与中文名映射（与 OpenApiScopeCode.module 一一对应）。"""
 
     USER = ("user", "用户管理")
-    HEALTH = ("health", "健康检查")
 
 
 class OpenApiScopeAction(StrBaseEnum):
@@ -88,20 +87,8 @@ class OpenApiScopeCode(BaseEnum):
         return self._sort_order
 
     # ── 用户域 ────────────────────────────────────────────
-    USER_READ = (
-        "user:read", "读取用户数据", OpenApiScopeModule.USER.mark,
-        OpenApiScopeAction.READ.mark, "查询开放平台用户列表与详情", 1,
-    )
-    USER_WRITE = (
-        "user:write", "写入用户数据", OpenApiScopeModule.USER.mark,
-        OpenApiScopeAction.WRITE.mark, "创建、更新或删除开放平台用户", 2,
-    )
-
-    # ── 健康检查域 ────────────────────────────────────────
-    HEALTH_PING = (
-        "ping:read", "连通性测试", OpenApiScopeModule.HEALTH.mark,
-        OpenApiScopeAction.READ.mark, "开放平台连通性联调测试", 10,
-    )
+    USER_READ = ("user:read", "读取用户数据", OpenApiScopeModule.USER.mark, OpenApiScopeAction.READ.mark, "查询开放平台用户列表与详情", 1)
+    USER_WRITE = ("user:write", "写入用户数据", OpenApiScopeModule.USER.mark, OpenApiScopeAction.WRITE.mark, "创建、更新或删除开放平台用户", 2)
 
 
 #: scope 目录（成员定义顺序），供种子初始化等批量场景遍历

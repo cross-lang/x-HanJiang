@@ -48,25 +48,3 @@ async def openapi_version(
         request,
     )
 
-
-@router.get(
-    "/ping",
-    summary="开放平台连通性测试",
-    dependencies=[Depends(require_app_scope(OpenApiScopeCode.HEALTH_PING.mark))],
-)
-@app_scope(OpenApiScopeCode.HEALTH_PING)
-async def ping(
-    request: Request,
-    app: CurrentApp = Depends(get_current_app),
-):
-    """返回当前调用方应用身份，用于联调验证。需 `ping:read` scope。"""
-    return success_response(
-        {
-            "message": "pong",
-            "app_id": app.app_id,
-            "app_name": app.name,
-            "scopes": app.scopes,
-            "auth_mode": app.auth_mode,
-        },
-        request,
-    )

@@ -6,8 +6,9 @@
 from fastapi import APIRouter
 
 from src.api.open.v1 import app, health, user
+from src.constants import API_VERSION_V1_PREFIX
 
-v1_router = APIRouter(prefix="/v1")
+v1_router = APIRouter(prefix=API_VERSION_V1_PREFIX)
 
 v1_router.include_router(health.router)
 

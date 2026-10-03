@@ -70,6 +70,7 @@ class CurrentApp(BaseModel):
 
     app_id: str
     name: str
+    description: str
     scopes: list[str]
     auth_mode: str
     rate_limit_per_minute: int

@@ -22,10 +22,12 @@ from src.api.admin.v1 import (
     search,
     station,
     user,
+    API_VERSION_V1_PREFIX,
+    ADMIN_PREFIX,
 )
 
 # v1 聚合路由：所有挂在它下面的接口最终路径为 /api/v1/...
-v1_router = APIRouter(prefix="/v1")
+v1_router = APIRouter(prefix=API_VERSION_V1_PREFIX)
 
 # 注册健康管理路由
 v1_router.include_router(health.router)

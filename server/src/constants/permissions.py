@@ -144,7 +144,7 @@ class PermissionCode(BaseEnum):
     ROLE_PERMISSION = ("role:permission", "分配角色权限", PermissionModule.ROLE.mark, PermissionAction.PERMISSION.mark, "为角色绑定或解绑权限", 13)
     ROLE_DELETE = ("role:delete", "删除角色", PermissionModule.ROLE.mark, PermissionAction.DELETE.mark, "删除角色", 14)
 
-    # ── 权限定义域 ────────────────────────────────────────
+    # ── 权限域 ────────────────────────────────────────
     PERMISSION_VIEW = ("permission:view", "查看权限定义", PermissionModule.PERMISSION.mark, PermissionAction.VIEW.mark, "查询权限定义列表与详情", 15)
 
     # ── 文件域 ────────────────────────────────────────────
@@ -161,9 +161,7 @@ class PermissionCode(BaseEnum):
     # ── 通知 / 告警域 ─────────────────────────────────────
     NOTIFICATION_VIEW = ("notification:view", "查看通知", PermissionModule.NOTIFICATION.mark, PermissionAction.VIEW.mark, "查看通知记录", 40)
     NOTIFICATION_CREATE = ("notification:create", "发布通知", PermissionModule.NOTIFICATION.mark, PermissionAction.CREATE.mark, "发布系统通知", 41)
-    NOTIFICATION_WITHDRAW = (
-        "notification:withdraw", "撤回通知", PermissionModule.NOTIFICATION.mark, PermissionAction.WITHDRAW.mark, "撤回已发布的系统通知", 42
-    )
+    NOTIFICATION_WITHDRAW = ("notification:withdraw", "撤回通知", PermissionModule.NOTIFICATION.mark, PermissionAction.WITHDRAW.mark, "撤回已发布的系统通知", 42)
     ALERT_BROADCAST = ("alert:broadcast", "广播告警", PermissionModule.ALERT.mark, PermissionAction.BROADCAST.mark, "向全体用户广播告警", 50)
     ALERT_SEND = ("alert:send", "发送告警", PermissionModule.ALERT.mark, PermissionAction.SEND.mark, "向指定用户或全体用户发送告警", 50)
     NOTIFICATION_CONFIG = ("notification:config", "通知配置管理", PermissionModule.NOTIFICATION.mark, PermissionAction.CONFIG.mark, "系统通知渠道配置管理", 52)
@@ -179,19 +177,11 @@ class PermissionCode(BaseEnum):
     OPENAPI_APP_VIEW = ("openapi_app:view", "查看开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.VIEW.mark, "查看开放平台应用列表", 60)
     OPENAPI_APP_CREATE = ("openapi_app:create", "创建开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.CREATE.mark, "创建开放平台应用", 61)
     OPENAPI_APP_EDIT = ("openapi_app:edit", "编辑开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.EDIT.mark, "编辑开放平台应用基本信息", 62)
-    OPENAPI_APP_SCOPES = (
-        "openapi_app:scopes", "配置应用权限范围", PermissionModule.OPENAPI_APP.mark, PermissionAction.SCOPES.mark, "更新开放应用的权限范围(scope)", 63
-    )
-    OPENAPI_APP_STATUS = (
-        "openapi_app:status", "启停开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.STATUS.mark, "启用或禁用开放平台应用", 64
-    )
-    OPENAPI_APP_ROTATE_KEY = (
-        "openapi_app:rotate_key", "重置开放应用AppKey", PermissionModule.OPENAPI_APP.mark, PermissionAction.ROTATE_KEY.mark, "重置应用密钥，旧密钥立即失效", 65
-    )
+    OPENAPI_APP_SCOPES = ("openapi_app:scopes", "配置应用权限范围", PermissionModule.OPENAPI_APP.mark, PermissionAction.SCOPES.mark, "更新开放应用的权限范围(scope)", 63)
+    OPENAPI_APP_STATUS = ("openapi_app:status", "启停开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.STATUS.mark, "启用或禁用开放平台应用", 64)
+    OPENAPI_APP_ROTATE_KEY = ("openapi_app:rotate_key", "重置开放应用AppKey", PermissionModule.OPENAPI_APP.mark, PermissionAction.ROTATE_KEY.mark, "重置应用密钥，旧密钥立即失效", 65)
     OPENAPI_APP_DELETE = ("openapi_app:delete", "删除开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.DELETE.mark, "删除开放平台应用", 66)
-    OPENAPI_SCOPE_VIEW = (
-        "openapi_scope:view", "查看开放平台权限", PermissionModule.OPENAPI_SCOPE.mark, PermissionAction.VIEW.mark, "查看开放平台 scope 列表", 67
-    )
+    OPENAPI_SCOPE_VIEW = ("openapi_scope:view", "查看开放平台权限", PermissionModule.OPENAPI_SCOPE.mark, PermissionAction.VIEW.mark, "查看开放平台 scope 列表", 67)
 
     # ── 仪表盘域 ────────────────────────────────────────
     DASHBOARD_VIEW = ("dashboard:view", "查看仪表盘", PermissionModule.DASHBOARD.mark, PermissionAction.VIEW.mark, "获取仪表盘关键指标", 70)
@@ -215,9 +205,7 @@ class PermissionCode(BaseEnum):
 
     # ── AI 助手域 ─────────────────────────────────────────
     ASSISTANT_CHAT = ("assistant:chat", "AI助手对话", PermissionModule.ASSISTANT.mark, PermissionAction.CHAT.mark, "与AI助手对话", 90)
-    ASSISTANT_CONVERSATION = (
-        "assistant:conversation", "AI助手会话管理", PermissionModule.ASSISTANT.mark, PermissionAction.CONVERSATION.mark, "创建、查询、删除或置顶会话", 91
-    )
+    ASSISTANT_CONVERSATION = ("assistant:conversation", "AI助手会话管理", PermissionModule.ASSISTANT.mark, PermissionAction.CONVERSATION.mark, "创建、查询、删除或置顶会话", 91)
     ASSISTANT_FEEDBACK = ("assistant:feedback", "AI助手反馈", PermissionModule.ASSISTANT.mark, PermissionAction.FEEDBACK.mark, "对话消息反馈", 92)
 
 
