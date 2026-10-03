@@ -15,15 +15,15 @@
       </el-descriptions>
 
       <div class="sign-box">
-        <div class="sign-title">HMAC 签名流程（摘要）</div>
-        <ol class="sign-steps">
-          <li>生成时间戳 <code>timestamp</code>（毫秒）与随机串 <code>nonce</code>；</li>
-          <li>按规则拼接规范化请求串（方法 + 路径 + 查询参数 + 请求体摘要）；</li>
-          <li>以 <code>AppKey</code> 为密钥计算 <code>HMAC-SHA256</code> 得到 <code>signature</code>；</li>
-          <li>请求头携带 <code>X-App-Id</code>、<code>X-Timestamp</code>、<code>X-Nonce</code>、<code>X-Signature</code>；</li>
-          <li>服务端校验签名与时间窗（防重放）。</li>
-        </ol>
-        <div class="sign-note">签名规范以开放平台正式文档为准（当前为能力演示阶段，后端签名中间件待完善）。</div>
+        <div class="sign-title">HanJiang-1 签名</div>
+        <p class="sign-para">
+          开放接口统一使用 <b>HanJiang-1</b>（HMAC-SHA256）签名：
+          <code>签名串 = HanJiang-1 + METHOD + URI + Content-Type + Date + SHA256(body)</code>，
+          <code>签名值 = HMAC-SHA256(AppKey, 签名串)</code>；时间窗 300 秒防重放。
+          完整协议说明与 Go / Python 代码示例见
+          <el-link type="primary" :underline="false" @click="router.push('/auth/signature')">「认证和授权 → 签名说明」</el-link>。
+        </p>
+        <div class="sign-note">本页仅展示接口目录；鉴权模式、通用参数、错误码请参考「认证和授权」菜单。</div>
       </div>
     </el-card>
 
@@ -70,7 +70,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { ApiDocEndpoint } from '@/types/apiDoc'
+
+const router = useRouter()
 
 /** 内置静态接口目录：与 server/src/api/open/v1 既有接口一一对应 */
 const STATIC_DOCS: ApiDocEndpoint[] = [
@@ -351,14 +354,13 @@ function methodTagType(method: ApiDocEndpoint['method']): 'success' | 'warning' 
   color: #409eff;
   margin-bottom: 8px;
 }
-.sign-steps {
+.sign-para {
   margin: 0;
-  padding-left: 20px;
   font-size: 13px;
   color: #606266;
-  line-height: 1.9;
+  line-height: 1.8;
 }
-.sign-steps code {
+.sign-para code {
   background: #f0f2f5;
   padding: 1px 6px;
   border-radius: 4px;

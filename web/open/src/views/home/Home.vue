@@ -99,7 +99,7 @@ const endpointCount = ref(8)
 
 const quickEntries = [
   { title: '创建应用', desc: '注册你的第一个开放平台应用', path: '/apps', icon: Plus, color: '#409eff' },
-  { title: '开放接口', desc: '查看接口路径、鉴权与入参返参', path: '/docs', icon: Document, color: '#67c23a' },
+  { title: '开放接口', desc: '查看接口路径、鉴权与入参返参', path: '/api-docs', icon: Document, color: '#67c23a' },
   { title: '个人中心', desc: '完善资料与开发者认证', path: '/profile', icon: User, color: '#e6a23c' },
 ]
 

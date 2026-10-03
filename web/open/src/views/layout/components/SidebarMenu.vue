@@ -14,10 +14,25 @@
         <el-icon><Grid /></el-icon>
         <template #title>应用管理</template>
       </el-menu-item>
-      <el-menu-item index="/docs">
+      <el-menu-item index="/api-docs">
         <el-icon><Document /></el-icon>
         <template #title>开放接口</template>
       </el-menu-item>
+      <el-sub-menu index="/auth">
+        <template #title>
+          <el-icon><Lock /></el-icon>
+          <span>认证和授权</span>
+        </template>
+        <el-menu-item index="/auth/signature">
+          <template #title>签名说明</template>
+        </el-menu-item>
+        <el-menu-item index="/auth/params">
+          <template #title>通用参数</template>
+        </el-menu-item>
+        <el-menu-item index="/auth/errors">
+          <template #title>通用错误码</template>
+        </el-menu-item>
+      </el-sub-menu>
       <el-menu-item index="/profile">
         <el-icon><User /></el-icon>
         <template #title>个人中心</template>
@@ -33,7 +48,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { HomeFilled } from '@element-plus/icons-vue'
+import { HomeFilled, Lock } from '@element-plus/icons-vue'
 
 defineProps<{ collapsed: boolean }>()
 defineEmits<{ toggle: [] }>()
@@ -41,8 +56,8 @@ defineEmits<{ toggle: [] }>()
 const route = useRoute()
 const router = useRouter()
 
-// 侧边栏按一级路由高亮
-const activePath = computed(() => `/${route.path.split('/')[1] || 'home'}`)
+// 侧边栏按完整路由路径高亮（支持二级菜单：/auth/signature 命中子菜单项）
+const activePath = computed(() => route.path)
 </script>
 
 <style scoped>

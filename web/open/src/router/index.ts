@@ -22,7 +22,17 @@ const router = createRouter({
       children: [
         { path: 'home', name: 'Home', component: () => import('@/views/home/Home.vue') },
         { path: 'apps', name: 'Apps', component: () => import('@/views/apps/Apps.vue') },
-        { path: 'docs', name: 'ApiDocs', component: () => import('@/views/docs/ApiDocs.vue') },
+        { path: 'api-docs', name: 'ApiDocs', component: () => import('@/views/docs/ApiDocs.vue') },
+        {
+          path: 'auth',
+          name: 'AuthGuide',
+          redirect: '/auth/signature',
+          children: [
+            { path: 'signature', name: 'SignatureDoc', component: () => import('@/views/auth/SignatureDoc.vue') },
+            { path: 'params', name: 'CommonParams', component: () => import('@/views/auth/CommonParams.vue') },
+            { path: 'errors', name: 'ErrorCodes', component: () => import('@/views/auth/ErrorCodes.vue') },
+          ],
+        },
         { path: 'profile', name: 'Profile', component: () => import('@/views/profile/Profile.vue') },
       ],
     },

@@ -23,7 +23,8 @@ export default defineConfig({
     // 与管理系统前端（5173）区分，开放平台门户独占 5174
     port: 5174,
     proxy: {
-      '/api': {
+      // 仅代理真实 API 路径（/api/ 前缀）：避免吞掉前端路由 /api-docs 等以 /api 开头的非接口路径
+      '/api/': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
