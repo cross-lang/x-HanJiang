@@ -51,12 +51,25 @@
       <el-table-column prop="created_at" label="创建时间" width="170">
         <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="270" fixed="right">
+      <el-table-column label="操作" width="210" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="handleEdit(row as OpenAppItem)">编辑</el-button>
           <el-button size="small" type="primary" @click="handleApplyScope(row as OpenAppItem)">申请权限</el-button>
           <el-button size="small" type="warning" @click="handleRotateKey(row as OpenAppItem)">重置密钥</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row as OpenAppItem)">删除</el-button>
+          <el-dropdown trigger="click" @command="(cmd: string) => handleMore(cmd, row as OpenAppItem)">
+            <el-button size="small" text class="more-btn">
+              <el-icon><MoreFilled /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="edit">
+                  <el-icon class="menu-icon"><Edit /></el-icon>编辑
+                </el-dropdown-item>
+                <el-dropdown-item command="delete" divided class="danger-item">
+                  <el-icon class="menu-icon"><Delete /></el-icon>删除
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -87,6 +100,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Edit, MoreFilled } from '@element-plus/icons-vue'
 import { formatDateTime } from '@/utils/format'
 import { listMyApps, deleteApp, rotateAppKey } from '@/api/apps'
 import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
@@ -156,6 +170,15 @@ function handleApplyScope(row: OpenAppItem) {
   scopeDialogVisible.value = true
 }
 
+/** 更多（···）下拉：编辑 / 删除 */
+function handleMore(cmd: string, row: OpenAppItem) {
+  if (cmd === 'edit') {
+    handleEdit(row)
+  } else if (cmd === 'delete') {
+    handleDelete(row)
+  }
+}
+
 /** 创建成功：展示密钥弹窗并刷新列表 */
 function onAppCreated(secret: AppSecret) {
   createdApp.value = secret
@@ -219,3 +242,16 @@ onMounted(() => {
   fetchList()
 })
 </script>
+
+<style scoped>
+.more-btn {
+  margin-left: 4px;
+  padding: 6px;
+}
+.menu-icon {
+  margin-right: 6px;
+}
+.danger-item {
+  color: #f56c6c;
+}
+</style>

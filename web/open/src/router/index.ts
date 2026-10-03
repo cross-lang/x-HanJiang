@@ -23,7 +23,6 @@ const router = createRouter({
         { path: 'home', name: 'Home', component: () => import('@/views/home/Home.vue') },
         { path: 'apps', name: 'Apps', component: () => import('@/views/apps/Apps.vue') },
         { path: 'docs', name: 'ApiDocs', component: () => import('@/views/docs/ApiDocs.vue') },
-        { path: 'messages', name: 'Messages', component: () => import('@/views/messages/Messages.vue') },
         { path: 'profile', name: 'Profile', component: () => import('@/views/profile/Profile.vue') },
       ],
     },

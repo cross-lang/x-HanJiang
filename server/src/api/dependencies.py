@@ -64,9 +64,10 @@ if TYPE_CHECKING:
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
     from src.services.admin.system_notification_service import SystemNotificationService
     from src.services.open.gateway_service import OpenGatewayService
-    from src.services.open_portal.auth_service import DeveloperAuthService
-    from src.services.open_portal.developer_service import DeveloperService
     from src.services.open_portal.app_service import DeveloperOpenAppService
+    from src.services.open_portal.auth_service import DeveloperAuthService
+    from src.services.open_portal.developer_message_service import DeveloperMessageService
+    from src.services.open_portal.developer_service import DeveloperService
     from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -504,6 +505,16 @@ def get_station_service(
     from src.services.admin.station_service import StationMessageService
 
     return StationMessageService(repository=StationMessageRepository(session=db_session))
+
+
+def get_developer_message_service(
+    db_session: Session = Depends(get_db_session),
+) -> DeveloperMessageService:
+    """创建开发者站内信服务（开放平台门户域，developer_messages 表）。"""
+    from src.repositories.developer_message_repository import DeveloperMessageRepository
+    from src.services.open_portal.developer_message_service import DeveloperMessageService
+
+    return DeveloperMessageService(repository=DeveloperMessageRepository(session=db_session))
 
 
 def get_menu_repository(

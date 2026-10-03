@@ -4,6 +4,7 @@
     <el-container class="app-body" direction="vertical">
       <HeaderBar @command="handleCommand" />
       <MainArea />
+      <footer class="app-footer">© {{ year }} 汉江开放平台 HanJiang Open Platform. All Rights Reserved.</footer>
     </el-container>
   </el-container>
 </template>
@@ -18,6 +19,8 @@ import MainArea from './components/MainArea.vue'
 
 const router = useRouter()
 const developerStore = useDeveloperStore()
+
+const year = new Date().getFullYear()
 
 // 左侧菜单折叠状态（持久化到 localStorage）
 const isCollapsed = ref(localStorage.getItem('open_sidebar_collapsed') === '1')
@@ -51,5 +54,15 @@ function handleCommand(cmd: string) {
 }
 .app-body {
   min-width: 0;
+}
+.app-footer {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #909399;
+  background: #fff;
+  border-top: 1px solid #eef0f4;
 }
 </style>

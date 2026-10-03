@@ -4,6 +4,7 @@
       <span class="page-title">{{ pageTitle }}</span>
     </div>
     <div class="header-right">
+      <NotificationBell />
       <el-dropdown trigger="click" @command="$emit('command', $event)">
         <span class="user-entry">
           <el-avatar :size="28" class="user-avatar">{{ initial }}</el-avatar>
@@ -26,6 +27,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useDeveloperStore } from '@/stores/developer'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 defineEmits<{ command: [cmd: string] }>()
 
@@ -36,7 +38,6 @@ const TITLES: Record<string, string> = {
   home: '首页',
   apps: '应用管理',
   docs: '开放接口',
-  messages: '站内信',
   profile: '个人中心',
 }
 

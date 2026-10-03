@@ -59,6 +59,21 @@
 | --- | --- | --- |
 | GET | `/api/open-portal/v1/scopes` | scope 目录（id/scope_code/scope_name/module/module_label/operation/description） |
 
+### 1.5 站内信（messages，页面：右上角铃铛）
+
+> 开发者站内信独立表 `developer_messages`（与管理端用户站内信 notification_records 分表隔离）。
+> 数据表：`server/src/models/entities/developer_message_entity.py` + 迁移 `0016_create_developer_messages`；
+> 类型约定：category = system 系统消息 / audit 审批结果 / notify 业务通知，read 布尔。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/open-portal/v1/messages/unread-count` | 未读消息数（右上角铃铛角标，前端 15s 轮询） |
+| GET | `/api/open-portal/v1/messages` | 我的站内信分页列表（query: page/page_size；时间倒序） |
+| POST | `/api/open-portal/v1/messages/{msg_id}/read` | 标记单条已读 |
+| POST | `/api/open-portal/v1/messages/read-all` | 全部已读 |
+
+> 发送方预留：审批结果、系统通知等场景经 `DeveloperMessageService.send()` 写入（站内信表已就绪，发送方后续接入）。
+
 ---
 
 ## 二、开放接口（/api/open/v1，网关，已实现）
@@ -102,7 +117,7 @@
 | 首页 `/home` | developer/profile、apps、scopes | — |
 | 应用管理 `/apps` | apps CRUD、apps/{id}/scopes、apps/{id}/rotate-key、scopes | 新应用创建后进入审批流 |
 | 开放接口 `/docs` | —（静态目录展示，健康/用户类接口示例走 /api/open/v1 网关） | docs/catalog 动态数据源接口尚未实现 |
-| 站内信 `/messages` | — | 站内信为预留功能，后端接口尚未实现 |
+| 站内信（右上角铃铛） | messages/unread-count、messages、messages/{id}/read、messages/read-all | 铃铛角标 15s 轮询未读数；左侧导航与 /messages 独立页已移除 |
 | 个人中心 `/profile` | developer/profile、developer/certification、auth/change-password | 改密成功需重新登录 |
 
 ---

@@ -18,10 +18,6 @@
         <el-icon><Document /></el-icon>
         <template #title>开放接口</template>
       </el-menu-item>
-      <el-menu-item index="/messages">
-        <el-icon><Message /></el-icon>
-        <template #title>站内信<el-tag size="small" type="info" class="hj-ml-8">预留</el-tag></template>
-      </el-menu-item>
       <el-menu-item index="/profile">
         <el-icon><User /></el-icon>
         <template #title>个人中心</template>

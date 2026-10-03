@@ -128,6 +128,29 @@ class CertificationStatus(StrBaseEnum):
     REJECTED = "rejected", "已驳回"
 
 
+class DeveloperMessageStatus(StrBaseEnum):
+    """开发者站内信阅读状态（对齐 developer_messages.status 列）。
+
+    开发者站内信与管理系统用户站内信（notification_records）分表，
+    独立表 developer_messages 的状态取值沿用站内信惯例：unread / read。
+    """
+
+    UNREAD = "unread", "未读"
+    READ = "read", "已读"
+
+
+class DeveloperMessageCategory(StrBaseEnum):
+    """开发者站内信类型（对齐 developer_messages.category 列）。
+
+    与 web/open 前端 OpenMessage.category 约定一致：
+    system 系统消息 / audit 审批结果 / notify 业务通知。
+    """
+
+    SYSTEM = "system", "系统消息"
+    AUDIT = "audit", "审批结果"
+    NOTIFY = "notify", "业务通知"
+
+
 # ── 通知域 ────────────────────────────────────────────
 
 
