@@ -22,7 +22,13 @@ const router = createRouter({
       children: [
         { path: 'home', name: 'Home', component: () => import('@/views/home/Home.vue') },
         { path: 'apps', name: 'Apps', component: () => import('@/views/apps/Apps.vue') },
-        { path: 'api-docs', name: 'ApiDocs', component: () => import('@/views/docs/ApiDocs.vue') },
+        {
+          path: 'capability/:module',
+          name: 'CapabilityModule',
+          component: () => import('@/views/capability/CapabilityModule.vue'),
+        },
+        // 兼容旧路径：原"开放接口"页（/docs → /api-docs）已被"开放能力"模块化页取代
+        { path: 'api-docs', redirect: '/capability/user' },
         {
           path: 'auth',
           name: 'AuthGuide',

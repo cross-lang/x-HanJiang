@@ -81,6 +81,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Document, Grid, Plus, User } from '@element-plus/icons-vue'
+import { totalCapabilityApis } from '@/data/capability'
 import { useDeveloperStore } from '@/stores/developer'
 import { listMyApps } from '@/api/apps'
 import { useScopeCatalog } from '@/composables/useScopeCatalog'
@@ -94,12 +95,12 @@ const scopeCount = ref(0)
 
 const initial = computed(() => (developerStore.profile?.name || 'D').charAt(0))
 
-// 可调接口数：与开放接口文档静态目录条目数一致（见 views/docs/ApiDocs.vue，共 8 个既有接口）
-const endpointCount = ref(8)
+// 可调接口数：与开放能力目录条目数一致（见 src/data/capability.ts）
+const endpointCount = ref(totalCapabilityApis)
 
 const quickEntries = [
   { title: '创建应用', desc: '注册你的第一个开放平台应用', path: '/apps', icon: Plus, color: '#409eff' },
-  { title: '开放接口', desc: '查看接口路径、鉴权与入参返参', path: '/api-docs', icon: Document, color: '#67c23a' },
+  { title: '开放能力', desc: '按模块查看开放接口文档', path: '/capability/user', icon: Document, color: '#67c23a' },
   { title: '个人中心', desc: '完善资料与开发者认证', path: '/profile', icon: User, color: '#e6a23c' },
 ]
 

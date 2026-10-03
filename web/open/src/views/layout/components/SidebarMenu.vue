@@ -14,10 +14,27 @@
         <el-icon><Grid /></el-icon>
         <template #title>应用管理</template>
       </el-menu-item>
-      <el-menu-item index="/api-docs">
-        <el-icon><Document /></el-icon>
-        <template #title>开放接口</template>
-      </el-menu-item>
+      <el-sub-menu index="/capability">
+        <template #title>
+          <el-icon><Document /></el-icon>
+          <span>开放能力</span>
+        </template>
+        <el-menu-item index="/capability/user">
+          <template #title>用户管理</template>
+        </el-menu-item>
+        <el-menu-item index="/capability/role">
+          <template #title>角色管理</template>
+        </el-menu-item>
+        <el-menu-item index="/capability/file">
+          <template #title>文件管理</template>
+        </el-menu-item>
+        <el-menu-item index="/capability/app">
+          <template #title>应用信息</template>
+        </el-menu-item>
+        <el-menu-item index="/capability/health">
+          <template #title>健康管理</template>
+        </el-menu-item>
+      </el-sub-menu>
       <el-sub-menu index="/auth">
         <template #title>
           <el-icon><Lock /></el-icon>
