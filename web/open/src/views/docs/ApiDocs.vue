@@ -90,6 +90,8 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
         code: 200,
         message: 'OK',
         data: { status: 'ok', service: 'openapi', app: 'hanjiang' },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
       },
       null,
       2,
@@ -106,7 +108,17 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
     scope: '',
     description: '返回开放平台 API 版本号。',
     params: [],
-    response_example: JSON.stringify({ code: 200, message: 'OK', data: { app_version: '0.1.0', api_version: 'v1' } }, null, 2),
+    response_example: JSON.stringify(
+      {
+        code: 200,
+        message: 'OK',
+        data: { app_version: '0.1.0', api_version: 'v1' },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
+      },
+      null,
+      2,
+    ),
     response_desc: '应用版本与 API 版本。',
   },
   // ── 应用信息 ──
@@ -132,6 +144,8 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
           scopes: ['user:read'],
           status: 'active',
         },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
       },
       null,
       2,
@@ -171,6 +185,8 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
           roles: [{ id: 3, role_name: '普通用户', role_code: 'user' }],
           status: 'enabled',
         },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
       },
       null,
       2,
@@ -205,6 +221,8 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
           page_size: 20,
           total_pages: 1,
         },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
       },
       null,
       2,
@@ -222,7 +240,13 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
     description: '查询单个用户详情，需 user:read scope。',
     params: [{ name: 'user_id', location: 'path', required: true, type: 'number', description: '用户 ID' }],
     response_example: JSON.stringify(
-      { code: 200, message: 'OK', data: { id: 2, username: 'yangzhuang', name: '杨壮', status: 'enabled' } },
+      {
+        code: 200,
+        message: 'OK',
+        data: { id: 2, username: 'yangzhuang', name: '杨壮', status: 'enabled' },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
+      },
       null,
       2,
     ),
@@ -244,7 +268,13 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
       { name: 'status', location: 'body', required: false, type: 'string', description: '状态（enabled/disabled）' },
     ],
     response_example: JSON.stringify(
-      { code: 200, message: 'OK', data: { id: 2, username: 'yangzhuang', name: '杨壮', status: 'disabled' } },
+      {
+        code: 200,
+        message: 'OK',
+        data: { id: 2, username: 'yangzhuang', name: '杨壮', status: 'disabled' },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
+      },
       null,
       2,
     ),
@@ -260,7 +290,17 @@ const STATIC_DOCS: ApiDocEndpoint[] = [
     scope: 'user:write',
     description: '软删除用户，需 user:write scope。',
     params: [{ name: 'user_id', location: 'path', required: true, type: 'number', description: '用户 ID' }],
-    response_example: JSON.stringify({ code: 200, message: 'OK', data: { deleted: true } }, null, 2),
+    response_example: JSON.stringify(
+      {
+        code: 200,
+        message: 'OK',
+        data: { deleted: true },
+        timestamp: '2026-10-03T12:00:00Z',
+        request_id: 'req_open_xxxxx',
+      },
+      null,
+      2,
+    ),
     response_desc: '删除结果标记。',
   },
 ]
@@ -274,7 +314,7 @@ const modules = computed(() => {
   return Object.entries(map).map(([name, items]) => ({ name, items }))
 })
 
-const METHOD_TAGS: Record<string, string> = {
+const METHOD_TAGS: Record<string, 'success' | 'warning' | 'primary' | 'info' | 'danger'> = {
   GET: 'success',
   POST: 'primary',
   PUT: 'warning',
@@ -282,7 +322,7 @@ const METHOD_TAGS: Record<string, string> = {
   DELETE: 'danger',
 }
 
-function methodTagType(method: ApiDocEndpoint['method']): string {
+function methodTagType(method: ApiDocEndpoint['method']): 'success' | 'warning' | 'primary' | 'info' | 'danger' {
   return METHOD_TAGS[method] || 'info'
 }
 </script>
