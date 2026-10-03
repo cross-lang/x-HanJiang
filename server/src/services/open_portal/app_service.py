@@ -19,7 +19,7 @@ from src.schemas.open_portal.app import (
     OpenAppResponse,
 )
 from src.utils import security
-from src.utils.openapi_utils import generate_app_id, parse_scopes
+from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, parse_scopes
 
 
 class DeveloperOpenAppService:
@@ -98,6 +98,15 @@ class DeveloperOpenAppService:
     def get_app(self, app_id: int, developer_id: int) -> OpenAppResponse:
         """查询应用详情（仅限本人名下，否则 404 不暴露存在性）。"""
         return self._to_response(self._require_owned(app_id, developer_id))
+
+    def list_scopes(self) -> list[dict[str, object]]:
+        """查询全部可用（未废弃）的开放平台 scope，供开发者创建应用/申请权限时勾选。
+
+        scope 元数据唯一来源为 constants/scopes.py 启动时对账的 openapi_scopes 表，
+        与管理端共享 repository 与公共映射函数（build_scope_dict_list）。
+        """
+        entities = self._repository.list_active_scopes()
+        return build_scope_dict_list(entities)
 
     # ── 更新 ────────────────────────────────────────────
 

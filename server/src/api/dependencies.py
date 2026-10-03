@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from src.services.open.gateway_service import OpenGatewayService
     from src.services.open_portal.auth_service import DeveloperAuthService
     from src.services.open_portal.developer_service import DeveloperService
-    from src.services.open_portal.open_app_service import DeveloperOpenAppService
+    from src.services.open_portal.app_service import DeveloperOpenAppService
     from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -653,7 +653,7 @@ def get_developer_open_app_service(
 ) -> DeveloperOpenAppService:
     """获取开发者应用管理服务（门户域）。"""
     from src.repositories.openapi_app_repository import OpenApiAppRepository
-    from src.services.open_portal.open_app_service import DeveloperOpenAppService
+    from src.services.open_portal.app_service import DeveloperOpenAppService
 
     return DeveloperOpenAppService(repo=OpenApiAppRepository(session=db_session))
 

@@ -53,6 +53,7 @@ class OpenGatewayService:
         app = self._repository.get_by_app_id(ctx.app_id)
         if app is None or app.status != AppStatus.ACTIVE.value:
             raise AuthenticationException(message="App 无效或已停用")
+
         # 审批门槛：仅放行已通过审批的应用（开发者自助应用需管理端审批通过后方可调用）
         if app.approval_status != AppApprovalStatus.APPROVED.value:
             raise AuthorizationException(

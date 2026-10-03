@@ -157,11 +157,13 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     # 限流器注册（通过 RateLimiterProvider 抽象装配，当前实现基于 slowapi）
     get_cached_rate_limiter_provider().setup(app)
-    # 认证用户路由（面向用户，JWT 鉴权）
+
+    # 路由注册
+    # 1. 管理系统路由（面向用户，会话 JWT + Redis 登录态）
     app.include_router(global_admin_router)
-    # 开放平台门户路由（面向开发者网页端，会话 JWT + Redis 登录态）
+    # 2. 开放平台门户路由（面向开发者门户网页端，会话 JWT + Redis 登录态）
     app.include_router(global_open_portal_router)
-    # 开放接口路由（面向外部应用，AppId/AppKey 鉴权）
+    # 3. 开放接口路由（面向外部应用，AppId/AppKey 鉴权）
     app.include_router(global_open_router)
     return app
 

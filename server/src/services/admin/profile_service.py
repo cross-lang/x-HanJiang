@@ -165,6 +165,13 @@ class ProfileService:
             raise ValidationException(message="验证码错误或已过期")
         user.password_hash = hash_password(request.new_password)
         self._user_repository.commit()
+        # 改密后强制撤销全部已签发令牌（与开放平台门户域行为对齐）
+        try:
+            from src.infras.cache import get_cached_cache_provider
+            provider = get_cached_cache_provider()
+            provider.delete(f"login:{user_id}")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"改密后清除 Redis 登录态失败: user_id={user_id} error={e}")
         # 发站内信（失败不阻断主流程）
         with suppress(Exception):
             if self._station_service is not None:
