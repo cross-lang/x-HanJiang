@@ -19,7 +19,7 @@ from src.models.entities.user_entity import (
 from src.repositories.permission_repository import PermissionRepository
 from src.repositories.role_permission_repository import RolePermissionRepository
 from src.repositories.role_repository import RoleRepository
-from src.schemas.role import (
+from src.schemas.admin.role import (
     PermissionResponse,
     RoleCreateRequest,
     RoleResponse,

@@ -17,8 +17,8 @@ from src.api.response import success_response
 from src.constants.enums import AuditAction, LoginStatus, LoginType
 from src.constants.permissions import PermissionAction, PermissionCode
 from src.core.exceptions import NotFoundException
-from src.schemas.audit import AuditLogResponse
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.audit import AuditLogResponse
+from src.schemas.admin.auth import CurrentUser
 from src.services.admin.audit_service import AuditService
 from src.services.admin.login_log_service import LoginLogService
 from src.utils.csv import build_csv_stream_response

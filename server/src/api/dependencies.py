@@ -23,10 +23,10 @@ from src.constants.constants import (
 from src.constants.enums import SystemRoleCode
 from src.core.exceptions import AuthorizationException
 from src.infras.database import get_db_session
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.auth import CurrentUser
 from src.schemas.common import PaginatedRequest
-from src.schemas.open.auth import CurrentDeveloper
-from src.schemas.openapi_app import CurrentApp
+from src.schemas.open.current_app import CurrentApp
+from src.schemas.open_portal.auth import CurrentDeveloper
 from src.services.admin.alert_service import AlertService
 from src.services.admin.audit_service import AuditService
 from src.services.admin.auth_service import AuthService

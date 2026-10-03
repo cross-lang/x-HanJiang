@@ -12,7 +12,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.auth import CurrentUser
 from src.services.admin.permission_service import PermissionService
 from src.services.admin.search_service import SearchService
 

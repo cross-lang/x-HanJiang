@@ -26,14 +26,14 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
-from src.schemas.auth import CurrentUser
-from src.schemas.common import PaginatedResponse
-from src.schemas.role import (
+from src.schemas.admin.auth import CurrentUser
+from src.schemas.admin.role import (
     BindPermissionRequest,
     RoleCreateRequest,
     RoleResponse,
     RoleUpdateRequest,
 )
+from src.schemas.common import PaginatedResponse
 from src.services.admin.permission_service import PermissionService
 from src.services.admin.role_service import RoleService
 

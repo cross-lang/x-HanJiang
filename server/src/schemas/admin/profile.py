@@ -14,7 +14,6 @@ Classes:
 """
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-
 from src.utils.time import normalize_date_str
 
 

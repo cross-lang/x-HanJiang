@@ -25,8 +25,8 @@ from src.models.entities.system_notification_entity import SystemNotificationEnt
 from src.notification.dispatcher import NotificationDispatcher
 from src.repositories.system_notification_repository import SystemNotificationRepository
 from src.repositories.user_repository import UserRepository
+from src.schemas.admin.notification import SystemNotificationResponse
 from src.schemas.common import PaginatedResponse
-from src.schemas.notification import SystemNotificationResponse
 from src.services.admin.station_service import StationMessageService
 
 

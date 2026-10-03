@@ -24,7 +24,7 @@ from src.constants.assistant import (
     AssistantEventType,
 )
 from src.core.logger import logger
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.auth import CurrentUser
 
 # 工具入参字典：key 为参数名，value 为 JSON 解析后的基础类型值
 ToolArgs = dict[str, Any]

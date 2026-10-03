@@ -16,7 +16,7 @@ from src.api.dependencies import (
     get_current_user,
 )
 from src.api.response import success_response
-from src.schemas.auth import (
+from src.schemas.admin.auth import (
     CurrentUser,
     LoginRequest,
     RefreshTokenRequest,

@@ -17,7 +17,7 @@ from src.core.exceptions import NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
-from src.schemas.openapi_app import OpenApiAppResponse
+from src.schemas.admin.openapi_app import OpenApiAppResponse
 from src.services.admin.base_service import BaseService, audit_crud
 from src.utils import security
 from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, parse_scopes

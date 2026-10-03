@@ -13,7 +13,7 @@ from src.api.dependencies import (
     get_developer_auth_service,
 )
 from src.api.response import success_response
-from src.schemas.open.auth import (
+from src.schemas.open_portal.auth import (
     CurrentDeveloper,
     DeveloperChangePasswordRequest,
     DeveloperLoginRequest,

@@ -50,8 +50,8 @@ from src.repositories.assistant_repository import (
     AssistantFeedbackRepository,
     AssistantMessageRepository,
 )
-from src.schemas.assistant import FeedbackRequest
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.assistant import FeedbackRequest
+from src.schemas.admin.auth import CurrentUser
 from src.utils.text import estimate_tokens
 
 

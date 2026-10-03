@@ -18,8 +18,7 @@ from src.api.dependencies import (
 from src.api.response import success_response
 from src.constants.enums import AppOwnerType
 from src.constants.permissions import PermissionCode
-from src.schemas.common import PaginatedResponse
-from src.schemas.openapi_app import (
+from src.schemas.admin.openapi_app import (
     OpenApiAppApprovalRequest,
     OpenApiAppCreatedResponse,
     OpenApiAppCreateRequest,
@@ -28,6 +27,7 @@ from src.schemas.openapi_app import (
     OpenApiAppStatusUpdateRequest,
     OpenApiAppUpdateRequest,
 )
+from src.schemas.common import PaginatedResponse
 from src.services.admin.openapi_app_service import OpenApiAppService
 
 router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])

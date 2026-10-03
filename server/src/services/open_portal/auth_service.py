@@ -28,7 +28,7 @@ from src.core.tokens import (
 )
 from src.models.entities.developer_entity import DeveloperEntity
 from src.repositories.developer_repository import DeveloperRepository
-from src.schemas.open.auth import (
+from src.schemas.open_portal.auth import (
     CurrentDeveloper,
     DeveloperProfileResponse,
     DeveloperTokenResponse,

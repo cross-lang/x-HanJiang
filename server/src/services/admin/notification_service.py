@@ -12,8 +12,8 @@ from src.constants.enums import NotificationStatus
 from src.models.entities.notification_entity import NotificationRecordEntity
 from src.notification.dispatcher import NotificationDispatcher
 from src.repositories.notification_repository import NotificationRepository
+from src.schemas.admin.notification import NotificationRecordResponse
 from src.schemas.common import PaginatedResponse
-from src.schemas.notification import NotificationRecordResponse
 
 
 class NotificationService:

@@ -30,7 +30,7 @@ from src.notification.dispatcher import NotificationDispatcher
 from src.repositories.login_log_repository import LoginLogRepository
 from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
-from src.schemas.auth import (
+from src.schemas.admin.auth import (
     CurrentUser,
     TokenResponse,
 )

@@ -28,14 +28,14 @@ from src.models.entities.assistant_entity import (
     AssistantConversationEntity,
     AssistantMessageEntity,
 )
-from src.schemas.assistant import (
+from src.schemas.admin.assistant import (
     ChatRequest,
     ConversationPinRequest,
     ConversationResponse,
     FeedbackRequest,
     MessageResponse,
 )
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.auth import CurrentUser
 from src.services.admin.assistant_service import AssistantService
 from src.utils.sse import build_sse_event
 

@@ -18,12 +18,12 @@ from src.api.response import success_response
 from src.constants.enums import AnnouncementStatus
 from src.constants.permissions import PermissionCode
 from src.models.entities.announcement_entity import AnnouncementEntity
-from src.schemas.announcement import (
+from src.schemas.admin.announcement import (
     AnnouncementCreateRequest,
     AnnouncementResponse,
     AnnouncementUpdateRequest,
 )
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.auth import CurrentUser
 from src.schemas.common import PaginatedResponse
 from src.services.admin.announcement_service import AnnouncementService
 

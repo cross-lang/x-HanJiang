@@ -14,7 +14,7 @@ from src.core.exceptions import ConflictException, NotFoundException, Validation
 from src.core.logger import logger
 from src.models.entities.announcement_entity import AnnouncementEntity
 from src.repositories.announcement_repository import AnnouncementRepository
-from src.schemas.announcement import AnnouncementCreateRequest, AnnouncementUpdateRequest
+from src.schemas.admin.announcement import AnnouncementCreateRequest, AnnouncementUpdateRequest
 from src.services.admin.base_service import audit_crud
 
 

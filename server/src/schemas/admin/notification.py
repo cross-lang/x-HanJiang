@@ -6,7 +6,6 @@ import re
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
 from src.constants.enums import NotificationChannel, SystemNotificationType
 
 """系统通知（广播）发布请求。

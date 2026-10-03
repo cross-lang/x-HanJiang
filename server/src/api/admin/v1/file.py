@@ -7,7 +7,7 @@ from src.api.api_permission_decorator import permission
 from src.api.dependencies import get_current_user, get_file_service, is_admin_user, require_user_permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
-from src.schemas.auth import CurrentUser
+from src.schemas.admin.auth import CurrentUser
 from src.services.admin.file_service import FileStorageService
 
 router = APIRouter(prefix="/files", tags=["文件管理"])

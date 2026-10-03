@@ -14,7 +14,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.schemas.common import PaginatedResponse
-from src.schemas.open.app import (
+from src.schemas.open_portal.app import (
     OpenAppCreatedResponse,
     OpenAppCreateRequest,
     OpenAppResponse,
@@ -22,7 +22,7 @@ from src.schemas.open.app import (
     OpenAppSecretResponse,
     OpenAppUpdateRequest,
 )
-from src.schemas.open.auth import CurrentDeveloper
+from src.schemas.open_portal.auth import CurrentDeveloper
 from src.services.open_portal.open_app_service import DeveloperOpenAppService
 
 router = APIRouter(prefix="/apps", tags=["开放平台：开发者应用"])

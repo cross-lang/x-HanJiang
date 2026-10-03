@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from src.api.dependencies import get_current_developer, get_db_session
 from src.api.response import success_response
 from src.repositories.openapi_app_repository import OpenApiAppRepository
-from src.schemas.open.auth import CurrentDeveloper
+from src.schemas.open_portal.auth import CurrentDeveloper
 from src.utils.openapi_utils import build_scope_dict_list
 
 router = APIRouter(prefix="/scopes", tags=["开放平台：scope 目录"])

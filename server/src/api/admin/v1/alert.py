@@ -18,7 +18,7 @@ from src.api.dependencies import (
 )
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
-from src.schemas.alert import AlertSendRequest
+from src.schemas.admin.alert import AlertSendRequest
 from src.services.admin.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["系统告警"])

@@ -33,7 +33,7 @@ from src.constants.constants import (
 from src.constants.enums import AppApprovalStatus, AppAuthMode, AppStatus
 from src.core.exceptions import AuthenticationException, AuthorizationException
 from src.repositories.openapi_app_repository import OpenApiAppRepository
-from src.schemas.openapi_app import CurrentApp
+from src.schemas.open.current_app import CurrentApp
 from src.utils import security
 from src.utils.openapi_utils import parse_scopes
 

@@ -15,7 +15,7 @@ from src.constants.enums import AppApprovalStatus, AppOwnerType, AppStatus
 from src.core.exceptions import NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.repositories.openapi_app_repository import OpenApiAppRepository
-from src.schemas.open.app import (
+from src.schemas.open_portal.app import (
     OpenAppResponse,
 )
 from src.utils import security

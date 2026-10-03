@@ -8,21 +8,22 @@
     - 响应模型（*Response）：定义接口返回的数据结构
     - 数据传输模型（*DTO）：用于层间数据传递
     - 所有模型继承自统一的基类，确保一致的配置
-子模块：
-    - user: 用户相关的请求/响应模型
-    - health: 健康检查相关的响应模型
-    - common: 通用模型（分页、错误响应等）
+子模块（按域划分，对应 api/services 三层）：
+    - admin：管理系统 DTO（用户/角色/权限/通知/应用管理/健康检查等）
+    - open：开放接口（网关）DTO（调用方应用身份 CurrentApp）
+    - open_portal：开放平台门户 DTO（开发者账号/资料/应用）
+    - common（根目录）：公共模型（分页、统一响应包裹等）
 """
 
-from src.schemas.assistant import (
+from src.schemas.admin.assistant import (
     ChatRequest,
     ConversationResponse,
     FeedbackRequest,
     MessageResponse,
 )
+from src.schemas.admin.health import HealthResponse, VersionResponse
+from src.schemas.admin.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.schemas.common import ApiResponse, PaginatedRequest, PaginatedResponse
-from src.schemas.health import HealthResponse, VersionResponse
-from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 
 __all__ = [
     "PaginatedRequest",

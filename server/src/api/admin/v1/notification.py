@@ -18,8 +18,8 @@ from src.api.dependencies import (
 from src.api.response import success_response
 from src.constants.enums import SystemNotificationType
 from src.constants.permissions import PermissionCode
-from src.schemas.auth import CurrentUser
-from src.schemas.notification import (
+from src.schemas.admin.auth import CurrentUser
+from src.schemas.admin.notification import (
     NotificationStatsResponse,
     PublishNotificationRequest,
     SystemNotificationResponse,

@@ -43,8 +43,8 @@ from src.repositories.menu_repository import MenuRepository
 from src.repositories.notification_preference_repository import NotificationPreferenceRepository
 from src.repositories.notification_recipient_repository import NotificationRecipientRepository
 from src.repositories.user_repository import UserRepository
-from src.schemas.auth import CurrentUser
-from src.schemas.profile import (
+from src.schemas.admin.auth import CurrentUser
+from src.schemas.admin.profile import (
     ChangePasswordRequest,
     NotificationRecipientCreateRequest,
     NotificationRecipientUpdateRequest,
