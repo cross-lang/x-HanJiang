@@ -23,6 +23,8 @@ class OpenApiScopeModule(StrBaseEnum):
     """开放平台 scope 模块编码与中文名映射（与 OpenApiScopeCode.module 一一对应）。"""
 
     USER = ("user", "用户管理")
+    ROLE = ("role", "角色管理")
+    FILE = ("file", "文件管理")
 
 
 class OpenApiScopeAction(StrBaseEnum):
@@ -89,6 +91,14 @@ class OpenApiScopeCode(BaseEnum):
     # ── 用户域 ────────────────────────────────────────────
     USER_READ = ("user:read", "读取用户数据", OpenApiScopeModule.USER.mark, OpenApiScopeAction.READ.mark, "查询开放平台用户列表与详情", 1)
     USER_WRITE = ("user:write", "写入用户数据", OpenApiScopeModule.USER.mark, OpenApiScopeAction.WRITE.mark, "创建、更新或删除开放平台用户", 2)
+
+    # ── 角色域 ────────────────────────────────────────────
+    ROLE_READ = ("role:read", "读取角色数据", OpenApiScopeModule.ROLE.mark, OpenApiScopeAction.READ.mark, "查询角色列表、详情与角色权限", 3)
+    ROLE_WRITE = ("role:write", "写入角色数据", OpenApiScopeModule.ROLE.mark, OpenApiScopeAction.WRITE.mark, "创建、更新或删除角色", 4)
+
+    # ── 文件域 ────────────────────────────────────────────
+    FILE_READ = ("file:read", "读取文件数据", OpenApiScopeModule.FILE.mark, OpenApiScopeAction.READ.mark, "查询文件列表与下载文件", 5)
+    FILE_WRITE = ("file:write", "写入文件数据", OpenApiScopeModule.FILE.mark, OpenApiScopeAction.WRITE.mark, "上传或删除文件", 6)
 
 
 #: scope 目录（成员定义顺序），供种子初始化等批量场景遍历

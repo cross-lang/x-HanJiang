@@ -78,7 +78,7 @@
 
 ## 二、开放接口（/api/open/v1，网关，已实现）
 
-> 来源：`server/src/api/open/v1/{health,app,user}.py`，鉴权 = X-App-Id / X-App-Key（HanJiang-1 签名）。
+> 来源：`server/src/api/open/v1/{health,app,user,role,file}.py`，鉴权 = X-App-Id / X-App-Key（HanJiang-1 签名）。
 > **前置门槛**：应用 `approval_status` 非 approved 一律 403（审批通过前不可调用）。
 
 ### 健康管理（无需 scope）
@@ -104,7 +104,35 @@
 | PATCH | `/api/open/v1/users/{user_id}` | `user:write` | 更新用户 |
 | DELETE | `/api/open/v1/users/{user_id}` | `user:write` | 删除用户，返回 `{deleted: true}` |
 
-> scope 元数据唯一来源：`server/src/constants/scopes.py` 的 `OpenApiScopeCode`（启动时对账到 openapi_scopes 表）。
+### 角色管理（scope: role:read / role:write）
+
+> 来源：`server/src/api/open/v1/role.py`，服务 `services/role_service.py`（已上提通用目录，管理端 `/api/admin/v1/roles` 与开放接口共用）。
+> 权限的绑定/解绑属管理端管理行为（用户态 ROLE_PERMISSION 权限体系），不对外部应用开放。
+
+| 方法 | 路径 | scope | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/open/v1/roles` | `role:read` | 分页列表（query: page/page_size/keyword/role_type/status） |
+| POST | `/api/open/v1/roles` | `role:write` | 创建角色（201；编码/名称唯一） |
+| GET | `/api/open/v1/roles/{role_id}` | `role:read` | 角色详情 |
+| PATCH | `/api/open/v1/roles/{role_id}` | `role:write` | 更新角色（role_name/description/status） |
+| DELETE | `/api/open/v1/roles/{role_id}` | `role:write` | 软删除角色（有关联用户的角色不可删） |
+| GET | `/api/open/v1/roles/{role_id}/permissions` | `role:read` | 角色绑定的权限列表 |
+
+### 文件管理（scope: file:read / file:write）
+
+> 来源：`server/src/api/open/v1/file.py`，服务 `services/file_service.py`（已上提通用目录，管理端 `/api/admin/v1/files` 与开放接口共用）。
+> 上传约定：开放接口签名串固定 `Content-Type: application/json` 并对 body 做 SHA256 摘要，multipart 无法进入签名体系，
+> 故文件内容以 Base64 内嵌 JSON body（`OpenFileUploadRequest`，见 `schemas/open/file.py`），落库归属走 `files.uploaded_by_app`（应用 ID），
+> 不占用用户外键列 `files.uploaded_by`。
+
+| 方法 | 路径 | scope | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/open/v1/files` | `file:read` | 分页列表（query: folder/keyword/page/page_size） |
+| POST | `/api/open/v1/files` | `file:write` | 上传文件（201；body: filename/content_base64/folder） |
+| GET | `/api/open/v1/files/{file_path:path}` | `file:read` | 下载文件（本地存储返回文件流，云存储 302 重定向） |
+| DELETE | `/api/open/v1/files/{file_id}` | `file:write` | 软删除文件，返回 `{deleted: true}` |
+
+> scope 元数据唯一来源：`server/src/constants/scopes.py` 的 `OpenApiScopeCode`（启动时对账到 openapi_scopes 表；role/file 模块 scope 自动同步）。
 
 ---
 

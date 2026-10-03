@@ -31,7 +31,6 @@ from src.schemas.open_portal.auth import CurrentDeveloper
 from src.services.admin.alert_service import AlertService
 from src.services.admin.audit_service import AuditService
 from src.services.admin.auth_service import AuthService
-from src.services.admin.file_service import FileStorageService
 from src.services.admin.health_service import HealthService
 from src.services.admin.notification_service import NotificationService
 from src.services.admin.permission_service import PermissionService
@@ -58,16 +57,17 @@ if TYPE_CHECKING:
     from src.services.admin.login_log_service import LoginLogService
     from src.services.admin.openapi_app_service import OpenApiAppService
     from src.services.admin.profile_service import ProfileService
-    from src.services.admin.role_service import RoleService
     from src.services.admin.search_service import SearchService
     from src.services.admin.station_service import StationMessageService
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
     from src.services.admin.system_notification_service import SystemNotificationService
+    from src.services.file_service import FileStorageService
     from src.services.open.gateway_service import OpenGatewayService
     from src.services.open_portal.app_service import DeveloperOpenAppService
     from src.services.open_portal.auth_service import DeveloperAuthService
     from src.services.open_portal.developer_message_service import DeveloperMessageService
     from src.services.open_portal.developer_service import DeveloperService
+    from src.services.role_service import RoleService
     from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -229,6 +229,7 @@ def get_file_service(
     """获取文件存储服务，使用 StorageProvider 抽象层 + 请求级仓库。"""
     from src.infras.storage import get_cached_storage_provider
     from src.repositories.file_repository import FileRepository
+    from src.services.file_service import FileStorageService
 
     return FileStorageService(
         file_repository=FileRepository(session=db_session),
@@ -298,7 +299,7 @@ def get_role_service(
     permission_repository: PermissionRepository = Depends(get_permission_repository),
 ) -> RoleService:
     """使用当前请求的 Repository 创建角色服务。"""
-    from src.services.admin.role_service import RoleService
+    from src.services.role_service import RoleService
 
     return RoleService(
         role_repository=role_repository,

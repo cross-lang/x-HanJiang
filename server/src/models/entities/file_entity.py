@@ -25,6 +25,7 @@ class FileEntity(Base):
     storage_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default="local", comment="存储类型")
     url: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="访问 URL")
     uploaded_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True, comment="上传人用户ID")
+    uploaded_by_app: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="上传应用ID（开放接口上传方 openapi_apps.app_id）")
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("0"), comment="是否公开访问")
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("0"), comment="是否已软删除")
     created_at: Mapped[datetime] = mapped_column(

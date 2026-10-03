@@ -53,15 +53,46 @@ class FileStorageService:
         folder: str = "general",
         operator: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """保存上传文件，并记录到 files 表。"""
+        """保存上传文件，并记录到 files 表（管理端 multipart 入口）。"""
         file_name = file.filename or "upload.bin"
         content_type = file.content_type or "application/octet-stream"
+        return self.save_bytes(
+            data=file.file.read(),
+            filename=file_name,
+            folder=folder,
+            content_type=content_type,
+            operator=operator,
+            uploaded_by_user=operator.get("operator_id") if operator else None,
+        )
+
+    def save_bytes(
+        self,
+        data: bytes,
+        filename: str,
+        folder: str = "general",
+        content_type: str | None = None,
+        operator: dict[str, Any] | None = None,
+        uploaded_by_user: int | None = None,
+        app_owner: str | None = None,
+    ) -> dict[str, Any]:
+        """保存文件字节流并记录到 files 表（开放接口 base64 JSON 上传入口）。
+
+        Args:
+            data: 文件内容字节流
+            filename: 文件名（含扩展名，用于生成存储 key 与元数据）
+            folder: 存储目录（默认 general）
+            content_type: MIME 类型（缺省按文件名猜测）
+            operator: 操作上下文（审计/日志用：operator_id / operator_name / ip_address）
+            uploaded_by_user: 上传人用户 ID（管理系统用户上传时显式传入，写入 files.uploaded_by）
+            app_owner: 上传方应用 ID（开放接口场景，openapi_apps.app_id；
+                写入 files.uploaded_by_app，不占用用户外键列 uploaded_by）
+        """
+        file_name = filename or "upload.bin"
+        content_type = content_type or mimetypes.guess_type(file_name)[0] or "application/octet-stream"
         key = self._provider.make_object_key(folder, file_name)
-        data = file.file.read()
         result = self._provider.upload_file(data, key, content_type=content_type)
         # 记录到数据库
         ext = Path(file_name).suffix.lstrip(".")
-        uploaded_by = operator.get("operator_id") if operator else None
         entity = FileEntity(
             file_key=result.key,
             original_name=file_name,
@@ -72,7 +103,8 @@ class FileStorageService:
             folder=folder,
             storage_type=result.storage,
             url=result.url,
-            uploaded_by=uploaded_by,
+            uploaded_by=uploaded_by_user,
+            uploaded_by_app=app_owner,
         )
         self._repository.create(entity)
         self._repository.commit()
@@ -83,7 +115,7 @@ class FileStorageService:
             after_data={"filename": file_name, "key": result.key, "size": result.size, "folder": folder},
             remarks=f"上传文件{file_name}",
         )
-        logger.info(f"File uploaded: key={result.key} size={result.size} operator_id={uploaded_by} file_id={entity.id}")
+        logger.info(f"File uploaded: key={result.key} size={result.size} operator_id={uploaded_by_user} file_id={entity.id}")
         return {
             "id": entity.id,
             "filename": file_name,
@@ -93,7 +125,8 @@ class FileStorageService:
             "size": result.size,
             "storage": result.storage,
             "content_type": content_type,
-            "uploaded_by": uploaded_by,
+            "uploaded_by": uploaded_by_user,
+            "uploaded_by_app": app_owner,
         }
 
     # ── 列表 ────────────────────────────────────────────
@@ -127,6 +160,7 @@ class FileStorageService:
                     "storage_type": r[0].storage_type,
                     "url": r[0].url,
                     "uploaded_by": r[0].uploaded_by,
+                    "uploaded_by_app": r[0].uploaded_by_app,
                     "uploader_name": r[1].name if r[1] else None,
                     "uploader_display": f"{r[1].name}（{r[1].username}）" if r[1] else str(r[0].uploaded_by or ""),
                     "is_public": r[0].is_public,
