@@ -26,7 +26,7 @@ from src.constants.constants import (
 )
 from src.constants.enums import AppApprovalStatus, AppAuthMode, AppOwnerType, AppStatus, NotificationEvent
 from src.constants.permissions import PermissionAction
-from src.core.exceptions import AuthenticationException, NotFoundException
+from src.core.exceptions import AuthenticationException, AuthorizationException, NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
@@ -127,10 +127,13 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     async def authenticate(self, request: Request) -> CurrentApp:
         """解析开放平台应用身份。
-        鉴权逻辑按 app.auth_mode 分流：
-            - plain：仅接受 X-App-Key 明文比对 SHA256；
-            - hmac：  仅接受 HanJiang-1 签名（时间窗 + 重算签名）；
-            - both：  两种都接受（灰度期）。
+        鉴权流程：
+            1. 应用存在且启用（status=active）；
+            2. 审批状态须为 approved（pending/rejected 一律拒绝——申请-审批闭环的强制门槛）；
+            3. 按 app.auth_mode 分流：
+               - plain：仅接受 X-App-Key 明文比对 SHA256；
+               - hmac：  仅接受 HanJiang-1 签名（时间窗 + 重算签名）；
+               - both：  两种都接受（灰度期）。
         """
         app_id = request.headers.get(OPENAPI_HEADER_APP_ID)
         if not app_id:
@@ -138,6 +141,11 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         app = self._repository.get_by_app_id(app_id)
         if app is None or app.status != AppStatus.ACTIVE.value:
             raise AuthenticationException(message="App 无效或已停用")
+        # 审批门槛：仅放行已通过审批的应用（开发者自助应用需管理端审批通过后方可调用）
+        if app.approval_status != AppApprovalStatus.APPROVED.value:
+            raise AuthorizationException(
+                message=f"应用 {app.app_id} 未通过审批（当前状态：{app.approval_status}），请联系管理员"
+            )
         try:
             mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)
         except ValueError:
