@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from src.services.admin.station_service import StationMessageService
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
     from src.services.admin.system_notification_service import SystemNotificationService
-    from src.services.admin.user_service import UserService
+    from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -152,7 +152,7 @@ def get_user_service(
     dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> UserService:
     """使用当前请求的 Repository 创建用户服务。"""
-    from src.services.admin.user_service import UserService
+    from src.services.user_service import UserService
 
     return UserService(
         user_repository=user_repository,
