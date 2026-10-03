@@ -42,8 +42,8 @@ class DeveloperOpenAppService:
         """开发者创建应用。
 
         创建即申请：scopes 直接落到应用上但审批状态为 pending，
-        管理员审批通过后才对外生效语义（网关鉴权不校验审批态，
-        审批未通过时建议网关侧拦截——见 OpenApiAppService.authenticate 备注）。
+        管理员审批通过后才对外生效（网关侧已强制拦截：审批未通过时
+        OpenGatewayService.authenticate 一律拒绝，见 services/open/gateway_service.py）。
 
         Returns:
             (响应 DTO, 明文 AppKey)。明文仅此一次返回（由 API 层组装进响应）。

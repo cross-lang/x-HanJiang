@@ -16,7 +16,7 @@ from src.schemas.open.auth import (
     DeveloperCertificationRequest,
     DeveloperProfileUpdateRequest,
 )
-from src.services.open.developer_service import DeveloperService
+from src.services.open_portal.developer_service import DeveloperService
 
 router = APIRouter(prefix="/developer", tags=["开放平台：开发者资料"])
 

@@ -23,7 +23,7 @@ from src.schemas.open.app import (
     OpenAppUpdateRequest,
 )
 from src.schemas.open.auth import CurrentDeveloper
-from src.services.open.open_app_service import DeveloperOpenAppService
+from src.services.open_portal.open_app_service import DeveloperOpenAppService
 
 router = APIRouter(prefix="/apps", tags=["开放平台：开发者应用"])
 

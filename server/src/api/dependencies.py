@@ -62,9 +62,10 @@ if TYPE_CHECKING:
     from src.services.admin.station_service import StationMessageService
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
     from src.services.admin.system_notification_service import SystemNotificationService
-    from src.services.open.auth_service import DeveloperAuthService
-    from src.services.open.developer_service import DeveloperService
-    from src.services.open.open_app_service import DeveloperOpenAppService
+    from src.services.open.gateway_service import OpenGatewayService
+    from src.services.open_portal.auth_service import DeveloperAuthService
+    from src.services.open_portal.developer_service import DeveloperService
+    from src.services.open_portal.open_app_service import DeveloperOpenAppService
     from src.services.user_service import UserService
 
 # HTTP Bearer 认证方案（auto_error=False，缺失令牌时由 get_current_user 统一抛 401）
@@ -339,11 +340,21 @@ def get_login_log_service(
 def get_openapi_app_service(
     db_session: Session = Depends(get_db_session),
 ) -> OpenApiAppService:
-    """创建开放平台应用管理服务。"""
+    """创建开放平台应用管理服务（管理端 CRUD/审批）。"""
     from src.repositories.openapi_app_repository import OpenApiAppRepository
     from src.services.admin.openapi_app_service import OpenApiAppService
 
     return OpenApiAppService(repo=OpenApiAppRepository(session=db_session))
+
+
+def get_open_gateway_service(
+    db_session: Session = Depends(get_db_session),
+) -> OpenGatewayService:
+    """创建开放接口网关鉴权服务（/api/open/v1，AppId/Key 签名 + 审批门槛）。"""
+    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.services.open.gateway_service import OpenGatewayService
+
+    return OpenGatewayService(repo=OpenApiAppRepository(session=db_session))
 
 
 def get_search_service(
@@ -442,9 +453,9 @@ async def get_current_app(
     _app_key: str | None = Depends(_app_key_scheme),
     _app_date: str | None = Depends(_app_date_scheme),
     _app_auth: str | None = Depends(_app_auth_scheme),
-    service: OpenApiAppService = Depends(get_openapi_app_service),
+    service: OpenGatewayService = Depends(get_open_gateway_service),
 ) -> CurrentApp:
-    """解析开放平台应用身份，委托给 OpenApiAppService。"""
+    """解析开放平台应用身份，委托给开放接口网关鉴权服务（OpenGatewayService）。"""
     current = await service.authenticate(request)
     request.state.current_app = current
     return current
@@ -595,8 +606,8 @@ def get_developer_repository(
 def get_developer_auth_service(
     developer_repository: DeveloperRepository = Depends(get_developer_repository),
 ) -> DeveloperAuthService:
-    """获取开发者认证服务。"""
-    from src.services.open.auth_service import DeveloperAuthService
+    """获取开发者认证服务（门户域）。"""
+    from src.services.open_portal.auth_service import DeveloperAuthService
 
     return DeveloperAuthService(repository=developer_repository)
 
@@ -604,8 +615,8 @@ def get_developer_auth_service(
 def get_developer_service(
     developer_repository: DeveloperRepository = Depends(get_developer_repository),
 ) -> DeveloperService:
-    """获取开发者资料服务。"""
-    from src.services.open.developer_service import DeveloperService
+    """获取开发者资料服务（门户域）。"""
+    from src.services.open_portal.developer_service import DeveloperService
 
     return DeveloperService(repository=developer_repository)
 
@@ -613,9 +624,9 @@ def get_developer_service(
 def get_developer_open_app_service(
     db_session: Session = Depends(get_db_session),
 ) -> DeveloperOpenAppService:
-    """获取开发者应用管理服务。"""
+    """获取开发者应用管理服务（门户域）。"""
     from src.repositories.openapi_app_repository import OpenApiAppRepository
-    from src.services.open.open_app_service import DeveloperOpenAppService
+    from src.services.open_portal.open_app_service import DeveloperOpenAppService
 
     return DeveloperOpenAppService(repo=OpenApiAppRepository(session=db_session))
 

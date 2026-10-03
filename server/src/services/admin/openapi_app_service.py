@@ -1,105 +1,27 @@
 #!/usr/bin/env python3
-"""开放平台应用业务逻辑。
-包含两部分：
-1. 管理员侧的应用 CRUD、密钥生成与重置（OpenApiAppService）；
-2. 开放平台协议相关的私有函数：签名串拼装、HMAC 校验（通用函数 generate_app_id /
-   parse_scopes / scope 目录映射已抽至 src/utils/openapi_utils.py，此处 re-export 保持旧引用兼容）。
-通用加密原语（SHA256、Fernet、HMAC）在 src/utils/security.py。
+"""开放平台应用管理业务逻辑（管理端视角）。
+
+仅包含管理员侧的应用 CRUD、密钥生成与重置、scope 授权与审批（OpenApiAppService）。
+网关鉴权（X-App-Id/App-Key 明文 或 HanJiang-1 签名 + 审批门槛）已抽至
+src/services/open/gateway_service.py（开放接口域）；
+公共工具（generate_app_id / parse_scopes / scope 目录映射）在 src/utils/openapi_utils.py。
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
 from typing import Any
 
-from fastapi import Request
-
-from src.constants.constants import (
-    OPENAPI_ALGORITHM,
-    OPENAPI_CONTENT_TYPE,
-    OPENAPI_HEADER_APP_ID,
-    OPENAPI_HEADER_APP_KEY,
-    OPENAPI_HEADER_AUTHORIZATION,
-    OPENAPI_HEADER_DATE,
-    OPENAPI_SIGNATURE_WINDOW_SECONDS,
-)
-from src.constants.enums import AppApprovalStatus, AppAuthMode, AppOwnerType, AppStatus, NotificationEvent
+from src.constants.enums import AppApprovalStatus, AppOwnerType, AppStatus, NotificationEvent
 from src.constants.permissions import PermissionAction
-from src.core.exceptions import AuthenticationException, AuthorizationException, NotFoundException
+from src.core.exceptions import NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
-from src.schemas.openapi_app import CurrentApp, OpenApiAppResponse
+from src.schemas.openapi_app import OpenApiAppResponse
 from src.services.admin.base_service import BaseService, audit_crud
 from src.utils import security
 from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, parse_scopes
 from src.utils.security import generate_secret_key
-
-
-def build_signing_string(
-    *,
-    method: str,
-    uri: str,
-    content_type: str,
-    date: str,
-    body: bytes,
-) -> str:
-    """构造 HanJiang-1 待签名串（与外部调用方的协议约定，勿随意改）。
-    格式：Ver + METHOD + URI + Content-Type + Date + SHA256(body)
-    直接拼接，无分隔符。
-    注意：Content-Type 固定为 application/json（与请求是否携带 body 无关），
-    GET 无 body 时同样拼接该固定值，body 为空则 SHA256(body) 取空字符串。
-    """
-    body_hash = security.sha256_hex(body.decode("utf-8")) if body else ""
-    return "".join(
-        [
-            OPENAPI_ALGORITHM,
-            method.upper(),
-            uri,
-            content_type,
-            date,
-            body_hash,
-        ]
-    )
-
-
-def verify_request_signature(
-    *,
-    app_key_plain: str,
-    method: str,
-    uri: str,
-    content_type: str,
-    date: str,
-    body: bytes,
-    signature: str,
-) -> bool:
-    """校验请求签名。"""
-    expected = security.hmac_sha256_hex(
-        app_key_plain,
-        build_signing_string(method=method, uri=uri, content_type=content_type, date=date, body=body),
-    )
-    return security.constant_time_equals(expected, signature)
-
-
-def _extract_uri(request: Request) -> str:
-    """从请求中提取 URI（path + raw query，不含域名）。"""
-    uri = request.url.path
-    if request.url.query:
-        uri += f"?{request.url.query}"
-    return uri
-
-
-def _parse_http_date(date_str: str) -> datetime | None:
-    """解析 HTTP 标准格式日期，如 'Wed, 23 Jan 2013 06:43:08 GMT'。"""
-    try:
-        dt = parsedate_to_datetime(date_str)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
-
 
 # ============================================================
 
@@ -122,111 +44,6 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     def __init__(self, repo: OpenApiAppRepository) -> None:
         self._repository = repo
-
-    # ── 鉴权（每请求调用）──────────────────────────────
-
-    async def authenticate(self, request: Request) -> CurrentApp:
-        """解析开放平台应用身份。
-        鉴权流程：
-            1. 应用存在且启用（status=active）；
-            2. 审批状态须为 approved（pending/rejected 一律拒绝——申请-审批闭环的强制门槛）；
-            3. 按 app.auth_mode 分流：
-               - plain：仅接受 X-App-Key 明文比对 SHA256；
-               - hmac：  仅接受 HanJiang-1 签名（时间窗 + 重算签名）；
-               - both：  两种都接受（灰度期）。
-        """
-        app_id = request.headers.get(OPENAPI_HEADER_APP_ID)
-        if not app_id:
-            raise AuthenticationException(message="缺少请求头 X-App-Id")
-        app = self._repository.get_by_app_id(app_id)
-        if app is None or app.status != AppStatus.ACTIVE.value:
-            raise AuthenticationException(message="App 无效或已停用")
-        # 审批门槛：仅放行已通过审批的应用（开发者自助应用需管理端审批通过后方可调用）
-        if app.approval_status != AppApprovalStatus.APPROVED.value:
-            raise AuthorizationException(
-                message=f"应用 {app.app_id} 未通过审批（当前状态：{app.approval_status}），请联系管理员"
-            )
-        try:
-            mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)
-        except ValueError:
-            mode = AppAuthMode.PLAIN
-        plain_key = request.headers.get(OPENAPI_HEADER_APP_KEY)
-        authorization = request.headers.get(OPENAPI_HEADER_AUTHORIZATION, "")
-        date = request.headers.get(OPENAPI_HEADER_DATE, "")
-        authenticated = False
-        # 分支 1：明文 AppKey 校验
-        if mode in (AppAuthMode.PLAIN, AppAuthMode.BOTH) and plain_key:
-            authenticated = security.constant_time_equals(security.sha256_hex(plain_key), app.app_key_hash)
-        # 分支 2：HanJiang-1 签名校验
-        if not authenticated and mode in (AppAuthMode.HMAC, AppAuthMode.BOTH) and authorization:
-            authenticated = await self._verify_hmac_signature(
-                request=request,
-                app_encrypted=app.app_key_encrypted,
-                date=date,
-                authorization=authorization,
-            )
-        if not authenticated:
-            raise AuthenticationException(message="应用鉴权失败")
-        # 更新 last_used_at（失败不阻断主流程）
-        try:
-            self._repository.touch_last_used(app_id)
-        except Exception:
-            self._repository.rollback()
-        return CurrentApp(
-            app_id=app.app_id,
-            name=app.name,
-            description=app.description,
-            scopes=parse_scopes(app.scopes),
-            auth_mode=mode.value,
-            rate_limit_per_minute=app.rate_limit_per_minute,
-        )
-
-    async def _verify_hmac_signature(
-        self,
-        *,
-        request: Request,
-        app_encrypted: str | None,
-        date: str,
-        authorization: str,
-    ) -> bool:
-        """HanJiang-1 签名校验：时间窗 + 解密 secret + 重算签名。"""
-        # 1. 时间窗：解析 HTTP Date 格式
-        if not date:
-            return False
-        request_time = _parse_http_date(date)
-        if request_time is None:
-            return False
-        now = datetime.now(UTC)
-        if abs((now - request_time).total_seconds()) > OPENAPI_SIGNATURE_WINDOW_SECONDS:
-            return False
-        # 2. 解密取回明文 secret
-        secret = security.decrypt_text(app_encrypted)
-        if not secret:
-            return False
-        # 3. 提取 Authorization 中的签名值
-        # 格式：HanJiang-1 {app_id}:{signature}
-        parts = authorization.split(":", 1)
-        if len(parts) != 2 or not parts[1]:
-            return False
-        signature = parts[1].strip()
-        # 4. 取请求体
-        body = b""
-        try:
-            body = await request.body()
-        except Exception:
-            body = b""
-        # 5. Content-Type（协议固定为 application/json，不从请求头取值）
-        content_type = OPENAPI_CONTENT_TYPE
-        # 6. 重算签名并比对
-        return verify_request_signature(
-            app_key_plain=secret,
-            method=request.method,
-            uri=_extract_uri(request),
-            content_type=content_type,
-            date=date,
-            body=body,
-            signature=signature,
-        )
 
     # ── 创建 ────────────────────────────────────────────
 

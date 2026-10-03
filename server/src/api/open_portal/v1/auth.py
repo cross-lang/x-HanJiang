@@ -20,7 +20,7 @@ from src.schemas.open.auth import (
     DeveloperRefreshRequest,
     DeveloperRegisterRequest,
 )
-from src.services.open.auth_service import DeveloperAuthService
+from src.services.open_portal.auth_service import DeveloperAuthService
 
 router = APIRouter(prefix="/auth", tags=["开放平台：开发者认证"])
 
