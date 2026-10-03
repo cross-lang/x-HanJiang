@@ -25,7 +25,8 @@ from src.core.exceptions import AuthorizationException
 from src.infras.database import get_db_session
 from src.schemas.admin.auth import CurrentUser
 from src.schemas.common import PaginatedRequest
-from src.schemas.open.current_app import CurrentApp
+from src.schemas.open.app import CurrentApp
+from src.schemas.open.request_context import OpenApiAuthContext
 from src.schemas.open_portal.auth import CurrentDeveloper
 from src.services.admin.alert_service import AlertService
 from src.services.admin.audit_service import AuditService
@@ -447,6 +448,14 @@ def get_app_operator_context(app: CurrentApp) -> dict[str, object]:
     }
 
 
+def _extract_uri(request: Request) -> str:
+    """从请求中提取 URI（path + raw query，不含域名）。"""
+    uri = request.url.path
+    if request.url.query:
+        uri += f"?{request.url.query}"
+    return uri
+
+
 async def get_current_app(
     request: Request,
     _app_id: str | None = Depends(_app_id_scheme),
@@ -455,8 +464,26 @@ async def get_current_app(
     _app_auth: str | None = Depends(_app_auth_scheme),
     service: OpenGatewayService = Depends(get_open_gateway_service),
 ) -> CurrentApp:
-    """解析开放平台应用身份，委托给开放接口网关鉴权服务（OpenGatewayService）。"""
-    current = await service.authenticate(request)
+    """解析开放平台应用身份，委托给开放接口网关鉴权服务（OpenGatewayService）。
+
+    在 API 层把 FastAPI Request 剥离为 OpenApiAuthContext 纯数据后传入，
+    services 层不依赖 Web 框架对象（starlette Request / body 流）。
+    """
+    body = b""
+    try:
+        body = await request.body()
+    except Exception:
+        body = b""
+    ctx = OpenApiAuthContext(
+        app_id=_app_id or "",
+        plain_key=_app_key,
+        authorization=_app_auth,
+        date=_app_date,
+        method=request.method,
+        uri=_extract_uri(request),
+        body=body,
+    )
+    current = await service.authenticate(ctx)
     request.state.current_app = current
     return current
 
