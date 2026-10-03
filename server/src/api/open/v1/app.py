@@ -8,11 +8,16 @@ from fastapi import APIRouter, Depends, Request
 
 from src.api.dependencies import CurrentApp, get_current_app
 from src.api.response import success_response
+from src.schemas.common import ApiResponse
 
 router = APIRouter(tags=["开放平台：应用信息"])
 
 
-@router.get("/me", summary="当前开放平台应用信息")
+@router.get(
+    "/me",
+    summary="当前开放平台应用信息",
+    response_model=ApiResponse[CurrentApp],
+)
 async def me(
     request: Request,
     app: CurrentApp = Depends(get_current_app),

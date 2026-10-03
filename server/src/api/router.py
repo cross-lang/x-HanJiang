@@ -11,20 +11,20 @@ from fastapi import APIRouter
 
 from src.api.admin import admin_router
 from src.api.admin.v1 import v1_router as admin_v1_router
-from src.api.open import open_router as open_v1_router
+from src.api.open import open_router
 from src.api.open_portal import open_portal_router
 from src.constants import API_PREFIX
 
-# 1. 管理系统业务路由（面向管理员，JWT 会话鉴权）
+# 1. 管理系统业务路由（面向管理员，会话 JWT + Redis 登录态）
 # 双路径挂载：同一组 handler 同时响应 /api/v1/...（历史兼容）与 /api/admin/v1/...（收纳目录），功能完全一致
-api_router = APIRouter(prefix=API_PREFIX)
-api_router.include_router(admin_v1_router)
-api_router.include_router(admin_router)
+global_admin_router = APIRouter(prefix=API_PREFIX)
+global_admin_router.include_router(admin_v1_router)
+global_admin_router.include_router(admin_router)
 
-# 2. 开放平台门户路由（面向开发者网页端，会话 JWT + Redis 登录态）
-open_portal_api_router = APIRouter(prefix=API_PREFIX)
-open_portal_api_router.include_router(open_portal_router)
+# 2. 开放平台门户路由（面向开发者门户网页端，会话 JWT + Redis 登录态）
+global_open_portal_router = APIRouter(prefix=API_PREFIX)
+global_open_portal_router.include_router(open_portal_router)
 
 # 3. 开放接口路由（面向外部应用，AppId/AppKey 签名鉴权）
-open_router = APIRouter(prefix=API_PREFIX)
-open_router.include_router(open_v1_router)
+global_open_router = APIRouter(prefix=API_PREFIX)
+global_open_router.include_router(open_router)

@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.admin.permission_decorator import sync_permissions_to_db
 from src.api.open.scope_decorator import sync_scopes_to_db
-from src.api.router import api_router, open_portal_api_router, open_router
+from src.api.router import global_admin_router, global_open_portal_router, global_open_router
 from src.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from src.core.config import settings
 from src.core.exceptions import register_exception_handlers
@@ -158,11 +158,11 @@ def create_app() -> FastAPI:
     # 限流器注册（通过 RateLimiterProvider 抽象装配，当前实现基于 slowapi）
     get_cached_rate_limiter_provider().setup(app)
     # 认证用户路由（面向用户，JWT 鉴权）
-    app.include_router(api_router)
+    app.include_router(global_admin_router)
     # 开放平台门户路由（面向开发者网页端，会话 JWT + Redis 登录态）
-    app.include_router(open_portal_api_router)
+    app.include_router(global_open_portal_router)
     # 开放接口路由（面向外部应用，AppId/AppKey 鉴权）
-    app.include_router(open_router)
+    app.include_router(global_open_router)
     return app
 
 

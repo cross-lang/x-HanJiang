@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, Request
 from src.api.dependencies import get_current_app
 from src.api.response import success_response
 from src.constants import APP_NAME, APP_VERSION
+from src.schemas.common import ApiResponse
+from src.schemas.open.health import HealthResponse, VersionResponse
 
 router = APIRouter(tags=["开放平台：健康管理"])
 
@@ -13,6 +15,7 @@ router = APIRouter(tags=["开放平台：健康管理"])
 @router.get(
     "/health",
     summary="开放平台健康检查",
+    response_model=ApiResponse[HealthResponse],
     dependencies=[Depends(get_current_app)],
 )
 async def openapi_health(
@@ -32,6 +35,7 @@ async def openapi_health(
 @router.get(
     "/version",
     summary="开放平台版本信息",
+    response_model=ApiResponse[VersionResponse],
     dependencies=[Depends(get_current_app)],
 )
 async def openapi_version(
