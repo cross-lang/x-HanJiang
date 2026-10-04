@@ -78,10 +78,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { Document, Grid, Plus, User } from '@element-plus/icons-vue'
-import { totalCapabilityApis } from '@/data/capability'
+import { Document, FirstAidKit, Folder, Grid, Plus, User, UserFilled } from '@element-plus/icons-vue'
+import { capabilityModules, totalCapabilityApis } from '@/data/capability'
 import { useDeveloperStore } from '@/stores/developer'
 import { listMyApps } from '@/api/apps'
 import { useScopeCatalog } from '@/composables/useScopeCatalog'
@@ -110,10 +110,23 @@ const guideSteps = [
   { title: '获取 App ID / App Key 对接', desc: '按鉴权方式（明文 / HMAC 签名）调用开放接口' },
 ]
 
-const modules = [
-  { code: 'user', name: '用户管理', icon: User, scopes: ['user:read', 'user:write'] },
-  { code: 'app', name: '应用信息', icon: Grid, scopes: [] },
-]
+// 开放能力模块卡片：与开放能力目录（capability.ts）联动，后端新增模块/接口时首页自动同步
+const MODULE_ICONS: Record<string, Component> = {
+  health: FirstAidKit,
+  app: Grid,
+  user: User,
+  role: UserFilled,
+  file: Folder,
+}
+
+const modules = computed(() =>
+  capabilityModules.map(m => ({
+    code: m.key,
+    name: m.name,
+    icon: MODULE_ICONS[m.key] || Grid,
+    scopes: [...new Set(m.apis.map(a => a.scope).filter(s => s && s !== '仅需有效应用凭证'))],
+  })),
+)
 
 onMounted(async () => {
   void fetchScopes()
