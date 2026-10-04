@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """开放平台开发者应用接口（门户 JWT，owner 隔离）。
-路由前缀：/api/open-portal/v1/apps、/api/open-portal/v1/scopes
+路由前缀：/api/open-portal/v1/apps（含 GET /apps/scopes scope 目录）
 说明：应用数据表 openapi_apps 与管理端共用，归属 owner_type='developer' + owner_id=当前开发者；
 开发者只能查询/操作本人名下应用（他人应用一律 404，不暴露存在性）。
-scope 目录接口（GET /scopes）的元数据唯一来源为 openapi_scopes 表（constants/scopes.py 启动时对账），
-与管理端 /api/v1/admin/apps/scopes 数据一致，业务实现下放 DeveloperOpenAppService.list_scopes。
+scope 目录接口（GET /apps/scopes）的元数据唯一来源为 openapi_scopes 表（constants/scopes.py 启动时对账），
+与管理端 /api/v1/admin/apps/scopes 路径风格一致，业务实现下放 DeveloperOpenAppService.list_scopes。
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -58,6 +58,21 @@ def list_apps(
         ),
     )
     return success_response(page_result.model_dump(), request)
+
+
+# 注意：GET /scopes 必须声明在 GET /{app_id} 之前——FastAPI 按注册顺序匹配，
+# 若放在 /{app_id} 之后，/apps/scopes 会被其抢先捕获导致 app_id="scopes" 解析失败（422）。
+@router.get(
+    "/scopes",
+    summary="scope 目录",
+    description="全部可用（未废弃）的开放平台 scope，按模块分组展示",
+)
+def list_scopes(
+    request: Request,
+    _current_developer: CurrentDeveloper = Depends(get_current_developer),
+    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+) -> JSONResponse:
+    return success_response(service.list_scopes(), request)
 
 
 @router.post(
@@ -170,21 +185,3 @@ def delete_app(
 ) -> JSONResponse:
     ok = service.delete_app(app_id, current_developer.id)
     return success_response({"deleted": ok}, request)
-
-
-# 注意：scope 目录必须挂独立 router（/scopes），不能并入 /apps/{app_id}——
-# FastAPI 按注册顺序匹配，/apps/scopes 会被 /apps/{app_id} 抢先匹配导致 app_id="scopes" 解析失败。
-scopes_router = APIRouter(prefix="/scopes", tags=["开放平台：scope 目录"])
-
-
-@scopes_router.get(
-    "",
-    summary="scope 目录",
-    description="全部可用（未废弃）的开放平台 scope，按模块分组展示",
-)
-def list_scopes(
-    request: Request,
-    _current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
-) -> JSONResponse:
-    return success_response(service.list_scopes(), request)

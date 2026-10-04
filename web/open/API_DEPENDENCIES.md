@@ -57,7 +57,7 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/open-portal/v1/scopes` | scope 目录（id/scope_code/scope_name/module/module_label/operation/description） |
+| GET | `/api/open-portal/v1/apps/scopes` | scope 目录（id/scope_code/scope_name/module/module_label/operation/description） |
 
 ### 1.5 站内信（messages，页面：右上角铃铛）
 
