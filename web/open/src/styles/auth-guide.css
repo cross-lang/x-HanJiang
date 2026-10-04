@@ -1,0 +1,312 @@
+/* 认证和授权文档页共享样式（对齐开放能力页 WPS 风格） */
+
+/* ─── 页面容器 ─── */
+.auth-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4px 8px 24px;
+}
+
+/* ─── 模块头 ─── */
+.auth-head {
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #ebeef5;
+}
+.auth-crumbs {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2d3d;
+  letter-spacing: 0.5px;
+}
+.auth-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.7;
+}
+
+/* ─── 区块卡片 ─── */
+.auth-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 12px;
+  padding: 22px 26px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.04);
+}
+.auth-card-title {
+  position: relative;
+  margin: 0 0 18px;
+  padding-left: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2d3d;
+}
+.auth-card-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #409eff, #79bbff);
+}
+
+/* ─── 段落与行内代码 ─── */
+.auth-lead {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: #606266;
+  line-height: 1.8;
+}
+.auth-lead code,
+.auth-note code {
+  background: #ecf5ff;
+  color: #409eff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+}
+.auth-note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.8;
+}
+
+/* ─── 宽松表格（覆盖 el-table） ─── */
+.auth-table {
+  width: 100%;
+  --el-table-border-color: #ebeef5;
+  --el-table-header-bg-color: #f7f8fa;
+  --el-table-row-hover-bg-color: #f5f9ff;
+}
+.auth-table :deep(th.el-table__cell) {
+  background: #f7f8fa;
+  color: #303133;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+.auth-table :deep(td.el-table__cell) {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #606266;
+  border-bottom: 1px solid #f2f3f5;
+  line-height: 1.7;
+}
+.auth-table :deep(.cell) {
+  line-height: 1.7;
+}
+.auth-table code {
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  color: #409eff;
+  background: #ecf5ff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+.auth-table .mono-cell {
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 12.5px;
+  color: #303133;
+}
+
+/* ─── 代码块（WPS 风格：标签 + 复制按钮 + 浅色代码区） ─── */
+.auth-code {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.auth-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f7f8fa;
+  border-bottom: 1px solid #e4e7ed;
+  padding: 6px 12px;
+}
+.auth-code-tab {
+  font-size: 13px;
+  font-weight: 600;
+  color: #409eff;
+}
+.auth-code-body {
+  margin: 0;
+  padding: 16px 20px;
+  background: #fbfcfe;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: #303133;
+  overflow-x: auto;
+  user-select: text;
+  white-space: pre;
+}
+
+/* ─── 数字圆点步骤 ─── */
+.auth-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: auth-step;
+}
+.auth-steps li {
+  counter-increment: auth-step;
+  position: relative;
+  padding: 2px 0 16px 42px;
+  font-size: 13.5px;
+  color: #606266;
+  line-height: 1.8;
+}
+.auth-steps li::before {
+  content: counter(auth-step);
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #409eff, #79bbff);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.35);
+}
+.auth-steps code {
+  background: #ecf5ff;
+  color: #409eff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+}
+
+/* ─── 公式卡片 ─── */
+.auth-formula {
+  background: linear-gradient(135deg, #ecf5ff 0%, #f5faff 100%);
+  border: 1px solid #d9ecff;
+  border-radius: 10px;
+  padding: 16px 22px;
+  text-align: center;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1f2d3d;
+  letter-spacing: 0.3px;
+  word-break: break-all;
+}
+.auth-formula-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #909399;
+}
+
+/* ─── 签名算法描述列表 ─── */
+.auth-algo {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.auth-algo-row {
+  display: flex;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: 11px 18px;
+  border-bottom: 1px solid #f2f3f5;
+}
+.auth-algo-row:last-child {
+  border-bottom: none;
+}
+.auth-algo-label {
+  flex-shrink: 0;
+  width: 130px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #909399;
+}
+.auth-algo-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: #303133;
+  line-height: 1.8;
+  word-break: break-all;
+}
+.auth-algo-value code {
+  background: #ecf5ff;
+  color: #409eff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+}
+
+/* ─── 复制按钮 ─── */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: #909399;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.copy-btn:hover {
+  color: #409eff;
+  background: #ecf5ff;
+}
+
+/* ─── 状态码徽章 ─── */
+.auth-code-badge {
+  display: inline-block;
+  min-width: 44px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 22px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+.auth-code-badge.code-2xx { color: #67c23a; background: #f0f9eb; }
+.auth-code-badge.code-4xx { color: #e6a23c; background: #fdf6ec; }
+.auth-code-badge.code-5xx { color: #f56c6c; background: #fef0f0; }
+
+/* ─── 提示条（替代 el-alert 默认样式） ─── */
+.auth-alert {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.auth-alert-info {
+  background: #ecf5ff;
+  color: #409eff;
+}
+.auth-alert-warn {
+  background: #fdf6ec;
+  color: #b88230;
+}

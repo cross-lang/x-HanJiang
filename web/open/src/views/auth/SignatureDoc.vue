@@ -1,41 +1,80 @@
 <template>
-  <div class="guide-page">
-    <!-- 鉴权模式总览 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">鉴权模式</h3>
-      <p class="guide-lead">
-        开放接口 <code>/api/open/v1</code> 面向外部应用，与开放平台门户自身的会话登录（JWT + Redis
-        登录态）完全隔离。调用方应用在管理端审批通过后，凭应用凭证调用：
+  <div class="auth-page">
+    <!-- 模块头 -->
+    <div class="auth-head">
+      <div class="auth-crumbs">认证和授权 / 签名说明</div>
+      <h1 class="auth-title">签名说明</h1>
+      <p class="auth-desc">
+        开放接口面向外部应用，鉴权与门户自身会话登录（JWT + Redis）完全隔离。调用方应用经管理端审批通过后，凭应用凭证 + HanJiang-1 签名调用。
       </p>
-      <el-table :data="authModes" border size="small">
-        <el-table-column prop="mode" label="模式" width="90" />
+    </div>
+
+    <!-- 鉴权模式 -->
+    <section class="auth-card">
+      <h3 class="auth-card-title">鉴权模式</h3>
+      <p class="auth-lead">
+        开放接口 <code>/api/open/v1</code> 支持三种鉴权模式，按应用 <code>auth_mode</code> 分流：
+      </p>
+      <el-table :data="authModes" class="auth-table" row-key="mode">
+        <el-table-column prop="mode" label="模式" width="100">
+          <template #default="{ row }">
+            <code class="mono-cell">{{ row.mode }}</code>
+          </template>
+        </el-table-column>
         <el-table-column prop="credential" label="凭证方式" />
-        <el-table-column prop="scenario" label="适用场景" />
+        <el-table-column prop="scenario" label="适用场景" width="220" />
       </el-table>
-      <el-alert type="info" :closable="false" class="hj-mt-12">
-        生产对接推荐 <b>hmac</b> 签名模式：明文模式下 AppKey 在请求头中直接暴露，仅建议在可信内网使用。
-      </el-alert>
-    </el-card>
+      <div class="auth-alert auth-alert-info">
+        <el-icon :size="15"><InfoFilled /></el-icon>
+        <span>
+          生产对接推荐 <b>hmac</b> 签名模式：明文模式下 AppKey 在请求头中直接暴露，仅建议在可信内网使用。
+        </span>
+      </div>
+    </section>
 
     <!-- 签名算法 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">HanJiang-1 签名算法</h3>
-      <el-descriptions :column="1" border class="hj-mb-16">
-        <el-descriptions-item label="签名串">
-          <code class="formula">HanJiang-1 + METHOD + URI + Content-Type + Date + SHA256(body)</code>
-          <span class="formula-note">（各段直接拼接，无分隔符）</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="签名值">HMAC-SHA256(AppKey, 签名串)，输出十六进制小写</el-descriptions-item>
-        <el-descriptions-item label="URI">完整路径 + 查询串（不含域名），必须包含 <code>/api/open/v1</code> 前缀</el-descriptions-item>
-        <el-descriptions-item label="Content-Type">固定 <code>application/json</code>，与请求是否携带 body 无关</el-descriptions-item>
-        <el-descriptions-item label="Date">RFC1123 GMT 格式（如 <code>Sat, 03 Oct 2026 12:00:00 GMT</code>），经 <code>X-App-Date</code> 请求头传递</el-descriptions-item>
-        <el-descriptions-item label="空 body">GET 等无请求体时，SHA256(body) 部分取空字符串</el-descriptions-item>
-        <el-descriptions-item label="防重放">服务端校验 <code>X-App-Date</code> 与服务器时间差在 300 秒内，超出即拒绝</el-descriptions-item>
-      </el-descriptions>
+    <section class="auth-card">
+      <h3 class="auth-card-title">HanJiang-1 签名算法</h3>
 
-      <div class="sign-box">
-        <div class="sign-title">签名步骤</div>
-        <ol class="sign-steps">
+      <div class="auth-formula">
+        HanJiang-1 + METHOD + URI + Content-Type + Date + SHA256(body)
+        <span class="auth-formula-note">各段直接拼接，无分隔符；签名值 = HMAC-SHA256(AppKey, 签名串)，输出十六进制小写</span>
+      </div>
+
+      <div class="auth-algo" style="margin-top: 16px">
+        <div class="auth-algo-row">
+          <span class="auth-algo-label">签名串</span>
+          <span class="auth-algo-value"><code>HanJiang-1 + METHOD + URI + Content-Type + Date + SHA256(body)</code>，各段直接拼接无分隔符</span>
+        </div>
+        <div class="auth-algo-row">
+          <span class="auth-algo-label">签名值</span>
+          <span class="auth-algo-value">以 <b>AppKey</b> 为密钥计算 <code>HMAC-SHA256</code>，输出十六进制小写</span>
+        </div>
+        <div class="auth-algo-row">
+          <span class="auth-algo-label">URI</span>
+          <span class="auth-algo-value">完整路径 + 查询串（不含域名），必须包含 <code>/api/open/v1</code> 前缀</span>
+        </div>
+        <div class="auth-algo-row">
+          <span class="auth-algo-label">Content-Type</span>
+          <span class="auth-algo-value">固定 <code>application/json</code>，与请求是否携带 body 无关</span>
+        </div>
+        <div class="auth-algo-row">
+          <span class="auth-algo-label">Date</span>
+          <span class="auth-algo-value">RFC1123 GMT 格式（如 <code>Sat, 03 Oct 2026 12:00:00 GMT</code>），经 <code>X-App-Date</code> 请求头传递</span>
+        </div>
+        <div class="auth-algo-row">
+          <span class="auth-algo-label">空 body</span>
+          <span class="auth-algo-value">GET 等无请求体时，<code>SHA256(body)</code> 部分取空字符串</span>
+        </div>
+        <div class="auth-algo-row">
+          <span class="auth-algo-label">防重放</span>
+          <span class="auth-algo-value">服务端校验 <code>X-App-Date</code> 与服务器时间差在 300 秒内，超出即拒绝</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px">
+        <div class="sub-title">签名步骤</div>
+        <ol class="auth-steps">
           <li>生成 RFC1123 GMT 格式的当前时间 <code>date</code>（与请求头 <code>X-App-Date</code> 必须是同一个值，单点生成）；</li>
           <li>构造 URI：接口路径 + 查询串（如 <code>/api/open/v1/users?page=1</code>，不含域名）；</li>
           <li>有请求体时计算 <code>SHA256(body)</code>（body 为 UTF-8 JSON 字节流），无请求体取空字符串；</li>
@@ -44,40 +83,40 @@
           <li>服务端校验签名与时间窗后放行；scope 未授权或应用未审批将返回 403。</li>
         </ol>
       </div>
-    </el-card>
+    </section>
 
     <!-- 代码示例 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">代码示例</h3>
+    <section class="auth-card">
+      <h3 class="auth-card-title">代码示例</h3>
       <el-tabs v-model="activeTab">
         <el-tab-pane label="Python" name="python">
-          <p class="tab-note">
-            完整可运行客户端见仓库 <code>server/examples/openapi_client.py</code>（支持 plain / hmac，
-            GET / POST / DELETE 全链路演示）。以下为最简 GET + POST 签名实现：
+          <p class="auth-note">
+            完整可运行客户端见仓库 <code>server/examples/openapi_client.py</code>（支持 plain / hmac，GET / POST / DELETE 全链路演示）。以下为最简 GET + POST 签名实现：
           </p>
-          <pre class="code-block">{{ pythonCode }}</pre>
+          <CodeBlock :code="pythonCode" label="Python" />
         </el-tab-pane>
         <el-tab-pane label="Go" name="go">
-          <p class="tab-note">仅依赖 Go 标准库（crypto/hmac、crypto/sha256、net/http、time）：</p>
-          <pre class="code-block">{{ goCode }}</pre>
+          <p class="auth-note">仅依赖 Go 标准库（crypto/hmac、crypto/sha256、net/http、time）：</p>
+          <CodeBlock :code="goCode" label="Go" />
         </el-tab-pane>
       </el-tabs>
-    </el-card>
+    </section>
 
     <!-- curl 示例 -->
-    <el-card shadow="never">
-      <h3 class="guide-title">curl 调试示例</h3>
-      <p class="guide-lead">
-        调试阶段可在开放平台「应用管理 → 重置 Key」后使用明文模式快速验证；签名模式下需先按上述算法
-        生成 <code>X-App-Authorization</code>：
+    <section class="auth-card">
+      <h3 class="auth-card-title">curl 调试示例</h3>
+      <p class="auth-lead">
+        调试阶段可在开放平台「应用管理 → 重置 Key」后使用明文模式快速验证；签名模式下需先按上述算法生成 <code>X-App-Authorization</code>：
       </p>
-      <pre class="code-block">{{ curlCode }}</pre>
-    </el-card>
+      <CodeBlock :code="curlCode" label="cURL" />
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { InfoFilled } from '@element-plus/icons-vue'
+import CodeBlock from './components/CodeBlock.vue'
 
 const activeTab = ref('python')
 
@@ -225,92 +264,12 @@ curl -X POST "http://127.0.0.1:8000/api/open/v1/users" \\
 </script>
 
 <style scoped>
-.guide-page {
-  max-width: 1080px;
-  margin: 0 auto;
-}
-.guide-title {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-.guide-lead {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.8;
-}
-.guide-lead code,
-.tab-note code {
-  background: #f0f2f5;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.hj-mb-20 {
-  margin-bottom: 20px;
-}
-.hj-mb-16 {
-  margin-bottom: 16px;
-}
-.hj-mt-12 {
-  margin-top: 12px;
-}
-.formula {
+@import '@/styles/auth-guide.css';
+
+.sub-title {
+  margin: 0 0 10px;
   font-size: 13px;
   font-weight: 600;
   color: #303133;
-  background: #f0f2f5;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-.formula-note {
-  margin-left: 8px;
-  font-size: 12px;
-  color: #909399;
-}
-.sign-box {
-  margin-top: 8px;
-  border: 1px solid #eceef3;
-  border-radius: 10px;
-  padding: 14px 18px;
-  background: #fafbfd;
-}
-.sign-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #409eff;
-  margin-bottom: 8px;
-}
-.sign-steps {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.9;
-}
-.sign-steps code {
-  background: #f0f2f5;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.tab-note {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #909399;
-  line-height: 1.7;
-}
-.code-block {
-  margin: 0;
-  padding: 14px 16px;
-  border-radius: 8px;
-  background: #f6f8fa;
-  font-size: 12px;
-  line-height: 1.7;
-  overflow-x: auto;
-  user-select: text;
-  white-space: pre;
 }
 </style>

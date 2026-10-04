@@ -1,97 +1,149 @@
 <template>
-  <div class="guide-page">
+  <div class="auth-page">
+    <!-- 模块头 -->
+    <div class="auth-head">
+      <div class="auth-crumbs">认证和授权 / 通用参数</div>
+      <h1 class="auth-title">通用参数</h1>
+      <p class="auth-desc">
+        开放接口调用涉及的公共请求头、凭证约定、统一响应结构与通用分页参数，全部接口通用。
+      </p>
+    </div>
+
     <!-- 公共请求头 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">公共请求头</h3>
-      <p class="guide-lead">
+    <section class="auth-card">
+      <h3 class="auth-card-title">公共请求头</h3>
+      <p class="auth-lead">
         所有开放接口 <code>/api/open/v1</code> 请求均需携带应用凭证头（明文 / 签名模式取值不同）：
       </p>
-      <el-table :data="headers" border size="small">
-        <el-table-column prop="name" label="请求头" width="220" />
-        <el-table-column prop="required" label="必填" width="80">
+      <el-table :data="headers" class="auth-table" row-key="name">
+        <el-table-column prop="name" label="请求头" width="240">
           <template #default="{ row }">
-            <el-tag v-if="row.required" size="small" type="danger">必填</el-tag>
-            <el-tag v-else size="small" type="info">按模式</el-tag>
+            <code class="mono-cell">{{ row.name }}</code>
           </template>
         </el-table-column>
-        <el-table-column prop="mode" label="适用模式" width="110" />
+        <el-table-column label="必填" width="96">
+          <template #default="{ row }">
+            <span class="req-badge" :class="row.required ? 'req-yes' : 'req-maybe'">
+              {{ row.required ? '必填' : '按模式' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="mode" label="适用模式" width="100">
+          <template #default="{ row }">
+            <span class="mode-badge" :class="`mode-${row.modeKey}`">{{ row.mode }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="desc" label="说明" />
       </el-table>
-      <el-alert type="warning" :closable="false" class="hj-mt-12">
-        <b>AppKey 仅在创建应用或重置 Key 时明文返回一次</b>，请立即保存到安全位置；服务端只保存
-        SHA256 摘要（明文模式）与加密密文（签名模式），无法找回。
-      </el-alert>
-    </el-card>
+      <div class="auth-alert auth-alert-warn">
+        <el-icon :size="15"><WarningFilled /></el-icon>
+        <span>
+          <b>AppKey 仅在创建应用或重置 Key 时明文返回一次</b>，请立即保存到安全位置；服务端只保存 SHA256 摘要（明文模式）与加密密文（签名模式），无法找回。
+        </span>
+      </div>
+    </section>
 
     <!-- 凭证与调用约定 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">凭证与调用约定</h3>
-      <el-table :data="terms" border size="small">
-        <el-table-column prop="name" label="项目" width="150" />
-        <el-table-column prop="value" label="约定" />
-      </el-table>
-    </el-card>
+    <section class="auth-card">
+      <h3 class="auth-card-title">凭证与调用约定</h3>
+      <div class="auth-algo">
+        <div v-for="t in terms" :key="t.name" class="auth-algo-row">
+          <span class="auth-algo-label">{{ t.name }}</span>
+          <span class="auth-algo-value">{{ t.value }}</span>
+        </div>
+      </div>
+    </section>
 
     <!-- 公共响应结构 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">公共响应结构</h3>
-      <p class="guide-lead">
+    <section class="auth-card">
+      <h3 class="auth-card-title">公共响应结构</h3>
+      <p class="auth-lead">
         所有接口统一返回如下 JSON 结构（成功与失败一致），HTTP 状态码与响应体 <code>code</code> 相同：
       </p>
-      <pre class="code-block">{{ responseStructure }}</pre>
-      <el-table :data="responseFields" border size="small" class="hj-mt-12">
-        <el-table-column prop="field" label="字段" width="120" />
-        <el-table-column prop="type" label="类型" width="90" />
-        <el-table-column prop="desc" label="说明" />
-      </el-table>
-    </el-card>
+      <CodeBlock :code="responseStructure" label="JSON" />
+      <div style="margin-top: 16px">
+        <el-table :data="responseFields" class="auth-table" row-key="field">
+          <el-table-column prop="field" label="字段" width="140">
+            <template #default="{ row }">
+              <code class="mono-cell">{{ row.field }}</code>
+            </template>
+          </el-table-column>
+          <el-table-column prop="type" label="类型" width="100">
+            <template #default="{ row }">
+              <code>{{ row.type }}</code>
+            </template>
+          </el-table-column>
+          <el-table-column prop="desc" label="说明" />
+        </el-table>
+      </div>
+    </section>
 
     <!-- 通用 Query 参数 -->
-    <el-card shadow="never">
-      <h3 class="guide-title">通用 Query 参数</h3>
-      <p class="guide-lead">列表类接口通用分页参数（具体以各接口文档为准）：</p>
-      <el-table :data="queryParams" border size="small">
-        <el-table-column prop="name" label="参数" width="140" />
-        <el-table-column prop="required" label="必填" width="80">
-          <template #default="{ row }">{{ row.required ? '是' : '否' }}</template>
+    <section class="auth-card">
+      <h3 class="auth-card-title">通用 Query 参数</h3>
+      <p class="auth-lead">列表类接口通用分页参数（具体以各接口文档为准）：</p>
+      <el-table :data="queryParams" class="auth-table" row-key="name">
+        <el-table-column prop="name" label="参数" width="140">
+          <template #default="{ row }">
+            <code class="mono-cell">{{ row.name }}</code>
+          </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" width="90" />
+        <el-table-column label="必填" width="96">
+          <template #default="{ row }">
+            <span class="req-badge" :class="row.required ? 'req-yes' : 'req-no'">
+              {{ row.required ? '必填' : '可选' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="type" label="类型" width="100">
+          <template #default="{ row }">
+            <code>{{ row.type }}</code>
+          </template>
+        </el-table-column>
         <el-table-column prop="desc" label="说明" />
       </el-table>
-    </el-card>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import { WarningFilled } from '@element-plus/icons-vue'
+import CodeBlock from './components/CodeBlock.vue'
+
 const headers = [
   {
     name: 'X-App-Id',
     required: true,
     mode: '全部',
+    modeKey: 'all',
     desc: '应用 ID（AppId），创建应用时生成，形如 hj_xxxxxxxx',
   },
   {
     name: 'X-App-Key',
     required: false,
     mode: 'plain',
+    modeKey: 'plain',
     desc: '应用密钥（AppKey），明文模式下直接作为凭证携带',
   },
   {
     name: 'X-App-Date',
     required: false,
     mode: 'hmac',
+    modeKey: 'hmac',
     desc: 'RFC1123 GMT 时间，参与签名计算，服务端校验 300 秒时间窗防重放',
   },
   {
     name: 'X-App-Authorization',
     required: false,
     mode: 'hmac',
+    modeKey: 'hmac',
     desc: '签名凭证，格式：HanJiang-1 {app_id}:{signature}',
   },
   {
     name: 'Content-Type',
     required: true,
     mode: 'hmac',
+    modeKey: 'hmac',
     desc: '固定 application/json（参与签名计算，GET 无 body 也需携带）',
   },
 ]
@@ -130,43 +182,49 @@ const queryParams = [
 </script>
 
 <style scoped>
-.guide-page {
-  max-width: 1080px;
-  margin: 0 auto;
+@import '@/styles/auth-guide.css';
+
+.req-badge {
+  display: inline-block;
+  min-width: 52px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 22px;
+  border-radius: 11px;
+  padding: 0 8px;
 }
-.guide-title {
-  margin: 0 0 12px;
-  font-size: 16px;
+.req-yes {
+  color: #f56c6c;
+  background: #fef0f0;
+}
+.req-no {
+  color: #909399;
+  background: #f4f4f5;
+}
+.req-maybe {
+  color: #e6a23c;
+  background: #fdf6ec;
+}
+.mode-badge {
+  display: inline-block;
+  min-width: 52px;
+  text-align: center;
+  font-size: 12px;
   font-weight: 600;
-  color: #303133;
-}
-.guide-lead {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.8;
-}
-.guide-lead code {
-  background: #f0f2f5;
-  padding: 1px 6px;
+  line-height: 22px;
   border-radius: 4px;
-  font-size: 12px;
+  padding: 0 6px;
 }
-.hj-mb-20 {
-  margin-bottom: 20px;
+.mode-all {
+  color: #409eff;
+  background: #ecf5ff;
 }
-.hj-mt-12 {
-  margin-top: 12px;
+.mode-hmac {
+  color: #67c23a;
+  background: #f0f9eb;
 }
-.code-block {
-  margin: 0;
-  padding: 14px 16px;
-  border-radius: 8px;
-  background: #f6f8fa;
-  font-size: 12px;
-  line-height: 1.7;
-  overflow-x: auto;
-  user-select: text;
-  white-space: pre;
+.mode-plain {
+  color: #909399;
+  background: #f4f4f5;
 }
 </style>

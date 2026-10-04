@@ -1,59 +1,72 @@
 <template>
-  <div class="guide-page">
-    <!-- 错误码总表 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">常用错误码</h3>
-      <p class="guide-lead">
-        开放接口统一返回 <code>{code, message, data, timestamp, request_id}</code> 结构；
-        <code>code</code> 与 HTTP 状态码一致。以下为常见状态码与原因：
+  <div class="auth-page">
+    <!-- 模块头 -->
+    <div class="auth-head">
+      <div class="auth-crumbs">认证和授权 / 通用错误码</div>
+      <h1 class="auth-title">通用错误码</h1>
+      <p class="auth-desc">
+        开放接口统一返回 <code>{code, message, data, timestamp, request_id}</code> 结构，<code>code</code> 与 HTTP 状态码一致。以下为常见状态码与处理建议。
       </p>
-      <el-table :data="errorCodes" border size="small">
-        <el-table-column prop="code" label="HTTP 状态码" width="110">
+    </div>
+
+    <!-- 常用错误码 -->
+    <section class="auth-card">
+      <h3 class="auth-card-title">常用错误码</h3>
+      <el-table :data="errorCodes" class="auth-table" row-key="code">
+        <el-table-column label="HTTP 状态码" width="130">
           <template #default="{ row }">
-            <el-tag :type="tagType(row.code)" size="small">{{ row.code }}</el-tag>
+            <span class="auth-code-badge" :class="codeClass(row.code)">{{ row.code }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="scenario" label="典型场景" width="230" />
         <el-table-column prop="message" label="错误信息示例" />
         <el-table-column prop="suggestion" label="处理建议" />
       </el-table>
-    </el-card>
+    </section>
 
     <!-- 网关鉴权错误 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">网关鉴权错误（401 / 403）</h3>
-      <p class="guide-lead">开放接口网关（<code>OpenGatewayService</code>）按序执行：凭证有效性 → 审批门槛 → 模式分流 → scope 授权，错误信息与真实后端一致：</p>
-      <el-table :data="gatewayErrors" border size="small">
-        <el-table-column prop="code" label="状态码" width="90">
+    <section class="auth-card">
+      <h3 class="auth-card-title">网关鉴权错误（401 / 403）</h3>
+      <p class="auth-lead">
+        开放接口网关按序执行：凭证有效性 → 审批门槛 → 模式分流 → scope 授权，错误信息与真实后端一致：
+      </p>
+      <el-table :data="gatewayErrors" class="auth-table" row-key="message">
+        <el-table-column label="状态码" width="100">
           <template #default="{ row }">
-            <el-tag :type="tagType(row.code)" size="small">{{ row.code }}</el-tag>
+            <span class="auth-code-badge" :class="codeClass(row.code)">{{ row.code }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="message" label="错误信息" width="380" />
+        <el-table-column prop="message" label="错误信息" width="400">
+          <template #default="{ row }">
+            <code class="mono-cell">{{ row.message }}</code>
+          </template>
+        </el-table-column>
         <el-table-column prop="cause" label="原因 / 处理建议" />
       </el-table>
-    </el-card>
+    </section>
 
     <!-- 排查指引 -->
-    <el-card shadow="never" class="hj-mb-20">
-      <h3 class="guide-title">401 鉴权失败排查指引</h3>
-      <ol class="sign-steps">
+    <section class="auth-card">
+      <h3 class="auth-card-title">401 鉴权失败排查指引</h3>
+      <ol class="auth-steps">
         <li><b>AppId / AppKey</b> 是否正确（含前后空格）；</li>
         <li>本机系统时间是否与服务器同步（签名时间窗 300 秒）；</li>
         <li>签名协议是否与服务端一致（<code>Content-Type</code> 固定 <code>application/json</code>、URI 含 <code>/api/open/v1</code> 前缀、Date 为 RFC1123 GMT）；</li>
         <li>应用 <code>auth_mode</code> 是否与客户端一致（plain / hmac）。</li>
       </ol>
-    </el-card>
+    </section>
 
     <!-- 错误响应示例 -->
-    <el-card shadow="never">
-      <h3 class="guide-title">错误响应示例</h3>
-      <pre class="code-block">{{ errorExample }}</pre>
-    </el-card>
+    <section class="auth-card">
+      <h3 class="auth-card-title">错误响应示例</h3>
+      <CodeBlock :code="errorExample" label="JSON" />
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import CodeBlock from './components/CodeBlock.vue'
+
 const errorCodes = [
   { code: 400, scenario: '请求语法错误 / 业务校验失败', message: '请求参数不合法', suggestion: '检查请求参数与接口文档' },
   { code: 401, scenario: '凭证缺失 / 无效 / 签名校验失败', message: '应用鉴权失败 / 缺少请求头 X-App-Id', suggestion: '核对 AppId / AppKey、时间同步、签名协议（见下方排查指引）' },
@@ -116,61 +129,13 @@ const errorExample = `// 403 未审批 / scope 不足
   "request_id": "req_open_xxxxx"
 }`
 
-function tagType(code: number): 'success' | 'warning' | 'danger' | 'info' {
-  if (code < 400) return 'success'
-  if (code < 500) return 'warning'
-  return 'danger'
+function codeClass(code: number): string {
+  if (code < 400) return 'code-2xx'
+  if (code < 500) return 'code-4xx'
+  return 'code-5xx'
 }
 </script>
 
 <style scoped>
-.guide-page {
-  max-width: 1080px;
-  margin: 0 auto;
-}
-.guide-title {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-.guide-lead {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.8;
-}
-.guide-lead code {
-  background: #f0f2f5;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.hj-mb-20 {
-  margin-bottom: 20px;
-}
-.sign-steps {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 13px;
-  color: #606266;
-  line-height: 2;
-}
-.sign-steps code {
-  background: #f0f2f5;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.code-block {
-  margin: 0;
-  padding: 14px 16px;
-  border-radius: 8px;
-  background: #f6f8fa;
-  font-size: 12px;
-  line-height: 1.7;
-  overflow-x: auto;
-  user-select: text;
-  white-space: pre;
-}
+@import '@/styles/auth-guide.css';
 </style>
