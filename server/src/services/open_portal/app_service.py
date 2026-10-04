@@ -11,15 +11,26 @@
 
 from __future__ import annotations
 
-from src.constants.enums import AppApprovalStatus, AppOwnerType, AppStatus
+from src.constants.enums import (
+    AppApprovalStatus,
+    AppOwnerType,
+    AppStatus,
+    NotificationChannel,
+    NotificationEvent,
+    StationMessageStatus,
+)
 from src.core.exceptions import NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
+from src.models.entities.notification_entity import NotificationRecordEntity
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.open_portal.app import (
     OpenAppResponse,
 )
 from src.utils import security
 from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, parse_scopes
+
+# 开放应用审批权限码（管理端 openapi_app.py 的 update_app_approval 依赖此权限）
+_APPROVAL_PERM_CODE = "openapi_app:scopes"
 
 
 class DeveloperOpenAppService:
@@ -67,7 +78,44 @@ class DeveloperOpenAppService:
         )
         created = self._repository.create(entity)
         self._repository.commit()
+        self._notify_approvers(created, developer_id)
         return self._to_response(created), app_key_plain
+
+    def _notify_approvers(self, app: OpenApiAppEntity, developer_id: int) -> None:
+        """通知拥有审批权限的管理系统用户：新的应用申请待审批（管理端站内信）。
+
+        收件人为拥有 openapi_app:scopes 权限的管理员；站内信随本服务同会话提交，
+        标题约定含「审批」关键词，管理端站内信点击后跳转应用管理页。
+        """
+        try:
+            approver_ids = self._repository.list_user_ids_by_perm(_APPROVAL_PERM_CODE)
+            if not approver_ids:
+                return
+            dev = self._repository.get_owner_developer(developer_id)
+            dev_name = f"{dev.name or dev.username}" if dev else f"开发者#{developer_id}"
+            scopes_text = parse_scopes(app.scopes)
+            title = "【开放平台】新的应用申请待审批"
+            content = (
+                f"开发者 {dev_name} 提交了应用申请「{app.name}」（App ID：{app.app_id}），"
+                f"申请权限：{scopes_text or '无'}。请前往「开放平台 → 应用管理」审批。"
+            )
+            for uid in approver_ids:
+                self._repository.session.add(
+                    NotificationRecordEntity(
+                        event_type=NotificationEvent.OPENAPI_APP_CREATED.mark,
+                        channel=NotificationChannel.STATION.value,
+                        recipient=f"user:{uid}",
+                        subject=title,
+                        content=content,
+                        status=StationMessageStatus.UNREAD.value,
+                        retry_count=0,
+                        max_retries=0,
+                    )
+                )
+            self._repository.commit()
+        except Exception:
+            # 通知失败不影响应用创建主流程
+            self._repository.session.rollback()
 
     # ── 查询 ────────────────────────────────────────────
 

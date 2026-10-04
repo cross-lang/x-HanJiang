@@ -32,6 +32,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
@@ -39,6 +40,7 @@ import { getToken } from '@/utils/storage'
 import { getUnreadCount, listMessages, markAllMessagesRead, markMessageRead } from '@/api/messages'
 import { MESSAGE_CATEGORY_LABELS, type OpenMessage } from '@/types/message'
 
+const router = useRouter()
 const unreadCount = ref(0)
 const list = ref<OpenMessage[]>([])
 const expandedId = ref<number | null>(null)
@@ -77,6 +79,10 @@ async function toggleExpand(item: OpenMessage) {
   if (!item.read) {
     await markMessageRead(item.id)
     fetchUnread()
+  }
+  // 审批结果类站内信：点击跳转到我的应用列表查看最新状态
+  if (item.title.includes('审批')) {
+    router.push('/apps')
   }
 }
 

@@ -65,12 +65,38 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
     def get_owner_user(self, user_id: int) -> UserEntity | None:
         """查询归属管理员用户（owner_type=admin 时组装 owner 名称）。"""
         return self.session.get(UserEntity, user_id)
-
     def get_owner_developer(self, developer_id: int):
         """查询归属开发者（owner_type=developer 时组装 owner 名称）。"""
         from src.models.entities.developer_entity import DeveloperEntity
 
         return self.session.get(DeveloperEntity, developer_id)
+
+    def list_user_ids_by_perm(self, perm_code: str) -> list[int]:
+        """查询拥有指定权限码的全部管理系统用户 ID（用于审批通知广播）。
+
+        通过 users → user_roles → roles → role_permissions → permissions 关联，
+        仅返回 status=enabled 且未软删除的用户。
+        """
+        from src.models.entities.user_entity import (
+            PermissionEntity,
+            RolePermissionEntity,
+            UserEntity,
+            UserRoleEntity,
+        )
+
+        stmt = (
+            select(UserEntity.id)
+            .join(UserRoleEntity, UserRoleEntity.user_id == UserEntity.id)
+            .join(RolePermissionEntity, RolePermissionEntity.role_id == UserRoleEntity.role_id)
+            .join(PermissionEntity, PermissionEntity.id == RolePermissionEntity.permission_id)
+            .where(
+                PermissionEntity.perm_code == perm_code,
+                UserEntity.status == "enabled",
+                UserEntity.deleted_at.is_(None),
+            )
+            .distinct()
+        )
+        return list(self.session.execute(stmt).scalars().all())
 
     def list_active_scopes(self) -> list[OpenApiScopeEntity]:
         """查询全部未废弃的开放平台 scope（按排序号与主键升序）。"""

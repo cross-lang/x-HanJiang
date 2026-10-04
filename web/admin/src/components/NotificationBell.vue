@@ -28,6 +28,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
@@ -40,6 +41,7 @@ import {
   type StationMessage,
 } from '@/api/notification'
 
+const router = useRouter()
 const unreadCount = ref(0)
 const list = ref<StationMessage[]>([])
 const expandedId = ref<number | null>(null)
@@ -64,6 +66,10 @@ async function toggleExpand(item: StationMessage) {
   if (!item.is_read) {
     await markStationMessageRead(item.id)
     fetchUnread()
+  }
+  // 审批类站内信：点击直接跳转到开放应用管理页处理待审批事项
+  if (item.title.includes('审批')) {
+    router.push('/apps')
   }
 }
 
