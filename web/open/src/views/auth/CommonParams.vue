@@ -54,30 +54,6 @@
       </div>
     </section>
 
-    <!-- 公共响应结构 -->
-    <section class="auth-card">
-      <h3 class="auth-card-title">公共响应结构</h3>
-      <p class="auth-lead">
-        所有接口统一返回如下 JSON 结构（成功与失败一致），HTTP 状态码与响应体 <code>code</code> 相同：
-      </p>
-      <CodeBlock :code="responseStructure" label="JSON" language="json" />
-      <div style="margin-top: 16px">
-        <el-table :data="responseFields" class="auth-table" row-key="field">
-          <el-table-column prop="field" label="字段" width="140">
-            <template #default="{ row }">
-              <code class="mono-cell">{{ row.field }}</code>
-            </template>
-          </el-table-column>
-          <el-table-column prop="type" label="类型" width="130">
-            <template #default="{ row }">
-              <code class="mono-cell">{{ row.type }}</code>
-            </template>
-          </el-table-column>
-          <el-table-column prop="desc" label="说明" />
-        </el-table>
-      </div>
-    </section>
-
     <!-- 通用 Query 参数 -->
     <section class="auth-card">
       <h3 class="auth-card-title">通用 Query 参数</h3>
@@ -102,6 +78,30 @@
         </el-table-column>
         <el-table-column prop="desc" label="说明" />
       </el-table>
+    </section>
+
+    <!-- 公共响应结构 -->
+    <section class="auth-card">
+      <h3 class="auth-card-title">公共响应结构</h3>
+      <p class="auth-lead">
+        所有接口统一返回如下 JSON 结构（成功与失败一致），HTTP 状态码与响应体 <code>code</code> 相同：
+      </p>
+      <CodeBlock :code="responseStructure" label="JSON" language="json" />
+      <div style="margin-top: 16px">
+        <el-table :data="responseFields" class="auth-table" row-key="field">
+          <el-table-column prop="field" label="字段" width="140">
+            <template #default="{ row }">
+              <code class="mono-cell">{{ row.field }}</code>
+            </template>
+          </el-table-column>
+          <el-table-column prop="type" label="类型" width="130">
+            <template #default="{ row }">
+              <code class="mono-cell">{{ row.type }}</code>
+            </template>
+          </el-table-column>
+          <el-table-column prop="desc" label="说明" />
+        </el-table>
+      </div>
     </section>
   </div>
 </template>
