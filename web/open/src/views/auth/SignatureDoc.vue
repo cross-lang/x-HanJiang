@@ -16,9 +16,9 @@
         开放接口 <code>/api/open/v1</code> 支持三种鉴权模式，按应用 <code>auth_mode</code> 分流：
       </p>
       <el-table :data="authModes" class="auth-table" row-key="mode">
-        <el-table-column prop="mode" label="模式" width="100">
+        <el-table-column prop="mode" label="模式" width="130">
           <template #default="{ row }">
-            <code class="mono-cell">{{ row.mode }}</code>
+            <code class="mono-cell mode-cell">{{ row.mode }}</code>
           </template>
         </el-table-column>
         <el-table-column prop="credential" label="凭证方式" />
@@ -271,5 +271,9 @@ curl -X POST "http://127.0.0.1:8000/api/open/v1/users" \\
   font-size: 13px;
   font-weight: 600;
   color: #303133;
+}
+/* 鉴权模式：模式值（plain / hmac / both）单行展示，不换行 */
+.mode-cell {
+  white-space: nowrap;
 }
 </style>

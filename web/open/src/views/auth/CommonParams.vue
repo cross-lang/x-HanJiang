@@ -28,7 +28,7 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="mode" label="适用模式" width="100">
+        <el-table-column prop="mode" label="适用模式" width="120">
           <template #default="{ row }">
             <span class="mode-badge" :class="`mode-${row.modeKey}`">{{ row.mode }}</span>
           </template>
@@ -214,6 +214,7 @@ const queryParams = [
   line-height: 22px;
   border-radius: 4px;
   padding: 0 6px;
+  white-space: nowrap;
 }
 .mode-all {
   color: #409eff;
