@@ -59,7 +59,7 @@
     <!-- 错误响应示例 -->
     <section class="auth-card">
       <h3 class="auth-card-title">错误响应示例</h3>
-      <CodeBlock :code="errorExample" label="JSON" />
+      <CodeBlock :code="errorExample" label="JSON" language="json" />
     </section>
   </div>
 </template>

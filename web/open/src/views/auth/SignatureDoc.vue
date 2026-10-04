@@ -93,11 +93,11 @@
           <p class="auth-note">
             完整可运行客户端见仓库 <code>server/examples/openapi_client.py</code>（支持 plain / hmac，GET / POST / DELETE 全链路演示）。以下为最简 GET + POST 签名实现：
           </p>
-          <CodeBlock :code="pythonCode" label="Python" />
+          <CodeBlock :code="pythonCode" label="Python" language="python" />
         </el-tab-pane>
         <el-tab-pane label="Go" name="go">
           <p class="auth-note">仅依赖 Go 标准库（crypto/hmac、crypto/sha256、net/http、time）：</p>
-          <CodeBlock :code="goCode" label="Go" />
+          <CodeBlock :code="goCode" label="Go" language="go" />
         </el-tab-pane>
       </el-tabs>
     </section>
@@ -108,7 +108,7 @@
       <p class="auth-lead">
         调试阶段可在开放平台「应用管理 → 重置 Key」后使用明文模式快速验证；签名模式下需先按上述算法生成 <code>X-App-Authorization</code>：
       </p>
-      <CodeBlock :code="curlCode" label="cURL" />
+      <CodeBlock :code="curlCode" label="cURL" language="bash" />
     </section>
   </div>
 </template>

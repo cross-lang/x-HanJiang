@@ -60,7 +60,7 @@
       <p class="auth-lead">
         所有接口统一返回如下 JSON 结构（成功与失败一致），HTTP 状态码与响应体 <code>code</code> 相同：
       </p>
-      <CodeBlock :code="responseStructure" label="JSON" />
+      <CodeBlock :code="responseStructure" label="JSON" language="json" />
       <div style="margin-top: 16px">
         <el-table :data="responseFields" class="auth-table" row-key="field">
           <el-table-column prop="field" label="字段" width="140">
