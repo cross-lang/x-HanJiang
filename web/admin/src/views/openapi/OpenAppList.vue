@@ -39,12 +39,32 @@
           }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="审批状态" width="110">
+        <template #default="{ row }">
+          <el-tooltip v-if="row.approval_note" :content="row.approval_note" placement="top" :show-after="300">
+            <el-tag :type="approvalTagType(row.approval_status)" effect="light">
+              {{ approvalLabel(row.approval_status) }}
+            </el-tag>
+          </el-tooltip>
+          <el-tag v-else :type="approvalTagType(row.approval_status)" effect="light">
+            {{ approvalLabel(row.approval_status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="owner_name" label="拥有者" width="120" />
       <el-table-column prop="created_at" label="创建时间" width="170">
         <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" width="340" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="row.approval_status === 'pending'"
+            size="small"
+            type="primary"
+            @click="handleApprove(row as OpenAppItem)"
+          >
+            审批
+          </el-button>
           <el-button size="small" @click="handleEdit(row as OpenAppItem)">编辑</el-button>
           <el-button size="small" type="warning" @click="handleRotateKey(row as OpenAppItem)">重置密钥</el-button>
           <el-button
@@ -79,6 +99,8 @@
     type="warning"
     :secret="rotateResult"
   />
+
+  <ApproveDialog v-model:visible="approveVisible" :record="approveRecord" @submitted="onApproveSubmitted" />
 </template>
 
 <script setup lang="ts">
@@ -90,6 +112,7 @@ import { listApps, updateAppStatus, rotateAppKey, deleteApp } from '@/api/openap
 import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
 import type { OpenAppItem } from '@/types/openapi'
 import AppFormDialog, { type AppSecret } from './components/AppFormDialog.vue'
+import ApproveDialog from './components/ApproveDialog.vue'
 import SecretResultDialog from './components/SecretResultDialog.vue'
 
 const route = useRoute()
@@ -110,6 +133,23 @@ const createdApp = ref<AppSecret>({ app_id: '', app_key: '' })
 
 const rotateResultVisible = ref(false)
 const rotateResult = ref<AppSecret>({ app_id: '', app_key: '' })
+
+const approveVisible = ref(false)
+const approveRecord = ref<OpenAppItem | null>(null)
+
+/** 审批状态徽章类型 */
+function approvalTagType(status: string) {
+  if (status === 'approved') return 'success'
+  if (status === 'rejected') return 'danger'
+  return 'warning'
+}
+
+/** 审批状态中文标签 */
+function approvalLabel(status: string) {
+  if (status === 'approved') return '已通过'
+  if (status === 'rejected') return '已驳回'
+  return '待审批'
+}
 
 async function fetchList() {
   loading.value = true
@@ -157,6 +197,18 @@ function onAppCreated(secret: AppSecret) {
 /** 编辑成功：关闭并刷新列表 */
 function onDialogSubmitted() {
   editDialogVisible.value = false
+  fetchList()
+}
+
+/** 打开审批对话框（仅待审批应用显示入口） */
+function handleApprove(row: OpenAppItem) {
+  approveRecord.value = row
+  approveVisible.value = true
+}
+
+/** 审批提交成功：关闭并刷新列表 */
+function onApproveSubmitted() {
+  approveVisible.value = false
   fetchList()
 }
 

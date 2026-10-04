@@ -24,6 +24,11 @@ export function updateApp(id: number, data: Partial<OpenAppFormPayload>) {
   return request.put<OpenAppItem>(`/admin/apps/${id}`, data)
 }
 
+/** 审批开发者 scope 申请：approved=true 通过 / false 驳回，note 为审批意见（驳回必填） */
+export function updateApproval(id: number, data: { approved: boolean; note?: string }) {
+  return request.put<OpenAppItem>(`/admin/apps/${id}/approval`, data)
+}
+
 export function updateAppStatus(id: number, status: string) {
   return request.put<OpenAppItem>(`/admin/apps/${id}/status`, { status })
 }

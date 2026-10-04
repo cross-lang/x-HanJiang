@@ -11,10 +11,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.constants.enums import AppApprovalStatus, AppOwnerType, AppStatus, NotificationEvent
+from src.constants.enums import (
+    AppApprovalStatus,
+    AppOwnerType,
+    AppStatus,
+    DeveloperMessageCategory,
+    DeveloperMessageStatus,
+    NotificationEvent,
+)
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
+from src.models.entities.developer_message_entity import DeveloperMessageEntity
 from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.admin.openapi_app import OpenApiAppResponse
@@ -185,6 +193,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
         通过仅置状态（scope 本身由开发者申请端点已写入目标值）；
         驳回保留 pending 的 scopes 原值并记录驳回原因。
+        审批结果同步以开发者站内信通知应用 owner（owner_type=developer），
+        与审批状态同事务提交，开发者门户右上角铃铛即时可见。
         """
         e = self._repository.get_by_id(id)
         if e is None:
@@ -193,6 +203,23 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             AppApprovalStatus.APPROVED.value if approved else AppApprovalStatus.REJECTED.value
         )
         e.approval_note = (note or "").strip() or None
+        # 开发者自有应用：审批结果写入开发者站内信（随本事务一并提交）
+        if e.owner_type == AppOwnerType.DEVELOPER.value and e.owner_id is not None:
+            app_ref = f"应用「{e.name}」（App ID：{e.app_id}）"
+            note_suffix = f" 审批意见：{e.approval_note}" if e.approval_note else ""
+            self._repository.session.add(
+                DeveloperMessageEntity(
+                    developer_id=e.owner_id,
+                    title="应用审批通过" if approved else "应用审批驳回",
+                    content=(
+                        f"{app_ref}的权限申请已通过审批，可正常调用开放接口。{note_suffix}"
+                        if approved
+                        else f"{app_ref}的权限申请未通过审批，请根据审批意见调整后重新提交。{note_suffix}"
+                    ),
+                    category=DeveloperMessageCategory.AUDIT.value,
+                    status=DeveloperMessageStatus.UNREAD.value,
+                )
+            )
         self._repository.flush()
         self._commit()
         return self._to_response(e)

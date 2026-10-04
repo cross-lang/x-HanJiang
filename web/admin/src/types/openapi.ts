@@ -11,6 +11,12 @@ export interface OpenAppItem {
   rate_limit_per_minute: number
   owner_user_id: number | null
   owner_name: string | null
+  /** 审批状态：pending / approved / rejected */
+  approval_status: string
+  /** 审批意见（驳回原因等） */
+  approval_note: string | null
+  /** 开发者提交 scope 申请时的申请理由 */
+  scope_apply_reason: string | null
   last_used_at: string | null
   created_at: string
 }
