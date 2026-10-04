@@ -56,7 +56,7 @@ const COMMON_RESPONSE_FIELDS = [
 ]
 
 /** cURL 前缀（本地联调默认地址） */
-const BASE = 'http://127.0.0.1:8000/api/open/v1'
+export const BASE = 'http://127.0.0.1:8000/api/open/v1'
 
 export const capabilityModules: CapabilityModule[] = [
   // ─────────────────────────── 健康管理 ───────────────────────────

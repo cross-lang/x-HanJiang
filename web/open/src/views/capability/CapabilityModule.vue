@@ -19,7 +19,7 @@
             </el-tag>
           </div>
           <p class="hero-summary">{{ currentApi.summary }}</p>
-          <code class="hero-path">http://127.0.0.1:8000/api/open/v1{{ currentApi.path }}</code>
+          <code class="hero-path">{{ BASE }}{{ currentApi.path }}</code>
         </div>
       </header>
 
@@ -47,7 +47,7 @@
         <div class="meta-grid">
           <div class="meta-row">
             <span class="meta-label">请求地址</span>
-            <code class="meta-value">http://127.0.0.1:8000/api/open/v1{{ currentApi.path }}</code>
+            <code class="meta-value url-code">{{ BASE }}{{ currentApi.path }}</code>
           </div>
           <div class="meta-row">
             <span class="meta-label">HTTP 方法</span>
@@ -135,7 +135,7 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { CopyDocument } from '@element-plus/icons-vue'
-import { capabilityModuleMap } from '@/data/capability'
+import { capabilityModuleMap, BASE } from '@/data/capability'
 import type { CapabilityApi, CapabilityModule } from '@/types/capability'
 import ParamTable from './components/ParamTable.vue'
 
@@ -276,7 +276,8 @@ function methodClass(method: CapabilityApi['method']): string {
   color: var(--hj-text-regular);
   line-height: 1.7;
 }
-.hero-path {
+.hero-path,
+.url-code {
   display: inline-block;
   font-family: var(--hj-font-mono);
   font-size: 13px;
