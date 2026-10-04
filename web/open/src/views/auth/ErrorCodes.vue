@@ -172,14 +172,11 @@ function codeClass(code: number): string {
   height: 14px;
 }
 
-/* 错误信息列：行内代码标识（浅蓝底，与全站 inline code 风格一致） */
+/* 错误信息列：行内代码标识（等宽字体 + 品牌蓝文字，无背景） */
 .inline-code {
   font-family: var(--hj-font-mono);
   font-size: 12px;
   color: var(--hj-primary);
-  background: var(--hj-primary-bg);
-  padding: 1px 6px;
-  border-radius: 4px;
   white-space: nowrap;
   word-break: break-all;
 }

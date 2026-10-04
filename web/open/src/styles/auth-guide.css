@@ -113,9 +113,6 @@
   font-family: var(--hj-font-mono);
   font-size: 12px;
   color: var(--hj-primary);
-  background: var(--hj-primary-bg);
-  padding: 1px 6px;
-  border-radius: 4px;
   word-break: break-all;
 }
 .auth-table .mono-cell {
@@ -223,10 +220,7 @@
   word-break: break-all;
 }
 .auth-algo-value code {
-  background: var(--hj-primary-bg);
   color: var(--hj-primary);
-  padding: 1px 6px;
-  border-radius: 4px;
   font-family: var(--hj-font-mono);
   font-size: 12px;
 }
