@@ -36,9 +36,15 @@
             <span class="auth-code-badge" :class="codeClass(row.code)">{{ row.code }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="message" label="错误信息" width="400">
+        <el-table-column label="错误信息" width="400">
           <template #default="{ row }">
-            <code class="mono-cell">{{ row.message }}</code>
+            <template v-if="Array.isArray(row.message)">
+              <template v-for="(seg, i) in row.message" :key="i">
+                <code v-if="seg.c" class="inline-code">{{ seg.t }}</code>
+                <span v-else>{{ seg.t }}</span>
+              </template>
+            </template>
+            <span v-else>{{ row.message }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="cause" label="原因 / 处理建议" />
@@ -85,7 +91,10 @@ const errorCodes = [
 const gatewayErrors = [
   {
     code: 401,
-    message: '缺少请求头 X-App-Id',
+    message: [
+      { t: '缺少请求头 ', c: false },
+      { t: 'X-App-Id', c: true },
+    ],
     cause: '请求未携带应用凭证头；检查请求头命名与大小写',
   },
   {
@@ -95,7 +104,15 @@ const gatewayErrors = [
   },
   {
     code: 403,
-    message: '应用 {app_id} 未通过审批（当前状态：pending / rejected），请联系管理员',
+    message: [
+      { t: '应用 ', c: false },
+      { t: '{app_id}', c: true },
+      { t: ' 未通过审批（当前状态：', c: false },
+      { t: 'pending', c: true },
+      { t: ' / ', c: false },
+      { t: 'rejected', c: true },
+      { t: '），请联系管理员', c: false },
+    ],
     cause: '开发者自助申请的应用须管理端审批通过（approval_status = approved）方可调用',
   },
   {
@@ -105,7 +122,12 @@ const gatewayErrors = [
   },
   {
     code: 403,
-    message: '应用缺少 scope: {scope_code}',
+    message: [
+      { t: '应用缺少 ', c: false },
+      { t: 'scope', c: true },
+      { t: ': ', c: false },
+      { t: '{scope_code}', c: true },
+    ],
     cause: '接口需要对应 scope，应用未申请或未审批通过；在应用管理提交 scope 申请',
   },
 ]
@@ -148,5 +170,17 @@ function codeClass(code: number): string {
 
 .error-block-gap {
   height: 14px;
+}
+
+/* 错误信息列：行内代码标识（浅蓝底，与全站 inline code 风格一致） */
+.inline-code {
+  font-family: var(--hj-font-mono);
+  font-size: 12px;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  word-break: break-all;
 }
 </style>
