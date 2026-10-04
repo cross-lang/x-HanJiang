@@ -41,7 +41,7 @@ const TITLES: Record<string, string> = {
   profile: '个人中心',
 }
 
-const pageTitle = computed(() => TITLES[route.path.split('/')[1] || 'home'] || '汉江开放平台')
+const pageTitle = computed(() => TITLES[route.path.split('/')[1] || 'home'] || '汉江（HanJiang）开放平台')
 const initial = computed(() => (developerStore.profile?.name || 'D').charAt(0))
 </script>
 

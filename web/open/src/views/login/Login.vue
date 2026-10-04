@@ -4,8 +4,8 @@
       <div class="login-inner">
         <!-- 左侧品牌区 -->
         <div class="login-left">
-          <img src="/logo-icon.png" class="login-logo" alt="汉江开放平台" />
-          <h1 class="brand-name">汉江开放平台</h1>
+          <img src="/logo-icon.png" class="login-logo" alt="汉江（HanJiang）开放平台" />
+          <h1 class="brand-name">汉江（HanJiang）开放平台</h1>
           <p class="brand-sub">HanJiang Open Platform</p>
           <p class="brand-desc">接入汉江生态能力，构建你的应用</p>
         </div>

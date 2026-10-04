@@ -373,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
     config = _build_config(args)
     client = OpenApiClient(config)
 
-    print(f"汉江开放平台 API 调用演示开始")
+    print(f"汉江（HanJiang）开放平台 API 调用演示开始")
     print(f"服务端地址: {config.base_url}")
     print(f"鉴权模式: {config.auth_mode}")
     print(f"应用标识（AppId）: {config.app_id}")

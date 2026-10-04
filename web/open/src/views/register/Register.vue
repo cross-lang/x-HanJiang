@@ -4,8 +4,8 @@
       <div class="register-inner">
         <!-- 左侧品牌区 -->
         <div class="register-left">
-          <img src="/logo-icon.png" class="register-logo" alt="汉江开放平台" />
-          <h1 class="brand-name">汉江开放平台</h1>
+          <img src="/logo-icon.png" class="register-logo" alt="汉江（HanJiang）开放平台" />
+          <h1 class="brand-name">汉江（HanJiang）开放平台</h1>
           <p class="brand-sub">HanJiang Open Platform</p>
           <p class="brand-desc">注册成为开发者，创建应用并申请开放能力</p>
         </div>
