@@ -25,7 +25,7 @@
       </div>
     </div>
     <div class="bell-footer">
-      <el-button text size="small" @click="markAllRead">全部已读</el-button>
+      <el-button text size="small" :disabled="list.length === 0" @click="markAllRead">全部已读</el-button>
     </div>
   </el-popover>
 </template>
