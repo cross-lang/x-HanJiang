@@ -202,7 +202,7 @@ const queryParams = [
   background: #fef0f0;
 }
 .req-no {
-  color: #909399;
+  color: var(--hj-text-secondary);
   background: #f4f4f5;
 }
 .req-maybe {
@@ -221,15 +221,15 @@ const queryParams = [
   white-space: nowrap;
 }
 .mode-all {
-  color: #409eff;
-  background: #ecf5ff;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
 }
 .mode-hmac {
   color: #67c23a;
   background: #f0f9eb;
 }
 .mode-plain {
-  color: #909399;
+  color: var(--hj-text-secondary);
   background: #f4f4f5;
 }
 </style>

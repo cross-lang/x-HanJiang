@@ -61,8 +61,9 @@ function handleCommand(cmd: string) {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #909399;
-  background: #fff;
-  border-top: 1px solid #eef0f4;
+  color: var(--hj-text-secondary);
+  background: var(--hj-bg-card);
+  border-top: 1px solid var(--hj-border-lighter);
+  letter-spacing: 0.3px;
 }
 </style>

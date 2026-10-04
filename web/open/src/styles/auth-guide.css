@@ -1,4 +1,4 @@
-/* 认证和授权文档页共享样式（对齐开放能力页 WPS 风格） */
+/* 认证和授权文档页共享样式（对齐开放能力页，WPS 风格 + 全局设计令牌） */
 
 /* ─── 页面容器 ─── */
 .auth-page {
@@ -11,35 +11,36 @@
 .auth-head {
   margin-bottom: 20px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--hj-border-light);
 }
 .auth-crumbs {
   font-size: 12px;
-  color: #909399;
+  color: var(--hj-text-secondary);
   margin-bottom: 8px;
+  letter-spacing: 0.3px;
 }
 .auth-title {
   margin: 0 0 6px;
   font-size: 24px;
   font-weight: 700;
-  color: #1f2d3d;
+  color: var(--hj-text-title);
   letter-spacing: 0.5px;
 }
 .auth-desc {
   margin: 0;
   font-size: 13px;
-  color: #909399;
+  color: var(--hj-text-secondary);
   line-height: 1.7;
 }
 
 /* ─── 区块卡片 ─── */
 .auth-card {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 12px;
+  background: var(--hj-bg-card);
+  border: 1px solid var(--hj-border-light);
+  border-radius: var(--hj-radius-lg);
   padding: 22px 26px;
   margin-bottom: 18px;
-  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.04);
+  box-shadow: var(--hj-shadow-card);
 }
 .auth-card-title {
   position: relative;
@@ -47,7 +48,7 @@
   padding-left: 12px;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2d3d;
+  color: var(--hj-text-title);
 }
 .auth-card-title::before {
   content: '';
@@ -57,70 +58,70 @@
   bottom: 2px;
   width: 4px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #409eff, #79bbff);
+  background: linear-gradient(180deg, var(--hj-primary), var(--hj-primary-weak));
 }
 
 /* ─── 段落与行内代码 ─── */
 .auth-lead {
   margin: 0 0 14px;
   font-size: 13.5px;
-  color: #606266;
+  color: var(--hj-text-regular);
   line-height: 1.8;
 }
 .auth-lead code,
 .auth-note code {
-  background: #ecf5ff;
-  color: #409eff;
+  background: var(--hj-primary-bg);
+  color: var(--hj-primary);
   padding: 1px 6px;
   border-radius: 4px;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12px;
 }
 .auth-note {
   margin: 14px 0 0;
   font-size: 13px;
-  color: #606266;
+  color: var(--hj-text-regular);
   line-height: 1.8;
 }
 
 /* ─── 宽松表格（覆盖 el-table；全局选择器穿透组件） ─── */
 .auth-table {
   width: 100%;
-  --el-table-border-color: #ebeef5;
-  --el-table-header-bg-color: #f7f8fa;
-  --el-table-row-hover-bg-color: #f5f9ff;
+  --el-table-border-color: var(--hj-border-light);
+  --el-table-header-bg-color: var(--hj-bg-page);
+  --el-table-row-hover-bg-color: var(--hj-bg-hover);
 }
 .auth-table th.el-table__cell {
-  background: #f7f8fa;
-  color: #303133;
+  background: var(--hj-bg-page);
+  color: var(--hj-text-title);
   font-weight: 600;
   font-size: 13px;
   padding: 12px 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--hj-border-light);
 }
 .auth-table td.el-table__cell {
   padding: 12px 16px;
   font-size: 13px;
-  color: #606266;
-  border-bottom: 1px solid #f2f3f5;
+  color: var(--hj-text-regular);
+  border-bottom: 1px solid var(--hj-border-lighter);
   line-height: 1.7;
 }
 .auth-table .cell {
   line-height: 1.7;
 }
 .auth-table code {
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12px;
-  color: #409eff;
-  background: #ecf5ff;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
   padding: 1px 6px;
   border-radius: 4px;
   word-break: break-all;
 }
 .auth-table .mono-cell {
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12.5px;
-  color: #303133;
+  color: var(--hj-text-title);
   white-space: nowrap;
 }
 
@@ -139,7 +140,7 @@
   position: relative;
   padding: 2px 0 16px 42px;
   font-size: 13.5px;
-  color: #606266;
+  color: var(--hj-text-regular);
   line-height: 1.8;
 }
 .auth-steps li::before {
@@ -150,7 +151,7 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #409eff, #79bbff);
+  background: linear-gradient(135deg, var(--hj-primary), var(--hj-primary-weak));
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -160,25 +161,25 @@
   box-shadow: 0 2px 6px rgba(64, 158, 255, 0.35);
 }
 .auth-steps code {
-  background: #ecf5ff;
-  color: #409eff;
+  background: var(--hj-primary-bg);
+  color: var(--hj-primary);
   padding: 1px 6px;
   border-radius: 4px;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12px;
 }
 
 /* ─── 公式卡片 ─── */
 .auth-formula {
-  background: linear-gradient(135deg, #ecf5ff 0%, #f5faff 100%);
-  border: 1px solid #d9ecff;
-  border-radius: 10px;
+  background: linear-gradient(135deg, var(--hj-primary-bg) 0%, #f5faff 100%);
+  border: 1px solid var(--hj-primary-border);
+  border-radius: var(--hj-radius-md);
   padding: 16px 22px;
   text-align: center;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 13.5px;
   font-weight: 600;
-  color: #1f2d3d;
+  color: var(--hj-text-title);
   letter-spacing: 0.3px;
   word-break: break-all;
 }
@@ -187,12 +188,12 @@
   margin-top: 6px;
   font-size: 12px;
   font-weight: 400;
-  color: #909399;
+  color: var(--hj-text-secondary);
 }
 
 /* ─── 签名算法描述列表 ─── */
 .auth-algo {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hj-border-light);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -201,7 +202,7 @@
   align-items: flex-start;
   min-height: 44px;
   padding: 11px 18px;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--hj-border-lighter);
 }
 .auth-algo-row:last-child {
   border-bottom: none;
@@ -211,22 +212,22 @@
   width: 130px;
   font-size: 13px;
   font-weight: 600;
-  color: #909399;
+  color: var(--hj-text-secondary);
 }
 .auth-algo-value {
   flex: 1;
   min-width: 0;
   font-size: 13.5px;
-  color: #303133;
+  color: var(--hj-text-title);
   line-height: 1.8;
   word-break: break-all;
 }
 .auth-algo-value code {
-  background: #ecf5ff;
-  color: #409eff;
+  background: var(--hj-primary-bg);
+  color: var(--hj-primary);
   padding: 1px 6px;
   border-radius: 4px;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12px;
 }
 
@@ -239,7 +240,7 @@
   font-weight: 700;
   line-height: 22px;
   border-radius: 6px;
-  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-family: var(--hj-font-mono);
 }
 .auth-code-badge.code-2xx { color: #67c23a; background: #f0f9eb; }
 .auth-code-badge.code-4xx { color: #e6a23c; background: #fdf6ec; }
@@ -256,8 +257,8 @@
   line-height: 1.7;
 }
 .auth-alert-info {
-  background: #ecf5ff;
-  color: #409eff;
+  background: var(--hj-primary-bg);
+  color: var(--hj-primary);
 }
 .auth-alert-warn {
   background: #fdf6ec;

@@ -247,6 +247,12 @@ onMounted(() => {
 .more-btn {
   margin-left: 4px;
   padding: 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.more-btn:hover {
+  background: var(--hj-bg-hover);
+  color: var(--hj-primary);
 }
 .menu-icon {
   margin-right: 6px;

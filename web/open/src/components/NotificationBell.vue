@@ -105,7 +105,7 @@ onUnmounted(() => {
   cursor: pointer;
 }
 .bell-icon {
-  color: #666;
+  color: var(--hj-text-body);
   cursor: pointer;
 }
 .bell-list {
@@ -114,11 +114,11 @@ onUnmounted(() => {
 }
 .bell-empty {
   text-align: center;
-  color: #999;
+  color: var(--hj-text-secondary);
   padding: 30px 0;
 }
 .bell-item {
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--hj-border-lighter);
 }
 .bell-item-head {
   padding: 12px;

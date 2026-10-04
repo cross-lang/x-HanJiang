@@ -52,27 +52,37 @@ const initial = computed(() => (developerStore.profile?.name || 'D').charAt(0))
   justify-content: space-between;
   height: 56px;
   padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #eef0f4;
+  background: var(--hj-bg-card);
+  border-bottom: 1px solid var(--hj-border-lighter);
 }
 .page-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hj-text-title);
+  letter-spacing: 0.3px;
 }
 .user-entry {
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  color: #606266;
+  color: var(--hj-text-regular);
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.user-entry:hover {
+  background: var(--hj-bg-hover);
 }
 .user-avatar {
-  background: #79bbff;
+  background: linear-gradient(135deg, var(--hj-primary), var(--hj-primary-weak));
   color: #fff;
   font-size: 14px;
+  font-weight: 600;
+  border: none;
 }
 .user-name {
   font-size: 14px;
+  font-weight: 500;
 }
 </style>

@@ -201,24 +201,25 @@ function methodClass(method: CapabilityApi['method']): string {
 .module-head {
   margin-bottom: 20px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--hj-border-light);
 }
 .crumbs {
   font-size: 12px;
-  color: #909399;
+  color: var(--hj-text-secondary);
   margin-bottom: 8px;
+  letter-spacing: 0.3px;
 }
 .module-title {
   margin: 0 0 6px;
   font-size: 24px;
   font-weight: 700;
-  color: #1f2d3d;
+  color: var(--hj-text-title);
   letter-spacing: 0.5px;
 }
 .module-desc {
   margin: 0;
   font-size: 13px;
-  color: #909399;
+  color: var(--hj-text-secondary);
   line-height: 1.7;
 }
 
@@ -228,10 +229,11 @@ function methodClass(method: CapabilityApi['method']): string {
   gap: 18px;
   align-items: flex-start;
   background: linear-gradient(135deg, #ffffff 0%, #f5f9ff 100%);
-  border: 1px solid #e4ecf7;
-  border-radius: 12px;
+  border: 1px solid var(--hj-primary-border);
+  border-radius: var(--hj-radius-lg);
   padding: 24px 28px;
   margin-bottom: 20px;
+  box-shadow: var(--hj-shadow-card);
 }
 .hero-method {
   flex-shrink: 0;
@@ -243,6 +245,7 @@ function methodClass(method: CapabilityApi['method']): string {
   line-height: 34px;
   border-radius: 8px;
   letter-spacing: 1px;
+  font-family: var(--hj-font-mono);
 }
 .m-get { background: linear-gradient(135deg, #67c23a, #4da32b); }
 .m-post { background: linear-gradient(135deg, #409eff, #2b7de0); }
@@ -262,24 +265,24 @@ function methodClass(method: CapabilityApi['method']): string {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  color: #1f2d3d;
+  color: var(--hj-text-title);
 }
 .scope-tag {
-  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-family: var(--hj-font-mono);
 }
 .hero-summary {
   margin: 8px 0 10px;
   font-size: 13.5px;
-  color: #606266;
+  color: var(--hj-text-regular);
   line-height: 1.7;
 }
 .hero-path {
   display: inline-block;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 13px;
-  color: #303133;
+  color: var(--hj-text-title);
   background: #fff;
-  border: 1px solid #e4ecf7;
+  border: 1px solid var(--hj-primary-border);
   padding: 5px 12px;
   border-radius: 6px;
   word-break: break-all;
@@ -287,12 +290,12 @@ function methodClass(method: CapabilityApi['method']): string {
 
 /* ─── 区块卡片 ─── */
 .doc-section {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 12px;
+  background: var(--hj-bg-card);
+  border: 1px solid var(--hj-border-light);
+  border-radius: var(--hj-radius-lg);
   padding: 22px 26px;
   margin-bottom: 18px;
-  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.04);
+  box-shadow: var(--hj-shadow-card);
 }
 .section-title {
   position: relative;
@@ -300,7 +303,7 @@ function methodClass(method: CapabilityApi['method']): string {
   padding-left: 12px;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2d3d;
+  color: var(--hj-text-title);
 }
 .section-title::before {
   content: '';
@@ -310,25 +313,25 @@ function methodClass(method: CapabilityApi['method']): string {
   bottom: 2px;
   width: 4px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #409eff, #79bbff);
+  background: linear-gradient(180deg, var(--hj-primary), var(--hj-primary-weak));
 }
 .api-summary {
   margin: 0 0 10px;
   font-size: 13.5px;
-  color: #606266;
+  color: var(--hj-text-regular);
   line-height: 1.8;
 }
 .sub-title {
   margin: 14px 0 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hj-text-title);
 }
 .doc-list {
   margin: 0;
   padding-left: 20px;
   font-size: 13.5px;
-  color: #606266;
+  color: var(--hj-text-regular);
   line-height: 2;
 }
 
@@ -337,7 +340,7 @@ function methodClass(method: CapabilityApi['method']): string {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hj-border-light);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -346,7 +349,7 @@ function methodClass(method: CapabilityApi['method']): string {
   align-items: center;
   min-height: 44px;
   padding: 10px 18px;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--hj-border-lighter);
 }
 .meta-row:last-child {
   border-bottom: none;
@@ -355,11 +358,11 @@ function methodClass(method: CapabilityApi['method']): string {
   flex-shrink: 0;
   width: 120px;
   font-size: 13px;
-  color: #909399;
+  color: var(--hj-text-secondary);
 }
 .meta-value {
   font-size: 13.5px;
-  color: #303133;
+  color: var(--hj-text-title);
   word-break: break-all;
 }
 .method-inline {
@@ -371,60 +374,65 @@ function methodClass(method: CapabilityApi['method']): string {
   color: #fff;
   line-height: 22px;
   border-radius: 4px;
+  font-family: var(--hj-font-mono);
 }
 .scope-text {
-  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-family: var(--hj-font-mono);
   font-size: 13px;
-  color: #409eff;
-  background: #ecf5ff;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
   padding: 2px 10px;
   border-radius: 4px;
 }
 
-/* ─── 代码块（WPS 风格：标签 + 复制按钮 + 浅色代码区） ─── */
+/* ─── 代码块（深色高亮主题，与认证文档页 CodeBlock 的 One Dark 风格一致） ─── */
 .code-wrap {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
+  border: 1px solid #21252b;
+  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.08);
 }
 .code-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f7f8fa;
-  border-bottom: 1px solid #e4e7ed;
-  padding: 6px 12px;
+  background: #21252b;
+  border-bottom: 1px solid #2c323c;
+  padding: 8px 14px;
 }
 .code-tab {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: #409eff;
+  color: #abb2bf;
+  font-family: var(--hj-font-mono);
+  letter-spacing: 0.5px;
 }
 .copy-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: none;
+  border: 1px solid #3a414d;
   background: transparent;
-  color: #909399;
+  color: #abb2bf;
   font-size: 12.5px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
   transition: all 0.15s;
 }
 .copy-btn:hover {
-  color: #409eff;
-  background: #ecf5ff;
+  color: #e6e6e6;
+  background: #2c323c;
+  border-color: #4b5261;
 }
 .code-block {
   margin: 0;
   padding: 16px 20px;
-  background: #fbfcfe;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  background: #282c34;
+  font-family: var(--hj-font-mono);
   font-size: 12.5px;
   line-height: 1.8;
-  color: #303133;
+  color: #abb2bf;
   overflow-x: auto;
   user-select: text;
   white-space: pre;
@@ -432,7 +440,7 @@ function methodClass(method: CapabilityApi['method']): string {
 .resp-desc {
   margin-top: 10px;
   font-size: 13px;
-  color: #909399;
+  color: var(--hj-text-secondary);
   line-height: 1.7;
 }
 </style>

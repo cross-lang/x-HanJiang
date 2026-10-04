@@ -77,25 +77,25 @@ const cellStyle = {
 <style scoped>
 .doc-table {
   width: 100%;
-  --el-table-border-color: #ebeef5;
-  --el-table-header-bg-color: #f7f8fa;
-  --el-table-row-hover-bg-color: #f5f9ff;
+  --el-table-border-color: var(--hj-border-light);
+  --el-table-header-bg-color: var(--hj-bg-page);
+  --el-table-row-hover-bg-color: var(--hj-bg-hover);
 }
 .doc-table :deep(th.el-table__cell) {
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--hj-border-light);
 }
 .doc-table :deep(td.el-table__cell) {
-  border-bottom: 1px solid #f2f3f5;
-  color: #606266;
+  border-bottom: 1px solid var(--hj-border-lighter);
+  color: var(--hj-text-regular);
 }
 .param-name {
-  color: #303133;
+  color: var(--hj-text-title);
   font-weight: 600;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12.5px;
 }
 .type-code {
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12px;
   color: #7c3aed;
   background: #f6f4fe;
@@ -103,10 +103,10 @@ const cellStyle = {
   border-radius: 4px;
 }
 .example-code {
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 12px;
-  color: #409eff;
-  background: #ecf5ff;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
   padding: 1px 6px;
   border-radius: 4px;
   word-break: break-all;
@@ -125,7 +125,7 @@ const cellStyle = {
   background: #fef0f0;
 }
 .req-no {
-  color: #909399;
+  color: var(--hj-text-secondary);
   background: #f4f4f5;
 }
 .loc-tag {
@@ -139,18 +139,18 @@ const cellStyle = {
   text-transform: uppercase;
 }
 .loc-query {
-  color: #409eff;
-  background: #ecf5ff;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
 }
 .loc-path {
   color: #e6a23c;
   background: #fdf6ec;
 }
 .text-muted {
-  color: #c0c4cc;
+  color: var(--hj-text-muted);
 }
 .desc-text {
-  color: #606266;
+  color: var(--hj-text-regular);
   line-height: 1.7;
 }
 </style>

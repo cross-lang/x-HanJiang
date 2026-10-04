@@ -1,4 +1,76 @@
-/* 全局基础样式 */
+/* ==========================================================================
+   汉江开放平台 · 全局设计令牌与主题
+   对齐主流开放平台审美（Stripe / 阿里云 / 腾讯云开放平台风格）：
+   - 统一字体栈（系统 UI + 等宽代码字体）
+   - 品牌蓝 #409eff 完整色阶
+   - 文字三级色阶：标题 / 正文 / 次要
+   - Element Plus 主题变量覆盖
+   ========================================================================== */
+
+:root {
+  /* ── 字体 ─────────────────────────────────────────────── */
+  --hj-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --hj-font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
+    Menlo, 'Courier New', monospace;
+
+  /* ── 品牌蓝（主色 #409eff） ──────────────────────────── */
+  --hj-primary: #409eff;
+  --hj-primary-hover: #66b1ff;
+  --hj-primary-active: #2b7de0;
+  --hj-primary-weak: #79bbff;
+  --hj-primary-bg: #ecf5ff;
+  --hj-primary-border: #c6e2ff;
+
+  /* ── 文字色阶 ────────────────────────────────────────── */
+  --hj-text-title: #1f2d3d;   /* 页面/卡片标题 */
+  --hj-text-body: #4e5969;    /* 正文 */
+  --hj-text-regular: #606266; /* 常规说明 */
+  --hj-text-secondary: #909399; /* 次要信息 */
+  --hj-text-muted: #c0c4cc;   /* 占位/禁用 */
+
+  /* ── 边框 / 背景 / 阴影 ─────────────────────────────── */
+  --hj-border: #e4e7ed;
+  --hj-border-light: #ebeef5;
+  --hj-border-lighter: #f0f2f5;
+  --hj-bg-page: #f7f8fa;
+  --hj-bg-card: #ffffff;
+  --hj-bg-hover: #f5f9ff;
+  --hj-shadow-card: 0 2px 12px rgba(31, 45, 61, 0.05);
+  --hj-shadow-card-hover: 0 6px 20px rgba(31, 45, 61, 0.1);
+
+  /* ── 圆角 ───────────────────────────────────────────── */
+  --hj-radius-sm: 6px;
+  --hj-radius-md: 10px;
+  --hj-radius-lg: 14px;
+  --hj-radius-xl: 18px;
+
+  /* ── Element Plus 主题覆盖 ───────────────────────────── */
+  --el-color-primary: #409eff;
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-primary-dark-2: #337ecc;
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 22px;
+  --el-font-family: var(--hj-font-sans);
+  --el-text-color-primary: var(--hj-text-title);
+  --el-text-color-regular: var(--hj-text-body);
+  --el-text-color-secondary: var(--hj-text-secondary);
+  --el-text-color-placeholder: #a8abb2;
+  --el-border-color: var(--hj-border);
+  --el-border-color-light: var(--hj-border-light);
+  --el-border-color-lighter: var(--hj-border-lighter);
+  --el-border-color-extra-light: #f2f4f7;
+  --el-fill-color-light: #f7f8fa;
+  --el-fill-color-lighter: #fafbfd;
+  --el-fill-color-blank: #ffffff;
+}
+
+/* ── 基础 ─────────────────────────────────────────────── */
 html,
 body {
   height: 100%;
@@ -6,10 +78,57 @@ body {
 
 body {
   margin: 0;
-  color: #303133;
-  background: #f5f7fa;
+  color: var(--hj-text-body);
+  background: var(--hj-bg-page);
+  font-family: var(--hj-font-sans);
+  font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 标题统一采用深色权威感的标题色 */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--hj-text-title);
+  font-family: var(--hj-font-sans);
+}
+
+/* 等宽字体工具类（代码、路径、参数名等） */
+.mono,
+.mono-cell,
+code {
+  font-family: var(--hj-font-mono);
+}
+
+/* 超链接 */
+a {
+  color: var(--hj-primary);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--hj-primary-hover);
+}
+
+/* 文本选中色（品牌蓝系） */
+::selection {
+  background: rgba(64, 158, 255, 0.22);
+}
+
+/* ── 滚动条（轻量化 Webkit / Chromium） ───────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d0d5dd;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b6bcc7;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* 开放平台面向开发者：全站允许选中与复制文本（含 Element Plus 组件、菜单、表格、标签等），
@@ -29,4 +148,53 @@ textarea,
 .el-message-box,
 .el-notification {
   user-select: text;
+}
+
+/* ── Element Plus 组件细节覆盖 ─────────────────────────── */
+
+/* 卡片：统一圆角与柔和阴影 */
+.el-card {
+  border-radius: var(--hj-radius-lg);
+  border-color: var(--hj-border-light);
+  box-shadow: var(--hj-shadow-card) !important;
+}
+
+/* 按钮：主按钮 hover 使用统一色阶；圆角由 --el-border-radius-base 控制 */
+.el-button--primary {
+  --el-button-hover-bg-color: var(--hj-primary-hover);
+  --el-button-active-bg-color: var(--hj-primary-active);
+}
+
+/* 表格：表头浅灰、行 hover 品牌淡蓝 */
+.el-table {
+  --el-table-header-bg-color: var(--hj-bg-page);
+  --el-table-row-hover-bg-color: var(--hj-bg-hover);
+  --el-table-border-color: var(--hj-border-light);
+}
+
+/* 标签：默认圆角更柔和 */
+.el-tag {
+  border-radius: 4px;
+}
+
+/* 输入框 / 下拉：内边距与字号微调，聚焦描边统一 */
+.el-input__wrapper,
+.el-textarea__inner {
+  border-radius: var(--hj-radius-sm);
+}
+
+/* 弹窗：圆角与阴影 */
+.el-dialog {
+  border-radius: var(--hj-radius-lg);
+  box-shadow: 0 12px 40px rgba(31, 45, 61, 0.16);
+}
+
+/* 菜单：激活项文字/背景统一品牌色（由菜单自身样式接管，此处兜底） */
+.el-menu {
+  border-right: none;
+}
+
+/* 消息提示圆角 */
+.el-message {
+  border-radius: var(--hj-radius-md);
 }

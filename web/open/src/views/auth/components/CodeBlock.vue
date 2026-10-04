@@ -98,7 +98,7 @@ async function onCopy() {
   margin: 0;
   padding: 16px 20px;
   background: #282c34;
-  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-family: var(--hj-font-mono);
   font-size: 13px;
   line-height: 1.75;
   color: #abb2bf;

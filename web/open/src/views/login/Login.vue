@@ -106,11 +106,11 @@ async function handleLogin() {
 }
 
 .login-card {
-  width: 820px;
+  width: 860px;
   max-width: 94vw;
-  border-radius: 12px;
+  border-radius: 16px;
   border: none;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 40px rgba(31, 45, 61, 0.12);
   overflow: hidden;
 }
 .login-inner {
@@ -123,31 +123,69 @@ async function handleLogin() {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #fff;
-  border-right: 1px solid #f0f0f0;
+  position: relative;
+  background:
+    radial-gradient(120% 120% at 15% 10%, rgba(255, 255, 255, 0.16) 0%, transparent 55%),
+    linear-gradient(160deg, #409eff 0%, #2b7de0 55%, #1f63c9 100%);
+  color: #fff;
+  overflow: hidden;
+}
+/* 背景装饰圆环 */
+.login-left::before,
+.login-left::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+}
+.login-left::before {
+  width: 260px;
+  height: 260px;
+  right: -90px;
+  top: -80px;
+}
+.login-left::after {
+  width: 180px;
+  height: 180px;
+  left: -60px;
+  bottom: -60px;
 }
 .login-logo {
-  width: 100px;
-  height: 100px;
-  border-radius: 20px;
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  position: relative;
+  z-index: 1;
 }
 .brand-name {
-  font-size: 28px;
-  font-weight: 600;
-  color: #409eff;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
   margin: 0;
+  letter-spacing: 1px;
+  position: relative;
+  z-index: 1;
 }
 .brand-sub {
   margin-top: 8px;
-  font-size: 14px;
-  color: #909399;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
 }
 .brand-desc {
-  margin-top: 20px;
+  margin-top: 22px;
   font-size: 13px;
-  color: #c0c4cc;
+  color: rgba(255, 255, 255, 0.75);
+  position: relative;
+  z-index: 1;
 }
 .login-right {
   flex: 1;
@@ -155,19 +193,19 @@ async function handleLogin() {
   flex-direction: column;
   justify-content: center;
   padding: 48px 56px;
-  background: #fff;
+  background: var(--hj-bg-card);
 }
 .login-title {
   margin: 0 0 32px;
   font-size: 22px;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--hj-text-title);
 }
 .login-form .field {
   margin-bottom: 20px;
 }
 .big-input :deep(.el-input__inner) {
-  font-size: 16px;
+  font-size: 15px;
   height: 48px;
 }
 
@@ -176,23 +214,30 @@ async function handleLogin() {
   margin-top: 8px;
   height: 48px;
   font-size: 16px;
+  font-weight: 600;
   letter-spacing: 4px;
-  border-radius: 6px;
-  background: #409eff;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #409eff, #2b7de0);
   border: none;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
 }
 .login-btn.el-button--primary:hover {
-  background: #66b1ff;
+  background: linear-gradient(135deg, #66b1ff, #409eff);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.36);
+}
+.login-btn.el-button--primary:active {
+  transform: translateY(1px);
 }
 
 .register-row {
   margin-top: 20px;
   text-align: center;
   font-size: 14px;
-  color: #909399;
+  color: var(--hj-text-secondary);
 }
 .register-link {
-  color: #409eff;
+  color: var(--hj-primary);
   text-decoration: none;
   font-weight: 500;
 }
@@ -213,6 +258,7 @@ async function handleLogin() {
   right: 0;
   text-align: center;
   font-size: 13px;
-  color: #606266;
+  color: var(--hj-text-regular);
+  letter-spacing: 0.3px;
 }
 </style>

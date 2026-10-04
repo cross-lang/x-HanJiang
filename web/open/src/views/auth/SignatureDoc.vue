@@ -270,7 +270,7 @@ curl -X POST "http://127.0.0.1:8000/api/open/v1/users" \\
   margin: 0 0 10px;
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hj-text-title);
 }
 /* 鉴权模式：模式值（plain / hmac / both）单行展示，不换行 */
 .mode-cell {

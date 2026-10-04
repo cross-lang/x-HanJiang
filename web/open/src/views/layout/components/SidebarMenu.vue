@@ -95,8 +95,8 @@ function methodClass(method: CapabilityApi['method']): string {
   display: flex;
   flex-direction: column;
   width: 220px;
-  background: #fff;
-  border-right: 1px solid #eef0f4;
+  background: var(--hj-bg-card);
+  border-right: 1px solid var(--hj-border-lighter);
   transition: width 0.2s;
 }
 .sidebar.collapsed {
@@ -109,21 +109,62 @@ function methodClass(method: CapabilityApi['method']): string {
   height: 56px;
   padding: 0 16px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f2f5;
+  border-bottom: 1px solid var(--hj-border-lighter);
+  background: linear-gradient(90deg, #f6faff 0%, #ffffff 100%);
+  flex-shrink: 0;
 }
 .brand-icon {
-  color: #409eff;
+  color: var(--hj-primary);
   flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(64, 158, 255, 0.4));
 }
 .brand-text {
   font-size: 16px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 700;
+  color: var(--hj-text-title);
   white-space: nowrap;
+  letter-spacing: 0.3px;
 }
 .side-menu {
   flex: 1;
   border-right: none;
+  padding: 8px 0;
+}
+/* 菜单项：激活态品牌蓝渐变左条 + 淡蓝底 */
+.side-menu :deep(.el-menu-item),
+.side-menu :deep(.el-sub-menu__title) {
+  height: 44px;
+  line-height: 44px;
+  margin: 2px 8px;
+  border-radius: 8px;
+  color: var(--hj-text-body);
+  font-size: 13.5px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.side-menu :deep(.el-menu-item:hover),
+.side-menu :deep(.el-sub-menu__title:hover) {
+  background: var(--hj-bg-hover);
+  color: var(--hj-primary);
+}
+.side-menu :deep(.el-menu-item.is-active) {
+  background: var(--hj-primary-bg);
+  color: var(--hj-primary);
+  font-weight: 600;
+}
+.side-menu :deep(.el-menu-item.is-active)::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--hj-primary);
+}
+/* 折叠态下悬浮子菜单背景统一 */
+.side-menu :deep(.el-menu--popup) {
+  border-radius: 10px;
+  padding: 4px;
 }
 /* 三级菜单：模块名 + 接口数角标 */
 .cap-module-name {
@@ -133,8 +174,8 @@ function methodClass(method: CapabilityApi['method']): string {
   float: right;
   margin-left: 8px;
   font-size: 11px;
-  color: #909399;
-  background: #f0f2f5;
+  color: var(--hj-text-secondary);
+  background: var(--hj-border-lighter);
   border-radius: 8px;
   padding: 0 6px;
   line-height: 16px;
@@ -153,7 +194,7 @@ function methodClass(method: CapabilityApi['method']): string {
   flex-shrink: 0;
 }
 .m-get { background: #67c23a; }
-.m-post { background: #409eff; }
+.m-post { background: var(--hj-primary); }
 .m-patch { background: #e6a23c; }
 .m-delete { background: #f56c6c; }
 .cap-api-name {
@@ -164,12 +205,13 @@ function methodClass(method: CapabilityApi['method']): string {
   align-items: center;
   justify-content: center;
   height: 44px;
-  border-top: 1px solid #f0f2f5;
-  color: #909399;
+  border-top: 1px solid var(--hj-border-lighter);
+  color: var(--hj-text-secondary);
   cursor: pointer;
   transition: color 0.2s;
 }
 .collapse-btn:hover {
-  color: #409eff;
+  color: var(--hj-primary);
+  background: var(--hj-bg-hover);
 }
 </style>
