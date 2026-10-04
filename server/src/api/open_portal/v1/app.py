@@ -3,7 +3,7 @@
 路由前缀：/api/open-portal/v1/apps、/api/open-portal/v1/scopes
 说明：应用数据表 openapi_apps 与管理端共用，归属 owner_type='developer' + owner_id=当前开发者；
 开发者只能查询/操作本人名下应用（他人应用一律 404，不暴露存在性）。
-scope 目录接口的元数据唯一来源为 openapi_scopes 表（constants/scopes.py 启动时对账），
+scope 目录接口（GET /scopes）的元数据唯一来源为 openapi_scopes 表（constants/scopes.py 启动时对账），
 与管理端 /api/v1/admin/apps/scopes 数据一致，业务实现下放 DeveloperOpenAppService.list_scopes。
 """
 
@@ -28,8 +28,6 @@ from src.schemas.open_portal.auth import CurrentDeveloper
 from src.services.open_portal.app_service import DeveloperOpenAppService
 
 router = APIRouter(prefix="/apps", tags=["开放平台：开发者应用"])
-scopes_router = APIRouter(prefix="/scopes", tags=["开放平台：scope 目录"])
-
 
 @router.get(
     "",
@@ -172,6 +170,11 @@ def delete_app(
 ) -> JSONResponse:
     ok = service.delete_app(app_id, current_developer.id)
     return success_response({"deleted": ok}, request)
+
+
+# 注意：scope 目录必须挂独立 router（/scopes），不能并入 /apps/{app_id}——
+# FastAPI 按注册顺序匹配，/apps/scopes 会被 /apps/{app_id} 抢先匹配导致 app_id="scopes" 解析失败。
+scopes_router = APIRouter(prefix="/scopes", tags=["开放平台：scope 目录"])
 
 
 @scopes_router.get(
