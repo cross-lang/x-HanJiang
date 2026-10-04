@@ -157,10 +157,14 @@ const terms = [
   { name: '应用状态', value: '审批未通过（pending / rejected）或应用停用时，一律拒绝调用（403 / 401）' },
 ]
 
+// 公共响应结构示例：合法 JSON（无注释），字段含义见下方「字段说明」表
 const responseStructure = `{
-  "code": 200,              // HTTP 状态码（与 HTTP 状态一致）
-  "message": "OK",          // 提示信息；失败时为错误原因
-  "data": { ... },          // 业务数据；失败时可能携带 details 详情
+  "code": 200,
+  "message": "OK",
+  "data": {
+    "id": 1,
+    "username": "demo"
+  },
   "timestamp": "2026-10-03T12:00:00Z",
   "request_id": "req_open_xxxxx"
 }`

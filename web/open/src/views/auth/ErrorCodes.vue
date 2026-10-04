@@ -59,7 +59,10 @@
     <!-- 错误响应示例 -->
     <section class="auth-card">
       <h3 class="auth-card-title">错误响应示例</h3>
-      <CodeBlock :code="errorExample" label="JSON" language="json" />
+      <p class="auth-note">成功与失败统一返回同一 JSON 结构；以下为两类典型失败示例：</p>
+      <CodeBlock :code="forbiddenExample" label="403 · 未审批 / scope 不足" language="json" />
+      <div class="error-block-gap" />
+      <CodeBlock :code="validationExample" label="422 · 参数校验失败" language="json" />
     </section>
   </div>
 </template>
@@ -107,22 +110,26 @@ const gatewayErrors = [
   },
 ]
 
-const errorExample = `// 403 未审批 / scope 不足
-{
+// 403：应用未审批 / 缺少 scope（合法 JSON 示例）
+const forbiddenExample = `{
   "code": 403,
   "message": "应用缺少 scope: user:read",
   "data": null,
   "timestamp": "2026-10-03T12:00:00Z",
   "request_id": "req_open_xxxxx"
-}
+}`
 
-// 422 参数校验失败（data.details 携带字段级错误）
-{
+// 422：参数校验失败（data.details 携带字段级错误）
+const validationExample = `{
   "code": 422,
   "message": "Validation error",
   "data": {
     "details": [
-      { "loc": ["body", "email"], "msg": "value is not a valid email address", "type": "value_error" }
+      {
+        "loc": ["body", "email"],
+        "msg": "value is not a valid email address",
+        "type": "value_error"
+      }
     ]
   },
   "timestamp": "2026-10-03T12:00:00Z",
@@ -138,4 +145,8 @@ function codeClass(code: number): string {
 
 <style scoped>
 @import '@/styles/auth-guide.css';
+
+.error-block-gap {
+  height: 14px;
+}
 </style>
