@@ -68,9 +68,9 @@
               <code class="mono-cell">{{ row.field }}</code>
             </template>
           </el-table-column>
-          <el-table-column prop="type" label="类型" width="100">
+          <el-table-column prop="type" label="类型" width="130">
             <template #default="{ row }">
-              <code>{{ row.type }}</code>
+              <code class="mono-cell">{{ row.type }}</code>
             </template>
           </el-table-column>
           <el-table-column prop="desc" label="说明" />
@@ -95,9 +95,9 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" width="100">
+        <el-table-column prop="type" label="类型" width="120">
           <template #default="{ row }">
-            <code>{{ row.type }}</code>
+            <code class="mono-cell">{{ row.type }}</code>
           </template>
         </el-table-column>
         <el-table-column prop="desc" label="说明" />
