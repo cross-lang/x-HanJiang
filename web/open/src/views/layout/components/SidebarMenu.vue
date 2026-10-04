@@ -1,6 +1,6 @@
 <template>
   <aside class="sidebar" :class="{ collapsed }">
-    <div class="brand" @click="router.push('/home')">
+    <div class="brand" :title="collapsed ? '展开菜单' : '折叠菜单'" @click="$emit('toggle')">
       <el-icon class="brand-icon" :size="22"><Connection /></el-icon>
       <span v-show="!collapsed" class="brand-text">汉江开放平台</span>
     </div>
@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { HomeFilled, Lock } from '@element-plus/icons-vue'
 import { capabilityModules } from '@/data/capability'
 import type { CapabilityApi } from '@/types/capability'
@@ -73,7 +73,6 @@ defineProps<{ collapsed: boolean }>()
 defineEmits<{ toggle: [] }>()
 
 const route = useRoute()
-const router = useRouter()
 
 // 侧边栏按完整路由路径高亮（支持二级/三级菜单：/capability/user/user-create 命中三级菜单项）
 const activePath = computed(() => route.path)
@@ -112,6 +111,15 @@ function methodClass(method: CapabilityApi['method']): string {
   border-bottom: 1px solid var(--hj-border-lighter);
   background: linear-gradient(90deg, #f6faff 0%, #ffffff 100%);
   flex-shrink: 0;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+.brand:hover {
+  background: linear-gradient(90deg, var(--hj-primary-bg) 0%, #ffffff 100%);
+}
+.sidebar.collapsed .brand {
+  justify-content: center;
+  padding: 0;
 }
 .brand-icon {
   color: var(--hj-primary);
