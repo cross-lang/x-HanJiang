@@ -61,6 +61,10 @@ const initial = computed(() => (developerStore.profile?.name || 'D').charAt(0))
   color: var(--hj-text-title);
   letter-spacing: 0.3px;
 }
+.header-right {
+  display: flex;
+  align-items: center;
+}
 .user-entry {
   display: flex;
   align-items: center;

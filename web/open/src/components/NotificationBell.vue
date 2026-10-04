@@ -103,6 +103,16 @@ onUnmounted(() => {
 .bell-badge {
   margin-right: 20px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transition: background 0.15s ease;
+}
+.bell-badge:hover {
+  background: var(--hj-bg-hover);
 }
 .bell-icon {
   color: var(--hj-text-body);
