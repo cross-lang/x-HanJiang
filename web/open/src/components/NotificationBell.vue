@@ -133,26 +133,26 @@ onUnmounted(() => {
 }
 .bell-title {
   font-weight: 500;
-  color: #333;
+  color: var(--hj-text-title);
 }
 .bell-tag {
   margin-left: 2px;
 }
 .bell-time {
   font-size: 12px;
-  color: #999;
+  color: var(--hj-text-muted);
   margin-top: 4px;
   margin-left: 16px;
 }
 .bell-content {
   padding: 8px 12px 12px 16px;
-  background: #fafafa;
+  background: var(--hj-bg-page);
   font-size: 13px;
-  color: #666;
+  color: var(--hj-text-body);
 }
 .bell-footer {
   padding: 8px;
   text-align: center;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--hj-border-lighter);
 }
 </style>

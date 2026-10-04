@@ -56,14 +56,14 @@ function toggle(value: string, checked: boolean) {
   gap: 14px;
   max-height: 320px;
   overflow-y: auto;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--hj-border);
   border-radius: 8px;
   padding: 14px 16px;
 }
 .scope-group-label {
   font-size: 13px;
   font-weight: 600;
-  color: #409eff;
+  color: var(--hj-primary);
   margin-bottom: 8px;
 }
 .scope-options {
@@ -73,11 +73,11 @@ function toggle(value: string, checked: boolean) {
 }
 .scope-name {
   font-size: 14px;
-  color: #303133;
+  color: var(--hj-text-title);
 }
 .scope-desc {
   margin-left: 8px;
   font-size: 12px;
-  color: #909399;
+  color: var(--hj-text-secondary);
 }
 </style>
