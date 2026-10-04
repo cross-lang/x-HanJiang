@@ -276,6 +276,5 @@ async function handleRegister() {
   text-align: center;
   font-size: 13px;
   color: #606266;
-  user-select: none;
 }
 </style>

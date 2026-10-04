@@ -10,11 +10,18 @@ body {
   background: #f5f7fa;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 避免页面元素被误选中，提升后台操作手感 */
-  user-select: none;
 }
 
-/* 表单输入框等可交互元素允许选中文本 */
+/* 开放平台面向开发者：全站允许选中与复制文本（含 Element Plus 组件、菜单、表格、标签等），
+   便于开发者复制接口路径、参数、示例代码等内容；粘贴在输入框/文本域默认允许，无全局拦截。 */
+*,
+*::before,
+*::after {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* 表单输入框等可交互元素允许选中文本（与全局放行一致，显式保留） */
 input,
 textarea,
 .code-block,
