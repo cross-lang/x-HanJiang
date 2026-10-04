@@ -14,27 +14,27 @@
         <el-icon><Grid /></el-icon>
         <template #title>应用管理</template>
       </el-menu-item>
+
+      <!-- 开放能力：模块（二级）→ 具体接口（三级） -->
       <el-sub-menu index="/capability">
         <template #title>
           <el-icon><Document /></el-icon>
           <span>开放能力</span>
         </template>
-        <el-menu-item index="/capability/user">
-          <template #title>用户管理</template>
-        </el-menu-item>
-        <el-menu-item index="/capability/role">
-          <template #title>角色管理</template>
-        </el-menu-item>
-        <el-menu-item index="/capability/file">
-          <template #title>文件管理</template>
-        </el-menu-item>
-        <el-menu-item index="/capability/app">
-          <template #title>应用信息</template>
-        </el-menu-item>
-        <el-menu-item index="/capability/health">
-          <template #title>健康管理</template>
-        </el-menu-item>
+        <el-sub-menu v-for="mod in capabilityModules" :key="mod.key" :index="`/capability/${mod.key}`">
+          <template #title>
+            <span class="cap-module-name">{{ mod.name }}</span>
+            <span class="cap-module-count">{{ mod.apis.length }}</span>
+          </template>
+          <el-menu-item v-for="api in mod.apis" :key="api.id" :index="`/capability/${mod.key}/${api.id}`">
+            <span class="cap-method" :class="methodClass(api.method)">{{ api.method }}</span>
+            <template #title>
+              <span class="cap-api-name">{{ api.name }}</span>
+            </template>
+          </el-menu-item>
+        </el-sub-menu>
       </el-sub-menu>
+
       <el-sub-menu index="/auth">
         <template #title>
           <el-icon><Lock /></el-icon>
@@ -66,6 +66,8 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { HomeFilled, Lock } from '@element-plus/icons-vue'
+import { capabilityModules } from '@/data/capability'
+import type { CapabilityApi } from '@/types/capability'
 
 defineProps<{ collapsed: boolean }>()
 defineEmits<{ toggle: [] }>()
@@ -73,8 +75,19 @@ defineEmits<{ toggle: [] }>()
 const route = useRoute()
 const router = useRouter()
 
-// 侧边栏按完整路由路径高亮（支持二级菜单：/auth/signature 命中子菜单项）
+// 侧边栏按完整路由路径高亮（支持二级/三级菜单：/capability/user/user-create 命中三级菜单项）
 const activePath = computed(() => route.path)
+
+const METHOD_CLASS: Record<CapabilityApi['method'], string> = {
+  GET: 'm-get',
+  POST: 'm-post',
+  PATCH: 'm-patch',
+  DELETE: 'm-delete',
+}
+
+function methodClass(method: CapabilityApi['method']): string {
+  return METHOD_CLASS[method]
+}
 </script>
 
 <style scoped>
@@ -111,6 +124,40 @@ const activePath = computed(() => route.path)
 .side-menu {
   flex: 1;
   border-right: none;
+}
+/* 三级菜单：模块名 + 接口数角标 */
+.cap-module-name {
+  font-size: 13px;
+}
+.cap-module-count {
+  float: right;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #909399;
+  background: #f0f2f5;
+  border-radius: 8px;
+  padding: 0 6px;
+  line-height: 16px;
+}
+/* 三级菜单：HTTP 方法色标 + 接口名 */
+.cap-method {
+  display: inline-block;
+  width: 34px;
+  margin-right: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.m-get { background: #67c23a; }
+.m-post { background: #409eff; }
+.m-patch { background: #e6a23c; }
+.m-delete { background: #f56c6c; }
+.cap-api-name {
+  font-size: 13px;
 }
 .collapse-btn {
   display: flex;

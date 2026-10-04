@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '@/utils/storage'
 import { useDeveloperStore } from '@/stores/developer'
+import { capabilityModuleMap } from '@/data/capability'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -23,12 +24,21 @@ const router = createRouter({
         { path: 'home', name: 'Home', component: () => import('@/views/home/Home.vue') },
         { path: 'apps', name: 'Apps', component: () => import('@/views/apps/Apps.vue') },
         {
-          path: 'capability/:module',
-          name: 'CapabilityModule',
+          // 接口级详情页：开放能力 → 模块（二级）→ 具体接口（三级）
+          path: 'capability/:module/:apiId',
+          name: 'CapabilityApi',
           component: () => import('@/views/capability/CapabilityModule.vue'),
         },
-        // 兼容旧路径：原"开放接口"页（/docs → /api-docs）已被"开放能力"模块化页取代
-        { path: 'api-docs', redirect: '/capability/user' },
+        // 模块路径 → 该模块第一个接口（兼容旧书签/入口）
+        {
+          path: 'capability/:module',
+          redirect: to => {
+            const m = capabilityModuleMap[to.params.module as keyof typeof capabilityModuleMap]
+            return `/capability/${to.params.module}/${m?.apis[0]?.id ?? 'health-check'}`
+          },
+        },
+        // 兼容旧路径：原"开放接口"页（/docs → /api-docs）已被"开放能力"三级菜单页取代
+        { path: 'api-docs', redirect: '/capability/user/user-create' },
         {
           path: 'auth',
           name: 'AuthGuide',
