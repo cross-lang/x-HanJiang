@@ -6,6 +6,8 @@ export interface OpenAppQuery {
   page: number
   page_size: number
   keyword?: string
+  /** 管理端个人视角类目：created 我新建的 / approved 我审批的 */
+  scope?: 'created' | 'approved'
 }
 
 export function listApps(params: OpenAppQuery) {

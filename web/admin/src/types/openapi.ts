@@ -13,6 +13,8 @@ export interface OpenAppItem {
   owner_name: string | null
   /** 审批状态：pending / approved / rejected */
   approval_status: string
+  /** 审批人用户 ID（管理系统 users.id），未审批为 null */
+  approved_by: number | null
   /** 审批意见（驳回原因等） */
   approval_note: string | null
   /** 开发者提交 scope 申请时的申请理由 */

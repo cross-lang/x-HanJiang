@@ -64,6 +64,7 @@ class OpenApiAppResponse(BaseModel):
     owner_user_id: int | None = None
     owner_name: str | None = None
     approval_status: str
+    approved_by: int | None = None
     approval_note: str | None = None
     last_used_at: datetime | None
     created_at: datetime

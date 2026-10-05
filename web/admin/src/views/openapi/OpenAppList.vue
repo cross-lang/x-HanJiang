@@ -1,5 +1,10 @@
 <template>
   <el-card>
+    <el-tabs v-model="scopeTab" class="hj-app-scope-tabs" @tab-change="handleScopeChange">
+      <el-tab-pane label="全部应用" name="all" />
+      <el-tab-pane label="我新建的" name="created" />
+      <el-tab-pane label="我审批的" name="approved" />
+    </el-tabs>
     <div class="hj-toolbar">
       <el-button type="primary" @click="handleCreate">新建应用</el-button>
       <div class="hj-flex hj-gap-8">
@@ -123,6 +128,7 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const keyword = ref('')
+const scopeTab = ref('all')
 
 const dialogVisible = ref(false)
 const editDialogVisible = ref(false)
@@ -158,6 +164,7 @@ async function fetchList() {
       page: page.value,
       page_size: pageSize.value,
       keyword: keyword.value.trim() || undefined,
+      scope: scopeTab.value === 'all' ? undefined : (scopeTab.value as 'created' | 'approved'),
     })
     list.value = res.data.items
     total.value = res.data.total
@@ -166,6 +173,11 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+function handleScopeChange() {
+  page.value = 1
+  fetchList()
 }
 
 function handleSearch() {

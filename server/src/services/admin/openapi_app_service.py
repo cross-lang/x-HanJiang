@@ -111,6 +111,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self,
         keyword: str | None = None,
         owner_type: str | None = None,
+        scope: str | None = None,
+        operator_id: int | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
@@ -119,17 +121,54 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         Args:
             keyword: 按名称模糊搜索
             owner_type: 按归属类型过滤（developer 开发者自助 / admin 管理员分配）
+            scope: 管理端个人视角类目：
+                "created"  = 我新建的（owner_type=admin 且 owner_id=当前用户）
+                "approved" = 我审批的（待审批 pending 或 审批人 approved_by=当前用户）
+            operator_id: 当前管理端用户 ID（scope 过滤依赖）
 
         Returns:
             {items, total, page, page_size}，与用户列表等接口分页口径一致。
         """
         skip = (page - 1) * page_size
-        rows, total = self._repository.search_by_keyword(
-            keyword=keyword,
-            owner_type=owner_type,
-            skip=skip,
-            limit=page_size,
-        )
+        if scope == "created":
+            # 我新建的：管理员创建且归属本人
+            rows, total = self._repository.search_by_keyword(
+                keyword=keyword,
+                owner_type=AppOwnerType.ADMIN.value,
+                owner_id=operator_id,
+                skip=skip,
+                limit=page_size,
+            )
+        elif scope == "approved":
+            # 我审批的：待审批（pending，当前有权限者可处理）∪ 我审批过的（approved_by=我）
+            pending_rows, _ = self._repository.search_by_keyword(
+                keyword=keyword,
+                approval_status=AppApprovalStatus.PENDING.value,
+                skip=0,
+                limit=10000,
+            )
+            handled_rows, _ = self._repository.search_by_keyword(
+                keyword=keyword,
+                approved_by=operator_id,
+                skip=0,
+                limit=10000,
+            )
+            merged: dict[int, OpenApiAppEntity] = {}
+            for r in pending_rows:
+                merged[r.id] = r
+            for r in handled_rows:
+                merged[r.id] = r
+            rows = list(merged.values())
+            total = len(rows)
+            rows = rows[skip : skip + page_size]
+        else:
+            # 全量
+            rows, total = self._repository.search_by_keyword(
+                keyword=keyword,
+                owner_type=owner_type,
+                skip=skip,
+                limit=page_size,
+            )
         return {
             "items": [self._to_response(r) for r in rows],
             "total": total,
@@ -193,6 +232,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
         通过仅置状态（scope 本身由开发者申请端点已写入目标值）；
         驳回保留 pending 的 scopes 原值并记录驳回原因。
+        审批人（operator.operator_id）写入 approved_by，供管理端"我审批的"类目过滤。
         审批结果同步以开发者站内信通知应用 owner（owner_type=developer），
         与审批状态同事务提交，开发者门户右上角铃铛即时可见。
         """
@@ -202,6 +242,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         e.approval_status = (
             AppApprovalStatus.APPROVED.value if approved else AppApprovalStatus.REJECTED.value
         )
+        if operator and operator.get("operator_id") is not None:
+            e.approved_by = operator["operator_id"]
         e.approval_note = (note or "").strip() or None
         # 开发者自有应用：审批结果写入开发者站内信（随本事务一并提交）
         if e.owner_type == AppOwnerType.DEVELOPER.value and e.owner_id is not None:
@@ -288,6 +330,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             owner_user_id=e.owner_user_id,
             owner_name=owner_name,
             approval_status=e.approval_status,
+            approved_by=e.approved_by,
             approval_note=e.approval_note,
             last_used_at=e.last_used_at,
             created_at=e.created_at,

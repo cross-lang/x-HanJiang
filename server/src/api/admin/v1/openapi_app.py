@@ -88,10 +88,24 @@ def list_apps(
     page_size: int = 20,
     keyword: str | None = None,
     owner_type: str | None = None,
+    scope: str | None = None,
+    current_user=Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
-    """返回分页应用列表，结构与用户列表等接口一致：{items, total, page, page_size}。"""
-    result = service.list_apps(keyword=keyword, owner_type=owner_type, page=page, page_size=page_size)
+    """返回分页应用列表，结构与用户列表等接口一致：{items, total, page, page_size}。
+
+    scope 管理端个人视角类目：
+      created  = 我新建的（管理员创建且归属本人）
+      approved = 我审批的（待审批 pending ∪ 审批人 approved_by=当前用户）
+    """
+    result = service.list_apps(
+        keyword=keyword,
+        owner_type=owner_type,
+        scope=scope,
+        operator_id=current_user.id if scope in ("created", "approved") else None,
+        page=page,
+        page_size=page_size,
+    )
     page_result = PaginatedResponse[OpenApiAppResponse](
         items=result["items"],
         total=result["total"],

@@ -55,6 +55,9 @@ class OpenApiAppEntity(Base):
         server_default="pending",
         comment="审批状态：pending 待审批 / approved 已通过 / rejected 已驳回",
     )
+    approved_by: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True, comment="审批人用户ID（管理系统 users.id），未审批为 NULL"
+    )
     approval_note: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="审批意见/驳回原因")
     scope_apply_reason: Mapped[str | None] = mapped_column(
         String(255), nullable=True, comment="开发者申请 scope 时填写的申请说明"
