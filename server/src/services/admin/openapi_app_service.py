@@ -73,6 +73,9 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         Args:
             owner_type: 归属类型（admin=管理员分配，默认；developer=开发者自助，走开发者域接口）
             owner_id: 归属方 ID（admin→users.id / developer→developers.id）
+
+        审批流仅面向开发者自助应用：admin 自建应用无审批概念，
+        approval_status 保持 NULL（开发者域创建时才写 pending）。
         """
         app_id = generate_app_id()
         while self._repository.get_by_app_id(app_id) is not None:
@@ -89,7 +92,11 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             auth_mode=auth_mode,
             owner_type=owner_type,
             owner_id=owner_id,
-            approval_status=AppApprovalStatus.APPROVED.value,
+            approval_status=(
+                AppApprovalStatus.PENDING.value
+                if owner_type == AppOwnerType.DEVELOPER.value
+                else None
+            ),
             status=AppStatus.ACTIVE.value,
         )
         created = self._repository.create(entity)
@@ -210,12 +217,18 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
     )
     @audit_crud(PermissionAction.SCOPES.mark)
     def update_scopes(self, id: int, scopes: list[str], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
-        """覆盖更新应用 scope 列表（管理端授权操作，视为审批通过：置 approval_status=approved）。"""
+        """覆盖更新应用 scope 列表。
+
+        审批语义仅针对开发者自助应用：有审批流（approval_status 非空）时，
+        管理端授权调整视为审批通过置 approved；管理端自建应用（NULL）无审批概念，
+        直接改 scope 不产生审批状态。
+        """
         e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
         e.scopes = ",".join(scopes)
-        e.approval_status = AppApprovalStatus.APPROVED.value
+        if e.approval_status is not None:
+            e.approval_status = AppApprovalStatus.APPROVED.value
         self._repository.flush()
         self._commit()
         return self._to_response(e)

@@ -11,8 +11,8 @@ export interface OpenAppItem {
   rate_limit_per_minute: number
   owner_user_id: number | null
   owner_name: string | null
-  /** 审批状态：pending / approved / rejected */
-  approval_status: string
+  /** 审批状态：pending / approved / rejected；管理端自建应用为 null（无审批概念） */
+  approval_status: string | null
   /** 审批人用户 ID（管理系统 users.id），未审批为 null */
   approved_by: number | null
   /** 审批意见（驳回原因等） */

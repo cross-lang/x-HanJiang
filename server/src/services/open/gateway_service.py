@@ -17,7 +17,7 @@
 """
 
 from src.constants.constants import OPENAPI_CONTENT_TYPE
-from src.constants.enums import AppApprovalStatus, AppAuthMode, AppStatus
+from src.constants.enums import AppApprovalStatus, AppAuthMode, AppOwnerType, AppStatus
 from src.core import signature
 from src.core.exceptions import AuthenticationException, AuthorizationException
 from src.repositories.openapi_app_repository import OpenApiAppRepository
@@ -54,8 +54,11 @@ class OpenGatewayService:
         if app is None or app.status != AppStatus.ACTIVE.value:
             raise AuthenticationException(message="App 无效或已停用")
 
-        # 审批门槛：仅放行已通过审批的应用（开发者自助应用需管理端审批通过后方可调用）
-        if app.approval_status != AppApprovalStatus.APPROVED.value:
+        # 审批门槛：仅放行已通过审批的应用（开发者自助应用需管理端审批通过后方可调用）；
+        # 管理端自建应用无审批概念（approval_status=NULL），视为已授权直接放行。
+        if app.approval_status != AppApprovalStatus.APPROVED.value and not (
+            app.owner_type == AppOwnerType.ADMIN.value and app.approval_status is None
+        ):
             raise AuthorizationException(
                 message=f"应用 {app.app_id} 未通过审批（当前状态：{app.approval_status}），请联系管理员"
             )

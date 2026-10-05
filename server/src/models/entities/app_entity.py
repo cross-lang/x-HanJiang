@@ -49,11 +49,13 @@ class OpenApiAppEntity(Base):
     )
     owner_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, comment="[已废弃] 历史归属用户ID，仅存量数据")  # noqa: E501
     # ── 审批流（开发者自助申请 scope → 管理员审批）────────
-    approval_status: Mapped[str] = mapped_column(
+    # 仅"开发者自助创建"的应用参与审批流；管理端自建应用无审批概念，本列为 NULL。
+    # 注意：不设 server_default——SQLAlchemy 2.0 中带 server_default 的列在属性为
+    # None 时会被视为"交给数据库默认"，导致 NULL 落库失败；开发者应用由代码显式写 pending。
+    approval_status: Mapped[str | None] = mapped_column(
         String(20),
-        nullable=False,
-        server_default="pending",
-        comment="审批状态：pending 待审批 / approved 已通过 / rejected 已驳回",
+        nullable=True,
+        comment="审批状态：pending 待审批 / approved 已通过 / rejected 已驳回；管理端自建应用为 NULL（无审批概念）",
     )
     approved_by: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, comment="审批人用户ID（管理系统 users.id），未审批为 NULL"

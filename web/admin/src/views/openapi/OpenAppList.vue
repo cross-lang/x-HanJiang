@@ -46,7 +46,8 @@
       </el-table-column>
       <el-table-column label="审批状态" width="110">
         <template #default="{ row }">
-          <el-tooltip v-if="row.approval_note" :content="row.approval_note" placement="top" :show-after="300">
+          <span v-if="!row.approval_status" class="hj-approval-none">-</span>
+          <el-tooltip v-else-if="row.approval_note" :content="row.approval_note" placement="top" :show-after="300">
             <el-tag :type="approvalTagType(row.approval_status)" effect="light">
               {{ approvalLabel(row.approval_status) }}
             </el-tag>
@@ -144,14 +145,16 @@ const approveVisible = ref(false)
 const approveRecord = ref<OpenAppItem | null>(null)
 
 /** 审批状态徽章类型 */
-function approvalTagType(status: string) {
+function approvalTagType(status: string | null) {
+  if (!status) return 'info'
   if (status === 'approved') return 'success'
   if (status === 'rejected') return 'danger'
   return 'warning'
 }
 
 /** 审批状态中文标签 */
-function approvalLabel(status: string) {
+function approvalLabel(status: string | null) {
+  if (!status) return '-'
   if (status === 'approved') return '已通过'
   if (status === 'rejected') return '已驳回'
   return '待审批'
