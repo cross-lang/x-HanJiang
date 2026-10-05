@@ -17,12 +17,15 @@ from src.constants.enums import (
     AppStatus,
     DeveloperMessageCategory,
     DeveloperMessageStatus,
+    NotificationChannel,
     NotificationEvent,
+    StationMessageStatus,
 )
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
+from src.models.entities.notification_entity import NotificationRecordEntity
 from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.admin.openapi_app import OpenApiAppResponse
@@ -279,18 +282,24 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self._commit()
         return self._to_response(e)
 
-    @notify(
-        NotificationEvent.OPENAPI_APP_UPDATED,
-        target="owner",
-        vars_extractor=lambda r: {"app_name": r.name, "app_id": r.app_id},
-    )
     @audit_crud(PermissionAction.STATUS.mark)
     def update_status(self, id: int, status: str, operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
-        """启用或禁用应用。"""
+        """启用或禁用应用。
+
+        状态变更（尤其禁用）影响应用归属方的实际调用能力，须站内信通知 owner：
+        developer 归属发开发者站内信，admin 归属发管理端站内信；
+        操作者对自己名下的应用操作不通知（自管自用无需打扰）。
+        """
         e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
         e.status = status
+        self._notify_owner_action(
+            e,
+            action="禁用" if status != AppStatus.ACTIVE.value else "启用",
+            event=NotificationEvent.OPENAPI_APP_UPDATED,
+            operator=operator,
+        )
         self._repository.flush()
         self._commit()
         return self._to_response(e)
@@ -314,9 +323,69 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     @audit_crud(PermissionAction.DELETE.mark)
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
+        e = self._repository.get_by_id(id)
+        if e is None:
+            raise NotFoundException(message=f"应用 {id} 不存在")
+        self._notify_owner_action(
+            e,
+            action="删除",
+            event=NotificationEvent.OPENAPI_APP_DELETED,
+            operator=operator,
+        )
         ok = self._repository.soft_delete(id)
         self._commit()
         return ok
+
+    # ── 归属方站内信通知 ────────────────────────────────
+
+    def _notify_owner_action(
+        self,
+        e: OpenApiAppEntity,
+        *,
+        action: str,
+        event: NotificationEvent,
+        operator: dict[str, Any] | None = None,
+    ) -> None:
+        """禁用/删除等影响应用归属方的操作，站内信通知应用 owner。
+
+        - developer 归属 → 开发者站内信（developer_messages）
+        - admin 归属   → 管理端站内信（notification_records）
+        操作者本人对自己名下的应用操作不通知（自管自用无需打扰）；
+        通知失败不影响主流程（随本事务提交）。
+        """
+        op_id = (operator or {}).get("operator_id")
+        op_name = (operator or {}).get("operator_name") or f"管理员#{op_id}"
+        # 自己操作自己的应用 → 无需通知
+        if e.owner_id is not None and op_id == e.owner_id and e.owner_type == AppOwnerType.ADMIN.value:
+            return
+        app_ref = f"应用「{e.name}」（App ID：{e.app_id}）"
+        try:
+            if e.owner_type == AppOwnerType.DEVELOPER.value and e.owner_id is not None:
+                self._repository.session.add(
+                    DeveloperMessageEntity(
+                        developer_id=e.owner_id,
+                        title=f"应用{action}通知",
+                        content=f"{app_ref}已被管理系统{action}（操作人：{op_name}），如有疑问请联系管理员。",
+                        category=DeveloperMessageCategory.NOTIFY.value,
+                        status=DeveloperMessageStatus.UNREAD.value,
+                    )
+                )
+            elif e.owner_type == AppOwnerType.ADMIN.value and e.owner_id is not None:
+                self._repository.session.add(
+                    NotificationRecordEntity(
+                        event_type=event.mark,
+                        channel=NotificationChannel.STATION.value,
+                        recipient=f"user:{e.owner_id}",
+                        subject=f"【开放平台】应用{action}通知",
+                        content=f"{app_ref}已被{op_name}{action}，如有疑问请联系管理员。",
+                        status=StationMessageStatus.UNREAD.value,
+                        retry_count=0,
+                        max_retries=0,
+                    )
+                )
+        except Exception:
+            # 通知构造失败不影响应用主流程（消息随主事务一并提交，无需单独 flush）
+            pass
 
     # ── Entity → DTO ────────────────────────────────────
 

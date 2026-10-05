@@ -71,8 +71,10 @@
           >
             审批
           </el-button>
-          <el-button size="small" @click="handleEdit(row as OpenAppItem)">编辑</el-button>
-          <el-button size="small" type="warning" @click="handleRotateKey(row as OpenAppItem)">重置密钥</el-button>
+          <el-button v-if="!isApprovedTab" size="small" @click="handleEdit(row as OpenAppItem)">编辑</el-button>
+          <el-button v-if="!isApprovedTab" size="small" type="warning" @click="handleRotateKey(row as OpenAppItem)"
+            >重置密钥</el-button
+          >
           <el-button
             size="small"
             :type="row.status === 'active' ? 'warning' : 'success'"
@@ -110,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
@@ -130,6 +132,7 @@ const pageSize = ref(20)
 const total = ref(0)
 const keyword = ref('')
 const scopeTab = ref('all')
+const isApprovedTab = computed(() => scopeTab.value === 'approved')
 
 const dialogVisible = ref(false)
 const editDialogVisible = ref(false)
