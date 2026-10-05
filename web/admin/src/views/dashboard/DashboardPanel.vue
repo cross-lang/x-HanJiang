@@ -99,6 +99,94 @@
       </el-col>
     </el-row>
 
+    <!-- 开放平台统计 -->
+    <el-row :gutter="20" class="hj-mb-20">
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <div class="hj-text-center">
+            <div class="stat-value stat-blue">{{ openapi.cards.app_total }}</div>
+            <div class="stat-label">开放应用总数</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <div class="hj-text-center">
+            <div class="stat-value stat-green">{{ openapi.cards.developer_count }}</div>
+            <div class="stat-label">开发者总数</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <div class="hj-text-center">
+            <div class="stat-value stat-orange">{{ openapi.cards.pending_registrations }}</div>
+            <div class="stat-label">待审批申请</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <div class="hj-text-center">
+            <div class="stat-value stat-red">{{ openapi.cards.week_registrations }}</div>
+            <div class="stat-label">近7天申请</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="hj-mb-20">
+      <el-col :span="8">
+        <el-card shadow="hover">
+          <template #header>开放应用状态分布</template>
+          <v-chart :option="openAppStatusPieOption" class="hj-chart-box" />
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card shadow="hover">
+          <template #header>应用申请审批状态分布</template>
+          <v-chart :option="openRegStatusPieOption" class="hj-chart-box" />
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card shadow="hover">
+          <template #header>近7天申请与审批趋势</template>
+          <v-chart :option="openRegTrendOption" class="hj-chart-box" />
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="hj-mb-20">
+      <el-col :span="24">
+        <el-card shadow="hover">
+          <template #header>
+            <div class="hj-flex-between">
+              <span>最近应用申请</span>
+              <el-button text type="primary" size="small" @click="goApprovals">查看全部</el-button>
+            </div>
+          </template>
+          <el-table :data="recentRegistrations" size="small" empty-text="暂无申请记录">
+            <el-table-column label="申请码" width="110">
+              <template #default="{ row }">
+                <code class="reg-code">{{ row.registration_code }}</code>
+              </template>
+            </el-table-column>
+            <el-table-column prop="app_name" label="应用名称" min-width="140" show-overflow-tooltip />
+            <el-table-column prop="registration_type" label="申请类型" width="110" />
+            <el-table-column prop="status_label" label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="regStatusType(row.status)" size="small">{{ row.status_label }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="owner_name" label="归属人" width="120" />
+            <el-table-column prop="created_at" label="提交时间">
+              <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 存储用量 -->
     <el-row :gutter="20" class="hj-mb-20">
       <el-col :span="24">
@@ -259,6 +347,7 @@ import type {
   TrendSeries,
   NotifyTrend,
   StorageUsage,
+  OpenapiStats,
 } from '@/types/dashboard'
 
 use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent])
@@ -276,6 +365,14 @@ const notifyTrend = ref<NotifyTrend>({ dates: [], success: [], failed: [] })
 const storage = ref<StorageUsage>({ total_size_bytes: 0, total_count: 0, by_folder: [] })
 const recentLogins = ref<DashboardStats['recent_logins']>([])
 const recentAudits = ref<DashboardStats['recent_audits']>([])
+const openapi = ref<OpenapiStats>({
+  cards: { app_total: 0, developer_count: 0, pending_registrations: 0, week_registrations: 0 },
+  app_status_distribution: [],
+  registration_status_distribution: [],
+  registration_trend: { dates: [], submitted: [], reviewed: [] },
+  recent_registrations: [],
+})
+const recentRegistrations = computed(() => openapi.value.recent_registrations)
 
 const loginChartOption = computed(() => ({
   tooltip: { trigger: 'axis' },
@@ -359,6 +456,66 @@ const notifyChartOption = computed(() => ({
   ],
 }))
 
+const openAppStatusPieOption = computed(() => ({
+  tooltip: { trigger: 'item' },
+  legend: { orient: 'vertical', right: 10, top: 'center' },
+  series: [
+    {
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['40%', '50%'],
+      label: { show: false },
+      data: openapi.value.app_status_distribution,
+      color: ['#67c23a', '#f56c6c'],
+    },
+  ],
+}))
+
+const openRegStatusPieOption = computed(() => ({
+  tooltip: { trigger: 'item' },
+  legend: { orient: 'vertical', right: 10, top: 'center' },
+  series: [
+    {
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['40%', '50%'],
+      label: { show: false },
+      data: openapi.value.registration_status_distribution,
+      color: ['#e6a23c', '#67c23a', '#f56c6c'],
+    },
+  ],
+}))
+
+const openRegTrendOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['申请提交', '审批处理'], top: 0 },
+  xAxis: { type: 'category', data: openapi.value.registration_trend.dates.map(d => d.slice(5)) },
+  yAxis: { type: 'value', minInterval: 1 },
+  series: [
+    {
+      name: '申请提交',
+      data: openapi.value.registration_trend.submitted,
+      type: 'bar',
+      color: '#409eff',
+      barWidth: '30%',
+    },
+    {
+      name: '审批处理',
+      data: openapi.value.registration_trend.reviewed,
+      type: 'line',
+      smooth: true,
+      color: '#e6a23c',
+    },
+  ],
+}))
+
+/** 申请状态 → 表格状态标签类型 */
+function regStatusType(status: string): 'warning' | 'success' | 'danger' {
+  if (status === 'pending') return 'warning'
+  if (status === 'approved') return 'success'
+  return 'danger'
+}
+
 const userStore = useUserStore()
 const permissions = userStore.userInfo?.permissions || []
 const canMonitor = computed(() => permissions.includes('*') || permissions.includes('notification:config'))
@@ -394,6 +551,11 @@ function goAudit(type: 'login' | 'audit') {
   router.push(type === 'login' ? '/audit/login' : '/audit')
 }
 
+/** 跳转应用审批页查看全部申请 */
+function goApprovals() {
+  router.push('/app-approvals')
+}
+
 function formatSize(bytes: number): string {
   if (!bytes) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB']
@@ -427,6 +589,7 @@ onMounted(async () => {
     storage.value = d.storage_usage
     recentLogins.value = d.recent_logins
     recentAudits.value = d.recent_audits
+    openapi.value = d.openapi
   } catch (e) {
     console.error('dashboard load error', e)
   }
@@ -501,5 +664,13 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: bold;
   color: #909399;
+}
+.reg-code {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12.5px;
+  color: #409eff;
+  background: #ecf5ff;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 </style>

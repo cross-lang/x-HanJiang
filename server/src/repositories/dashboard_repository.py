@@ -13,12 +13,14 @@ Classes:
 
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from src.constants.enums import AppStatus, CommonStatus, LoginStatus, UserStatus
 from src.models.entities.app_entity import OpenApiAppEntity
+from src.models.entities.app_registration_entity import OpenApiAppRegistrationEntity
 from src.models.entities.audit_entity import AuditLogEntity
+from src.models.entities.developer_entity import DeveloperEntity
 from src.models.entities.file_entity import FileEntity
 from src.models.entities.log_entity import LoginLogEntity
 from src.models.entities.notification_entity import NotificationRecordEntity
@@ -212,6 +214,96 @@ class DashboardRepository:
             .scalars()
             .all()
         )
+
+    # ── 开放平台统计 ──────────────────────────────────────
+
+    def openapi_app_status_distribution(self) -> list:
+        """开放应用状态分布（按 active/disabled 分组，排除已删除）。"""
+        return self._session.execute(
+            select(
+                OpenApiAppEntity.status,
+                func.count(OpenApiAppEntity.id).label("count"),
+            )
+            .where(OpenApiAppEntity.deleted_at.is_(None))
+            .group_by(OpenApiAppEntity.status)
+        ).all()
+
+    def openapi_developer_count(self) -> int:
+        """启用状态的开发者账号总数。"""
+        return (
+            self._session.execute(
+                select(func.count(DeveloperEntity.id)).where(DeveloperEntity.status == CommonStatus.ENABLED.value)
+            ).scalar()
+            or 0
+        )
+
+    def openapi_registration_status_distribution(self) -> list:
+        """应用申请审批状态分布（按 pending/approved/rejected 分组）。"""
+        return self._session.execute(
+            select(
+                OpenApiAppRegistrationEntity.status,
+                func.count(OpenApiAppRegistrationEntity.id).label("count"),
+            ).group_by(OpenApiAppRegistrationEntity.status)
+        ).all()
+
+    def openapi_registration_trend(self, start_date: date) -> list:
+        """近 N 天应用申请提交趋势（按 created_at 日分组）。"""
+        return self._session.execute(
+            select(
+                func.date(OpenApiAppRegistrationEntity.created_at).label("date"),
+                func.count(OpenApiAppRegistrationEntity.id).label("count"),
+            )
+            .where(func.date(OpenApiAppRegistrationEntity.created_at) >= start_date)
+            .group_by(func.date(OpenApiAppRegistrationEntity.created_at))
+            .order_by(func.date(OpenApiAppRegistrationEntity.created_at))
+        ).all()
+
+    def openapi_registration_review_trend(self, start_date: date) -> list:
+        """近 N 天应用申请审批处理趋势（按 approved_at 日分组，含通过与驳回）。"""
+        return self._session.execute(
+            select(
+                func.date(OpenApiAppRegistrationEntity.approved_at).label("date"),
+                func.count(OpenApiAppRegistrationEntity.id).label("count"),
+            )
+            .where(
+                OpenApiAppRegistrationEntity.approved_at.is_not(None),
+                func.date(OpenApiAppRegistrationEntity.approved_at) >= start_date,
+            )
+            .group_by(func.date(OpenApiAppRegistrationEntity.approved_at))
+            .order_by(func.date(OpenApiAppRegistrationEntity.approved_at))
+        ).all()
+
+    def recent_openapi_registrations(self, limit: int = 6) -> list:
+        """最近应用申请记录（按提交时间倒序，关联归属人姓名）。
+
+        Returns:
+            list: (注册批次, owner_type, 开发者姓名, 管理员姓名) 行列表。
+        """
+        return self._session.execute(
+            select(
+                OpenApiAppRegistrationEntity,
+                OpenApiAppEntity.owner_type,
+                DeveloperEntity.name.label("dev_name"),
+                UserEntity.name.label("admin_name"),
+            )
+            .join(OpenApiAppEntity, OpenApiAppEntity.id == OpenApiAppRegistrationEntity.app_id)
+            .outerjoin(
+                DeveloperEntity,
+                and_(
+                    OpenApiAppEntity.owner_type == "developer",
+                    OpenApiAppEntity.owner_id == DeveloperEntity.id,
+                ),
+            )
+            .outerjoin(
+                UserEntity,
+                and_(
+                    OpenApiAppEntity.owner_type == "admin",
+                    OpenApiAppEntity.owner_id == UserEntity.id,
+                ),
+            )
+            .order_by(OpenApiAppRegistrationEntity.created_at.desc())
+            .limit(limit)
+        ).all()
 
     # ── 存储用量 ──────────────────────────────────────────
 

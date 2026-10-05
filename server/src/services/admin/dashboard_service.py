@@ -6,11 +6,16 @@
 
 from datetime import UTC, datetime, timedelta
 
-from src.constants.enums import NotificationChannel, NotificationStatus
+from src.constants.enums import AppApprovalStatus, AppRegistrationType, NotificationChannel, NotificationStatus
 from src.repositories.dashboard_repository import DashboardRepository
 
 # 通知渠道标识 → 中文名称映射（以 NotificationChannel 枚举为唯一权威来源）
 _CHANNEL_LABELS: dict[str, str] = {channel.mark: channel.desc for channel in NotificationChannel}
+# 开放应用状态 → 中文名称（AppStatus 为纯 Enum，无 desc，此处收口展示映射）
+_APP_STATUS_LABELS: dict[str, str] = {"active": "启用", "disabled": "禁用"}
+# 申请审批状态 / 申请类型中文名（以枚举 desc 为权威来源）
+_REG_STATUS_LABELS: dict[str, str] = {status.mark: status.desc for status in AppApprovalStatus}
+_REG_TYPE_LABELS: dict[str, str] = {reg_type.mark: reg_type.desc for reg_type in AppRegistrationType}
 
 
 class DashboardService:
@@ -107,6 +112,8 @@ class DashboardService:
             "total_count": storage_total_count,
             "by_folder": [{"folder": r.folder, "count": r.count, "size_bytes": r.size} for r in storage_by_folder],
         }
+        # 开放平台统计：应用 / 开发者 / 申请与审批
+        openapi = self._build_openapi_stats(today, week_ago, all_dates)
         return {
             "cards": {
                 "user_count": user_count,
@@ -129,6 +136,64 @@ class DashboardService:
                 "failed": notify_failed_counts,
             },
             "storage_usage": storage_usage,
+            "openapi": openapi,
+        }
+
+    def _build_openapi_stats(self, today: datetime.date, week_ago: datetime.date, all_dates: list[str]) -> dict:
+        """组装开放平台统计板块（开放应用、开发者、申请与审批）。"""
+        # 应用状态分布与总数
+        app_status_rows = self._repository.openapi_app_status_distribution()
+        app_status_map = {r.status: r.count for r in app_status_rows}
+        app_total = sum(app_status_map.values())
+        app_status_distribution = [
+            {"name": _APP_STATUS_LABELS.get(r.status, r.status), "value": r.count} for r in app_status_rows
+        ]
+        # 开发者总数
+        developer_count = self._repository.openapi_developer_count()
+        # 申请审批状态分布（含待审批数）
+        reg_status_rows = self._repository.openapi_registration_status_distribution()
+        reg_status_map = {r.status: r.count for r in reg_status_rows}
+        pending_count = reg_status_map.get(AppApprovalStatus.PENDING.mark, 0)
+        reg_status_distribution = [
+            {"name": _REG_STATUS_LABELS.get(r.status, r.status), "value": r.count} for r in reg_status_rows
+        ]
+        # 近7天申请提交 / 审批处理趋势
+        reg_trend_rows = self._repository.openapi_registration_trend(week_ago)
+        reg_trend_map = {str(r.date): r.count for r in reg_trend_rows}
+        reg_submitted_counts = [reg_trend_map.get(d, 0) for d in all_dates]
+        review_trend_rows = self._repository.openapi_registration_review_trend(week_ago)
+        review_trend_map = {str(r.date): r.count for r in review_trend_rows}
+        reg_reviewed_counts = [review_trend_map.get(d, 0) for d in all_dates]
+        week_submitted = sum(reg_submitted_counts)
+        # 最近申请记录（申请码 / 应用 / 类型 / 状态 / 归属人 / 提交时间）
+        recent_regs = self._repository.recent_openapi_registrations(6)
+        recent_registrations = [
+            {
+                "registration_code": r[0].registration_code,
+                "app_name": r[0].name,
+                "registration_type": _REG_TYPE_LABELS.get(r[0].registration_type, r[0].registration_type),
+                "status": r[0].status,
+                "status_label": _REG_STATUS_LABELS.get(r[0].status, r[0].status),
+                "owner_name": r[2] or r[3] or "-",
+                "created_at": r[0].created_at.isoformat() if r[0].created_at else None,
+            }
+            for r in recent_regs
+        ]
+        return {
+            "cards": {
+                "app_total": app_total,
+                "developer_count": developer_count,
+                "pending_registrations": pending_count,
+                "week_registrations": week_submitted,
+            },
+            "app_status_distribution": app_status_distribution,
+            "registration_status_distribution": reg_status_distribution,
+            "registration_trend": {
+                "dates": all_dates,
+                "submitted": reg_submitted_counts,
+                "reviewed": reg_reviewed_counts,
+            },
+            "recent_registrations": recent_registrations,
         }
 
     def get_my_activity(self, user_id: int) -> dict:

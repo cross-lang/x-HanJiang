@@ -39,6 +39,28 @@ export interface AuditLogBrief {
   created_at: string | null
 }
 
+/** 开放平台统计板块（与后端 service._build_openapi_stats 对齐） */
+export interface OpenapiStats {
+  cards: {
+    app_total: number
+    developer_count: number
+    pending_registrations: number
+    week_registrations: number
+  }
+  app_status_distribution: NameValueItem[]
+  registration_status_distribution: NameValueItem[]
+  registration_trend: { dates: string[]; submitted: number[]; reviewed: number[] }
+  recent_registrations: {
+    registration_code: string
+    app_name: string
+    registration_type: string
+    status: string
+    status_label: string
+    owner_name: string
+    created_at: string | null
+  }[]
+}
+
 export interface DashboardStats {
   cards: {
     user_count: number
@@ -57,6 +79,7 @@ export interface DashboardStats {
   storage_usage: StorageUsage
   recent_logins: LoginLogBrief[]
   recent_audits: AuditLogBrief[]
+  openapi: OpenapiStats
 }
 
 export interface MyActivity {
