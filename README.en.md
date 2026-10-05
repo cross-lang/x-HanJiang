@@ -64,6 +64,7 @@ HanJiang adopts a **three-in-one** engineering layout — one codebase covering 
 ![login](./me/open_portal_login.png) 
 ![dashboard](./me/open_portal_dashboard.png) 
 ![app](./me/open_portal_app.png) 
+![openapi](./me/open_portal_openapi.png) 
 ![auth](./me/open_portal_auth.png) 
 ![profile](./me/open_portal_profile.png) 
 

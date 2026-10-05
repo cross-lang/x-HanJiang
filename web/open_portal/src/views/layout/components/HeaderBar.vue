@@ -8,9 +8,12 @@
       <NotificationBell />
       <el-dropdown trigger="click" @command="$emit('command', $event)">
         <span class="user-entry">
-          <el-avatar :size="28" class="user-avatar">{{ initial }}</el-avatar>
-          <span class="user-name">{{ developerStore.profile?.name || developerStore.profile?.username || '开发者' }}</span>
-          <el-icon><ArrowDown /></el-icon>
+          <el-avatar :size="32" class="user-avatar">{{ initial }}</el-avatar>
+          <span class="user-meta">
+            <span class="user-name">{{ developerStore.profile?.name || developerStore.profile?.username || '开发者' }}</span>
+            <span v-if="developerStore.profile?.email" class="user-email">{{ developerStore.profile.email }}</span>
+          </span>
+          <el-icon class="entry-arrow"><ArrowDown /></el-icon>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
@@ -80,15 +83,47 @@ const initial = computed(() => (developerStore.profile?.name || 'D').charAt(0))
 .user-entry:hover {
   background: var(--hj-bg-hover);
 }
+.user-entry:hover .user-name {
+  color: var(--hj-primary);
+}
+.user-entry:hover .entry-arrow {
+  transform: rotate(180deg);
+  color: var(--hj-primary);
+}
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.25;
+}
 .user-avatar {
   background: linear-gradient(135deg, var(--hj-primary), var(--hj-primary-weak));
   color: #fff;
   font-size: 14px;
   font-weight: 600;
   border: none;
+  transition: transform 0.15s ease;
+}
+.user-entry:hover .user-avatar {
+  transform: scale(1.06);
 }
 .user-name {
   font-size: 14px;
   font-weight: 500;
+  color: var(--hj-text-title);
+  transition: color 0.15s ease;
+}
+.user-email {
+  font-size: 12px;
+  color: var(--hj-text-muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry-arrow {
+  font-size: 12px;
+  transition: transform 0.15s ease, color 0.15s ease;
 }
 </style>

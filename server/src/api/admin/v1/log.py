@@ -5,7 +5,6 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from src.api.admin.permission_decorator import permission
 from src.api.admin.dependencies import (
     get_audit_service,
     get_current_user,
@@ -13,6 +12,7 @@ from src.api.admin.dependencies import (
     is_admin_user,
     require_user_permission,
 )
+from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.enums import AuditAction, LoginStatus, LoginType
 from src.constants.permissions import PermissionAction, PermissionCode
@@ -26,13 +26,17 @@ from src.utils.csv import build_csv_stream_response
 router = APIRouter(prefix="/logs", tags=["管理系统：日志管理"])
 
 
+# AI 助手"跳转"动作无权限码对应（assistant.NAVIGATE 常量），单独兜底映射
+_AUDIT_ACTION_EXTRA: dict[str, str] = {"navigate": "跳转"}
+
+
 def describe_audit_action(action: str) -> str:
     """审计动作中文展示：优先查 AuditAction（独有动作），再回退 PermissionAction。"""
     for enum_cls in (AuditAction, PermissionAction):
         for member in enum_cls:
             if member.mark == action:
                 return member.desc
-    return action
+    return _AUDIT_ACTION_EXTRA.get(action, action)
 
 
 # ============================================================

@@ -63,6 +63,7 @@
 ![登录页](./me/open_portal_login.png) 
 ![首页](./me/open_portal_dashboard.png) 
 ![应用管理](./me/open_portal_app.png) 
+![开放能力](./me/open_portal_openapi.png) 
 ![认证和授权](./me/open_portal_auth.png) 
 ![个人中心](./me/open_portal_profile.png) 
 

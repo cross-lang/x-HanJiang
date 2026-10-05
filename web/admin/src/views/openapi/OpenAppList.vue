@@ -25,11 +25,21 @@
           <el-tag v-else type="primary">双模式</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="scopes" label="权限范围" min-width="300">
+      <el-table-column prop="scopes" label="权限范围" min-width="220">
         <template #default="{ row }">
-          <el-tag v-for="s in row.scopes" :key="s" size="small" class="hj-mr-4">
-            {{ scopeNameOf(s) === s ? s : `${scopeNameOf(s)}（${s}）` }}
-          </el-tag>
+          <template v-if="row.scopes && row.scopes.length > 0">
+            <el-tag size="small" class="hj-mr-4">{{ scopeLabel(row.scopes[0]) }}</el-tag>
+            <el-button
+              v-if="row.scopes.length > 1"
+              size="small"
+              text
+              type="primary"
+              @click="openScopes(row as OpenAppItem)"
+            >
+              +{{ row.scopes.length - 1 }}
+            </el-button>
+          </template>
+          <span v-else class="hj-text-muted">—</span>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
@@ -105,6 +115,16 @@
     type="warning"
     :secret="rotateResult"
   />
+
+  <!-- 权限范围全部权限查看弹窗 -->
+  <el-dialog v-model="scopesVisible" :title="scopesTitle" width="480px" top="18vh">
+    <div class="scope-dialog-body">
+      <el-tag v-for="s in scopesAll" :key="s" size="small" class="scope-dialog-tag">
+        {{ scopeLabel(s) }}
+      </el-tag>
+      <span v-if="scopesAll.length === 0" class="hj-text-muted">暂无权限范围</span>
+    </div>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -137,6 +157,23 @@ const createdApp = ref<AppSecret>({ app_id: '', app_key: '' })
 
 const rotateResultVisible = ref(false)
 const rotateResult = ref<AppSecret>({ app_id: '', app_key: '' })
+
+const scopesVisible = ref(false)
+const scopesTitle = ref('')
+const scopesAll = ref<string[]>([])
+
+/** 单权限项展示文案：有中文名则「中文（编码）」，否则原样编码 */
+function scopeLabel(s: string): string {
+  const name = scopeNameOf(s)
+  return name === s ? s : `${name}（${s}）`
+}
+
+/** 点击 +N 查看该应用全部权限范围 */
+function openScopes(row: OpenAppItem) {
+  scopesAll.value = row.scopes || []
+  scopesTitle.value = `权限范围 — ${row.name}`
+  scopesVisible.value = true
+}
 
 async function fetchList() {
   loading.value = true
@@ -297,5 +334,13 @@ watch(
 }
 .danger-item {
   color: #f56c6c;
+}
+.scope-dialog-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.scope-dialog-tag {
+  line-height: 22px;
 }
 </style>
