@@ -19,7 +19,7 @@ APP_VERSION: str = "0.1.0"
 
 # ── API 路由 ──────────────────────────────────────────
 # 基础前缀；具体版本号（/v1）由各路由组在自己的 router 上声明，
-# 例如：用户态 /api/v1，开放平台 /api/open/v1。
+# 例如：管理系统 /api/admin/v1，开放平台 /api/open/v1，门户 /api/open-portal/v1。
 API_PREFIX: str = "/api"
 ADMIN_PREFIX: str = "/admin"
 PORTAL_PREFIX: str = "/portal"

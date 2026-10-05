@@ -6,7 +6,7 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/api/v1/health": {
+    "/api/admin/v1/health": {
       "get": {
         "tags": [
           "健康检查"
@@ -26,7 +26,7 @@
         }
       }
     },
-    "/api/v1/version": {
+    "/api/admin/v1/version": {
       "get": {
         "tags": [
           "健康检查"
@@ -46,7 +46,7 @@
         }
       }
     },
-    "/api/v1/users": {
+    "/api/admin/v1/users": {
       "post": {
         "tags": [
           "用户管理"
@@ -178,7 +178,7 @@
         }
       }
     },
-    "/api/v1/users/export": {
+    "/api/admin/v1/users/export": {
       "get": {
         "tags": [
           "用户管理"
@@ -247,7 +247,7 @@
         }
       }
     },
-    "/api/v1/users/{user_id}": {
+    "/api/admin/v1/users/{user_id}": {
       "get": {
         "tags": [
           "用户管理"
@@ -293,7 +293,7 @@
         }
       }
     },
-    "/api/v1/users/{user_id}/update": {
+    "/api/admin/v1/users/{user_id}/update": {
       "post": {
         "tags": [
           "用户管理"
@@ -349,7 +349,7 @@
         }
       }
     },
-    "/api/v1/users/{user_id}/reset-password": {
+    "/api/admin/v1/users/{user_id}/reset-password": {
       "post": {
         "tags": [
           "用户管理"
@@ -405,7 +405,7 @@
         }
       }
     },
-    "/api/v1/users/{user_id}/delete": {
+    "/api/admin/v1/users/{user_id}/delete": {
       "post": {
         "tags": [
           "用户管理"
@@ -451,7 +451,7 @@
         }
       }
     },
-    "/api/v1/users/import": {
+    "/api/admin/v1/users/import": {
       "post": {
         "tags": [
           "用户管理"
@@ -496,7 +496,7 @@
         ]
       }
     },
-    "/api/v1/auth/login": {
+    "/api/admin/v1/auth/login": {
       "post": {
         "tags": [
           "身份认证"
@@ -536,7 +536,7 @@
         }
       }
     },
-    "/api/v1/auth/refresh": {
+    "/api/admin/v1/auth/refresh": {
       "post": {
         "tags": [
           "身份认证"
@@ -576,7 +576,7 @@
         }
       }
     },
-    "/api/v1/auth/me": {
+    "/api/admin/v1/auth/me": {
       "get": {
         "tags": [
           "身份认证"
@@ -601,7 +601,7 @@
         ]
       }
     },
-    "/api/v1/auth/logout": {
+    "/api/admin/v1/auth/logout": {
       "post": {
         "tags": [
           "身份认证"
@@ -626,7 +626,7 @@
         ]
       }
     },
-    "/api/v1/roles": {
+    "/api/admin/v1/roles": {
       "get": {
         "tags": [
           "角色管理"
@@ -774,7 +774,7 @@
         }
       }
     },
-    "/api/v1/roles/{role_id}": {
+    "/api/admin/v1/roles/{role_id}": {
       "get": {
         "tags": [
           "角色管理"
@@ -820,7 +820,7 @@
         }
       }
     },
-    "/api/v1/roles/{role_id}/update": {
+    "/api/admin/v1/roles/{role_id}/update": {
       "post": {
         "tags": [
           "角色管理"
@@ -876,7 +876,7 @@
         }
       }
     },
-    "/api/v1/roles/{role_id}/delete": {
+    "/api/admin/v1/roles/{role_id}/delete": {
       "post": {
         "tags": [
           "角色管理"
@@ -922,7 +922,7 @@
         }
       }
     },
-    "/api/v1/roles/{role_id}/permissions": {
+    "/api/admin/v1/roles/{role_id}/permissions": {
       "get": {
         "tags": [
           "角色管理"
@@ -1022,7 +1022,7 @@
         }
       }
     },
-    "/api/v1/roles/{role_id}/permissions/{permission_id}/unbind": {
+    "/api/admin/v1/roles/{role_id}/permissions/{permission_id}/unbind": {
       "post": {
         "tags": [
           "角色管理"
@@ -1077,7 +1077,7 @@
         }
       }
     },
-    "/api/v1/audit/logs": {
+    "/api/admin/v1/audit/logs": {
       "get": {
         "tags": [
           "审计日志"
@@ -1304,7 +1304,7 @@
         }
       }
     },
-    "/api/v1/audit/logs/{log_id}": {
+    "/api/admin/v1/audit/logs/{log_id}": {
       "get": {
         "tags": [
           "审计日志"
@@ -1366,7 +1366,7 @@
         }
       }
     },
-    "/api/v1/files/upload": {
+    "/api/admin/v1/files/upload": {
       "post": {
         "tags": [
           "文件管理"
@@ -1428,7 +1428,7 @@
         }
       }
     },
-    "/api/v1/files/{file_path}": {
+    "/api/admin/v1/files/{file_path}": {
       "get": {
         "tags": [
           "文件管理"
@@ -1479,7 +1479,7 @@
         }
       }
     },
-    "/api/v1/notifications/send": {
+    "/api/admin/v1/notifications/send": {
       "post": {
         "tags": [
           "通知管理"
@@ -1524,7 +1524,7 @@
         ]
       }
     },
-    "/api/v1/notifications": {
+    "/api/admin/v1/notifications": {
       "get": {
         "tags": [
           "通知管理"
@@ -1642,7 +1642,7 @@
         }
       }
     },
-    "/api/v1/notifications/stats": {
+    "/api/admin/v1/notifications/stats": {
       "get": {
         "tags": [
           "通知管理"
@@ -1667,7 +1667,7 @@
         ]
       }
     },
-    "/api/v1/notifications/{notification_id}": {
+    "/api/admin/v1/notifications/{notification_id}": {
       "get": {
         "tags": [
           "通知管理"
@@ -1713,7 +1713,7 @@
         }
       }
     },
-    "/api/v1/alerts": {
+    "/api/admin/v1/alerts": {
       "post": {
         "tags": [
           "系统告警"
@@ -1753,7 +1753,7 @@
         }
       }
     },
-    "/api/v1/alerts/broadcast": {
+    "/api/admin/v1/alerts/broadcast": {
       "post": {
         "tags": [
           "系统告警"
@@ -1798,7 +1798,7 @@
         ]
       }
     },
-    "/api/v1/maintenance/notify": {
+    "/api/admin/v1/maintenance/notify": {
       "post": {
         "tags": [
           "系统维护"

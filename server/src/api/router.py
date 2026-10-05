@@ -2,7 +2,7 @@
 """
 中央路由注册模块
 本模块只负责顶层路由分组，不关心具体版本号：
-- /api/v1/...、/api/admin/v1/... → 管理系统业务接口（JWT 会话鉴权），版本聚合在 src/api/admin
+- /api/admin/v1/...、/api/admin/v1/... → 管理系统业务接口（JWT 会话鉴权），版本聚合在 src/api/admin
 - /api/open-portal/v1/...        → 开放平台门户接口（开发者会话 JWT + Redis），版本聚合在 src/api/open_portal
 - /api/open/v1/...               → 开放接口（AppId/AppKey + HanJiang-1 签名），版本聚合在 src/api/open
 """

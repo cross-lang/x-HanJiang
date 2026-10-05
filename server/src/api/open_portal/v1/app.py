@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """开放平台开发者应用接口（门户 JWT，owner 隔离）。
 路由前缀：/api/open-portal/v1/apps（含 GET /apps/scopes scope 目录）
-说明：应用数据表 openapi_apps 与管理系统端共用，归属 owner_type='developer' + owner_id=当前开发者；
-开发者只能查询/操作本人名下应用（他人应用一律 404，不暴露存在性）。
-scope 目录接口（GET /apps/scopes）的元数据唯一来源为 openapi_scopes 表（constants/scopes.py 启动时对账），
-与管理端 /api/v1/apps/scopes 路径风格一致，业务实现下放 DeveloperOpenApiAppService.list_scopes。
+
+说明：
+- 应用数据表 openapi_apps 与管理系统端共用，归属 owner_type='developer' + owner_id=当前开发者；
+  开发者只能查询/操作本人名下应用（他人应用一律 404，不暴露存在性）。
+- 写操作（创建 / 修改 / scope 调整）统一走申请审批流：向 openapi_app_registrations
+  提交申请批次，审批通过后由管理系统落地（见 services/open_portal/app_service.py）。
+- 审批记录（GET /{app_id}/approvals）：返回该应用全部申请/审批历史批次，最新在前，
+  供门户"审批记录"入口展示多次申请修改权限的完整轨迹。
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -17,7 +21,7 @@ from src.api.open_portal.dependencies import (
 from src.api.response import success_response
 from src.schemas.common import PaginatedResponse
 from src.schemas.open_portal.app import (
-    OpenAppCreatedResponse,
+    OpenAppApprovalResponse,
     OpenAppCreateRequest,
     OpenAppResponse,
     OpenAppScopeApplyRequest,
@@ -29,10 +33,11 @@ from src.services.open_portal.app_service import DeveloperOpenApiAppService
 
 router = APIRouter(prefix="/apps", tags=["开放平台：开发者应用"])
 
+
 @router.get(
     "",
     summary="我的应用列表",
-    description="分页查询当前开发者名下的应用（含审批状态），仅返回本人数据",
+    description="分页查询当前开发者名下的应用（含派生审批状态），仅返回本人数据",
 )
 def list_apps(
     request: Request,
@@ -42,8 +47,8 @@ def list_apps(
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
-    result = service.list_apps(
-        developer_id=current_developer.id,
+    result = service.list_my_apps(
+        current_developer.id,
         keyword=keyword,
         page=page,
         page_size=page_size,
@@ -65,20 +70,20 @@ def list_apps(
 @router.get(
     "/scopes",
     summary="scope 目录",
-    description="全部可用（未废弃）的开放平台 scope，按模块分组展示",
+    description="全部可用的开放平台 scope（创建应用/申请权限时展示），按模块分组",
 )
 def list_scopes(
     request: Request,
     _current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
-    return success_response(service.list_scopes(), request)
+    return success_response(service.get_public_scopes(), request)
 
 
 @router.post(
     "",
-    summary="创建应用（含 scope 申请）",
-    description="创建即申请：scope 落到应用上，审批状态为 pending，等待管理员审批；AppKey 明文仅本次返回",
+    summary="提交创建应用申请",
+    description="创建应用记录（未授权）+ 生成 create 申请批次，审批通过后应用方可被网关放行",
 )
 def create_app(
     body: OpenAppCreateRequest,
@@ -86,14 +91,7 @@ def create_app(
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
-    resp, app_key = service.create_app(
-        developer_id=current_developer.id,
-        name=body.name,
-        description=body.description,
-        scopes=body.scopes,
-        auth_mode=body.auth_mode,
-    )
-    data = OpenAppCreatedResponse(**resp.model_dump(), app_key=app_key).model_dump()
+    data = service.create_app(current_developer.id, payload=body).model_dump()
     return success_response(data, request, code=201)
 
 
@@ -108,13 +106,28 @@ def get_app(
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
-    return success_response(service.get_app(app_id, current_developer.id).model_dump(), request)
+    return success_response(service.get_my_app(app_id, current_developer.id).model_dump(), request)
+
+
+@router.get(
+    "/{app_id}/approvals",
+    summary="应用审批记录",
+    description="返回该应用全部申请/审批历史批次（创建/修改/scope 调整），最新在前，仅限本人名下应用",
+)
+def list_approvals(
+    app_id: int,
+    request: Request,
+    current_developer: CurrentDeveloper = Depends(get_current_developer),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
+) -> JSONResponse:
+    records = service.list_approvals(app_id, current_developer.id)
+    return success_response([r.model_dump() for r in records], request)
 
 
 @router.put(
     "/{app_id}",
-    summary="更新应用",
-    description="更新应用基本信息（name/description/auth_mode），scope 调整走独立申请端点",
+    summary="提交修改应用申请",
+    description="基本信息（name/description/auth_mode）调整走申请审批流，审批通过后快照落地",
 )
 def update_app(
     app_id: int,
@@ -124,11 +137,7 @@ def update_app(
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     return success_response(
-        service.update_app(
-            app_id,
-            current_developer.id,
-            body.model_dump(exclude_unset=True),
-        ).model_dump(),
+        service.update_app(app_id, current_developer.id, payload=body).model_dump(),
         request,
     )
 
@@ -136,7 +145,7 @@ def update_app(
 @router.put(
     "/{app_id}/scopes",
     summary="提交 scope 申请/调整",
-    description="更新目标 scopes 并置审批状态为 pending，等待管理员审批；取消勾选表示申请收回权限",
+    description="权限范围调整走申请审批流；审批通过后由管理系统将新 scope 落地到应用",
 )
 def apply_scopes(
     app_id: int,
@@ -146,12 +155,7 @@ def apply_scopes(
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     return success_response(
-        service.apply_scopes(
-            app_id,
-            current_developer.id,
-            body.scopes,
-            body.reason,
-        ).model_dump(),
+        service.apply_scopes(app_id, current_developer.id, payload=body).model_dump(),
         request,
     )
 
@@ -159,7 +163,7 @@ def apply_scopes(
 @router.post(
     "/{app_id}/rotate-key",
     summary="重置 AppKey",
-    description="旧 Key 立即失效，新明文仅本次返回",
+    description="旧 Key 立即失效，新密钥仅本次返回",
 )
 def rotate_key(
     app_id: int,
@@ -167,15 +171,14 @@ def rotate_key(
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
-    resp, new_key = service.rotate_key(app_id, current_developer.id)
-    data = OpenAppSecretResponse(app_id=resp.app_id, app_key=new_key).model_dump()
-    return success_response(data, request)
+    data = service.rotate_key(app_id, current_developer.id)
+    return success_response(OpenAppSecretResponse(**data).model_dump(), request)
 
 
 @router.delete(
     "/{app_id}",
     summary="删除应用",
-    description="软删除本人名下应用（不可恢复）",
+    description="软删除本人名下应用（不可恢复），其待审批申请一并作废",
 )
 def delete_app(
     app_id: int,
@@ -183,5 +186,5 @@ def delete_app(
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
-    ok = service.delete_app(app_id, current_developer.id)
-    return success_response({"deleted": ok}, request)
+    service.delete_app(app_id, current_developer.id)
+    return success_response({"deleted": True}, request)

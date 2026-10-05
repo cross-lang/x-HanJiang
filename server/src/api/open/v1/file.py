@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""开放平台文件管理接口。
+"""开放 API 文件管理接口。
 将文件管理核心能力暴露给外部服务，通过 AppId/AppKey + scope 鉴权。
 operator 上下文记录为调用方应用，而非终端用户。
 
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/files", tags=["开放API：文件管理"])
 
 @router.get(
     "",
-    summary="开放平台文件列表",
+    summary="开放 API 文件列表",
     response_model=ApiResponse[dict],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.FILE_READ.mark))],
 )
@@ -54,7 +54,7 @@ def list_files(
 
 @router.post(
     "",
-    summary="开放平台上传文件",
+    summary="开放 API 上传文件",
     response_model=ApiResponse[dict],
     status_code=201,
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.FILE_WRITE.mark))],
@@ -85,7 +85,7 @@ def upload_file(
 
 @router.get(
     "/{file_path:path}",
-    summary="开放平台获取文件",
+    summary="开放 API 获取文件",
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.FILE_READ.mark))],
 )
 @app_scope(OpenApiScopeCode.FILE_READ)
@@ -102,7 +102,7 @@ def get_file(
 
 @router.delete(
     "/{file_id}",
-    summary="开放平台删除文件",
+    summary="开放 API 删除文件",
     response_model=ApiResponse[dict],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.FILE_WRITE.mark))],
 )

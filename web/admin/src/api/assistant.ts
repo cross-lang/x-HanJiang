@@ -54,7 +54,7 @@ export async function chatSSE(
   handlers: ChatSSEHandlers,
 ): Promise<void> {
   const token = getToken()
-  const resp = await fetch('/api/v1/assistant/chat', {
+  const resp = await fetch('/api/admin/v1/assistant/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

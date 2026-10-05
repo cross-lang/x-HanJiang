@@ -2,6 +2,7 @@ import type { App, Component } from 'vue'
 import {
   ArrowDown,
   ArrowRight,
+  Avatar,
   Back,
   Bell,
   ChatDotRound,
@@ -25,6 +26,7 @@ import {
   Search,
   Select,
   Setting,
+  Stamp,
   SwitchButton,
   Tickets,
   Upload,
@@ -40,6 +42,7 @@ import {
 const icons: Record<string, Component> = {
   ArrowDown,
   ArrowRight,
+  Avatar,
   Back,
   Bell,
   ChatDotRound,
@@ -63,6 +66,7 @@ const icons: Record<string, Component> = {
   Search,
   Select,
   Setting,
+  Stamp,
   SwitchButton,
   Tickets,
   Upload,

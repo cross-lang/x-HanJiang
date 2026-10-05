@@ -38,7 +38,7 @@ export function exportAuditCsv(params: { keyword?: string }): Promise<Response> 
   if (params.keyword) query.set('keyword', params.keyword)
   const suffix = query.toString()
   const token = localStorage.getItem('access_token')
-  return fetch(`/api/v1/logs/audit/export${suffix ? `?${suffix}` : ''}`, {
+  return fetch(`/api/admin/v1/logs/audit/export${suffix ? `?${suffix}` : ''}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
 }
@@ -49,7 +49,7 @@ export function exportLoginLogCsv(params: { keyword?: string }): Promise<Respons
   if (params.keyword) query.set('keyword', params.keyword)
   const suffix = query.toString()
   const token = localStorage.getItem('access_token')
-  return fetch(`/api/v1/logs/login/export${suffix ? `?${suffix}` : ''}`, {
+  return fetch(`/api/admin/v1/logs/login/export${suffix ? `?${suffix}` : ''}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
 }

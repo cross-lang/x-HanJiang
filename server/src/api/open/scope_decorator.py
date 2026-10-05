@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""开放平台 scope 装饰器（对齐用户态 permission 装饰器范式）。
+"""开放 API  scope 装饰器（对齐用户态 permission 装饰器范式）。
 用法：
     @router.get("/users", dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_READ.mark))])
     @app_scope(OpenApiScopeCode.USER_READ)
     async def list_users():
         ...
-启动时自动扫描开放平台路由的 _scope_* 属性，upsert 到 openapi_scopes 表。
+启动时自动扫描开放 API 路由的 _scope_* 属性，upsert 到 openapi_scopes 表。
 scope 的全部元数据均来自 src.constants.scopes.OpenApiScopeCode 统一目录。
-本模块与开放平台 scope 目录自包含，不依赖用户态权限体系，可整体随开放平台独立部署。
+本模块与开放 API  scope 目录自包含，不依赖用户态权限体系，可整体随开放 API 独立部署。
 """
 
 from collections.abc import Callable
@@ -17,7 +17,7 @@ from src.core.logger import logger
 
 
 def app_scope(code: OpenApiScopeCode):
-    """声明开放平台路由所需 scope（仅挂载元数据，鉴权仍用 Depends(require_app_scope(...))）。
+    """声明开放 API 路由所需 scope（仅挂载元数据，鉴权仍用 Depends(require_app_scope(...))）。
 
     Args:
         code: OpenApiScopeCode 枚举成员，携带 scope 码 / 中文名 / 模块 /
@@ -67,7 +67,7 @@ def collect_scopes_from_app(app) -> list[dict]:
 
 
 def sync_scopes_to_db(app) -> tuple[int, int]:
-    """启动时将开放平台路由上的 @app_scope 声明对账同步到 openapi_scopes 表。
+    """启动时将开放 API 路由上的 @app_scope 声明对账同步到 openapi_scopes 表。
 
     以代码中的 OpenApiScopeCode 声明为唯一事实来源：
       - 代码中存在、表中已存在 → 按最新元数据更新并取消废弃标记；

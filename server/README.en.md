@@ -158,7 +158,7 @@ After startup, visit:
 
 - Swagger interactive docs: http://localhost:8000/docs
 - ReDoc read-only docs: http://localhost:8000/redoc
-- Health check: http://localhost:8000/api/v1/health
+- Health check: http://localhost:8000/api/admin/v1/health
 
 ### ⌨️ 6. Common Engineering Commands
 
@@ -187,7 +187,7 @@ uv run python scripts/export_openapi.py
 **Login to obtain tokens:**
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
+curl -X POST http://localhost:8000/api/admin/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "superadmin", "password": "admin@123456"}'
 ```
@@ -195,7 +195,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 **Access a protected endpoint with the token:**
 
 ```bash
-curl http://localhost:8000/api/v1/users \
+curl http://localhost:8000/api/admin/v1/users \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -522,177 +522,177 @@ Once the backend is running:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/health` | Health check (DB/cache connectivity, auto-alert on failure) |
-| GET | `/api/v1/version` | Version info |
+| GET | `/api/admin/v1/health` | Health check (DB/cache connectivity, auto-alert on failure) |
+| GET | `/api/admin/v1/version` | Version info |
 
 **Auth:**
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| POST | `/api/v1/auth/login` | Login (username/email + password) | Public |
-| POST | `/api/v1/auth/refresh` | Refresh tokens | Public |
-| POST | `/api/v1/auth/logout` | Logout (clear Redis login state) | JWT |
+| POST | `/api/admin/v1/auth/login` | Login (username/email + password) | Public |
+| POST | `/api/admin/v1/auth/refresh` | Refresh tokens | Public |
+| POST | `/api/admin/v1/auth/logout` | Logout (clear Redis login state) | JWT |
 
 **Users:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/users` | Create user (multi-role) |
-| GET | `/api/v1/users` | User list (paged / keyword / status) |
-| GET | `/api/v1/users/export` | Export users (CSV) |
-| POST | `/api/v1/users/import` | Bulk import users (CSV) |
-| GET | `/api/v1/users/{id}` | User detail |
-| POST | `/api/v1/users/{id}/update` | Update user |
-| POST | `/api/v1/users/{id}/reset-password` | Reset user password |
-| POST | `/api/v1/users/{id}/delete` | Delete user (soft) |
+| POST | `/api/admin/v1/users` | Create user (multi-role) |
+| GET | `/api/admin/v1/users` | User list (paged / keyword / status) |
+| GET | `/api/admin/v1/users/export` | Export users (CSV) |
+| POST | `/api/admin/v1/users/import` | Bulk import users (CSV) |
+| GET | `/api/admin/v1/users/{id}` | User detail |
+| POST | `/api/admin/v1/users/{id}/update` | Update user |
+| POST | `/api/admin/v1/users/{id}/reset-password` | Reset user password |
+| POST | `/api/admin/v1/users/{id}/delete` | Delete user (soft) |
 
 **Profile:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/profile/me` | Current user info (roles & permissions) |
-| PUT | `/api/v1/profile/me` | Update personal info |
-| POST | `/api/v1/profile/change-password` | Change password (old password + verification code) |
-| GET | `/api/v1/profile/menus` | Current user menu tree (permission-filtered) |
-| GET | `/api/v1/profile/notification-preferences` | My notification preferences |
-| PUT | `/api/v1/profile/notification-preferences` | Update my notification preferences |
-| GET | `/api/v1/profile/notification-recipients` | My notification recipients |
-| POST | `/api/v1/profile/notification-recipients` | Add recipient |
-| PUT | `/api/v1/profile/notification-recipients/{id}` | Update recipient |
-| DELETE | `/api/v1/profile/notification-recipients/{id}` | Delete recipient |
-| POST | `/api/v1/profile/send-verify-code` | Send verification code (6-digit, to email) |
-| POST | `/api/v1/profile/update-phone` | Update phone (verification code) |
-| POST | `/api/v1/profile/update-email` | Update email (old verification code) |
+| GET | `/api/admin/v1/profile/me` | Current user info (roles & permissions) |
+| PUT | `/api/admin/v1/profile/me` | Update personal info |
+| POST | `/api/admin/v1/profile/change-password` | Change password (old password + verification code) |
+| GET | `/api/admin/v1/profile/menus` | Current user menu tree (permission-filtered) |
+| GET | `/api/admin/v1/profile/notification-preferences` | My notification preferences |
+| PUT | `/api/admin/v1/profile/notification-preferences` | Update my notification preferences |
+| GET | `/api/admin/v1/profile/notification-recipients` | My notification recipients |
+| POST | `/api/admin/v1/profile/notification-recipients` | Add recipient |
+| PUT | `/api/admin/v1/profile/notification-recipients/{id}` | Update recipient |
+| DELETE | `/api/admin/v1/profile/notification-recipients/{id}` | Delete recipient |
+| POST | `/api/admin/v1/profile/send-verify-code` | Send verification code (6-digit, to email) |
+| POST | `/api/admin/v1/profile/update-phone` | Update phone (verification code) |
+| POST | `/api/admin/v1/profile/update-email` | Update email (old verification code) |
 
 **Roles:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/roles` | Role list (paged / keyword / type / status) |
-| POST | `/api/v1/roles` | Create role |
-| GET | `/api/v1/roles/{id}` | Role detail |
-| POST | `/api/v1/roles/{id}/update` | Update role |
-| POST | `/api/v1/roles/{id}/delete` | Delete role (soft) |
-| GET | `/api/v1/roles/{id}/permissions` | Role permissions (with details) |
-| POST | `/api/v1/roles/{id}/permissions` | Bind permission |
-| POST | `/api/v1/roles/{id}/permissions/{pid}/unbind` | Unbind permission |
+| GET | `/api/admin/v1/roles` | Role list (paged / keyword / type / status) |
+| POST | `/api/admin/v1/roles` | Create role |
+| GET | `/api/admin/v1/roles/{id}` | Role detail |
+| POST | `/api/admin/v1/roles/{id}/update` | Update role |
+| POST | `/api/admin/v1/roles/{id}/delete` | Delete role (soft) |
+| GET | `/api/admin/v1/roles/{id}/permissions` | Role permissions (with details) |
+| POST | `/api/admin/v1/roles/{id}/permissions` | Bind permission |
+| POST | `/api/admin/v1/roles/{id}/permissions/{pid}/unbind` | Unbind permission |
 
 **Permissions:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/permissions/meta` | Permission metadata (module/operation list) |
-| GET | `/api/v1/permissions` | Permission list (paged / keyword / module / operation) |
-| POST | `/api/v1/permissions` | Create permission |
-| GET | `/api/v1/permissions/{id}` | Permission detail |
-| POST | `/api/v1/permissions/{id}/update` | Update permission |
-| POST | `/api/v1/permissions/{id}/delete` | Delete permission |
+| GET | `/api/admin/v1/permissions/meta` | Permission metadata (module/operation list) |
+| GET | `/api/admin/v1/permissions` | Permission list (paged / keyword / module / operation) |
+| POST | `/api/admin/v1/permissions` | Create permission |
+| GET | `/api/admin/v1/permissions/{id}` | Permission detail |
+| POST | `/api/admin/v1/permissions/{id}/update` | Update permission |
+| POST | `/api/admin/v1/permissions/{id}/delete` | Delete permission |
 
 **Audit & Logs:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/audit/logs` | Business audit log list |
-| GET | `/api/v1/audit/logs/export` | Export audit logs (CSV) |
-| GET | `/api/v1/audit/logs/{id}` | Audit log detail |
-| GET | `/api/v1/audit/login-logs` | Login log list |
-| GET | `/api/v1/audit/login-logs/export` | Export login logs (CSV) |
-| GET | `/api/v1/audit/login-logs/{id}` | Login log detail |
+| GET | `/api/admin/v1/audit/logs` | Business audit log list |
+| GET | `/api/admin/v1/audit/logs/export` | Export audit logs (CSV) |
+| GET | `/api/admin/v1/audit/logs/{id}` | Audit log detail |
+| GET | `/api/admin/v1/audit/login-logs` | Login log list |
+| GET | `/api/admin/v1/audit/login-logs/export` | Export login logs (CSV) |
+| GET | `/api/admin/v1/audit/login-logs/{id}` | Login log detail |
 
 **Files:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/files/upload` | Upload file (folder grouping) |
-| GET | `/api/v1/files` | File list (paged / folder / keyword) |
-| GET | `/api/v1/files/{file_path:path}` | Get / download file |
-| DELETE | `/api/v1/files/{file_id}` | Delete file |
+| POST | `/api/admin/v1/files/upload` | Upload file (folder grouping) |
+| GET | `/api/admin/v1/files` | File list (paged / folder / keyword) |
+| GET | `/api/admin/v1/files/{file_path:path}` | Get / download file |
+| DELETE | `/api/admin/v1/files/{file_id}` | Delete file |
 
 **Notifications (incl. system notification broadcast):**
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| POST | `/api/v1/notifications/publish` | Publish system notification (normal / maintenance, to all active users) | `notification:create` |
-| POST | `/api/v1/notifications/{notice_id}/withdraw` | Withdraw system notification (idempotent) | `notification:create` |
-| GET | `/api/v1/notifications/published` | System notice list (paged / type / status / keyword) | `notification:view` |
-| GET | `/api/v1/notifications/published/{notice_id}` | System notice detail | `notification:view` |
-| GET | `/api/v1/notifications` | Notification list (paged / event / channel / status) | `notification:view` |
-| GET | `/api/v1/notifications/stats` | Notification stats (success/failed/pending) | `notification:view` |
-| GET | `/api/v1/notifications/{id}` | Notification detail | `notification:view` |
+| POST | `/api/admin/v1/notifications/publish` | Publish system notification (normal / maintenance, to all active users) | `notification:create` |
+| POST | `/api/admin/v1/notifications/{notice_id}/withdraw` | Withdraw system notification (idempotent) | `notification:create` |
+| GET | `/api/admin/v1/notifications/published` | System notice list (paged / type / status / keyword) | `notification:view` |
+| GET | `/api/admin/v1/notifications/published/{notice_id}` | System notice detail | `notification:view` |
+| GET | `/api/admin/v1/notifications` | Notification list (paged / event / channel / status) | `notification:view` |
+| GET | `/api/admin/v1/notifications/stats` | Notification stats (success/failed/pending) | `notification:view` |
+| GET | `/api/admin/v1/notifications/{id}` | Notification detail | `notification:view` |
 
 **System Notification Configs (admin):**
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| GET | `/api/v1/admin/notification-configs` | All system notification channel configs | `notification:config` |
-| PUT | `/api/v1/admin/notification-configs/{channel}` | Update channel config (hot reload) | `notification:config` |
-| GET | `/api/v1/admin/notification-configs/monitor/system` | System monitor status | `notification:config` |
-| POST | `/api/v1/admin/notification-configs/{channel}/test` | Send channel test message | `notification:config` |
+| GET | `/api/admin/v1/admin/notification-configs` | All system notification channel configs | `notification:config` |
+| PUT | `/api/admin/v1/admin/notification-configs/{channel}` | Update channel config (hot reload) | `notification:config` |
+| GET | `/api/admin/v1/admin/notification-configs/monitor/system` | System monitor status | `notification:config` |
+| POST | `/api/admin/v1/admin/notification-configs/{channel}/test` | Send channel test message | `notification:config` |
 
 **Announcements:**
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| GET | `/api/v1/announcements/active` | Active homepage announcements (published & within validity, any logged-in user) | Login |
-| POST | `/api/v1/announcements` | Create announcement (starts as draft) | `announcement:create` |
-| POST | `/api/v1/announcements/{id}/update` | Update announcement (all fields optional) | `announcement:edit` |
-| POST | `/api/v1/announcements/{id}/delete` | Delete announcement (hard delete) | `announcement:delete` |
-| POST | `/api/v1/announcements/{id}/publish` | Publish announcement (validity-checked, draft/unpublished → published) | `announcement:publish` |
-| POST | `/api/v1/announcements/{id}/unpublish` | Unpublish announcement (published → unpublished) | `announcement:publish` |
-| GET | `/api/v1/announcements` | Announcement list (admin view, paged / status / position / keyword) | `announcement:view` |
-| GET | `/api/v1/announcements/{id}` | Announcement detail | `announcement:view` |
+| GET | `/api/admin/v1/announcements/active` | Active homepage announcements (published & within validity, any logged-in user) | Login |
+| POST | `/api/admin/v1/announcements` | Create announcement (starts as draft) | `announcement:create` |
+| POST | `/api/admin/v1/announcements/{id}/update` | Update announcement (all fields optional) | `announcement:edit` |
+| POST | `/api/admin/v1/announcements/{id}/delete` | Delete announcement (hard delete) | `announcement:delete` |
+| POST | `/api/admin/v1/announcements/{id}/publish` | Publish announcement (validity-checked, draft/unpublished → published) | `announcement:publish` |
+| POST | `/api/admin/v1/announcements/{id}/unpublish` | Unpublish announcement (published → unpublished) | `announcement:publish` |
+| GET | `/api/admin/v1/announcements` | Announcement list (admin view, paged / status / position / keyword) | `announcement:view` |
+| GET | `/api/admin/v1/announcements/{id}` | Announcement detail | `announcement:view` |
 
 **System Alerts:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/alerts` | Send system alert (external monitoring webhook) |
-| POST | `/api/v1/alerts/broadcast` | Broadcast alert (admin, all active users) |
+| POST | `/api/admin/v1/alerts` | Send system alert (external monitoring webhook) |
+| POST | `/api/admin/v1/alerts/broadcast` | Broadcast alert (admin, all active users) |
 
 **Station Messages:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/station/messages/unread-count` | Unread message count |
-| GET | `/api/v1/station/messages` | My message list |
-| POST | `/api/v1/station/messages/{msg_id}/read` | Mark one message read |
-| POST | `/api/v1/station/messages/read-all` | Mark all read |
+| GET | `/api/admin/v1/station/messages/unread-count` | Unread message count |
+| GET | `/api/admin/v1/station/messages` | My message list |
+| POST | `/api/admin/v1/station/messages/{msg_id}/read` | Mark one message read |
+| POST | `/api/admin/v1/station/messages/read-all` | Mark all read |
 
 **Dashboard:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/dashboard/stats` | Dashboard stats (cards, trends, recent records) |
-| GET | `/api/v1/dashboard/my-activity` | My recent activity (login + operation logs) |
+| GET | `/api/admin/v1/dashboard/stats` | Dashboard stats (cards, trends, recent records) |
+| GET | `/api/admin/v1/dashboard/my-activity` | My recent activity (login + operation logs) |
 
 **Open Platform App Management:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/apps/scopes` | Available scopes |
-| POST | `/api/v1/apps` | Create open app (returns AppId + AppKey) |
-| GET | `/api/v1/apps` | App list |
-| GET | `/api/v1/apps/{app_id}` | App detail |
-| PUT | `/api/v1/apps/{app_id}` | Update app |
-| PUT | `/api/v1/apps/{app_id}/scopes` | Update app scopes |
-| POST | `/api/v1/apps/{app_id}/rotate-key` | Rotate AppKey |
-| DELETE | `/api/v1/apps/{app_id}` | Delete app |
+| GET | `/api/admin/v1/apps/scopes` | Available scopes |
+| POST | `/api/admin/v1/apps` | Create open app (returns AppId + AppKey) |
+| GET | `/api/admin/v1/apps` | App list |
+| GET | `/api/admin/v1/apps/{app_id}` | App detail |
+| PUT | `/api/admin/v1/apps/{app_id}` | Update app |
+| PUT | `/api/admin/v1/apps/{app_id}/scopes` | Update app scopes |
+| POST | `/api/admin/v1/apps/{app_id}/rotate-key` | Rotate AppKey |
+| DELETE | `/api/admin/v1/apps/{app_id}` | Delete app |
 
 **Global Search:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/search?keyword=` | Global search (users/roles/permissions/apps/files, permission-filtered) |
+| GET | `/api/admin/v1/search?keyword=` | Global search (users/roles/permissions/apps/files, permission-filtered) |
 
 **AI Assistant:**
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| POST | `/api/v1/assistant/chat` | AI assistant chat (SSE streaming, token / navigate / done events) | Login only |
-| POST | `/api/v1/assistant/conversations` | Create conversation | Login only |
-| GET | `/api/v1/assistant/conversations` | Conversation list | Login only |
-| GET | `/api/v1/assistant/conversations/{id}/messages` | Conversation messages (ownership checked) | Login only |
-| POST | `/api/v1/assistant/feedback` | Message feedback (👍👎, tuning data source) | Login only |
+| POST | `/api/admin/v1/assistant/chat` | AI assistant chat (SSE streaming, token / navigate / done events) | Login only |
+| POST | `/api/admin/v1/assistant/conversations` | Create conversation | Login only |
+| GET | `/api/admin/v1/assistant/conversations` | Conversation list | Login only |
+| GET | `/api/admin/v1/assistant/conversations/{id}/messages` | Conversation messages (ownership checked) | Login only |
+| POST | `/api/admin/v1/assistant/feedback` | Message feedback (👍👎, tuning data source) | Login only |
 
 **Open Platform Endpoints (AppId/AppKey auth):**
 
@@ -746,9 +746,9 @@ Once the backend is running:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| PUT | `/api/v1/apps/{app_id}/approval` | Approve/reject developer app or scope requests (with note) |
-| GET | `/api/v1/open-developers` | Developer list (incl. certification status) |
-| GET | `/api/v1/open-developers/{developer_id}/apps` | Apps owned by a developer |
+| PUT | `/api/admin/v1/apps/{app_id}/approval` | Approve/reject developer app or scope requests (with note) |
+| GET | `/api/admin/v1/open-developers` | Developer list (incl. certification status) |
+| GET | `/api/admin/v1/open-developers/{developer_id}/apps` | Apps owned by a developer |
 
 ### 🛡️ Authorization
 

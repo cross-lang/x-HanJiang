@@ -38,7 +38,7 @@ export function exportUsersCsv(params: { keyword?: string; status?: string }): P
   if (params.keyword) query.set('keyword', params.keyword)
   if (params.status) query.set('status', params.status)
   const token = localStorage.getItem('access_token')
-  return fetch(`/api/v1/users/export?${query.toString()}`, {
+  return fetch(`/api/admin/v1/users/export?${query.toString()}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
 }

@@ -55,7 +55,7 @@ EXPOSE 8000
 
 # 健康检查（带超时，避免挂起）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request, socket; socket.setdefaulttimeout(3); urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
+    CMD python -c "import urllib.request, socket; socket.setdefaulttimeout(3); urllib.request.urlopen('http://localhost:8000/api/admin/v1/health')" || exit 1
 
 # 使用 Gunicorn + Uvicorn Worker 启动（shell form 支持环境变量替换）
 CMD gunicorn src.main:app \

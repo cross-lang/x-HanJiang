@@ -64,6 +64,12 @@ const router = createRouter({
           component: () => import('@/views/openapi/OpenAppList.vue'),
         },
         {
+          path: 'app-approvals',
+          name: 'AppApprovals',
+          component: () => import('@/views/openapi/AppApprovalList.vue'),
+          meta: { perm: 'openapi_app:approve' },
+        },
+        {
           path: 'app-scopes',
           name: 'AppScopes',
           component: () => import('@/views/openapi/OpenScopeList.vue'),

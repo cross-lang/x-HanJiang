@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """开放平台应用管理接口（内部管理员用，走用户态 JWT）。
-路由前缀：/api/v1/apps
+路由前缀：/api/admin/v1/apps
 权限：SUPERADMIN
 注意：AppKey 明文只在创建 / 重置时返回一次，之后无法再查看。
 """
@@ -8,18 +8,17 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from src.api.admin.permission_decorator import permission
 from src.api.admin.dependencies import (
     get_current_user,
     get_openapi_app_service,
     get_user_operator_context,
     require_user_permission,
 )
+from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.enums import AppOwnerType
 from src.constants.permissions import PermissionCode
 from src.schemas.admin.openapi_app import (
-    OpenApiAppApprovalRequest,
     OpenApiAppCreatedResponse,
     OpenApiAppCreateRequest,
     OpenApiAppResponse,
@@ -88,21 +87,15 @@ def list_apps(
     page_size: int = 20,
     keyword: str | None = None,
     owner_type: str | None = None,
-    scope: str | None = None,
-    current_user=Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ):
-    """返回分页应用列表，结构与用户列表等接口一致：{items, total, page, page_size}。
+    """返回分页应用列表（仅应用自身信息），结构与用户列表等接口一致：{items, total, page, page_size}。
 
-    scope 管理端个人视角类目：
-      created  = 我新建的（管理员创建且归属本人）
-      approved = 我审批的（待审批 pending ∪ 审批人 approved_by=当前用户）
+    申请/审批相关记录由"应用审批"菜单（/app-registrations）独立承接。
     """
     result = service.list_apps(
         keyword=keyword,
         owner_type=owner_type,
-        scope=scope,
-        operator_id=current_user.id if scope in ("created", "approved") else None,
         page=page,
         page_size=page_size,
     )
@@ -174,31 +167,6 @@ def update_app_scopes(
         service.update_scopes(
             app_id,
             body.scopes,
-            operator=get_user_operator_context(current_user, request),
-        ).model_dump(),
-        request,
-    )
-
-
-@router.put(
-    "/{app_id}/approval",
-    summary="审批开发者 scope 申请",
-    description="通过/驳回开发者提交的 scope 申请并记录审批意见；通过仅置状态，scope 目标值由开发者申请端点写入",
-    dependencies=[Depends(require_user_permission(PermissionCode.OPENAPI_APP_SCOPES.mark))],
-)
-@permission(PermissionCode.OPENAPI_APP_SCOPES)
-def update_app_approval(
-    app_id: int,
-    body: OpenApiAppApprovalRequest,
-    request: Request,
-    current_user=Depends(get_current_user),
-    service: OpenApiAppService = Depends(get_openapi_app_service),
-):
-    return success_response(
-        service.update_approval(
-            app_id,
-            approved=body.approved,
-            note=body.note,
             operator=get_user_operator_context(current_user, request),
         ).model_dump(),
         request,

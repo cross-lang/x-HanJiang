@@ -91,10 +91,22 @@ class AppOwnerType(StrBaseEnum):
     ADMIN = "admin", "管理员"
 
 
+class AppRegistrationType(StrBaseEnum):
+    """开放应用申请类型（对齐 openapi_app_registrations.registration_type 列）。
+
+    CREATE：创建应用申请（应用记录随申请一并创建，审批通过后 approved 置 True）；
+    UPDATE：修改应用申请（基本信息 / scope 调整统一走该类型，审批通过后快照落地到应用表）。
+    """
+
+    CREATE = "create", "创建申请"
+    UPDATE = "update", "修改申请"
+
+
 class AppApprovalStatus(StrBaseEnum):
-    """开放应用 scope 审批状态（对齐 openapi_apps.approval_status 列）。
-    管理员直接配置 scope 的应用为 approved；开发者自助创建/申请 scope 后为 pending，
-    由管理员在管理系统审批通过（approved）或驳回（rejected）。
+    """开放应用申请审批状态（对齐 openapi_app_registrations.status 列）。
+
+    应用申请表 openapi_app_registrations 按批次记录每次创建/修改申请：
+    开发者提交后为 pending，由管理员在管理系统审批通过（approved）或驳回（rejected）。
     """
 
     PENDING = "pending", "待审批"

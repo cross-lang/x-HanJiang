@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """开放平台开发者用户管理接口（内部管理员用，走用户态 JWT）。
 
-路由前缀：/api/v1/admin/developers
+路由前缀：/api/admin/v1/admin/developers
 权限：openapi_dev:view（查看开放平台用户）
 当前仅提供查询能力：开发者用户列表、开发者旗下应用列表。
 开发者账号的注册/资料维护在开放平台门户侧完成，不在此管理。

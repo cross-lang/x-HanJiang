@@ -1,7 +1,8 @@
 <template>
   <el-dialog v-model="dialogVisible" :title="title" width="560px">
     <el-alert :type="type" :closable="false" class="hj-mb-16">
-      <template v-if="type === 'success'"> 请妥善保存 App Key，关闭后将无法再次查看！ </template>
+      <template v-if="tip">{{ tip }}</template>
+      <template v-else-if="type === 'success'"> 请妥善保存 App Key，关闭后将无法再次查看！ </template>
       <template v-else> 旧 App Key 已失效，请立即通知调用方更新！新 Key 关闭后无法再次查看。 </template>
     </el-alert>
     <div class="secret-row">
@@ -32,6 +33,8 @@ const props = defineProps<{
   title: string
   secret: AppSecret
   type?: 'success' | 'warning'
+  /** 自定义提示文案（默认按 type 展示固定文案） */
+  tip?: string
 }>()
 
 const emit = defineEmits<{

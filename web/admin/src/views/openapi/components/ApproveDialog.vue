@@ -1,11 +1,20 @@
 <template>
-  <el-dialog v-model="dialogVisible" title="审批应用申请" width="560px" @closed="resetForm">
+  <el-dialog v-model="dialogVisible" title="审批应用申请" width="600px" @closed="resetForm">
     <!-- 申请信息 -->
     <el-descriptions :column="1" border class="hj-mb-16">
-      <el-descriptions-item label="应用名称">{{ record?.name }}</el-descriptions-item>
-      <el-descriptions-item label="App ID">
-        <code class="app-id-code">{{ record?.app_id }}</code>
+      <el-descriptions-item label="申请码">
+        <code class="reg-id-code">{{ record?.registration_code || `#${record?.id}` }}</code>
       </el-descriptions-item>
+      <el-descriptions-item label="申请类型">
+        <el-tag :type="record?.registration_type === 'create' ? 'primary' : 'warning'" size="small">
+          {{ record?.registration_type === 'create' ? '创建申请' : '修改申请' }}
+        </el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="应用名称">{{ record?.app_name }}</el-descriptions-item>
+      <el-descriptions-item label="App ID">
+        <code class="app-id-code">{{ record?.app_id_str }}</code>
+      </el-descriptions-item>
+      <el-descriptions-item label="申请人">{{ record?.owner_name || '-' }}</el-descriptions-item>
       <el-descriptions-item label="鉴权模式">
         <el-tag v-if="record?.auth_mode === 'plain'" type="warning" size="small">明文</el-tag>
         <el-tag v-else-if="record?.auth_mode === 'hmac'" type="success" size="small">HMAC 签名</el-tag>
@@ -19,15 +28,23 @@
           <span v-if="!(record?.scopes || []).length" class="hj-text-muted">未申请 scope</span>
         </div>
       </el-descriptions-item>
-      <el-descriptions-item v-if="record?.scope_apply_reason" label="申请理由">
-        {{ record.scope_apply_reason }}
-      </el-descriptions-item>
-      <el-descriptions-item v-if="record?.approval_note" label="上次意见">
-        {{ record.approval_note }}
-      </el-descriptions-item>
+      <!-- 已审批（终态）记录：只读展示审批结果 -->
+      <template v-if="record && record.status !== 'pending'">
+        <el-descriptions-item label="审批状态">
+          <el-tag :type="record.status === 'approved' ? 'success' : 'danger'" size="small">
+            {{ record.status === 'approved' ? '已通过' : '已驳回' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="审批意见">
+          {{ record.approval_note || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="审批时间">
+          {{ record.approved_at ? formatDateTime(record.approved_at) : '-' }}
+        </el-descriptions-item>
+      </template>
     </el-descriptions>
 
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+    <el-form v-if="isPending" ref="formRef" :model="form" :rules="rules" label-width="80px">
       <el-form-item label="审批结论">
         <el-radio-group v-model="form.approved">
           <el-radio-button :value="true">通过</el-radio-button>
@@ -47,10 +64,13 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">
-        {{ form.approved ? '确认通过' : '确认驳回' }}
-      </el-button>
+      <template v-if="isPending">
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">
+          {{ form.approved ? '确认通过' : '确认驳回' }}
+        </el-button>
+      </template>
+      <el-button v-else type="primary" @click="dialogVisible = false">关闭</el-button>
     </template>
   </el-dialog>
 </template>
@@ -59,15 +79,16 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { updateApproval } from '@/api/openapi'
+import { reviewAppRegistration } from '@/api/openapi'
 import { scopeNameOf } from '@/composables/useScopeCatalog'
-import type { OpenAppItem } from '@/types/openapi'
+import { formatDateTime } from '@/utils/format'
+import type { AppRegistrationItem } from '@/types/openapi'
 
 const props = defineProps<{
   /** 弹窗显隐（v-model:visible 双向） */
   visible: boolean
-  /** 待审批的应用 */
-  record: OpenAppItem | null
+  /** 待审批的申请（批次） */
+  record: AppRegistrationItem | null
 }>()
 
 const emit = defineEmits<{
@@ -80,6 +101,9 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: v => emit('update:visible', v),
 })
+
+/** 是否为待审批状态（终态记录仅只读展示，不渲染审批表单） */
+const isPending = computed(() => props.record?.status === 'pending')
 
 const form = reactive<{ approved: boolean; note: string }>({ approved: true, note: '' })
 const formRef = ref<FormInstance>()
@@ -115,7 +139,7 @@ function resetForm() {
 }
 
 async function handleSubmit() {
-  if (!props.record) return
+  if (!props.record || !isPending.value) return
   try {
     await formRef.value?.validate()
   } catch {
@@ -123,7 +147,7 @@ async function handleSubmit() {
   }
   submitting.value = true
   try {
-    await updateApproval(props.record.id, {
+    await reviewAppRegistration(props.record.id, {
       approved: form.approved,
       note: form.note.trim() || undefined,
     })
@@ -139,6 +163,14 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
+.reg-id-code {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12.5px;
+  color: #409eff;
+  background: #ecf5ff;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
 .app-id-code {
   font-family: 'JetBrains Mono', Consolas, monospace;
   font-size: 12.5px;

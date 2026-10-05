@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """个人中心请求/响应 Schema。
-集中定义个人中心（/api/v1/profile）各接口的入参模型，
+集中定义个人中心（/api/admin/v1/profile）各接口的入参模型，
 由 API 层完成格式校验后透传给 ProfileService。
 
 Classes:

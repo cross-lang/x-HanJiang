@@ -26,9 +26,9 @@
           <el-tag v-else type="primary">双模式</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="scopes" label="权限范围">
+      <el-table-column prop="scopes" label="权限范围" min-width="280">
         <template #default="{ row }">
-          <el-tag v-for="s in row.scopes" :key="s" size="small" class="hj-mr-4">
+          <el-tag v-for="s in row.scopes" :key="s" size="small" class="hj-mr-4 hj-mb-4">
             {{ scopeNameOf(s) === s ? s : `${scopeNameOf(s)}（${s}）` }}
           </el-tag>
         </template>
@@ -51,25 +51,46 @@
       <el-table-column prop="created_at" label="创建时间" width="170">
         <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="210" fixed="right">
+      <el-table-column label="操作" width="330" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="handleApplyScope(row as OpenAppItem)">申请权限</el-button>
-          <el-button size="small" type="warning" @click="handleRotateKey(row as OpenAppItem)">重置密钥</el-button>
-          <el-dropdown trigger="click" @command="(cmd: string) => handleMore(cmd, row as OpenAppItem)">
-            <el-button size="small" text class="more-btn">
-              <el-icon><MoreFilled /></el-icon>
+          <!-- 被管理员禁用的应用：不能执行任何操作，仅可删除与查看审批记录 -->
+          <template v-if="row.status === 'disabled'">
+            <el-button size="small" type="danger" @click="handleDelete(row as OpenAppItem)">删除</el-button>
+            <el-button size="small" text @click="handleApprovals(row as OpenAppItem)">审批记录</el-button>
+          </template>
+          <template v-else>
+            <el-button
+              size="small"
+              type="primary"
+              :disabled="row.approval_status === 'pending'"
+              @click="handleApplyScope(row as OpenAppItem)"
+            >
+              申请权限
             </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="edit">
-                  <el-icon class="menu-icon"><Edit /></el-icon>编辑
-                </el-dropdown-item>
-                <el-dropdown-item command="delete" divided class="danger-item">
-                  <el-icon class="menu-icon"><Delete /></el-icon>删除
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+            <el-button
+              size="small"
+              :disabled="row.approval_status === 'pending'"
+              @click="handleEdit(row as OpenAppItem)"
+            >
+              编辑
+            </el-button>
+            <el-button size="small" @click="handleApprovals(row as OpenAppItem)">审批记录</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleMore(cmd, row as OpenAppItem)">
+              <el-button size="small" text class="more-btn">
+                <el-icon><MoreFilled /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="rotate">
+                    <el-icon class="menu-icon"><Key /></el-icon>重置密钥
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" divided class="danger-item">
+                    <el-icon class="menu-icon"><Delete /></el-icon>删除
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
         </template>
       </el-table-column>
     </el-table>
@@ -87,8 +108,15 @@
   <AppFormDialog v-model:visible="dialogVisible" mode="create" @created="onAppCreated" />
   <AppFormDialog v-model:visible="editDialogVisible" mode="edit" :record="editRecord" @submitted="onDialogSubmitted" />
   <ScopeApplyDialog v-model:visible="scopeDialogVisible" :record="scopeRecord" @submitted="onScopeSubmitted" />
+  <ApprovalRecordsDialog v-model:visible="approvalDialogVisible" :record="approvalRecord" />
 
-  <SecretResultDialog v-model:visible="resultVisible" title="应用创建成功" type="success" :secret="createdApp" />
+  <SecretResultDialog
+    v-model:visible="resultVisible"
+    title="申请已提交"
+    type="success"
+    :secret="createdApp"
+    tip="应用创建申请已提交，审批通过后即可使用下方 App ID / App Key 调用接口。"
+  />
   <SecretResultDialog
     v-model:visible="rotateResultVisible"
     title="App Key 重置成功"
@@ -99,14 +127,16 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Edit, MoreFilled } from '@element-plus/icons-vue'
+import { Delete, Key, MoreFilled } from '@element-plus/icons-vue'
 import { formatDateTime } from '@/utils/format'
 import { listMyApps, deleteApp, rotateAppKey } from '@/api/apps'
 import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
 import type { OpenAppItem } from '@/types/app'
 import AppFormDialog, { type AppSecret } from './components/AppFormDialog.vue'
 import ScopeApplyDialog from './components/ScopeApplyDialog.vue'
+import ApprovalRecordsDialog from './components/ApprovalRecordsDialog.vue'
 import SecretResultDialog from '@/components/SecretResultDialog.vue'
 
 const list = ref<OpenAppItem[]>([])
@@ -122,6 +152,9 @@ const editRecord = ref<OpenAppItem | null>(null)
 
 const scopeDialogVisible = ref(false)
 const scopeRecord = ref<OpenAppItem | null>(null)
+
+const approvalDialogVisible = ref(false)
+const approvalRecord = ref<OpenAppItem | null>(null)
 
 const resultVisible = ref(false)
 const createdApp = ref<AppSecret>({ app_id: '', app_key: '' })
@@ -170,13 +203,19 @@ function handleApplyScope(row: OpenAppItem) {
   scopeDialogVisible.value = true
 }
 
-/** 更多（···）下拉：编辑 / 删除 */
+/** 更多（···）下拉：重置密钥 / 删除（编辑 / 申请权限 / 审批记录 已在操作列直接展示） */
 function handleMore(cmd: string, row: OpenAppItem) {
-  if (cmd === 'edit') {
-    handleEdit(row)
+  if (cmd === 'rotate') {
+    handleRotateKey(row)
   } else if (cmd === 'delete') {
     handleDelete(row)
   }
+}
+
+/** 查看应用全部审批记录（弹窗） */
+function handleApprovals(row: OpenAppItem) {
+  approvalRecord.value = row
+  approvalDialogVisible.value = true
 }
 
 /** 创建成功：展示密钥弹窗并刷新列表 */
@@ -239,6 +278,11 @@ async function handleDelete(row: OpenAppItem) {
 onMounted(() => {
   // scope 目录用于权限范围列中文名展示（失败时回退为裸编码）
   void fetchScopes()
+  // 承接全局搜索跳转携带的 keyword（/apps?keyword=xxx），回填输入框并过滤列表
+  const q = useRoute().query.keyword
+  if (typeof q === 'string' && q.trim()) {
+    keyword.value = q.trim()
+  }
   fetchList()
 })
 </script>

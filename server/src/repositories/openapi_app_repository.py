@@ -40,8 +40,6 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         keyword: str | None = None,
         owner_type: str | None = None,
         owner_id: int | None = None,
-        approved_by: int | None = None,
-        approval_status: str | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[list[OpenApiAppEntity], int]:
@@ -49,8 +47,7 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
 
         归属过滤：传入 owner_type/owner_id 时仅返回该归属方名下的应用
         （开发者门户"只看自己"、管理端按来源筛选共用此入口）。
-        审批过滤：approved_by 按审批人筛选（管理端"我审批的"）；
-        approval_status 按审批状态筛选（如 pending）。
+        审批相关过滤已随申请/审批拆分至 OpenApiAppRegistrationRepository。
 
         Returns:
             (当前页实体列表, 匹配总数)
@@ -62,10 +59,6 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
             base = base.where(OpenApiAppEntity.owner_type == owner_type)
         if owner_id is not None:
             base = base.where(OpenApiAppEntity.owner_id == owner_id)
-        if approved_by is not None:
-            base = base.where(OpenApiAppEntity.approved_by == approved_by)
-        if approval_status:
-            base = base.where(OpenApiAppEntity.approval_status == approval_status)
         total = self.session.execute(select(func.count()).select_from(base.subquery())).scalar_one()
         stmt = base.order_by(OpenApiAppEntity.id).offset(skip).limit(limit)
         return list(self.session.execute(stmt).scalars().all()), total

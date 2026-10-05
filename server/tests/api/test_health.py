@@ -14,12 +14,12 @@ class TestHealthEndpoints:
 
     def test_health_check(self, client: TestClient):
         """测试健康检查接口返回正确的状态信息。"""
-        response = client.get("/api/v1/health")
+        response = client.get("/api/admin/v1/health")
         assert response.status_code == 200
 
         body = response.json()
         assert body["code"] == 200
-        assert body["message"] == "success"
+        assert body["message"] == "OK"
         assert "data" in body
         assert "timestamp" in body
         assert "request_id" in body
@@ -33,7 +33,7 @@ class TestHealthEndpoints:
 
     def test_version_endpoint(self, client: TestClient):
         """测试版本信息接口。"""
-        response = client.get("/api/v1/version")
+        response = client.get("/api/admin/v1/version")
         assert response.status_code == 200
 
         body = response.json()
@@ -44,13 +44,13 @@ class TestHealthEndpoints:
 
     def test_health_has_request_id_header(self, client: TestClient):
         """测试响应头中包含 X-Request-ID。"""
-        response = client.get("/api/v1/health")
+        response = client.get("/api/admin/v1/health")
         assert "x-request-id" in response.headers
         assert len(response.headers["x-request-id"]) > 0
 
     def test_response_envelope_shape(self, client: TestClient):
         """所有响应具有标准 envelope 字段。"""
-        response = client.get("/api/v1/health")
+        response = client.get("/api/admin/v1/health")
         body = response.json()
         # 必须存在的标准字段
         for field in ("code", "message", "data", "timestamp", "request_id"):

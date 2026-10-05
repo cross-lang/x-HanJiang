@@ -70,10 +70,16 @@ def get_developer_openapi_app_service(
     db_session: Session = Depends(get_db_session),
 ) -> DeveloperOpenApiAppService:
     """获取开发者应用管理服务（门户域）。"""
+    from src.repositories.openapi_app_registration_repository import (
+        OpenApiAppRegistrationRepository,
+    )
     from src.repositories.openapi_app_repository import OpenApiAppRepository
     from src.services.open_portal.app_service import DeveloperOpenApiAppService
 
-    return DeveloperOpenApiAppService(repo=OpenApiAppRepository(session=db_session))
+    return DeveloperOpenApiAppService(
+        repo=OpenApiAppRepository(session=db_session),
+        registration_repo=OpenApiAppRegistrationRepository(session=db_session),
+    )
 
 
 def get_current_developer(

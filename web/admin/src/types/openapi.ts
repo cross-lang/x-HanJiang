@@ -1,4 +1,4 @@
-/** 开放平台类型（与 server/src/schemas/openapi_app.py 对齐） */
+/** 开放平台类型（与 server/src/schemas/admin/openapi_app.py 对齐） */
 
 export interface OpenAppItem {
   id: number
@@ -9,15 +9,11 @@ export interface OpenAppItem {
   status: string
   auth_mode: string
   rate_limit_per_minute: number
+  owner_type: string
+  owner_id: number | null
   owner_name: string | null
-  /** 审批状态：pending / approved / rejected；管理端自建应用为 null（无审批概念） */
-  approval_status: string | null
-  /** 审批人用户 ID（管理系统 users.id），未审批为 null */
-  approved_by: number | null
-  /** 审批意见（驳回原因等） */
-  approval_note: string | null
-  /** 开发者提交 scope 申请时的申请理由 */
-  scope_apply_reason: string | null
+  /** 是否已通过创建审批（应用级授权状态，网关放行门槛） */
+  approved: boolean
   last_used_at: string | null
   created_at: string
 }
@@ -39,6 +35,33 @@ export interface OpenScope {
   module_label: string | null
   operation: string
   description: string | null
+}
+
+/** 开放应用申请（审批批次）项（与 server/src/schemas/admin/openapi_app_registration.py 对齐） */
+export interface AppRegistrationItem {
+  /** 申请ID（批次号，内部主键） */
+  id: number
+  /** 申请码：6位数字，对外展示用 */
+  registration_code: string
+  app_id: number
+  app_id_str: string
+  app_name: string
+  owner_name: string | null
+  /** 归属类型：developer 开发者自助 / admin 管理员分配 */
+  owner_type: string
+  /** 申请类型：create 创建申请 / update 修改申请 */
+  registration_type: string
+  name: string
+  description: string
+  scopes: string[]
+  auth_mode: string
+  apply_reason: string | null
+  /** 审批状态：pending / approved / rejected */
+  status: string
+  approved_by: number | null
+  approval_note: string | null
+  approved_at: string | null
+  created_at: string
 }
 
 /** 开放平台开发者用户（管理端"用户管理"列表项） */

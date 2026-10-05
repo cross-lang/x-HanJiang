@@ -46,21 +46,13 @@ class OpenApiAppEntity(Base):
     owner_id: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, comment="归属方ID：developer→developers.id / admin→users.id"
     )
-    # ── 审批流（开发者自助申请 scope → 管理员审批）────────
-    # 仅"开发者自助创建"的应用参与审批流；管理端自建应用无审批概念，本列为 NULL。
-    # 注意：不设 server_default——SQLAlchemy 2.0 中带 server_default 的列在属性为
-    # None 时会被视为"交给数据库默认"，导致 NULL 落库失败；开发者应用由代码显式写 pending。
-    approval_status: Mapped[str | None] = mapped_column(
-        String(20),
-        nullable=True,
-        comment="审批状态：pending 待审批 / approved 已通过 / rejected 已驳回；管理端自建应用为 NULL（无审批概念）",
-    )
-    approved_by: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True, comment="审批人用户ID（管理系统 users.id），未审批为 NULL"
-    )
-    approval_note: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="审批意见/驳回原因")
-    scope_apply_reason: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, comment="开发者申请 scope 时填写的申请说明"
+    # ── 授权状态 ──────────────────────────────────────────
+    # 应用级"是否已通过创建审批"标记（网关放行门槛）：
+    # 开发者自助创建的应用须审批通过后 approved=True 方可被调用；管理端自建应用无审批概念，直接 True。
+    # 每次创建/修改申请的内容快照与审批结果（批次）记录在 openapi_app_registrations 表，
+    # 修改类申请审批通过后按其快照覆盖本表 name/description/scopes/auth_mode。
+    approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="0", comment="是否已通过创建审批（应用级授权状态）"
     )
     scopes: Mapped[str] = mapped_column(
         String(500), nullable=False, server_default="", comment="逗号分隔的权限范围，如 order:read,order:write"

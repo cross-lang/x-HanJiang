@@ -231,8 +231,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/docs",
             "/redoc",
             "/openapi.json",
-            "/api/v1/health",
-            "/api/v1/version",
+            "/api/admin/v1/health",
+            "/api/admin/v1/version",
         ]
         self.token_validator: Callable[[str], bool] | None = token_validator
 

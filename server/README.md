@@ -19,13 +19,13 @@
 
 ## 📖 项目简介
 
-汉江（HanJiang）后端是一个基于 FastAPI 深度封装的生产级 Python Web 应用框架，遵循标准三层架构（API → Service → Repository）与依赖注入设计，面向**管理系统（Admin）、开放平台 API（Open）、开放平台门户（Open Portal）**三端场景提供三套 API 体系：内置 JWT 认证与 RBAC 权限模型、开发者有状态会话、开放平台 AppId/AppKey 鉴权（HanJiang-1 HMAC 签名）、审计日志、登录日志、事件驱动多渠道通知系统、站内信、文件管理（本地 / S3 兼容）、AI 助手、全局搜索与种子数据自动初始化，开箱即用支撑企业级 RESTful API 服务。
+汉江（HanJiang）后端是一个基于 FastAPI 深度封装的生产级 Python Web 应用框架，遵循标准三层架构（API → Service → Repository）与依赖注入设计，面向**管理系统（Admin）、开放 API（Open）、开放平台（Open Portal）**三端场景提供三套 API 体系：内置 JWT 认证与 RBAC 权限模型、开发者有状态会话、开放 API AppId/AppKey 鉴权（HanJiang-1 HMAC 签名）、审计日志、登录日志、事件驱动多渠道通知系统、站内信、文件管理（本地 / S3 兼容）、AI 助手、全局搜索与种子数据自动初始化，开箱即用支撑企业级 RESTful API 服务。
 
 **核心特征：**
 
 - 标准三层架构 + FastAPI 原生依赖注入，职责清晰、可测试
 - `@permission` 装饰器自动扫描路由注册权限，启动时同步到数据库
-- 三套 API 体系：管理系统 `/api/v1`（JWT + RBAC）、开放平台 `/api/open/v1`（AppId/AppKey + HMAC 签名 + scope）、开放平台门户 `/api/open-portal/v1`（开发者会话 JWT，登出/改密即时失效）
+- 三套 API 体系：管理系统 `/api/v1`（JWT + RBAC）、开放 API `/api/open/v1`（AppId/AppKey + HMAC 签名 + scope）、开放平台 `/api/open-portal/v1`（开发者会话 JWT，登出/改密即时失效）
 - 业务审计日志与登录日志分离，记录操作者、IP、前后数据，支持 CSV 导出
 - 事件驱动多渠道通知（站内信 / 邮件 / 钉钉 / 飞书 / 短信），支持用户级偏好与接收人管理、失败自动重试
 - 系统通知广播：面向全体活跃用户发布普通通知 / 系统维护通知，站内信广播产生未读红点，维护通知按用户渠道配置推送多渠道
@@ -158,7 +158,7 @@ uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
 - Swagger 交互式文档：http://localhost:8000/docs
 - ReDoc 只读文档：http://localhost:8000/redoc
-- 健康检查：http://localhost:8000/api/v1/health
+- 健康检查：http://localhost:8000/api/admin/v1/health
 
 ### ⌨️ 6. 常用工程命令
 
@@ -187,7 +187,7 @@ uv run python scripts/export_openapi.py
 **登录获取令牌：**
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
+curl -X POST http://localhost:8000/api/admin/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "superadmin", "password": "admin@123456"}'
 ```
@@ -195,11 +195,11 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 **携带令牌访问受保护接口：**
 
 ```bash
-curl http://localhost:8000/api/v1/users \
+curl http://localhost:8000/api/admin/v1/users \
   -H "Authorization: Bearer <access_token>"
 ```
 
-**调用开放平台接口（明文 AppId/AppKey）：**
+**调用开放 API 接口（明文 AppId/AppKey）：**
 
 ```bash
 curl http://localhost:8000/api/open/v1/me \
@@ -232,7 +232,7 @@ server/
 ├── docs/                     # 项目文档（建表 SQL、Postman OpenAPI 集合）
 ├── examples/                 # 使用示例脚本
 │   ├── layered_architecture.py  # 三层架构 CRUD 示例
-│   └── openapi_client.py     # 开放平台客户端示例
+│   └── openapi_client.py     # 开放 API 客户端示例
 ├── logs/                     # 运行日志输出
 ├── scripts/                  # 工程脚本
 │   ├── init_db.py            # 数据库初始化
@@ -260,15 +260,15 @@ server/
 │   │   │   ├── search.py      # 全局搜索
 │   │   │   ├── assistant.py # AI 助手（SSE 对话 / 会话 / 反馈）
 │   │   │   └── health.py     # 健康检查与版本信息
-│   │   ├── open/             # 开放平台路由（AppId/AppKey 鉴权，/api/open/v1/...）
+│   │   ├── open/             # 开放 API 路由（路由（AppId/AppKey 鉴权，/api/open/v1/...）
 │   │   │   ├── scope_decorator.py # @app_scope 装饰器 + scope 扫描注册
 │   │   │   └── v1/
 │   │   │       ├── health.py # 健康检查与版本
 │   │   │       ├── app.py    # 当前应用信息
-│   │   │       ├── user.py   # 开放平台用户管理（scope 控制）
-│   │   │       ├── role.py   # 开放平台角色管理（scope 控制）
-│   │   │       └── file.py   # 开放平台文件管理（Base64 上传，scope 控制）
-│   │   ├── open_portal/      # 开放平台门户路由（开发者会话 JWT 鉴权，/api/open-portal/v1/...）
+│   │   │       ├── user.py   # 开放 API 用户管理（scope 控制）
+│   │   │       ├── role.py   # 开放 API 角色管理（scope 控制）
+│   │   │       └── file.py   # 开放 API 文件管理（Base64 上传，scope 控制）
+│   │   ├── open_portal/      # 开放平台路由（开发者会话 JWT 鉴权，/api/open-portal/v1/...）
 │   │   │   └── v1/           # 门户 v1 路由（auth / developer / apps / scopes / messages）
 │   │   ├── dependencies.py   # DI 依赖函数
 │   │   ├── response.py       # 统一响应封装
@@ -324,10 +324,10 @@ flowchart TB
   subgraph Application[应用层]
     API --> Auth[管理系统认证<br/>Bearer JWT · RBAC 权限]
     API --> PortalAuth[门户认证<br/>开发者会话 JWT · Redis 登录态]
-    API --> OpenAuth[开放平台认证<br/>AppId/AppKey · Scope · HMAC 签名]
+    API --> OpenAuth[开放 API 认证<br/>AppId/AppKey · Scope · HMAC 签名]
     Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 仪表盘 · 通知 · 文件 · AI]
     PortalAuth --> PortalService[门户服务<br/>开发者 · 应用申请 · 审批 · 消息]
-    OpenAuth --> OpenService[开放平台服务<br/>应用管理 · 鉴权 · 签名校验]
+    OpenAuth --> OpenService[开放 API 服务<br/>应用管理 · 鉴权 · 签名校验]
   end
 
   subgraph Data[数据访问层]
@@ -522,177 +522,177 @@ graph LR
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/health` | 健康检查（数据库/缓存连通状态，故障自动告警） |
-| GET | `/api/v1/version` | 版本信息 |
+| GET | `/api/admin/v1/health` | 健康检查（数据库/缓存连通状态，故障自动告警） |
+| GET | `/api/admin/v1/version` | 版本信息 |
 
 **认证：**
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |------|------|------|------|
-| POST | `/api/v1/auth/login` | 用户登录（用户名/邮箱 + 密码） | 公开 |
-| POST | `/api/v1/auth/refresh` | 刷新令牌 | 公开 |
-| POST | `/api/v1/auth/logout` | 退出登录（清除 Redis 登录态） | 需鉴权 |
+| POST | `/api/admin/v1/auth/login` | 用户登录（用户名/邮箱 + 密码） | 公开 |
+| POST | `/api/admin/v1/auth/refresh` | 刷新令牌 | 公开 |
+| POST | `/api/admin/v1/auth/logout` | 退出登录（清除 Redis 登录态） | 需鉴权 |
 
 **用户管理：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/users` | 创建用户（支持多角色） |
-| GET | `/api/v1/users` | 用户列表（分页/关键字/状态过滤） |
-| GET | `/api/v1/users/export` | 导出用户列表（CSV） |
-| POST | `/api/v1/users/import` | CSV 批量导入用户 |
-| GET | `/api/v1/users/{id}` | 用户详情 |
-| POST | `/api/v1/users/{id}/update` | 更新用户 |
-| POST | `/api/v1/users/{id}/reset-password` | 重置用户密码 |
-| POST | `/api/v1/users/{id}/delete` | 删除用户（软删除） |
+| POST | `/api/admin/v1/users` | 创建用户（支持多角色） |
+| GET | `/api/admin/v1/users` | 用户列表（分页/关键字/状态过滤） |
+| GET | `/api/admin/v1/users/export` | 导出用户列表（CSV） |
+| POST | `/api/admin/v1/users/import` | CSV 批量导入用户 |
+| GET | `/api/admin/v1/users/{id}` | 用户详情 |
+| POST | `/api/admin/v1/users/{id}/update` | 更新用户 |
+| POST | `/api/admin/v1/users/{id}/reset-password` | 重置用户密码 |
+| POST | `/api/admin/v1/users/{id}/delete` | 删除用户（软删除） |
 
 **个人中心：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/profile/me` | 当前用户信息（含角色与权限） |
-| PUT | `/api/v1/profile/me` | 修改个人信息 |
-| POST | `/api/v1/profile/change-password` | 修改密码（原密码 + 验证码二次认证） |
-| GET | `/api/v1/profile/menus` | 当前用户菜单树（按权限过滤） |
-| GET | `/api/v1/profile/notification-preferences` | 我的通知偏好 |
-| PUT | `/api/v1/profile/notification-preferences` | 更新我的通知偏好 |
-| GET | `/api/v1/profile/notification-recipients` | 我的通知接收人列表 |
-| POST | `/api/v1/profile/notification-recipients` | 添加通知接收人 |
-| PUT | `/api/v1/profile/notification-recipients/{id}` | 更新通知接收人 |
-| DELETE | `/api/v1/profile/notification-recipients/{id}` | 删除通知接收人 |
-| POST | `/api/v1/profile/send-verify-code` | 发送验证码（安全二次认证，6 位发送至邮箱） |
-| POST | `/api/v1/profile/update-phone` | 修改手机号（验证码二次认证） |
-| POST | `/api/v1/profile/update-email` | 修改邮箱（原验证码二次认证） |
+| GET | `/api/admin/v1/profile/me` | 当前用户信息（含角色与权限） |
+| PUT | `/api/admin/v1/profile/me` | 修改个人信息 |
+| POST | `/api/admin/v1/profile/change-password` | 修改密码（原密码 + 验证码二次认证） |
+| GET | `/api/admin/v1/profile/menus` | 当前用户菜单树（按权限过滤） |
+| GET | `/api/admin/v1/profile/notification-preferences` | 我的通知偏好 |
+| PUT | `/api/admin/v1/profile/notification-preferences` | 更新我的通知偏好 |
+| GET | `/api/admin/v1/profile/notification-recipients` | 我的通知接收人列表 |
+| POST | `/api/admin/v1/profile/notification-recipients` | 添加通知接收人 |
+| PUT | `/api/admin/v1/profile/notification-recipients/{id}` | 更新通知接收人 |
+| DELETE | `/api/admin/v1/profile/notification-recipients/{id}` | 删除通知接收人 |
+| POST | `/api/admin/v1/profile/send-verify-code` | 发送验证码（安全二次认证，6 位发送至邮箱） |
+| POST | `/api/admin/v1/profile/update-phone` | 修改手机号（验证码二次认证） |
+| POST | `/api/admin/v1/profile/update-email` | 修改邮箱（原验证码二次认证） |
 
 **角色管理：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/roles` | 角色列表（分页/关键字/类型/状态过滤） |
-| POST | `/api/v1/roles` | 创建角色 |
-| GET | `/api/v1/roles/{id}` | 角色详情 |
-| POST | `/api/v1/roles/{id}/update` | 更新角色 |
-| POST | `/api/v1/roles/{id}/delete` | 删除角色（软删除） |
-| GET | `/api/v1/roles/{id}/permissions` | 角色权限列表（含权限详情） |
-| POST | `/api/v1/roles/{id}/permissions` | 绑定权限 |
-| POST | `/api/v1/roles/{id}/permissions/{pid}/unbind` | 解绑权限 |
+| GET | `/api/admin/v1/roles` | 角色列表（分页/关键字/类型/状态过滤） |
+| POST | `/api/admin/v1/roles` | 创建角色 |
+| GET | `/api/admin/v1/roles/{id}` | 角色详情 |
+| POST | `/api/admin/v1/roles/{id}/update` | 更新角色 |
+| POST | `/api/admin/v1/roles/{id}/delete` | 删除角色（软删除） |
+| GET | `/api/admin/v1/roles/{id}/permissions` | 角色权限列表（含权限详情） |
+| POST | `/api/admin/v1/roles/{id}/permissions` | 绑定权限 |
+| POST | `/api/admin/v1/roles/{id}/permissions/{pid}/unbind` | 解绑权限 |
 
 **权限管理：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/permissions/meta` | 权限元数据（模块/操作类型去重列表） |
-| GET | `/api/v1/permissions` | 权限列表（分页/关键字/模块/操作过滤） |
-| POST | `/api/v1/permissions` | 创建权限 |
-| GET | `/api/v1/permissions/{id}` | 权限详情 |
-| POST | `/api/v1/permissions/{id}/update` | 更新权限 |
-| POST | `/api/v1/permissions/{id}/delete` | 删除权限 |
+| GET | `/api/admin/v1/permissions/meta` | 权限元数据（模块/操作类型去重列表） |
+| GET | `/api/admin/v1/permissions` | 权限列表（分页/关键字/模块/操作过滤） |
+| POST | `/api/admin/v1/permissions` | 创建权限 |
+| GET | `/api/admin/v1/permissions/{id}` | 权限详情 |
+| POST | `/api/admin/v1/permissions/{id}/update` | 更新权限 |
+| POST | `/api/admin/v1/permissions/{id}/delete` | 删除权限 |
 
 **审计与日志：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/audit/logs` | 业务审计日志列表 |
-| GET | `/api/v1/audit/logs/export` | 导出审计日志（CSV） |
-| GET | `/api/v1/audit/logs/{id}` | 审计日志详情 |
-| GET | `/api/v1/audit/login-logs` | 登录日志列表 |
-| GET | `/api/v1/audit/login-logs/export` | 导出登录日志（CSV） |
-| GET | `/api/v1/audit/login-logs/{id}` | 登录日志详情 |
+| GET | `/api/admin/v1/audit/logs` | 业务审计日志列表 |
+| GET | `/api/admin/v1/audit/logs/export` | 导出审计日志（CSV） |
+| GET | `/api/admin/v1/audit/logs/{id}` | 审计日志详情 |
+| GET | `/api/admin/v1/audit/login-logs` | 登录日志列表 |
+| GET | `/api/admin/v1/audit/login-logs/export` | 导出登录日志（CSV） |
+| GET | `/api/admin/v1/audit/login-logs/{id}` | 登录日志详情 |
 
 **文件管理：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/files/upload` | 上传文件（folder 分组） |
-| GET | `/api/v1/files` | 文件列表（分页/文件夹/关键字过滤） |
-| GET | `/api/v1/files/{file_path:path}` | 获取 / 下载文件 |
-| DELETE | `/api/v1/files/{file_id}` | 删除文件 |
+| POST | `/api/admin/v1/files/upload` | 上传文件（folder 分组） |
+| GET | `/api/admin/v1/files` | 文件列表（分页/文件夹/关键字过滤） |
+| GET | `/api/admin/v1/files/{file_path:path}` | 获取 / 下载文件 |
+| DELETE | `/api/admin/v1/files/{file_id}` | 删除文件 |
 
 **通知管理（含系统通知广播）：**
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |------|------|------|------|
-| POST | `/api/v1/notifications/publish` | 发布系统通知（普通通知 / 系统维护，面向全体活跃用户） | `notification:create` |
-| POST | `/api/v1/notifications/{notice_id}/withdraw` | 撤回系统通知（幂等） | `notification:create` |
-| GET | `/api/v1/notifications/published` | 系统通知列表（分页/类型/状态/关键字过滤） | `notification:view` |
-| GET | `/api/v1/notifications/published/{notice_id}` | 系统通知详情 | `notification:view` |
-| GET | `/api/v1/notifications` | 通知列表（分页/事件/渠道/状态过滤） | `notification:view` |
-| GET | `/api/v1/notifications/stats` | 通知统计（成功/失败/待发送） | `notification:view` |
-| GET | `/api/v1/notifications/{id}` | 通知详情 | `notification:view` |
+| POST | `/api/admin/v1/notifications/publish` | 发布系统通知（普通通知 / 系统维护，面向全体活跃用户） | `notification:create` |
+| POST | `/api/admin/v1/notifications/{notice_id}/withdraw` | 撤回系统通知（幂等） | `notification:create` |
+| GET | `/api/admin/v1/notifications/published` | 系统通知列表（分页/类型/状态/关键字过滤） | `notification:view` |
+| GET | `/api/admin/v1/notifications/published/{notice_id}` | 系统通知详情 | `notification:view` |
+| GET | `/api/admin/v1/notifications` | 通知列表（分页/事件/渠道/状态过滤） | `notification:view` |
+| GET | `/api/admin/v1/notifications/stats` | 通知统计（成功/失败/待发送） | `notification:view` |
+| GET | `/api/admin/v1/notifications/{id}` | 通知详情 | `notification:view` |
 
 **系统通知配置（管理员）：**
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |------|------|------|------|
-| GET | `/api/v1/admin/notification-configs` | 所有系统通知渠道配置 | `notification:config` |
-| PUT | `/api/v1/admin/notification-configs/{channel}` | 更新渠道配置（热生效，无需重启） | `notification:config` |
-| GET | `/api/v1/admin/notification-configs/monitor/system` | 系统监控状态 | `notification:config` |
-| POST | `/api/v1/admin/notification-configs/{channel}/test` | 发送渠道测试消息 | `notification:config` |
+| GET | `/api/admin/v1/admin/notification-configs` | 所有系统通知渠道配置 | `notification:config` |
+| PUT | `/api/admin/v1/admin/notification-configs/{channel}` | 更新渠道配置（热生效，无需重启） | `notification:config` |
+| GET | `/api/admin/v1/admin/notification-configs/monitor/system` | 系统监控状态 | `notification:config` |
+| POST | `/api/admin/v1/admin/notification-configs/{channel}/test` | 发送渠道测试消息 | `notification:config` |
 
 **公告管理：**
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |------|------|------|------|
-| GET | `/api/v1/announcements/active` | 首页生效公告（已发布且在有效期，登录用户可见） | 登录即可 |
-| POST | `/api/v1/announcements` | 创建公告（初始为草稿） | `announcement:create` |
-| POST | `/api/v1/announcements/{id}/update` | 修改公告（所有字段可选） | `announcement:edit` |
-| POST | `/api/v1/announcements/{id}/delete` | 删除公告（物理删除） | `announcement:delete` |
-| POST | `/api/v1/announcements/{id}/publish` | 发布公告（校验有效期，草稿/已下架 → 已发布） | `announcement:publish` |
-| POST | `/api/v1/announcements/{id}/unpublish` | 下架公告（已发布 → 已下架） | `announcement:publish` |
-| GET | `/api/v1/announcements` | 公告列表（管理视角，分页/状态/位置/关键字过滤） | `announcement:view` |
-| GET | `/api/v1/announcements/{id}` | 公告详情 | `announcement:view` |
+| GET | `/api/admin/v1/announcements/active` | 首页生效公告（已发布且在有效期，登录用户可见） | 登录即可 |
+| POST | `/api/admin/v1/announcements` | 创建公告（初始为草稿） | `announcement:create` |
+| POST | `/api/admin/v1/announcements/{id}/update` | 修改公告（所有字段可选） | `announcement:edit` |
+| POST | `/api/admin/v1/announcements/{id}/delete` | 删除公告（物理删除） | `announcement:delete` |
+| POST | `/api/admin/v1/announcements/{id}/publish` | 发布公告（校验有效期，草稿/已下架 → 已发布） | `announcement:publish` |
+| POST | `/api/admin/v1/announcements/{id}/unpublish` | 下架公告（已发布 → 已下架） | `announcement:publish` |
+| GET | `/api/admin/v1/announcements` | 公告列表（管理视角，分页/状态/位置/关键字过滤） | `announcement:view` |
+| GET | `/api/admin/v1/announcements/{id}` | 公告详情 | `announcement:view` |
 
 **系统告警：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/alerts` | 发送系统告警（供外部监控 Webhook 调用） |
-| POST | `/api/v1/alerts/broadcast` | 广播系统告警（管理员，全体活跃用户） |
+| POST | `/api/admin/v1/alerts` | 发送系统告警（供外部监控 Webhook 调用） |
+| POST | `/api/admin/v1/alerts/broadcast` | 广播系统告警（管理员，全体活跃用户） |
 
 **站内信：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/station/messages/unread-count` | 未读消息数 |
-| GET | `/api/v1/station/messages` | 我的消息列表 |
-| POST | `/api/v1/station/messages/{msg_id}/read` | 标记单条已读 |
-| POST | `/api/v1/station/messages/read-all` | 全部已读 |
+| GET | `/api/admin/v1/station/messages/unread-count` | 未读消息数 |
+| GET | `/api/admin/v1/station/messages` | 我的消息列表 |
+| POST | `/api/admin/v1/station/messages/{msg_id}/read` | 标记单条已读 |
+| POST | `/api/admin/v1/station/messages/read-all` | 全部已读 |
 
 **仪表盘：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/dashboard/stats` | 仪表盘统计（指标卡片、趋势图表、最近记录） |
-| GET | `/api/v1/dashboard/my-activity` | 我的最近活动（登录日志 + 操作日志） |
+| GET | `/api/admin/v1/dashboard/stats` | 仪表盘统计（指标卡片、趋势图表、最近记录） |
+| GET | `/api/admin/v1/dashboard/my-activity` | 我的最近活动（登录日志 + 操作日志） |
 
 **开放平台应用管理：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/apps/scopes` | 可用 scope 列表 |
-| POST | `/api/v1/apps` | 创建开放应用（返回 AppId + AppKey） |
-| GET | `/api/v1/apps` | 应用列表 |
-| GET | `/api/v1/apps/{app_id}` | 应用详情 |
-| PUT | `/api/v1/apps/{app_id}` | 更新应用 |
-| PUT | `/api/v1/apps/{app_id}/scopes` | 更新应用 scope |
-| POST | `/api/v1/apps/{app_id}/rotate-key` | 重置 AppKey |
-| DELETE | `/api/v1/apps/{app_id}` | 删除应用 |
+| GET | `/api/admin/v1/apps/scopes` | 可用 scope 列表 |
+| POST | `/api/admin/v1/apps` | 创建开放应用（返回 AppId + AppKey） |
+| GET | `/api/admin/v1/apps` | 应用列表 |
+| GET | `/api/admin/v1/apps/{app_id}` | 应用详情 |
+| PUT | `/api/admin/v1/apps/{app_id}` | 更新应用 |
+| PUT | `/api/admin/v1/apps/{app_id}/scopes` | 更新应用 scope |
+| POST | `/api/admin/v1/apps/{app_id}/rotate-key` | 重置 AppKey |
+| DELETE | `/api/admin/v1/apps/{app_id}` | 删除应用 |
 
 **全局搜索：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/search?keyword=` | 全局搜索（用户/角色/权限/开放应用/文件，按权限过滤分类） |
+| GET | `/api/admin/v1/search?keyword=` | 全局搜索（用户/角色/权限/开放应用/文件，按权限过滤分类） |
 
 **AI 助手：**
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |------|------|------|------|
-| POST | `/api/v1/assistant/chat` | AI 助手对话（SSE 流式，token / navigate / done 事件） | 登录即可 |
-| POST | `/api/v1/assistant/conversations` | 创建会话 | 登录即可 |
-| GET | `/api/v1/assistant/conversations` | 会话列表 | 登录即可 |
-| GET | `/api/v1/assistant/conversations/{id}/messages` | 会话消息列表（校验归属） | 登录即可 |
-| POST | `/api/v1/assistant/feedback` | 消息反馈（👍👎，提示词调优数据源） | 登录即可 |
+| POST | `/api/admin/v1/assistant/chat` | AI 助手对话（SSE 流式，token / navigate / done 事件） | 登录即可 |
+| POST | `/api/admin/v1/assistant/conversations` | 创建会话 | 登录即可 |
+| GET | `/api/admin/v1/assistant/conversations` | 会话列表 | 登录即可 |
+| GET | `/api/admin/v1/assistant/conversations/{id}/messages` | 会话消息列表（校验归属） | 登录即可 |
+| POST | `/api/admin/v1/assistant/feedback` | 消息反馈（👍👎，提示词调优数据源） | 登录即可 |
 
 **开放平台接口（AppId/AppKey 鉴权）：**
 
@@ -746,9 +746,9 @@ graph LR
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| PUT | `/api/v1/apps/{app_id}/approval` | 审批开发者应用 / scope 申请（通过/驳回 + 意见） |
-| GET | `/api/v1/open-developers` | 开发者列表（含认证状态） |
-| GET | `/api/v1/open-developers/{developer_id}/apps` | 开发者名下应用 |
+| PUT | `/api/admin/v1/apps/{app_id}/approval` | 审批开发者应用 / scope 申请（通过/驳回 + 意见） |
+| GET | `/api/admin/v1/open-developers` | 开发者列表（含认证状态） |
+| GET | `/api/admin/v1/open-developers/{developer_id}/apps` | 开发者名下应用 |
 
 ### 🛡️ 权限控制说明
 

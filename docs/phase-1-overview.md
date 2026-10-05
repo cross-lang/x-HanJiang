@@ -70,7 +70,7 @@
 - 双鉴权模式：**plain**（明文）与 **hmac**（HanJiang-1 HMAC 签名）；
 - 签名协议：`Ver + METHOD + URI + Content-Type + Date + SHA256(body)`，Content-Type 固定 `application/json`，时间窗 300s 防重放；
 - 探活接口：`/health` `/version` `/me` `/ping`；业务接口：`/users` 系列（scope 校验）；
-- 配套高质量演示客户端（`examples/openapi_client.py`，默认演示 GET + POST + DELETE 全链路）与《开放平台对接指南》（Python / Go 对接步骤）。
+- 配套高质量演示客户端（`examples/openapi_client.py`，默认演示 GET + POST + DELETE 全链路）与《开放 API 对接指南》（Python / Go 对接步骤）。
 
 ### 9. AI 助手
 - SSE 流式对话（token / navigate / done 事件），会话管理、记忆压缩、知识库检索、工具编排；

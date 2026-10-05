@@ -14,9 +14,12 @@
           <el-option label="双模式 (both)" value="both" />
         </el-select>
       </el-form-item>
-      <el-form-item label="权限范围">
+      <el-form-item v-if="!isEdit" label="权限范围" prop="scopes">
         <GroupCheckboxPanel :groups="scopeGroups" v-model="form.scopes" />
         <div class="scope-hint">勾选的 scope 将在应用创建后进入管理员审批流程</div>
+      </el-form-item>
+      <el-form-item v-else>
+        <div class="scope-hint">如需调整权限范围，请使用列表中的「申请权限」入口，调整同样需要管理员审批</div>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -116,7 +119,7 @@ async function handleSubmit() {
   } catch {
     return
   }
-  if (form.value.scopes.length === 0) {
+  if (!isEdit.value && form.value.scopes.length === 0) {
     ElMessage.warning('请至少勾选一个权限范围')
     return
   }
@@ -144,7 +147,7 @@ async function handleUpdate() {
       description: form.value.description,
       auth_mode: form.value.auth_mode,
     })
-    ElMessage.success('更新成功')
+    ElMessage.success('修改申请已提交，等待管理员审批')
     emit('submitted')
   } catch {
     // 错误已处理

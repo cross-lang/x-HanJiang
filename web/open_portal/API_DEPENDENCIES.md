@@ -156,13 +156,13 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/v1/apps/scopes` | scope 目录（open 前端 listScopes 当前即走此接口） |
-| POST | `/api/v1/apps` | 管理员创建应用（owner=admin，创建即 approved；返回 app_key 一次） |
-| GET | `/api/v1/apps` | 应用分页列表（含 owner_type/owner_name/approval_status） |
-| GET/PUT/DELETE | `/api/v1/apps/{id}` | 应用详情 / 更新 / 删除 |
-| PUT | `/api/v1/apps/{id}/approval` | **审批端点**：approved=true/false + note，通过/驳回开发者申请（未通过的应用网关一律 403） |
-| PUT | `/api/v1/apps/{id}/scopes` | 覆盖式调整应用 scope（审批落地，置 approved） |
-| PUT | `/api/v1/apps/{id}/status` | 启用/禁用 |
-| POST | `/api/v1/apps/{id}/rotate-key` | 重置密钥 |
+| GET | `/api/admin/v1/apps/scopes` | scope 目录（open 前端 listScopes 当前即走此接口） |
+| POST | `/api/admin/v1/apps` | 管理员创建应用（owner=admin，创建即 approved；返回 app_key 一次） |
+| GET | `/api/admin/v1/apps` | 应用分页列表（含 owner_type/owner_name/approval_status） |
+| GET/PUT/DELETE | `/api/admin/v1/apps/{id}` | 应用详情 / 更新 / 删除 |
+| PUT | `/api/admin/v1/apps/{id}/approval` | **审批端点**：approved=true/false + note，通过/驳回开发者申请（未通过的应用网关一律 403） |
+| PUT | `/api/admin/v1/apps/{id}/scopes` | 覆盖式调整应用 scope（审批落地，置 approved） |
+| PUT | `/api/admin/v1/apps/{id}/status` | 启用/禁用 |
+| POST | `/api/admin/v1/apps/{id}/rotate-key` | 重置密钥 |
 
 > 衔接点：开发者提交应用/scope 申请（approval_status=pending）→ 管理端 `admin/apps/{id}/approval` 审批 → 通过后应用方可调用 /api/open/v1 开放接口。

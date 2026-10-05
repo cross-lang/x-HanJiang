@@ -4,6 +4,7 @@
       <span class="page-title">{{ pageTitle }}</span>
     </div>
     <div class="header-right">
+      <GlobalSearch />
       <NotificationBell />
       <el-dropdown trigger="click" @command="$emit('command', $event)">
         <span class="user-entry">
@@ -27,6 +28,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useDeveloperStore } from '@/stores/developer'
+import GlobalSearch from '@/components/GlobalSearch.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
 
 defineEmits<{ command: [cmd: string] }>()

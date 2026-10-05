@@ -51,7 +51,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request, socket; socket.setdefaulttimeout(3); urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request, socket; socket.setdefaulttimeout(3); urllib.request.urlopen('http://localhost:8000/api/admin/v1/health')"]
       interval: 30s
       timeout: 5s
       retries: 3

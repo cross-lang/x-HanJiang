@@ -2,7 +2,7 @@
 
 与管理系统 UserEntity 平行、分表：
 - UserEntity      → users 表，管理系统账号（管理员），JWT 鉴权；
-- DeveloperEntity → developers 表，开放平台门户账号（注册开发者），JWT 鉴权（get_current_developer）。
+- DeveloperEntity → developers 表，开放平台账号（注册开发者），JWT 鉴权（get_current_developer）。
 
 开发者通过门户自助注册、创建应用；应用归属用 owner_type/owner_id 区分
 （developer → developers.id；admin → 管理系统 users.id，见 openapi_apps 表）。

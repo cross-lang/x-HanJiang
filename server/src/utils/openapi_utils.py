@@ -7,11 +7,21 @@
 管理端服务保留同名 re-export，旧引用无需改动。
 """
 
+import random
 import secrets
 from typing import Any
 
 from src.constants.scopes import OpenApiScopeCode, OpenApiScopeModule
 from src.core.exceptions import ValidationException
+
+
+def generate_registration_code() -> str:
+    """生成 6 位数字申请码（100000–999999），对外展示用。
+
+    申请码为纯数字短码，便于用户在管理后台与门户端之间口头/书面核对批次；
+    唯一性由调用方配合 repository 查重（code_exists）保证。
+    """
+    return f"{random.randint(100000, 999999)}"
 
 
 def generate_app_id() -> str:
@@ -85,4 +95,10 @@ def build_scope_dict_list(entities: list[Any]) -> list[dict[str, Any]]:
     return result
 
 
-__all__ = ["generate_app_id", "parse_scopes", "validate_scopes", "build_scope_dict_list"]
+__all__ = [
+    "generate_app_id",
+    "generate_registration_code",
+    "parse_scopes",
+    "validate_scopes",
+    "build_scope_dict_list",
+]

@@ -58,6 +58,7 @@ class PermissionAction(StrBaseEnum):
     DELETE = ("delete", "删除")
     EXPORT = ("export", "导出")
     IMPORT = ("import", "导入")
+    APPROVE = ("approve", "审批")
     UPLOAD = ("upload", "上传")
     DOWNLOAD = ("download", "下载")
     PUBLISH = ("publish", "发布")
@@ -181,6 +182,7 @@ class PermissionCode(BaseEnum):
     OPENAPI_APP_STATUS = ("openapi_app:status", "启停开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.STATUS.mark, "启用或禁用开放平台应用", 64)
     OPENAPI_APP_ROTATE_KEY = ("openapi_app:rotate_key", "重置开放应用AppKey", PermissionModule.OPENAPI_APP.mark, PermissionAction.ROTATE_KEY.mark, "重置应用密钥，旧密钥立即失效", 65)
     OPENAPI_APP_DELETE = ("openapi_app:delete", "删除开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.DELETE.mark, "删除开放平台应用", 66)
+    OPENAPI_APP_APPROVE = ("openapi_app:approve", "审批开放应用申请", PermissionModule.OPENAPI_APP.mark, PermissionAction.APPROVE.mark, "查看并审批开发者提交的应用创建/修改申请", 69)
     OPENAPI_SCOPE_VIEW = ("openapi_scope:view", "查看开放平台权限", PermissionModule.OPENAPI_SCOPE.mark, PermissionAction.VIEW.mark, "查看开放平台 scope 列表", 67)
     OPENAPI_DEV_VIEW = (
         "openapi_dev:view",

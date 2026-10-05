@@ -38,7 +38,7 @@ from src.api.admin.dependencies import get_file_service, get_role_service, get_u
 if TYPE_CHECKING:
     from src.services.open.gateway_service import OpenGatewayService
 
-# 开放平台 API Key 认证方案（Swagger UI 右上角会出现 Authorize 按钮）
+# 开放 API Key 认证方案（Swagger UI 右上角会出现 Authorize 按钮）
 _app_id_scheme = APIKeyHeader(name=OPENAPI_HEADER_APP_ID, scheme_name="OpenAppId", auto_error=False)
 
 _app_key_scheme = APIKeyHeader(name=OPENAPI_HEADER_APP_KEY, scheme_name="OpenAppKey", auto_error=False)
@@ -82,7 +82,7 @@ async def get_current_app(
     _app_auth: str | None = Depends(_app_auth_scheme),
     service: OpenGatewayService = Depends(get_open_gateway_service),
 ) -> CurrentApp:
-    """解析开放平台应用身份，委托给开放接口网关鉴权服务（OpenGatewayService）。
+    """解析开放 API 应用身份，委托给开放接口网关鉴权服务（OpenGatewayService）。
 
     在 API 层把 FastAPI Request 剥离为 OpenApiAuthContext 纯数据后传入，
     services 层不依赖 Web 框架对象（starlette Request / body 流）。

@@ -51,6 +51,9 @@ if TYPE_CHECKING:
     from src.services.admin.dashboard_service import DashboardService
     from src.services.admin.developer_admin_service import DeveloperAdminService
     from src.services.admin.login_log_service import LoginLogService
+    from src.services.admin.openapi_app_registration_service import (
+        OpenApiAppRegistrationService,
+    )
     from src.services.admin.openapi_app_service import OpenApiAppService
     from src.services.admin.profile_service import ProfileService
     from src.services.admin.search_service import SearchService
@@ -297,11 +300,35 @@ def get_login_log_service(
 def get_openapi_app_service(
     db_session: Session = Depends(get_db_session),
 ) -> OpenApiAppService:
-    """创建开放平台应用管理服务（管理端 CRUD/审批）。"""
+    """创建开放平台应用管理服务（管理端 CRUD/scope 授权/启停）。"""
+    from src.repositories.openapi_app_registration_repository import (
+        OpenApiAppRegistrationRepository,
+    )
     from src.repositories.openapi_app_repository import OpenApiAppRepository
     from src.services.admin.openapi_app_service import OpenApiAppService
 
-    return OpenApiAppService(repo=OpenApiAppRepository(session=db_session))
+    return OpenApiAppService(
+        repo=OpenApiAppRepository(session=db_session),
+        registration_repo=OpenApiAppRegistrationRepository(session=db_session),
+    )
+
+
+def get_openapi_app_registration_service(
+    db_session: Session = Depends(get_db_session),
+) -> OpenApiAppRegistrationService:
+    """创建开放平台应用审批服务（管理端申请批次列表/审批）。"""
+    from src.repositories.openapi_app_registration_repository import (
+        OpenApiAppRegistrationRepository,
+    )
+    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.services.admin.openapi_app_registration_service import (
+        OpenApiAppRegistrationService,
+    )
+
+    return OpenApiAppRegistrationService(
+        repo=OpenApiAppRegistrationRepository(session=db_session),
+        app_repo=OpenApiAppRepository(session=db_session),
+    )
 
 
 def get_developer_admin_service(
@@ -309,13 +336,19 @@ def get_developer_admin_service(
 ) -> DeveloperAdminService:
     """创建开放平台开发者用户管理服务（管理端查询）。"""
     from src.repositories.developer_repository import DeveloperRepository
+    from src.repositories.openapi_app_registration_repository import (
+        OpenApiAppRegistrationRepository,
+    )
     from src.repositories.openapi_app_repository import OpenApiAppRepository
     from src.services.admin.developer_admin_service import DeveloperAdminService
     from src.services.admin.openapi_app_service import OpenApiAppService
 
     return DeveloperAdminService(
         repository=DeveloperRepository(session=db_session),
-        openapi_app_service=OpenApiAppService(repo=OpenApiAppRepository(session=db_session)),
+        openapi_app_service=OpenApiAppService(
+            repo=OpenApiAppRepository(session=db_session),
+            registration_repo=OpenApiAppRegistrationRepository(session=db_session),
+        ),
     )
 
 

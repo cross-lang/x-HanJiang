@@ -103,14 +103,6 @@
           }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="审批状态" width="100">
-        <template #default="{ row }">
-          <span v-if="!row.approval_status" class="hj-approval-none">-</span>
-          <el-tag v-else :type="approvalTagType(row.approval_status)" effect="light">
-            {{ approvalLabel(row.approval_status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
     </el-table>
     <el-pagination
       class="hj-pagination hj-mt-20"
@@ -169,26 +161,6 @@ function certTagType(status: string): 'info' | 'warning' | 'success' | 'danger' 
     approved: 'success',
     rejected: 'danger',
   }[status] || 'info') as 'info' | 'warning' | 'success' | 'danger'
-}
-
-/** 审批状态 → 中文标签 */
-function approvalLabel(status: string): string {
-  return (
-    {
-      pending: '待审批',
-      approved: '已通过',
-      rejected: '已驳回',
-    }[status] || status
-  )
-}
-
-/** 审批状态 → 标签配色 */
-function approvalTagType(status: string): 'warning' | 'success' | 'danger' {
-  return ({
-    pending: 'warning',
-    approved: 'success',
-    rejected: 'danger',
-  }[status] || 'info') as 'warning' | 'success' | 'danger'
 }
 
 async function fetchList() {

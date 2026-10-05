@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""开放平台用户管理接口。
+"""开放 API 用户管理接口。
 将用户管理核心能力暴露给外部服务，通过 AppId/AppKey + scope 鉴权。
 operator 上下文记录为调用方应用，而非终端用户。
 """
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/users", tags=["开放API：用户管理"])
 
 @router.post(
     "",
-    summary="开放平台创建用户",
+    summary="开放 API 创建用户",
     response_model=ApiResponse[UserResponse],
     status_code=201,
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_WRITE.mark))],
@@ -45,7 +45,7 @@ def create_user(
 
 @router.get(
     "",
-    summary="开放平台用户列表",
+    summary="开放 API 用户列表",
     response_model=ApiResponse[PaginatedResponse[UserResponse]],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_READ.mark))],
 )
@@ -76,7 +76,7 @@ def list_users(
 
 @router.get(
     "/{user_id}",
-    summary="开放平台用户详情",
+    summary="开放 API 用户详情",
     response_model=ApiResponse[UserResponse],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_READ.mark))],
 )
@@ -98,7 +98,7 @@ def get_user(
 
 @router.patch(
     "/{user_id}",
-    summary="开放平台更新用户",
+    summary="开放 API 更新用户",
     response_model=ApiResponse[UserResponse],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_WRITE.mark))],
 )
@@ -117,7 +117,7 @@ def update_user(
 
 @router.delete(
     "/{user_id}",
-    summary="开放平台删除用户",
+    summary="开放 API 删除用户",
     response_model=ApiResponse[dict],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_WRITE.mark))],
 )

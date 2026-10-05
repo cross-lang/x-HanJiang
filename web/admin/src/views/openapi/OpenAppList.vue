@@ -1,10 +1,5 @@
 <template>
   <el-card>
-    <el-tabs v-model="scopeTab" class="hj-app-scope-tabs" @tab-change="handleScopeChange">
-      <el-tab-pane label="全部应用" name="all" />
-      <el-tab-pane label="我新建的" name="created" />
-      <el-tab-pane label="我审批的" name="approved" />
-    </el-tabs>
     <div class="hj-toolbar">
       <el-button type="primary" @click="handleCreate">新建应用</el-button>
       <div class="hj-flex hj-gap-8">
@@ -44,37 +39,20 @@
           }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="审批状态" width="110">
+      <el-table-column prop="owner_name" label="归属人" width="120" />
+      <el-table-column prop="owner_type" label="归属类型" width="110">
         <template #default="{ row }">
-          <span v-if="!row.approval_status" class="hj-approval-none">-</span>
-          <el-tooltip v-else-if="row.approval_note" :content="row.approval_note" placement="top" :show-after="300">
-            <el-tag :type="approvalTagType(row.approval_status)" effect="light">
-              {{ approvalLabel(row.approval_status) }}
-            </el-tag>
-          </el-tooltip>
-          <el-tag v-else :type="approvalTagType(row.approval_status)" effect="light">
-            {{ approvalLabel(row.approval_status) }}
+          <el-tag :type="row.owner_type === 'developer' ? 'primary' : 'info'" effect="light">
+            {{ row.owner_type === 'developer' ? '开发者自助' : '管理员分配' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="owner_name" label="拥有者" width="120" />
       <el-table-column prop="created_at" label="创建时间" width="170">
         <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="340" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button
-            v-if="row.approval_status === 'pending'"
-            size="small"
-            type="primary"
-            @click="handleApprove(row as OpenAppItem)"
-          >
-            审批
-          </el-button>
-          <el-button v-if="!isApprovedTab" size="small" @click="handleEdit(row as OpenAppItem)">编辑</el-button>
-          <el-button v-if="!isApprovedTab" size="small" type="warning" @click="handleRotateKey(row as OpenAppItem)"
-            >重置密钥</el-button
-          >
+          <el-button size="small" @click="handleEdit(row as OpenAppItem)">编辑</el-button>
           <el-button
             size="small"
             :type="row.status === 'active' ? 'warning' : 'success'"
@@ -82,7 +60,27 @@
           >
             {{ row.status === 'active' ? '禁用' : '启用' }}
           </el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row as OpenAppItem)">删除</el-button>
+          <!-- 开发者自助应用的密钥/删除权限归开发者本人（门户端），管理端不代操作；
+               无更多操作时不展示"更多"按钮 -->
+          <el-dropdown
+            v-if="row.owner_type !== 'developer'"
+            trigger="click"
+            @command="(cmd: string) => handleMore(cmd, row as OpenAppItem)"
+          >
+            <el-button size="small" text class="more-btn">
+              <el-icon><MoreFilled /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="rotate">
+                  <el-icon class="menu-icon"><Key /></el-icon>重置密钥
+                </el-dropdown-item>
+                <el-dropdown-item command="delete" divided class="danger-item">
+                  <el-icon class="menu-icon"><Delete /></el-icon>删除
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -107,20 +105,18 @@
     type="warning"
     :secret="rotateResult"
   />
-
-  <ApproveDialog v-model:visible="approveVisible" :record="approveRecord" @submitted="onApproveSubmitted" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Key, MoreFilled } from '@element-plus/icons-vue'
 import { formatDateTime } from '@/utils/format'
 import { listApps, updateAppStatus, rotateAppKey, deleteApp } from '@/api/openapi'
 import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
 import type { OpenAppItem } from '@/types/openapi'
 import AppFormDialog, { type AppSecret } from './components/AppFormDialog.vue'
-import ApproveDialog from './components/ApproveDialog.vue'
 import SecretResultDialog from './components/SecretResultDialog.vue'
 
 const route = useRoute()
@@ -131,8 +127,6 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const keyword = ref('')
-const scopeTab = ref('all')
-const isApprovedTab = computed(() => scopeTab.value === 'approved')
 
 const dialogVisible = ref(false)
 const editDialogVisible = ref(false)
@@ -144,25 +138,6 @@ const createdApp = ref<AppSecret>({ app_id: '', app_key: '' })
 const rotateResultVisible = ref(false)
 const rotateResult = ref<AppSecret>({ app_id: '', app_key: '' })
 
-const approveVisible = ref(false)
-const approveRecord = ref<OpenAppItem | null>(null)
-
-/** 审批状态徽章类型 */
-function approvalTagType(status: string | null) {
-  if (!status) return 'info'
-  if (status === 'approved') return 'success'
-  if (status === 'rejected') return 'danger'
-  return 'warning'
-}
-
-/** 审批状态中文标签 */
-function approvalLabel(status: string | null) {
-  if (!status) return '-'
-  if (status === 'approved') return '已通过'
-  if (status === 'rejected') return '已驳回'
-  return '待审批'
-}
-
 async function fetchList() {
   loading.value = true
   try {
@@ -170,7 +145,6 @@ async function fetchList() {
       page: page.value,
       page_size: pageSize.value,
       keyword: keyword.value.trim() || undefined,
-      scope: scopeTab.value === 'all' ? undefined : (scopeTab.value as 'created' | 'approved'),
     })
     list.value = res.data.items
     total.value = res.data.total
@@ -179,11 +153,6 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
-}
-
-function handleScopeChange() {
-  page.value = 1
-  fetchList()
 }
 
 function handleSearch() {
@@ -218,25 +187,26 @@ function onDialogSubmitted() {
   fetchList()
 }
 
-/** 打开审批对话框（仅待审批应用显示入口） */
-function handleApprove(row: OpenAppItem) {
-  approveRecord.value = row
-  approveVisible.value = true
-}
-
-/** 审批提交成功：关闭并刷新列表 */
-function onApproveSubmitted() {
-  approveVisible.value = false
-  fetchList()
+/** 更多（···）下拉：重置密钥 / 删除 */
+function handleMore(cmd: string, row: OpenAppItem) {
+  if (cmd === 'rotate') {
+    handleRotateKey(row)
+  } else if (cmd === 'delete') {
+    handleDelete(row)
+  }
 }
 
 async function handleToggleStatus(row: OpenAppItem) {
   const newStatus = row.status === 'active' ? 'disabled' : 'active'
   try {
     await ElMessageBox.confirm(
-      `确定${newStatus === 'active' ? '启用' : '禁用'}应用「${row.name}」吗？`,
+      `确定${newStatus === 'active' ? '启用' : '禁用'}应用「${row.name}」吗？${
+        newStatus === 'disabled'
+          ? '\n禁用后该应用的全部 API 调用立即被拒绝；若该应用存在待审批的权限申请，将一并拒绝。'
+          : ''
+      }`,
       '危险操作确认',
-      { type: 'warning' },
+      { type: 'warning', confirmButtonText: newStatus === 'active' ? '确认启用' : '确认禁用' },
     )
   } catch {
     return
@@ -308,3 +278,24 @@ watch(
   },
 )
 </script>
+
+<style scoped>
+.more-btn {
+  margin-left: 4px;
+  padding: 6px;
+  border-radius: 6px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.more-btn:hover {
+  background: var(--hj-bg-hover);
+  color: var(--hj-primary);
+}
+.menu-icon {
+  margin-right: 6px;
+}
+.danger-item {
+  color: #f56c6c;
+}
+</style>

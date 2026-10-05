@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""开放平台角色管理接口。
+"""开放 API 角色管理接口。
 将角色管理核心能力暴露给外部服务，通过 AppId/AppKey + scope 鉴权。
 operator 上下文记录为调用方应用，而非终端用户。
 
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/roles", tags=["开放API：角色管理"])
 
 @router.get(
     "",
-    summary="开放平台角色列表",
+    summary="开放 API 角色列表",
     response_model=ApiResponse[PaginatedResponse[RoleResponse]],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.ROLE_READ.mark))],
 )
@@ -65,7 +65,7 @@ def list_roles(
 
 @router.post(
     "",
-    summary="开放平台创建角色",
+    summary="开放 API 创建角色",
     response_model=ApiResponse[RoleResponse],
     status_code=201,
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.ROLE_WRITE.mark))],
@@ -84,7 +84,7 @@ def create_role(
 
 @router.get(
     "/{role_id}",
-    summary="开放平台角色详情",
+    summary="开放 API 角色详情",
     response_model=ApiResponse[RoleResponse],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.ROLE_READ.mark))],
 )
@@ -106,7 +106,7 @@ def get_role(
 
 @router.patch(
     "/{role_id}",
-    summary="开放平台更新角色",
+    summary="开放 API 更新角色",
     response_model=ApiResponse[RoleResponse],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.ROLE_WRITE.mark))],
 )
@@ -125,7 +125,7 @@ def update_role(
 
 @router.delete(
     "/{role_id}",
-    summary="开放平台删除角色",
+    summary="开放 API 删除角色",
     response_model=ApiResponse[dict],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.ROLE_WRITE.mark))],
 )
@@ -143,7 +143,7 @@ def delete_role(
 
 @router.get(
     "/{role_id}/permissions",
-    summary="开放平台角色权限列表",
+    summary="开放 API 角色权限列表",
     response_model=ApiResponse[list[PermissionResponse]],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.ROLE_READ.mark))],
 )

@@ -30,7 +30,7 @@ export function deleteFile(id: number) {
 /** 下载文件（原始 fetch，返回 Blob，调用方负责落盘） */
 export function downloadFileBlob(key: string): Promise<Response> {
   const token = localStorage.getItem('access_token')
-  return fetch(`/api/v1/files/${key}`, {
+  return fetch(`/api/admin/v1/files/${key}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
 }

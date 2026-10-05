@@ -60,8 +60,9 @@ _SEED_MENUS = [
     # 开放平台
     (0, "开放平台", "/open", "Connection", None, 5, "directory"),
     ("开放平台", "应用管理", "/apps", "Grid", PermissionCode.OPENAPI_APP_VIEW.mark, 1, "menu"),
-    ("开放平台", "权限管理", "/app-scopes", "Lock", PermissionCode.OPENAPI_APP_VIEW.mark, 2, "menu"),
-    ("开放平台", "用户管理", "/open-developers", "Avatar", PermissionCode.OPENAPI_DEV_VIEW.mark, 3, "menu"),
+    ("开放平台", "应用审批", "/app-approvals", "Stamp", PermissionCode.OPENAPI_APP_APPROVE.mark, 2, "menu"),
+    ("开放平台", "权限管理", "/app-scopes", "Lock", PermissionCode.OPENAPI_APP_VIEW.mark, 3, "menu"),
+    ("开放平台", "开发者管理", "/open-developers", "Avatar", PermissionCode.OPENAPI_DEV_VIEW.mark, 4, "menu"),
 ]
 
 
@@ -217,8 +218,35 @@ def _seed_menus(session) -> None:
     """初始化菜单数据（幂等）。
 
     幂等键为 ``(parent_id, title)``：菜单树中允许不同父级下存在同名菜单
-    （如"系统管理/用户管理"与"开放平台/用户管理"），仅按 title 判断会误跳过。
+    （如"系统管理/用户管理"与"开放平台/开发者管理"），仅按 title 判断会误跳过。
+
+    同时执行一次兼容迁移：早期版本开放平台下该菜单名为"用户管理"，
+    统一更名为"开发者管理"（按 父级+path 精确匹配，不影响系统管理下的用户管理）。
     """
+    existing = session.execute(select(MenuEntity)).scalars().all()
+    # 去重加固：同一父级下 (title, path) 完全相同的菜单仅保留 id 最小的一条。
+    # 历史版本曾因"更名迁移 + _SEED_MENUS 新增同名条目"叠加产生重复记录
+    # （如 开放平台/开发者管理 出现两条），幂等键无法发现，故在此显式清理。
+    seen_key: dict[tuple[int, str, str], MenuEntity] = {}
+    for m in sorted(existing, key=lambda x: x.id):
+        key = (m.parent_id, m.title, m.path or "")
+        if key in seen_key:
+            session.delete(m)
+            logger.info(f"Seed menu deduplicated: id={m.id} title={m.title} path={m.path}")
+        else:
+            seen_key[key] = m
+    existing = session.execute(select(MenuEntity)).scalars().all()
+    parent_map = {m.title: m for m in existing}
+    openapi_parent = parent_map.get("开放平台")
+    if openapi_parent is not None:
+        for m in existing:
+            if (
+                m.parent_id == openapi_parent.id
+                and m.title == "用户管理"
+                and m.path == "/open-developers"
+            ):
+                m.title = "开发者管理"
+                logger.info("Seed menu renamed: 开放平台/用户管理 → 开发者管理")
     existing = session.execute(select(MenuEntity)).scalars().all()
     key_map = {(m.parent_id, m.title): m for m in existing}
     parent_map = {m.title: m for m in existing}

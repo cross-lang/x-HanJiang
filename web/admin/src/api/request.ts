@@ -4,7 +4,7 @@ import type { ApiResponse } from '@/types/api'
 import { clearToken, getToken } from '@/utils/storage'
 
 const http = axios.create({
-  baseURL: '/api/v1',
+  baseURL: '/api/admin/v1',
   timeout: 10000,
 })
 

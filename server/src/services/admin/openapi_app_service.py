@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """开放平台应用管理业务逻辑（管理端视角）。
 
-仅包含管理员侧的应用 CRUD、密钥生成与重置、scope 授权与审批（OpenApiAppService）。
-网关鉴权（X-App-Id/App-Key 明文 或 HanJiang-1 签名 + 审批门槛）已抽至
+仅包含管理员侧的应用 CRUD、密钥生成与重置、scope 直接授权（OpenApiAppService）。
+应用申请/审批（创建申请、修改申请批次）由 OpenApiAppRegistrationService 独立承接，
+本服务不再承载审批字段与审批动作；应用级授权状态以 approved 标记为准。
+
+- 管理端自建应用（owner_type=admin）：无审批概念，创建即 approved=True；
+- 开发者自助应用（owner_type=developer）：须经审批通过（approved=True）方可被网关放行，
+  创建/修改申请与审批记录在 openapi_app_registrations 表。
+
+网关鉴权（X-App-Id/App-Key 明文 或 HanJiang-1 签名 + 授权门槛）位于
 src/services/open/gateway_service.py（开放接口域）；
 公共工具（generate_app_id / parse_scopes / scope 目录映射）在 src/utils/openapi_utils.py。
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from src.constants.enums import (
@@ -22,10 +30,13 @@ from src.constants.enums import (
     StationMessageStatus,
 )
 from src.constants.permissions import PermissionAction
-from src.core.exceptions import NotFoundException
+from src.core.exceptions import ConflictException, NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
 from src.models.entities.notification_entity import NotificationRecordEntity
+from src.repositories.openapi_app_registration_repository import (
+    OpenApiAppRegistrationRepository,
+)
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.admin.openapi_app import OpenApiAppResponse
 from src.services.admin.base_service import BaseService, audit_crud
@@ -38,27 +49,19 @@ from src.utils.openapi_utils import (
 )
 from src.utils.security import generate_secret_key
 
-# ============================================================
-
-# scope 解析（公共函数已抽至 src/utils/openapi_utils.py，此处 re-export 保持旧引用兼容）
-
-# ============================================================
-
-
-# ============================================================
-
-# 管理员侧 CRUD
-
-# ============================================================
-
 
 class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepository]):
-    """开放应用管理。"""
+    """开放应用管理（应用自身信息 CRUD；审批动作见 OpenApiAppRegistrationService）。"""
 
     entity_type = "openapi_app"
 
-    def __init__(self, repo: OpenApiAppRepository) -> None:
+    def __init__(
+        self,
+        repo: OpenApiAppRepository,
+        registration_repo: OpenApiAppRegistrationRepository,
+    ) -> None:
         self._repository = repo
+        self._registration_repo = registration_repo
 
     # ── 创建 ────────────────────────────────────────────
 
@@ -81,8 +84,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             owner_type: 归属类型（admin=管理员分配，默认；developer=开发者自助，走开发者域接口）
             owner_id: 归属方 ID（admin→users.id / developer→developers.id）
 
-        审批流仅面向开发者自助应用：admin 自建应用无审批概念，
-        approval_status 保持 NULL（开发者域创建时才写 pending）。
+        管理端入口创建的开发者应用仅出现在特殊分配场景：管理端直接代建即视为
+        已授权（approved=True），不额外走审批流；开发者门户自助创建才进入审批流。
         """
         validate_scopes(scopes)
         app_id = generate_app_id()
@@ -100,11 +103,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             auth_mode=auth_mode,
             owner_type=owner_type,
             owner_id=owner_id,
-            approval_status=(
-                AppApprovalStatus.PENDING.value
-                if owner_type == AppOwnerType.DEVELOPER.value
-                else None
-            ),
+            approved=True,
             status=AppStatus.ACTIVE.value,
         )
         created = self._repository.create(entity)
@@ -127,66 +126,27 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         keyword: str | None = None,
         owner_type: str | None = None,
         owner_id: int | None = None,
-        scope: str | None = None,
-        operator_id: int | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
-        """分页查询应用列表（不含已软删除）。
+        """分页查询应用列表（不含已软删除），仅返回应用自身信息。
 
         Args:
             keyword: 按名称模糊搜索
             owner_type: 按归属类型过滤（developer 开发者自助 / admin 管理员分配）
             owner_id: 按归属方 ID 过滤（与 owner_type 组合，如查询某开发者名下的应用）
-            scope: 管理端个人视角类目：
-                "created"  = 我新建的（owner_type=admin 且 owner_id=当前用户）
-                "approved" = 我审批的（待审批 pending 或 审批人 approved_by=当前用户）
-            operator_id: 当前管理端用户 ID（scope 过滤依赖）
 
         Returns:
             {items, total, page, page_size}，与用户列表等接口分页口径一致。
         """
         skip = (page - 1) * page_size
-        if scope == "created":
-            # 我新建的：管理员创建且归属本人
-            rows, total = self._repository.search_by_keyword(
-                keyword=keyword,
-                owner_type=AppOwnerType.ADMIN.value,
-                owner_id=operator_id,
-                skip=skip,
-                limit=page_size,
-            )
-        elif scope == "approved":
-            # 我审批的：待审批（pending，当前有权限者可处理）∪ 我审批过的（approved_by=我）
-            pending_rows, _ = self._repository.search_by_keyword(
-                keyword=keyword,
-                approval_status=AppApprovalStatus.PENDING.value,
-                skip=0,
-                limit=10000,
-            )
-            handled_rows, _ = self._repository.search_by_keyword(
-                keyword=keyword,
-                approved_by=operator_id,
-                skip=0,
-                limit=10000,
-            )
-            merged: dict[int, OpenApiAppEntity] = {}
-            for r in pending_rows:
-                merged[r.id] = r
-            for r in handled_rows:
-                merged[r.id] = r
-            rows = list(merged.values())
-            total = len(rows)
-            rows = rows[skip : skip + page_size]
-        else:
-            # 全量
-            rows, total = self._repository.search_by_keyword(
-                keyword=keyword,
-                owner_type=owner_type,
-                owner_id=owner_id,
-                skip=skip,
-                limit=page_size,
-            )
+        rows, total = self._repository.search_by_keyword(
+            keyword=keyword,
+            owner_type=owner_type,
+            owner_id=owner_id,
+            skip=skip,
+            limit=page_size,
+        )
         return {
             "items": [self._to_response(r) for r in rows],
             "total": total,
@@ -205,10 +165,13 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     @audit_crud(PermissionAction.EDIT.mark)
     def update(self, id: int, patch: dict[str, Any], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
-        """更新应用基本信息（不含 scopes / status，走专用方法）。"""
-        e = self._repository.get_by_id(id)
-        if e is None:
-            raise NotFoundException(message=f"应用 {id} 不存在")
+        """更新应用基本信息（不含 scopes / status，走专用方法）。
+
+        应用存在待审批申请时拒绝直接编辑，避免管理端改动与申请快照冲突，
+        需先在"应用审批"页处理完待审批批次。
+        """
+        e = self._require_app(id)
+        self._reject_if_pending(e)
         for k, v in patch.items():
             if v is not None and hasattr(e, k):
                 setattr(e, k, v)
@@ -224,71 +187,20 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     @audit_crud(PermissionAction.SCOPES.mark)
     def update_scopes(self, id: int, scopes: list[str], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
-        """覆盖更新应用 scope 列表。
+        """覆盖更新应用 scope 列表（管理端直接授权，即时生效，不产生申请批次）。
 
-        审批语义仅针对开发者自助应用：有审批流（approval_status 非空）时，
-        管理端授权调整视为审批通过置 approved；管理端自建应用（NULL）无审批概念，
-        直接改 scope 不产生审批状态。
+        与 update 相同：应用存在待审批申请时拒绝直接修改，避免与申请快照冲突。
         """
         validate_scopes(scopes)
-        e = self._repository.get_by_id(id)
-        if e is None:
-            raise NotFoundException(message=f"应用 {id} 不存在")
+        e = self._require_app(id)
+        self._reject_if_pending(e)
         e.scopes = ",".join(scopes)
-        if e.approval_status is not None:
-            e.approval_status = AppApprovalStatus.APPROVED.value
         self._notify_owner_action(
             e,
             action="授权范围变更",
             event=NotificationEvent.OPENAPI_APP_UPDATED,
             operator=operator,
         )
-        self._repository.flush()
-        self._commit()
-        return self._to_response(e)
-
-    def update_approval(
-        self,
-        id: int,
-        *,
-        approved: bool,
-        note: str | None = None,
-        operator: dict[str, Any] | None = None,
-    ) -> OpenApiAppResponse:
-        """管理端审批开发者 scope 申请：通过（approved）或驳回（rejected）+ 审批意见。
-
-        通过仅置状态（scope 本身由开发者申请端点已写入目标值）；
-        驳回保留 pending 的 scopes 原值并记录驳回原因。
-        审批人（operator.operator_id）写入 approved_by，供管理端"我审批的"类目过滤。
-        审批结果同步以开发者站内信通知应用 owner（owner_type=developer），
-        与审批状态同事务提交，开发者门户右上角铃铛即时可见。
-        """
-        e = self._repository.get_by_id(id)
-        if e is None:
-            raise NotFoundException(message=f"应用 {id} 不存在")
-        e.approval_status = (
-            AppApprovalStatus.APPROVED.value if approved else AppApprovalStatus.REJECTED.value
-        )
-        if operator and operator.get("operator_id") is not None:
-            e.approved_by = operator["operator_id"]
-        e.approval_note = (note or "").strip() or None
-        # 开发者自有应用：审批结果写入开发者站内信（随本事务一并提交）
-        if e.owner_type == AppOwnerType.DEVELOPER.value and e.owner_id is not None:
-            app_ref = f"应用「{e.name}」（App ID：{e.app_id}）"
-            note_suffix = f" 审批意见：{e.approval_note}" if e.approval_note else ""
-            self._repository.session.add(
-                DeveloperMessageEntity(
-                    developer_id=e.owner_id,
-                    title="应用审批通过" if approved else "应用审批驳回",
-                    content=(
-                        f"{app_ref}的权限申请已通过审批，可正常调用开放接口。{note_suffix}"
-                        if approved
-                        else f"{app_ref}的权限申请未通过审批，请根据审批意见调整后重新提交。{note_suffix}"
-                    ),
-                    category=DeveloperMessageCategory.AUDIT.value,
-                    status=DeveloperMessageStatus.UNREAD.value,
-                )
-            )
         self._repository.flush()
         self._commit()
         return self._to_response(e)
@@ -300,16 +212,28 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         状态变更（尤其禁用）影响应用归属方的实际调用能力，须站内信通知 owner：
         developer 归属发开发者站内信，admin 归属发管理端站内信；
         操作者对自己名下的应用操作不通知（自管自用无需打扰）。
+
+        禁用语义强化：应用存在待审批（pending）的申请批次时，禁用将把该批次
+        一并置为已驳回（rejected），避免申请悬空——前端弹窗已向操作者明示此后果。
         """
-        e = self._repository.get_by_id(id)
-        if e is None:
-            raise NotFoundException(message=f"应用 {id} 不存在")
+        e = self._require_app(id)
         e.status = status
+        approval_rejected = False
+        if status != AppStatus.ACTIVE.value:
+            pending = self._registration_repo.find_pending_by_app(e.id)
+            if pending is not None:
+                pending.status = AppApprovalStatus.REJECTED.value
+                pending.approval_note = "应用被管理员禁用，其待审批的申请已一并驳回。"
+                pending.approved_at = datetime.now(UTC)
+                approval_rejected = True
         self._notify_owner_action(
             e,
             action="禁用" if status != AppStatus.ACTIVE.value else "启用",
             event=NotificationEvent.OPENAPI_APP_UPDATED,
             operator=operator,
+            content_suffix=(
+                "，其待审批的申请已一并驳回。" if approval_rejected else None
+            ),
         )
         self._repository.flush()
         self._commit()
@@ -318,10 +242,13 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
     # ── 重置 AppKey（轮换）────────────────────────────
 
     def rotate_key(self, id: int) -> tuple[OpenApiAppResponse, str]:
-        """重置 AppKey：旧 key 立即失效，返回新明文（仅一次）。"""
-        e = self._repository.get_by_id(id)
-        if e is None:
-            raise NotFoundException(message=f"应用 {id} 不存在")
+        """重置 AppKey：旧 key 立即失效，返回新明文（仅一次）。
+
+        Raises:
+            ConflictException: 开发者自助应用由开发者在门户端自助重置，管理端不代操作
+        """
+        e = self._require_app(id)
+        self._reject_developer_app(e, "重置密钥")
         new_plain = generate_secret_key()
         e.app_key_hash = security.sha256_hex(new_plain)
         e.app_key_encrypted = security.encrypt_text(new_plain)
@@ -334,9 +261,13 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     @audit_crud(PermissionAction.DELETE.mark)
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
-        e = self._repository.get_by_id(id)
-        if e is None:
-            raise NotFoundException(message=f"应用 {id} 不存在")
+        """删除应用（软删除）。
+
+        Raises:
+            ConflictException: 开发者自助应用由开发者在门户端自助删除，管理端不代操作
+        """
+        e = self._require_app(id)
+        self._reject_developer_app(e, "删除")
         self._notify_owner_action(
             e,
             action="删除",
@@ -347,6 +278,36 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self._commit()
         return ok
 
+    # ── 内部辅助 ────────────────────────────────────────
+
+    def _require_app(self, id: int) -> OpenApiAppEntity:
+        """查询应用，不存在抛 NotFound。"""
+        e = self._repository.get_by_id(id)
+        if e is None:
+            raise NotFoundException(message=f"应用 {id} 不存在")
+        return e
+
+    def _reject_if_pending(self, e: OpenApiAppEntity) -> None:
+        """应用存在待审批申请时抛冲突异常（管理端直接修改与申请快照冲突）。"""
+        pending = self._registration_repo.find_pending_by_app(e.id)
+        if pending is not None:
+            raise ConflictException(
+                message=f"应用「{e.name}」存在待审批的申请（申请ID：{pending.id}），"
+                "请先在 开放平台 → 应用审批 中处理后再编辑"
+            )
+
+    @staticmethod
+    def _reject_developer_app(e: OpenApiAppEntity, action: str) -> None:
+        """开发者自助应用的管理权限归开发者本人，管理端不代操作密钥重置/删除。
+
+        Raises:
+            ConflictException: 应用为开发者自助归属（owner_type=developer）时
+        """
+        if e.owner_type == AppOwnerType.DEVELOPER.value:
+            raise ConflictException(
+                message=f"应用「{e.name}」为开发者自助应用，请由开发者在开放平台门户自行{action}"
+            )
+
     # ── 归属方站内信通知 ────────────────────────────────
 
     def _notify_owner_action(
@@ -356,6 +317,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         action: str,
         event: NotificationEvent,
         operator: dict[str, Any] | None = None,
+        content_suffix: str | None = None,
     ) -> None:
         """禁用/删除等影响应用归属方的操作，站内信通知应用 owner。
 
@@ -363,6 +325,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         - admin 归属   → 管理端站内信（notification_records）
         操作者本人对自己名下的应用操作不通知（自管自用无需打扰）；
         通知失败不影响主流程（随本事务提交）。
+        content_suffix 追加在正文末尾（如"其待审批的申请已一并驳回"）。
         """
         op_id = (operator or {}).get("operator_id")
         op_name = (operator or {}).get("operator_name") or f"管理员#{op_id}"
@@ -370,13 +333,17 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         if e.owner_id is not None and op_id == e.owner_id and e.owner_type == AppOwnerType.ADMIN.value:
             return
         app_ref = f"应用「{e.name}」（App ID：{e.app_id}）"
+        suffix = f"{content_suffix}" if content_suffix else ""
         try:
             if e.owner_type == AppOwnerType.DEVELOPER.value and e.owner_id is not None:
                 self._repository.session.add(
                     DeveloperMessageEntity(
                         developer_id=e.owner_id,
                         title=f"应用{action}通知",
-                        content=f"{app_ref}已被管理系统{action}（操作人：{op_name}），如有疑问请联系管理员。",
+                        content=(
+                            f"{app_ref}已被管理系统{action}（操作人：{op_name}）"
+                            f"{suffix}，如有疑问请联系管理员。"
+                        ),
                         category=DeveloperMessageCategory.NOTIFY.value,
                         status=DeveloperMessageStatus.UNREAD.value,
                     )
@@ -388,7 +355,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
                         channel=NotificationChannel.STATION.value,
                         recipient=f"user:{e.owner_id}",
                         subject=f"【开放平台】应用{action}通知",
-                        content=f"{app_ref}已被{op_name}{action}，如有疑问请联系管理员。",
+                        content=f"{app_ref}已被{op_name}{action}{suffix}，如有疑问请联系管理员。",
                         status=StationMessageStatus.UNREAD.value,
                         retry_count=0,
                         max_retries=0,
@@ -421,9 +388,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             owner_type=e.owner_type,
             owner_id=e.owner_id,
             owner_name=owner_name,
-            approval_status=e.approval_status,
-            approved_by=e.approved_by,
-            approval_note=e.approval_note,
+            approved=e.approved,
             last_used_at=e.last_used_at,
             created_at=e.created_at,
         )

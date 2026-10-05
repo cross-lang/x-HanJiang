@@ -1,6 +1,7 @@
 """数据库实体模型包。"""
 
 from src.models.entities.app_entity import OpenApiAppEntity, OpenApiScopeEntity
+from src.models.entities.app_registration_entity import OpenApiAppRegistrationEntity
 from src.models.entities.assistant_entity import (
     AssistantConversationEntity,
     AssistantFeedbackEntity,
@@ -42,6 +43,7 @@ __all__ = [
     "SystemNotificationConfigEntity",
     "OpenApiAppEntity",
     "OpenApiScopeEntity",
+    "OpenApiAppRegistrationEntity",
     "FileEntity",
     "MenuEntity",
     "AssistantConversationEntity",

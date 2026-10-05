@@ -3,21 +3,21 @@
 
 本模块承载开放接口域（/api/open/v1，供外部应用调用汉江平台能力）的核心逻辑：
 1. 应用身份鉴权（authenticate）：X-App-Id/X-App-Key 明文比对 或 HanJiang-1 签名校验，
-   并强制审批门槛（approval_status 非 approved 一律拒绝）；
+   并强制授权门槛（未通过创建审批的应用一律拒绝）；
 2. 签名 / 解签协议纯函数已下沉至 src/core/signature.py；
    FastAPI Request 由 API 层（dependencies.get_current_app）转换为
    OpenApiAuthContext 纯数据后传入，本层不依赖 Web 框架对象。
 
 与门户服务（src/services/open_portal/）严格区分：
 - 本域服务面向"应用调用开放接口"的协议层；
-- 门户服务面向"开发者登录开放平台门户"的业务层；
+- 门户服务面向"开发者登录开放 API"的业务层；
 - 应用数据（openapi_apps）的管理端 CRUD/审批在 src/services/admin/openapi_app_service.py。
 通用加密原语（SHA256、Fernet、HMAC）在 src/utils/security.py，
 公共工具（generate_app_id / parse_scopes / scope 目录映射）在 src/utils/openapi_utils.py。
 """
 
 from src.constants.constants import OPENAPI_CONTENT_TYPE
-from src.constants.enums import AppApprovalStatus, AppAuthMode, AppOwnerType, AppStatus
+from src.constants.enums import AppAuthMode, AppStatus
 from src.core import signature
 from src.core.exceptions import AuthenticationException, AuthorizationException
 from src.repositories.openapi_app_repository import OpenApiAppRepository
@@ -34,11 +34,11 @@ class OpenGatewayService:
         self._repository = repo
 
     async def authenticate(self, ctx: OpenApiAuthContext) -> CurrentApp:
-        """解析开放平台应用身份。
+        """解析开放 API 应用身份。
 
         鉴权流程：
             1. 应用存在且启用（status=active）；
-            2. 审批状态须为 approved（pending/rejected 一律拒绝——申请-审批闭环的强制门槛）；
+            2. 应用已通过创建审批（approved=True，申请-审批闭环的强制授权门槛）；
             3. 按 app.auth_mode 分流：
                - plain：仅接受 X-App-Key 明文比对 SHA256；
                - hmac：  仅接受 HanJiang-1 签名（时间窗 + 重算签名）；
@@ -54,13 +54,12 @@ class OpenGatewayService:
         if app is None or app.status != AppStatus.ACTIVE.value:
             raise AuthenticationException(message="App 无效或已停用")
 
-        # 审批门槛：仅放行已通过审批的应用（开发者自助应用需管理端审批通过后方可调用）；
-        # 管理端自建应用无审批概念（approval_status=NULL），视为已授权直接放行。
-        if app.approval_status != AppApprovalStatus.APPROVED.value and not (
-            app.owner_type == AppOwnerType.ADMIN.value and app.approval_status is None
-        ):
+        # 授权门槛：仅放行已通过创建审批的应用（开发者自助应用 approved=True 后方可调用）；
+        # 管理端自建应用无审批概念，创建时 approved 直接置 True。
+        # 审批状态与批次（申请ID、审批意见）记录在 openapi_app_registrations 表。
+        if not app.approved:
             raise AuthorizationException(
-                message=f"应用 {app.app_id} 未通过审批（当前状态：{app.approval_status}），请联系管理员"
+                message=f"应用 {app.app_id} 未通过审批，请联系管理员"
             )
         try:
             mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)

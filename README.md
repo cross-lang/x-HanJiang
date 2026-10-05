@@ -41,8 +41,8 @@
 汉江采用 **三端一体** 的工程划分，一套代码库覆盖「管理、开放、门户」三类场景：
 
 - **管理系统（web/admin +** **`/api/v1`）**：JWT 认证 + RBAC 权限模型，`@permission` 装饰器声明式注册，启动时自动扫描同步到数据库；内置用户 / 角色 / 权限、审计与登录日志、文件、公告、系统通知广播、全局搜索、仪表盘、AI 助手等企业级中后台能力
-- **开放平台 API（`/api/open/v1`）**：面向外部应用的网关接口，HanJiang-1 HMAC 签名鉴权（明文/签名双模式）、AppId/AppKey 生命周期管理、scope 授权与密钥轮换、应用审批流、防重放
-- **开放平台门户（web/open\_portal +** **`/api/open-portal/v1`）**：面向开发者的独立门户，支持开发者注册 / 登录（有状态会话）、应用申请与审批跟踪、scope 申请、开放能力文档（18 个接口的请求 / 响应 / 签名示例）、站内信与个人中心
+- **开放 API（`/api/open/v1`）**：面向外部应用的网关接口，HanJiang-1 HMAC 签名鉴权（明文/签名双模式）、AppId/AppKey 生命周期管理、scope 授权与密钥轮换、应用审批流、防重放
+- **开放平台（web/open\_portal +** **`/api/open-portal/v1`）**：面向开发者的独立门户，支持开发者注册 / 登录（有状态会话）、应用申请与审批跟踪、scope 申请、开放能力文档（18 个接口的请求 / 响应 / 签名示例）、站内信与个人中心
 - **AI 助手**：SSE 流式对话（token / navigate / done 事件）、会话管理、记忆压缩、知识库检索与工具编排，`openai_compat` 协议可对接 DeepSeek / 火山方舟 / 通义 / vLLM 等
 - **通知系统**：事件驱动多渠道分发（站内信/邮件/钉钉/飞书），模板变量插值、用户级偏好、失败自动重试
 - **可观测性**：业务审计日志、登录日志、操作日志趋势、系统告警
@@ -87,7 +87,7 @@ npm run dev
 
 访问 <http://localhost:5173>，详见 [web/admin/README.md](web/admin/README.md)。
 
-### 🌐 开放平台门户前端（web/open\_portal）
+### 🌐 开放平台前端（web/open\_portal）
 
 ```bash
 cd web/open_portal
@@ -105,8 +105,8 @@ x-HanJiang/
 │   ├── src/
 │   │   ├── api/
 │   │   │   ├── admin/      # 管理系统接口（/api/v1 与 /api/admin/v1 双路径，JWT + RBAC）
-│   │   │   ├── open/       # 开放平台接口（/api/open/v1，AppId/AppKey + HMAC 签名 + scope）
-│   │   │   └── open_portal/# 开放平台门户接口（/api/open-portal/v1，开发者会话 JWT）
+│   │   │   ├── open/       # 开放 API 接口（/api/open/v1，AppId/AppKey + HMAC 签名 + scope）
+│   │   │   └── open_portal/# 开放平台接口（/api/open-portal/v1，开发者会话 JWT）
 │   │   ├── assistant/      # AI 助手（对话编排/记忆/检索/工具）
 │   │   ├── core/           # 配置/中间件/异常/安全/种子数据
 │   │   ├── infras/         # 基础设施（数据库/缓存/存储/通知渠道/LLM）
@@ -120,7 +120,7 @@ x-HanJiang/
 │   └── pyproject.toml
 ├── web/
 │   ├── admin/              # 管理系统前端（Vue3 + TS + Element Plus，5173）
-│   └── open_portal/        # 开放平台门户前端（Vue3 + TS + Element Plus，5174）
+│   └── open_portal/        # 开放平台前端（Vue3 + TS + Element Plus，5174）
 ├── docker-compose.yml      # Docker 编排（app + mysql + redis）
 └── README.md
 ```

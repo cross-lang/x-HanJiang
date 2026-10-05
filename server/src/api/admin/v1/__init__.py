@@ -17,6 +17,7 @@ from src.api.admin.v1 import (
     log,
     notification,
     openapi_app,
+    openapi_app_registration,
     permission,
     profile,
     role,
@@ -71,6 +72,9 @@ v1_router.include_router(station.router)
 
 # 注册开放平台管理路由
 v1_router.include_router(openapi_app.router)
+
+# 注册开放平台应用审批路由
+v1_router.include_router(openapi_app_registration.router)
 
 # 注册开放平台开发者用户管理路由
 v1_router.include_router(developer.router)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """开放平台门户：开发者站内信接口。
 路由前缀：/api/open-portal/v1/messages
-鉴权：门户会话 JWT（get_current_developer），与管理端站内信（/api/v1/station/messages）分表隔离。
+鉴权：门户会话 JWT（get_current_developer），与管理端站内信（/api/admin/v1/station/messages）分表隔离。
 """
 
 from fastapi import APIRouter, Depends, Path, Query, Request

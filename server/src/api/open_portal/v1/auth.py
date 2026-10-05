@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""开放平台门户开发者认证接口（门户会话 JWT + Redis，对齐管理系统 /api/v1/auth）。
+"""开放平台门户开发者认证接口（门户会话 JWT + Redis，对齐管理系统 /api/admin/v1/auth）。
 路由前缀：/api/open-portal/v1/auth
 说明：开发者账号存 developers 表（与管理系统 users 分表）；
      登录态为有状态会话（JWT + Redis），登出/修改密码后旧令牌即失效。

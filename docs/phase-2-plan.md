@@ -60,7 +60,7 @@
 | 触达增强 | 批量推送分批限速、按用户偏好过滤目标人群、未读用户二次提醒 | 与 user_notification_preferences 联动 |
 
 ### 涉及模块 / 验收要点
-- 后端：`src/notification` 扩展、`src/scheduling` 新增 worker、`src/api/v1/notification.py` 扩展；
+- 后端：`src/notification` 扩展、`src/scheduling` 新增 worker、`src/api/admin/v1/notification.py` 扩展；
 - 验收：维护通知可预约定时发布；邮件内容由模板变量渲染；推送失败仍走 Redis 重试链路。
 
 ---
@@ -81,7 +81,7 @@
 | 运营增强 | 公告置顶、阅读统计（曝光/已读） | 新增 `announcement_reads` 表 |
 
 ### 涉及模块 / 验收要点
-- 后端：`src/api/v1/announcement.py` 扩展端维度与阅读统计；
+- 后端：`src/api/admin/v1/announcement.py` 扩展端维度与阅读统计；
 - 验收：一条公告可指定展示端并仅在对应端可见；邮件摘要按周期到达且内容聚合正确。
 
 ---

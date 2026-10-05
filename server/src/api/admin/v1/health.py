@@ -24,7 +24,7 @@ router = APIRouter(tags=["管理系统：健康检查"])
 
 
 @router.get(
-    "health",
+    "/health",
     summary="健康检查",
     description="返回服务健康状态信息，包含数据库、缓存连通状态",
 )

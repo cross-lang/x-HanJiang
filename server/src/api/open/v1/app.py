@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""开放平台当前应用信息接口。
-参考用户态 /api/v1/auth/me，返回当前调用方应用身份。
+"""开放 API 当前应用信息接口。
+参考用户态 /api/admin/v1/auth/me，返回当前调用方应用身份。
 不需要特定 scope——任何有效应用都能查询自己的信息。
 """
 
@@ -15,7 +15,7 @@ router = APIRouter(tags=["开放API：应用信息"])
 
 @router.get(
     "/me",
-    summary="当前开放平台应用信息",
+    summary="当前开放 API 应用信息",
     response_model=ApiResponse[CurrentApp],
 )
 async def me(
