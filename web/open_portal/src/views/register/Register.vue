@@ -15,6 +15,15 @@
           <h2 class="register-title">注册开发者账号</h2>
 
           <el-form ref="formRef" :model="form" :rules="rules" label-width="0" class="register-form">
+            <el-form-item prop="name">
+              <el-input
+                v-model="form.name"
+                placeholder="昵称（1-100 位）"
+                prefix-icon="Avatar"
+                size="large"
+                class="big-input"
+              />
+            </el-form-item>
             <el-form-item prop="username">
               <el-input
                 v-model="form.username"
@@ -98,12 +107,14 @@ const router = useRouter()
 
 const formRef = ref<FormInstance>()
 const form = ref<{
+  name: string
   username: string
   email: string
   password: string
   confirm_password: string
   certification_type: 'personal' | 'enterprise'
 }>({
+  name: '',
   username: '',
   email: '',
   password: '',
@@ -113,6 +124,10 @@ const form = ref<{
 const loading = ref(false)
 
 const rules: FormRules = {
+  name: [
+    { required: true, message: '请输入昵称', trigger: 'blur' },
+    { min: 1, max: 100, message: '昵称长度为 1-100 位', trigger: 'blur' },
+  ],
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 50, message: '用户名长度为 3-50 位', trigger: 'blur' },

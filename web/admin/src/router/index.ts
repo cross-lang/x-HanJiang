@@ -69,6 +69,12 @@ const router = createRouter({
           component: () => import('@/views/openapi/OpenScopeList.vue'),
         },
         {
+          path: 'open-developers',
+          name: 'OpenDevelopers',
+          component: () => import('@/views/openapi/DeveloperList.vue'),
+          meta: { perm: 'openapi_dev:view' },
+        },
+        {
           path: 'system-notification',
           name: 'SystemNotification',
           component: () => import('@/views/notification/SystemNotification.vue'),

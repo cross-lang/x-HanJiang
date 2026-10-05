@@ -19,13 +19,13 @@ A production-grade Python web application framework deeply built on FastAPI — 
 
 ## 📖 Project Introduction
 
-HanJiang backend is a production-grade Python web application framework deeply built on FastAPI. It follows the standard three-layer architecture (API → Service → Repository) with dependency injection, and ships with JWT authentication, an RBAC permission model, audit logs, login logs, open platform AppId/AppKey authentication (with HanJiang-1 HMAC signature support), an event-driven multi-channel notification system, station messages, file management (local / S3-compatible), global search, and automatic seed data initialization — everything needed to power enterprise-grade RESTful APIs out of the box.
+HanJiang backend is a production-grade Python web application framework deeply built on FastAPI. It follows the standard three-layer architecture (API → Service → Repository) with dependency injection, and serves three API systems for the **Admin Console, Open Platform API and Open Portal** scenarios: JWT authentication with an RBAC permission model, stateful developer sessions, open platform AppId/AppKey authentication (HanJiang-1 HMAC signature), audit logs, login logs, an event-driven multi-channel notification system, station messages, file management (local / S3-compatible), an AI assistant, global search, and automatic seed data initialization — everything needed to power enterprise-grade RESTful APIs out of the box.
 
 **Key Features:**
 
 - Standard three-layer architecture + FastAPI native dependency injection, clear responsibilities and testable
 - `@permission` decorator auto-registers route permissions, synced to the database on startup
-- Dual-track authentication: user-side JWT + open platform HanJiang-1 HMAC signature
+- Three API systems: Admin `/api/v1` (JWT + RBAC), Open `/api/open/v1` (AppId/AppKey + HMAC signature + scope), Open Portal `/api/open-portal/v1` (developer session JWT, invalidated on logout/password change)
 - Separate business audit logs and login logs, recording operator, IP, before/after data, with CSV export
 - Event-driven multi-channel notifications (station / email / DingTalk / Feishu / SMS), per-user preferences and recipients, automatic retry on failure
 - System notice broadcast: publish normal / maintenance notices to all active users, station message broadcast with unread badges, maintenance notices additionally fan out per user channel configs
@@ -228,7 +228,7 @@ server/
 ├── config.yaml.example       # YAML configuration template
 ├── alembic/                  # Database migration management
 │   ├── env.py                # Migration runtime environment
-│   └── versions/             # Migration version scripts (8 versions currently)
+│   └── versions/             # Migration version scripts (0001~0020, covering users/notifications/apps/announcements/AI conversations/developers and more)
 ├── docs/                     # Project docs (DDL SQL, Postman OpenAPI collection)
 ├── examples/                 # Usage examples
 │   ├── layered_architecture.py  # Three-layer architecture CRUD example
@@ -255,7 +255,8 @@ server/
 │   │   │   ├── alert.py      # System alerts (webhook / broadcast)
 │   │   │   ├── announcement.py # Announcements (create/update/delete/publish/unpublish/active)
 │   │   │   ├── station.py    # Station messages (unread count / list / read)
-│   │   │   ├── openapi_app.py # Open platform app management
+│   │   │   ├── openapi_app.py # Open platform app management (incl. developer approval workflow)
+│   │   │   ├── developer.py # Open platform developer management (list / apps)
 │   │   │   ├── search.py      # Global search
 │   │   │   ├── assistant.py # AI assistant (SSE chat / conversations / feedback)
 │   │   │   └── health.py     # Health check & version info
@@ -264,9 +265,11 @@ server/
 │   │   │   └── v1/
 │   │   │       ├── health.py # Health check & version
 │   │   │       ├── app.py    # Current app info
-│   │   │       └── user.py   # Open platform user management (scope-gated)
-│   │   ├── open_portal/      # Open portal routes (session JWT auth, /api/open-portal/v1/...)
-│   │   │   └── v1/           # Portal v1 routes (auth / developer / apps / scopes)
+│   │   │       ├── user.py   # Open platform user management (scope-gated)
+│   │   │       ├── role.py   # Open platform role management (scope-gated)
+│   │   │       └── file.py   # Open platform file management (Base64 upload, scope-gated)
+│   │   ├── open_portal/      # Open portal routes (developer session JWT auth, /api/open-portal/v1/...)
+│   │   │   └── v1/           # Portal v1 routes (auth / developer / apps / scopes / messages)
 │   │   ├── dependencies.py   # DI dependency functions
 │   │   ├── response.py       # Unified response wrapper
 │   │   └── router.py         # Route aggregation & registration
@@ -316,12 +319,14 @@ server/
 
 ```mermaid
 flowchart TB
-  Client[Client] -->|HTTP / JSON| API[API Layer<br/>Route Aggregation · Validation · Unified Response]
+  Client[Client] -->|HTTP / JSON| API[API Layer<br/>Three Route Groups · Validation · Unified Response]
 
   subgraph Application[Application Layer]
-    API --> Auth[User Auth<br/>Bearer JWT · Current User · RBAC]
+    API --> Auth[Admin Auth<br/>Bearer JWT · RBAC Permissions]
+    API --> PortalAuth[Portal Auth<br/>Developer Session JWT · Redis Login State]
     API --> OpenAuth[Open Platform Auth<br/>AppId/AppKey · Scope · HMAC Signature]
-    Auth --> Service[Business Service Layer<br/>Users · Roles · Permissions · Audit · Dashboard · Notifications · Files]
+    Auth --> Service[Business Service Layer<br/>Users · Roles · Permissions · Audit · Dashboard · Notifications · Files · AI]
+    PortalAuth --> PortalService[Portal Services<br/>Developers · App Applications · Approval · Messages]
     OpenAuth --> OpenService[Open Platform Services<br/>App Management · Auth · Signature Verification]
   end
 
@@ -459,6 +464,20 @@ graph LR
   INFRA --> OSS[(Local / S3)]
   SCHED[Scheduling] --> RETRY
 ```
+
+### 🧩 Key Component Description
+
+| Component | Responsibility |
+|-----------|----------------|
+| `api/admin` | Admin API layer (`/api/v1` & `/api/admin/v1` dual paths), JWT + RBAC checks; covers 18 route modules including auth, users, roles, permissions, audit, files, announcements, notifications, AI assistant and open-app approval |
+| `api/open` | Open platform API layer (`/api/open/v1`), AppId/AppKey + HanJiang-1 HMAC signature auth, `@app_scope` declarative scope registration; covers health / app / user / role / file capabilities |
+| `api/open_portal` | Open portal API layer (`/api/open-portal/v1`), developer session JWT + Redis stateful login; covers registration/login, developer profile & certification, app & scope applications, station messages |
+| `assistant` | AI assistant orchestration: SSE streaming chat, memory compaction (rolling summary + recent raw turns), knowledge retrieval, tool calls, 👍👎 feedback collection |
+| `notification` | Notification subsystem: event dispatch, template rendering, multi-channel providers (station/email/DingTalk/Feishu/SMS), automatic retry on failure |
+| `infras` | Infrastructure: database connection pool, Redis cache, email, HTTP client, storage abstraction (local/S3), LLM client (openai_compat) |
+| `core` | Core support: configuration loading (env/yaml), unified exceptions, logging (loguru), middleware, JWT tokens, seed data |
+| `repositories` | Repository-pattern data access layer, unified CRUD and queries |
+| `scheduling` | Background scheduling: notification retry worker (polls the Redis retry queue) |
 
 ## 🛠️ Tech Stack
 
@@ -687,6 +706,49 @@ Once the backend is running:
 | GET | `/api/open/v1/users/{id}` | User detail | `user:read` |
 | PATCH | `/api/open/v1/users/{id}` | Update user | `user:write` |
 | DELETE | `/api/open/v1/users/{id}` | Delete user | `user:write` |
+| GET | `/api/open/v1/roles` | Role list | `role:read` |
+| POST | `/api/open/v1/roles` | Create role | `role:write` |
+| GET | `/api/open/v1/roles/{role_id}` | Role detail | `role:read` |
+| PATCH | `/api/open/v1/roles/{role_id}` | Update role | `role:write` |
+| DELETE | `/api/open/v1/roles/{role_id}` | Delete role (soft) | `role:write` |
+| GET | `/api/open/v1/roles/{role_id}/permissions` | Role permission list | `role:read` |
+| GET | `/api/open/v1/files` | File list | `file:read` |
+| POST | `/api/open/v1/files` | Upload file (Base64 in JSON body) | `file:write` |
+| GET | `/api/open/v1/files/{file_path:path}` | Download file (local stream / cloud 302) | `file:read` |
+| DELETE | `/api/open/v1/files/{file_id}` | Delete file (soft) | `file:write` |
+
+**Open Portal Endpoints (developer session JWT auth):**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/open-portal/v1/auth/register` | Register developer account |
+| POST | `/api/open-portal/v1/auth/login` | Developer login (issues access/refresh token pair) |
+| POST | `/api/open-portal/v1/auth/refresh` | Refresh tokens (old access token invalidated) |
+| POST | `/api/open-portal/v1/auth/logout` | Logout (revokes server-side session) |
+| POST | `/api/open-portal/v1/auth/change-password` | Change password (re-login required afterwards) |
+| GET | `/api/open-portal/v1/developer/profile` | Current developer profile |
+| PUT | `/api/open-portal/v1/developer/profile` | Update profile (name / phone) |
+| POST | `/api/open-portal/v1/developer/certification` | Submit certification application (personal/enterprise) |
+| GET | `/api/open-portal/v1/apps` | My apps (paged, owner-isolated) |
+| POST | `/api/open-portal/v1/apps` | Create app (app_key returned once; enters approval) |
+| GET | `/api/open-portal/v1/apps/{app_id}` | App detail (incl. approval status/notes) |
+| PUT | `/api/open-portal/v1/apps/{app_id}` | Update app |
+| DELETE | `/api/open-portal/v1/apps/{app_id}` | Delete app (soft) |
+| PUT | `/api/open-portal/v1/apps/{app_id}/scopes` | Submit scope request / adjustment (resets to pending) |
+| POST | `/api/open-portal/v1/apps/{app_id}/rotate-key` | Rotate App Key (new key returned once) |
+| GET | `/api/open-portal/v1/apps/scopes` | Scope catalog |
+| GET | `/api/open-portal/v1/messages/unread-count` | Unread message count |
+| GET | `/api/open-portal/v1/messages` | My station messages (paged) |
+| POST | `/api/open-portal/v1/messages/{msg_id}/read` | Mark one message read |
+| POST | `/api/open-portal/v1/messages/read-all` | Mark all read |
+
+**Developer Approval (admin side, dual-path compatible):**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| PUT | `/api/v1/admin/apps/{app_id}/approval` | Approve/reject developer app or scope requests (with note) |
+| GET | `/api/v1/open-developers` | Developer list (incl. certification status) |
+| GET | `/api/v1/open-developers/{developer_id}/apps` | Apps owned by a developer |
 
 ### 🛡️ Authorization
 
@@ -694,6 +756,7 @@ Once the backend is running:
 - **Key permission items**: announcements `announcement:view / create / edit / delete / publish`; notifications `notification:view / create / config` (publish/withdraw system notifications, channel config management)
 - **AI assistant**: `assistant:chat` (chat & conversation management, auto-registered, login-only in practice), `assistant:feedback` (message feedback)
 - **Open platform endpoints**: AppId + AppKey (plain mode) or HanJiang-1 HMAC signature, access controlled by scopes declared via `@app_scope`; scopes are also auto-synced on startup
+- **Open portal endpoints**: developer session JWT (Bearer Token), login state stored in Redis (`login_dev:{developer_id}`); old access tokens are invalidated immediately on logout / password change / refresh. App and scope requests must be approved by the admin console before the app may call open APIs
 
 ## 🗄️ Storage
 
@@ -701,7 +764,7 @@ Once the backend is running:
 
 - **Type**: MySQL 8.0+
 - **Config**: via `.env` (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_POOL_SIZE`)
-- **Migrations**: Alembic; current versions cover users, notification records, user notification configs, open platform apps, system notifications, announcements and other core tables
+- **Migrations**: Alembic (0001~0020); covering users, notification records, user notification configs, open platform apps, system notifications, announcements, AI assistant conversations, developers, developer messages, file ownership and other core tables
 - **Note**: inject the database password via environment variables in production; never commit it
 
 ### ⚡ Cache

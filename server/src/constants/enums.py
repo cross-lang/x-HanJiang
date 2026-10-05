@@ -142,7 +142,7 @@ class DeveloperMessageStatus(StrBaseEnum):
 class DeveloperMessageCategory(StrBaseEnum):
     """开发者站内信类型（对齐 developer_messages.category 列）。
 
-    与 web/open 前端 OpenMessage.category 约定一致：
+    与 web/open_portal 前端 OpenMessage.category 约定一致：
     system 系统消息 / audit 审批结果 / notify 业务通知。
     """
 

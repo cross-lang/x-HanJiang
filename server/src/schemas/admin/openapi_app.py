@@ -17,14 +17,15 @@ class OpenApiAppCreateRequest(BaseModel):
 
 
 class OpenApiAppUpdateRequest(BaseModel):
-    """管理员更新开放应用（改 scope / 限流 / 鉴权模式）。
+    """管理员更新开放应用（名称/描述/限流/鉴权模式）。
 
-    启停状态不在此更新，走独立的 PUT /{app_id}/status 端点（单独权限）。
+    启停状态走独立 PUT /{app_id}/status 端点；scope 变更走独立
+    PUT /{app_id}/scopes 端点（含目录合法性校验与审批语义），
+    通用编辑不接收 scopes，避免绕过 scope 校验/审批直接写入。
     """
 
     name: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=255)
-    scopes: list[str] | None = None
     rate_limit_per_minute: int | None = Field(default=None, ge=1, le=100000)
     auth_mode: str | None = Field(default=None, pattern="^(plain|hmac|both)$")
 
@@ -61,7 +62,6 @@ class OpenApiAppResponse(BaseModel):
     rate_limit_per_minute: int
     owner_type: str
     owner_id: int | None
-    owner_user_id: int | None = None
     owner_name: str | None = None
     approval_status: str | None
     approved_by: int | None = None

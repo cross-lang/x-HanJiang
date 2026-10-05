@@ -5,7 +5,7 @@
 - 开放平台开发者站内信 → developer_messages 表（developer_id 直接外键语义）。
 
 遵循"不同平台用户身份分表"的既定原则（developers 与 users 分表同源），
-开发者站内信独立建表，字段按 web/open 前端 OpenMessage 约定
+开发者站内信独立建表，字段按 web/open_portal 前端 OpenMessage 约定
 （title / content / category / read / created_at）设计，服务层落库时映射。
 """
 

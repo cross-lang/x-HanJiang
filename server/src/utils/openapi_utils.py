@@ -10,7 +10,8 @@
 import secrets
 from typing import Any
 
-from src.constants.scopes import OpenApiScopeModule
+from src.constants.scopes import OpenApiScopeCode, OpenApiScopeModule
+from src.core.exceptions import ValidationException
 
 
 def generate_app_id() -> str:
@@ -28,6 +29,31 @@ def parse_scopes(scopes: str | None) -> list[str]:
     if not scopes:
         return []
     return [s.strip() for s in scopes.split(",") if s.strip()]
+
+
+def validate_scopes(scopes: list[str]) -> None:
+    """校验 scope 列表必须全部在合法目录（OpenApiScopeCode 枚举）内。
+
+    写入 openapi_apps.scopes 前必须调用：scope 为有限固定目录，
+    不在目录内的值（拼写错误、已下线 scope）永远无法通过网关鉴权，
+    属于必须拒绝的脏数据。重复项自动去重，不影响校验结果。
+
+    Args:
+        scopes: 待校验的 scope 编码列表
+
+    Raises:
+        ValidationException: 存在不在 OpenApiScopeCode 目录内的 scope 时抛出，
+            错误信息列出全部非法值，便于调用方修正
+    """
+    if not scopes:
+        return
+    valid_marks = {scope.mark for scope in OpenApiScopeCode}
+    invalid = sorted({s for s in scopes if s not in valid_marks})
+    if invalid:
+        raise ValidationException(
+            message=f"存在非法的权限范围: {', '.join(invalid)}",
+            details={"invalid_scopes": invalid, "valid_scopes": sorted(valid_marks)},
+        )
 
 
 def build_scope_dict_list(entities: list[Any]) -> list[dict[str, Any]]:
@@ -59,4 +85,4 @@ def build_scope_dict_list(entities: list[Any]) -> list[dict[str, Any]]:
     return result
 
 
-__all__ = ["generate_app_id", "parse_scopes", "build_scope_dict_list"]
+__all__ = ["generate_app_id", "parse_scopes", "validate_scopes", "build_scope_dict_list"]

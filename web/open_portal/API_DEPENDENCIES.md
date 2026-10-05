@@ -1,9 +1,9 @@
-# 汉江开放平台前端（web/open）后端接口依赖清单
+# 汉江开放平台前端（web/open_portal）后端接口依赖清单
 
 > 版本：2026-10-03
-> 工程：`web/open`（vite + vue3 + TS + element-plus，dev 端口 5174）
+> 工程：`web/open_portal`（vite + vue3 + TS + element-plus，dev 端口 5174）
 > 说明：开放平台分两类接口，前缀与鉴权方式严格隔离：
-> - **门户接口** `/api/open-portal/v1`：供 web/open 前端页面调用，鉴权 = 开发者会话（JWT + Redis 登录态，有状态，登出/改密可撤销，参考管理系统登录会话模块实现）
+> - **门户接口** `/api/open-portal/v1`：供 web/open_portal 前端页面调用，鉴权 = 开发者会话（JWT + Redis 登录态，有状态，登出/改密可撤销，参考管理系统登录会话模块实现）
 > - **开放接口** `/api/open/v1`：供外部应用调用汉江平台能力，鉴权 = `X-App-Id`/`X-App-Key` + HanJiang-1 签名
 
 ## 通用约定

@@ -9,7 +9,6 @@ export interface OpenAppItem {
   status: string
   auth_mode: string
   rate_limit_per_minute: number
-  owner_user_id: number | null
   owner_name: string | null
   /** 审批状态：pending / approved / rejected；管理端自建应用为 null（无审批概念） */
   approval_status: string | null
@@ -40,6 +39,26 @@ export interface OpenScope {
   module_label: string | null
   operation: string
   description: string | null
+}
+
+/** 开放平台开发者用户（管理端"用户管理"列表项） */
+export interface DeveloperItem {
+  id: number
+  username: string
+  email: string
+  name: string
+  phone: string
+  /** 认证类型：personal 个人 / enterprise 企业 */
+  certification_type: string | null
+  /** 认证状态：none / pending / approved / rejected */
+  certification_status: string
+  company_name: string | null
+  /** 账号状态：enabled / disabled */
+  status: string
+  /** 旗下开放应用数量（不含已软删除） */
+  app_count: number
+  last_login_at: string | null
+  created_at: string
 }
 
 export interface OpenAppFormPayload {

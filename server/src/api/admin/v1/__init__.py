@@ -12,6 +12,7 @@ from src.api.admin.v1 import (
     audit,
     auth,
     dashboard,
+    developer,
     file,
     health,
     notification,
@@ -70,6 +71,9 @@ v1_router.include_router(station.router)
 
 # 注册开放平台管理路由
 v1_router.include_router(openapi_app.router)
+
+# 注册开放平台开发者用户管理路由
+v1_router.include_router(developer.router)
 
 # 注册搜索路由
 v1_router.include_router(search.router)

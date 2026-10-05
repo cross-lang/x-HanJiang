@@ -35,6 +35,7 @@ class PermissionModule(StrBaseEnum):
     MAINTENANCE = ("maintenance", "维护管理")
     OPENAPI_APP = ("openapi_app", "开放平台应用")
     OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
+    OPENAPI_DEV = ("openapi_dev", "开放平台用户")
     DASHBOARD = ("dashboard", "仪表盘")
     SWAGGER = ("swagger", "接口文档")
     PROFILE = ("profile", "个人中心")
@@ -181,6 +182,14 @@ class PermissionCode(BaseEnum):
     OPENAPI_APP_ROTATE_KEY = ("openapi_app:rotate_key", "重置开放应用AppKey", PermissionModule.OPENAPI_APP.mark, PermissionAction.ROTATE_KEY.mark, "重置应用密钥，旧密钥立即失效", 65)
     OPENAPI_APP_DELETE = ("openapi_app:delete", "删除开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.DELETE.mark, "删除开放平台应用", 66)
     OPENAPI_SCOPE_VIEW = ("openapi_scope:view", "查看开放平台权限", PermissionModule.OPENAPI_SCOPE.mark, PermissionAction.VIEW.mark, "查看开放平台 scope 列表", 67)
+    OPENAPI_DEV_VIEW = (
+        "openapi_dev:view",
+        "查看开放平台用户",
+        PermissionModule.OPENAPI_DEV.mark,
+        PermissionAction.VIEW.mark,
+        "查看开放平台开发者用户列表与旗下应用",
+        68,
+    )
 
     # ── 仪表盘域 ────────────────────────────────────────
     DASHBOARD_VIEW = ("dashboard:view", "查看仪表盘", PermissionModule.DASHBOARD.mark, PermissionAction.VIEW.mark, "获取仪表盘关键指标", 70)

@@ -45,8 +45,8 @@
               <el-form-item label="用户名">
                 <el-input :model-value="developerStore.profile?.username" disabled />
               </el-form-item>
-              <el-form-item label="姓名">
-                <el-input v-model="form.name" placeholder="请输入姓名" />
+              <el-form-item label="昵称">
+                <el-input v-model="form.name" placeholder="请输入昵称" />
               </el-form-item>
               <el-form-item label="手机号">
                 <el-input v-model="form.phone" placeholder="请输入手机号" />

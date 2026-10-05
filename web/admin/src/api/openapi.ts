@@ -1,6 +1,6 @@
 import request from './request'
 import type { PageResult } from '@/types/api'
-import type { OpenAppItem, OpenAppCreatedResult, OpenScope, OpenAppFormPayload } from '@/types/openapi'
+import type { DeveloperItem, OpenAppItem, OpenAppCreatedResult, OpenScope, OpenAppFormPayload } from '@/types/openapi'
 
 export interface OpenAppQuery {
   page: number
@@ -41,4 +41,28 @@ export function rotateAppKey(id: number) {
 
 export function deleteApp(id: number) {
   return request.delete<{ message: string }>(`/admin/apps/${id}`)
+}
+
+export interface DeveloperQuery {
+  page: number
+  page_size: number
+  keyword?: string
+  /** 账号状态过滤：enabled / disabled */
+  status?: string
+}
+
+/** 开发者用户分页列表（管理端"开放平台 → 用户管理"） */
+export function listDevelopers(params: DeveloperQuery) {
+  return request.get<PageResult<DeveloperItem>>('/admin/developers', { params })
+}
+
+export interface DeveloperAppsQuery {
+  page: number
+  page_size: number
+  keyword?: string
+}
+
+/** 开发者名下开放应用分页列表 */
+export function listDeveloperApps(developerId: number, params: DeveloperAppsQuery) {
+  return request.get<PageResult<OpenAppItem>>(`/admin/developers/${developerId}/apps`, { params })
 }

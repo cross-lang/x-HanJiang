@@ -1,3 +1,5 @@
+[English](README.en.md) | 中文
+
 # 汉江管理后台（HanJiang Admin）
 
 汉江管理后台是 [汉江（HanJiang）全栈快速开发平台](https://github.com/cross-lang/x-HanJiang) 的前端项目，基于 Vue 3 + TypeScript + Vite + Element Plus 构建，配套 FastAPI 后端使用，提供企业级管理系统开箱即用的管理界面。
@@ -13,7 +15,7 @@
 - **文件管理**：上传、列表、下载、删除
 - **通知中心**：通知记录列表 / 统计、站内信未读数与已读、通知偏好与接收人管理
 - **系统通知管理**：发布 / 撤回系统通知（普通通知 / 系统维护，面向全体活跃用户）、发布记录列表，渠道配置查看 / 更新（热生效）、渠道测试、系统监控状态
-- **开放平台**：应用 CRUD、scope 授权、AppKey 轮换、scope 列表
+- **开放平台**：应用 CRUD（我新建的 / 我审批的分类视图）、应用审批流（通过 / 驳回 + 意见）、scope 授权、AppKey 轮换、scope 列表、开发者管理（列表 / 名下应用）
 - **公告管理**：公告创建 / 编辑 / 删除 / 发布 / 下架，首页板块与横幅展示位，有效期与排序，Markdown / 富文本正文（渲染前统一消毒防 XSS）
 - **个人中心**：资料维护、修改密码（验证码二次认证）、修改手机号 / 邮箱
 - **全局搜索**：跨用户 / 角色 / 权限 / 应用 / 文件关键字搜索（顶栏搜索框）
@@ -76,10 +78,13 @@ npm run preview
 ```
 admin/
 ├── src/
-│   ├── api/                # API 请求封装
+│   ├── api/                # API 请求封装（按业务模块拆分，见 src/api/*.ts）
 │   │   ├── request.ts      # Axios 实例（拦截器、统一错误处理）
 │   │   ├── auth.ts         # 认证相关接口（登录 / 当前用户 / 菜单 / 登出）
-│   │   └── assistant.ts    # AI 助手接口（会话 CRUD / 反馈 / SSE 对话）
+│   │   ├── user.ts / role.ts / permission.ts # 系统管理接口
+│   │   ├── openapi.ts      # 开放平台应用 / 审批 / 开发者接口
+│   │   ├── assistant.ts    # AI 助手接口（会话 CRUD / 反馈 / SSE 对话）
+│   │   └── ...             # announcement / notification / audit / file / dashboard / search / profile
 │   ├── assets/             # 静态资源
 │   ├── components/         # 通用组件
 │   │   ├── Search.vue           # 顶栏全局搜索
@@ -115,8 +120,9 @@ admin/
 | `/apis/swagger`        | Swagger 文档 | 内嵌 Swagger UI，在线调试接口                                          |
 | `/audit`               | 审计日志     | 业务操作日志列表（含导出）                                             |
 | `/audit/login`         | 登录日志     | 登录日志列表（含导出）                                                 |
-| `/apps`                | 开放应用管理 | 开放平台应用 CRUD + scope 授权 + AppKey 轮换                           |
+| `/apps`                | 开放应用管理 | 应用 CRUD + 审批流（我新建的 / 我审批的）+ scope 授权 + AppKey 轮换     |
 | `/app-scopes`          | 应用 scope   | 开放平台 scope 列表                                                    |
+| `/open-developers`     | 开发者管理   | 开发者列表（含认证状态）+ 名下应用（`openapi_dev:view`）              |
 | `/system-notification` | 系统通知管理 | 发布 / 撤回系统通知（普通 / 维护）+ 渠道配置 / 测试 / 监控             |
 | `/announcements`       | 公告管理     | 创建 / 编辑 / 删除 / 发布 / 下架，状态 / 位置 / 关键字过滤，有效期展示 |
 | `/profile`             | 个人中心     | 个人信息 + 改密 / 改手机 / 改邮箱（验证码二次认证）+ 通知偏好 / 接收人 |

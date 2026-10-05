@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class DeveloperMessageResponse(BaseModel):
-    """站内信列表项（对齐 web/open 前端 OpenMessage 约定）。"""
+    """站内信列表项（对齐 web/open_portal 前端 OpenMessage 约定）。"""
 
     id: int = Field(description="消息 ID")
     title: str = Field(description="消息标题")

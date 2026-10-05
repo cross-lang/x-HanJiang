@@ -6,6 +6,8 @@ export interface RegisterRequest {
   email: string
   password: string
   confirm_password: string
+  /** 昵称（注册时录入，为空时服务端回退为用户名） */
+  name?: string
   /** 预留：注册时可选择的认证主体类型（personal / enterprise） */
   certification_type?: 'personal' | 'enterprise'
 }

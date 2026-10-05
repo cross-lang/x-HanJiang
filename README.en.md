@@ -38,19 +38,35 @@ An **out-of-the-box** enterprise full-stack platform built on **FastAPI + Vue 3*
 
 ## ✨ Core Capabilities
 
-- **Auth & Permissions**: JWT auth + RBAC permission model, declarative registration via the `@permission` decorator, auto-scanned and synced to the database at startup
+HanJiang adopts a **three-in-one** engineering layout — one codebase covering "Admin, Open API, and Portal" scenarios:
+
+- **Admin Console (web/admin + `/api/v1`)**: JWT auth + RBAC permission model, declarative registration via the `@permission` decorator, auto-scanned and synced to the database at startup; built-in enterprise admin capabilities — user / role / permission management, audit & login logs, files, announcements, system-notice broadcast, global search, dashboard, AI assistant and more
+- **Open Platform API (`/api/open/v1`)**: gateway APIs for external applications; HanJiang-1 HMAC signature auth (plain/signed dual mode), AppId/AppKey lifecycle management, scope authorization & key rotation, application approval workflow, anti-replay protection
+- **Open Platform Portal (web/open_portal + `/api/open-portal/v1`)**: a dedicated developer portal — developer registration / login (stateful session), application application & approval tracking, scope requests, open capability documentation (request/response/signature examples for 18 endpoints), in-portal messages and profile center
 - **AI Assistant**: SSE streaming chat (token / navigate / done events), conversation management, memory compaction, knowledge-base retrieval and tool orchestration; the `openai_compat` protocol works with DeepSeek, Volcano Ark, Qwen, vLLM and more
-- **Open Platform**: HanJiang-1 HMAC signature auth (plain/signature dual mode), AppId/AppKey lifecycle management, scope authorization, key rotation
 - **Notification System**: event-driven multi-channel delivery (in-app/email/DingTalk/Feishu), template variable interpolation, per-user preferences, automatic retry on failure
 - **Observability**: business audit logs, login logs, operation-log trends, system alerts
 - **Engineering**: layered architecture (API → Service → Repository), unified exception handling, Swagger docs, Alembic migrations, GitHub Actions CI
 
 ## 📸 UI Preview
 
-![Login](./me/login.png)
 
-![Admin](./me/admin.png) ![System](./me/admin_system.png)
-![AI Assistant](./me/admin_assistant.png) ![Open Apps](./me/admin_openapp.png)
+### 管理系统
+
+![login](./me/admin_login.png)
+![dashboard](./me/admin_dashboard.png) 
+![system](./me/admin_system.png)
+![AI assistant](./me/admin_assistant.png) 
+![open apps](./me/admin_openapp.png)
+
+
+### 开放平台
+![login](./me/open_portal_login.png) 
+![dashboard](./me/open_portal_dashboard.png) 
+![app](./me/open_portal_app.png) 
+![auth](./me/open_portal_auth.png) 
+![profile](./me/open_portal_profile.png) 
+
 
 ## 🚀 Quick Start
 
@@ -63,7 +79,7 @@ uv run x-HanJiang --reload
 
 See [server/README.md](server/README.md) for configuration.
 
-### 🌐 Frontend
+### 🌐 Admin Console Frontend (web/admin)
 
 ```bash
 cd web/admin
@@ -73,32 +89,41 @@ npm run dev
 
 Open <http://localhost:5173>. See [web/admin/README.md](web/admin/README.md).
 
+### 🌐 Open Portal Frontend (web/open_portal)
+
+```bash
+cd web/open_portal
+npm install
+npm run dev
+```
+
+Open <http://localhost:5174>. See [web/open_portal/README.md](web/open_portal/README.md).
+
 ## 📁 Project Structure
 
 ```
 x-HanJiang/
-├── server/            # Backend (FastAPI)
+├── server/                 # Backend (FastAPI, three API systems)
 │   ├── src/
-│   │   ├── api/       # Routes (v1 user-facing + open/v1 open platform)
-│   │   ├── assistant/ # AI assistant (dialog orchestration/memory/retrieval/tools)
-│   │   ├── constants/ # Constants and enums (ModuleCode, BaseEnum)
-│   │   ├── core/      # Config/middleware/exceptions/security
-│   │   ├── infras/    # Infrastructure (database/cache/storage/notifications/LLM)
-│   │   ├── models/    # SQLAlchemy data models
-│   │   ├── notification/  # Notification subsystem (dispatcher/templates/retry)
-│   │   ├── repositories/  # Data access layer
-│   │   ├── scheduling/    # Scheduled tasks (notification retry worker)
-│   │   ├── schemas/   # Pydantic schemas
-│   │   ├── services/  # Business logic layer
-│   │   ├── utils/     # Utility functions
-│   │   └── main.py    # Application entry
-│   ├── alembic/       # Database migrations
-│   ├── tests/         # Unit tests
+│   │   ├── api/
+│   │   │   ├── admin/      # Admin APIs (/api/v1 & /api/admin/v1 dual paths, JWT + RBAC)
+│   │   │   ├── open/       # Open platform APIs (/api/open/v1, AppId/AppKey + HMAC + scope)
+│   │   │   └── open_portal/# Open portal APIs (/api/open-portal/v1, developer session JWT)
+│   │   ├── assistant/      # AI assistant (chat orchestration/memory/retrieval/tools)
+│   │   ├── core/           # Config/middleware/exceptions/security/seed data
+│   │   ├── infras/         # Infrastructure (database/cache/storage/notifications/LLM)
+│   │   ├── models/         # SQLAlchemy data models
+│   │   ├── notification/   # Notification subsystem (dispatcher/templates/retry)
+│   │   ├── repositories/   # Data access layer
+│   │   ├── services/       # Business logic layer
+│   │   └── main.py         # Application entry
+│   ├── alembic/            # Database migrations
+│   ├── tests/              # Unit tests
 │   └── pyproject.toml
 ├── web/
-│   ├── admin/         # Admin console (Vue3 + TS + Element Plus)
-│   └── open/          # Open platform portal (WIP)
-├── docker-compose.yml # Docker orchestration
+│   ├── admin/              # Admin console frontend (Vue3 + TS + Element Plus, 5173)
+│   └── open_portal/        # Open portal frontend (Vue3 + TS + Element Plus, 5174)
+├── docker-compose.yml      # Docker orchestration (app + mysql + redis)
 └── README.md
 ```
 
@@ -109,7 +134,7 @@ x-HanJiang/
 | Backend | Python 3.11+ / FastAPI / SQLAlchemy 2.0 / Alembic |
 | Frontend | Vue 3 + TypeScript / Vite / Element Plus / Pinia / ECharts |
 | Storage | MySQL / Redis |
-| Auth | JWT + HMAC signature |
+| Auth | JWT (user & developer sessions) + HMAC signature (open APIs) |
 | AI | OpenAI SDK (openai_compat protocol) |
 | Tooling | uv / Ruff / mypy / pytest / Loguru |
 | Deployment | Docker / docker-compose |
@@ -128,6 +153,8 @@ This project is released under the [MIT License](LICENSE).
 
 ## 📮 Contact
 
-- **Author**: John Young
+- **Author**: John Young (夜雨诗来)
 - **Email**: <john.young@foxmail.com>
-- **GitHub**: <https://github.com/cross-lang/x-HanJiang>
+- **Gitee**: <https://gitee.com/yeyushilai>
+- **GitHub**: <https://github.com/yeyushilai>
+- **Project**: <https://github.com/cross-lang/x-HanJiang>

@@ -19,13 +19,13 @@
 
 ## 📖 项目简介
 
-汉江（HanJiang）后端是一个基于 FastAPI 深度封装的生产级 Python Web 应用框架，遵循标准三层架构（API → Service → Repository）与依赖注入设计，内置 JWT 认证、RBAC 权限模型、审计日志、登录日志、开放平台 AppId/AppKey 鉴权（支持 HanJiang-1 HMAC 签名）、事件驱动多渠道通知系统、站内信、文件管理（本地 / S3 兼容）、全局搜索与种子数据自动初始化，开箱即用支撑企业级 RESTful API 服务。
+汉江（HanJiang）后端是一个基于 FastAPI 深度封装的生产级 Python Web 应用框架，遵循标准三层架构（API → Service → Repository）与依赖注入设计，面向**管理系统（Admin）、开放平台 API（Open）、开放平台门户（Open Portal）**三端场景提供三套 API 体系：内置 JWT 认证与 RBAC 权限模型、开发者有状态会话、开放平台 AppId/AppKey 鉴权（HanJiang-1 HMAC 签名）、审计日志、登录日志、事件驱动多渠道通知系统、站内信、文件管理（本地 / S3 兼容）、AI 助手、全局搜索与种子数据自动初始化，开箱即用支撑企业级 RESTful API 服务。
 
 **核心特征：**
 
 - 标准三层架构 + FastAPI 原生依赖注入，职责清晰、可测试
 - `@permission` 装饰器自动扫描路由注册权限，启动时同步到数据库
-- 用户态 JWT 认证 + 开放平台 HanJiang-1 HMAC 签名双轨鉴权
+- 三套 API 体系：管理系统 `/api/v1`（JWT + RBAC）、开放平台 `/api/open/v1`（AppId/AppKey + HMAC 签名 + scope）、开放平台门户 `/api/open-portal/v1`（开发者会话 JWT，登出/改密即时失效）
 - 业务审计日志与登录日志分离，记录操作者、IP、前后数据，支持 CSV 导出
 - 事件驱动多渠道通知（站内信 / 邮件 / 钉钉 / 飞书 / 短信），支持用户级偏好与接收人管理、失败自动重试
 - 系统通知广播：面向全体活跃用户发布普通通知 / 系统维护通知，站内信广播产生未读红点，维护通知按用户渠道配置推送多渠道
@@ -228,7 +228,7 @@ server/
 ├── config.yaml.example       # YAML 配置文件模板
 ├── alembic/                  # 数据库迁移管理
 │   ├── env.py                # 迁移运行环境
-│   └── versions/             # 迁移版本脚本（当前 8 个版本）
+│   └── versions/             # 迁移版本脚本（0001~0020，覆盖用户/通知/应用/公告/AI 会话/开发者等核心表）
 ├── docs/                     # 项目文档（建表 SQL、Postman OpenAPI 集合）
 ├── examples/                 # 使用示例脚本
 │   ├── layered_architecture.py  # 三层架构 CRUD 示例
@@ -255,7 +255,8 @@ server/
 │   │   │   ├── alert.py      # 系统告警（Webhook / 广播）
 │   │   │   ├── announcement.py # 公告管理（创建/修改/删除/发布/下架/首页生效公告）
 │   │   │   ├── station.py    # 站内信（未读数 / 列表 / 已读）
-│   │   │   ├── openapi_app.py # 开放平台应用管理
+│   │   │   ├── openapi_app.py # 开放平台应用管理（含开发者申请审批流）
+│   │   │   ├── developer.py # 开放平台开发者管理（列表 / 名下应用）
 │   │   │   ├── search.py      # 全局搜索
 │   │   │   ├── assistant.py # AI 助手（SSE 对话 / 会话 / 反馈）
 │   │   │   └── health.py     # 健康检查与版本信息
@@ -264,9 +265,11 @@ server/
 │   │   │   └── v1/
 │   │   │       ├── health.py # 健康检查与版本
 │   │   │       ├── app.py    # 当前应用信息
-│   │   │       └── user.py   # 开放平台用户管理（scope 控制）
-│   │   ├── open_portal/      # 开放平台门户路由（会话 JWT 鉴权，/api/open-portal/v1/...）
-│   │   │   └── v1/           # 门户 v1 路由（auth / developer / apps / scopes）
+│   │   │       ├── user.py   # 开放平台用户管理（scope 控制）
+│   │   │       ├── role.py   # 开放平台角色管理（scope 控制）
+│   │   │       └── file.py   # 开放平台文件管理（Base64 上传，scope 控制）
+│   │   ├── open_portal/      # 开放平台门户路由（开发者会话 JWT 鉴权，/api/open-portal/v1/...）
+│   │   │   └── v1/           # 门户 v1 路由（auth / developer / apps / scopes / messages）
 │   │   ├── dependencies.py   # DI 依赖函数
 │   │   ├── response.py       # 统一响应封装
 │   │   └── router.py         # 路由聚合注册
@@ -316,12 +319,14 @@ server/
 
 ```mermaid
 flowchart TB
-  Client[客户端] -->|HTTP / JSON| API[API 接口层<br/>路由聚合 · 参数校验 · 统一响应]
+  Client[客户端] -->|HTTP / JSON| API[API 接口层<br/>三套路由聚合 · 参数校验 · 统一响应]
 
   subgraph Application[应用层]
-    API --> Auth[用户态认证<br/>Bearer JWT · 当前用户 · RBAC]
+    API --> Auth[管理系统认证<br/>Bearer JWT · RBAC 权限]
+    API --> PortalAuth[门户认证<br/>开发者会话 JWT · Redis 登录态]
     API --> OpenAuth[开放平台认证<br/>AppId/AppKey · Scope · HMAC 签名]
-    Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 仪表盘 · 通知 · 文件]
+    Auth --> Service[业务服务层<br/>用户 · 角色 · 权限 · 审计 · 仪表盘 · 通知 · 文件 · AI]
+    PortalAuth --> PortalService[门户服务<br/>开发者 · 应用申请 · 审批 · 消息]
     OpenAuth --> OpenService[开放平台服务<br/>应用管理 · 鉴权 · 签名校验]
   end
 
@@ -459,6 +464,20 @@ graph LR
   INFRA --> OSS[(本地 / S3)]
   SCHED[Scheduling 调度] --> RETRY
 ```
+
+### 🧩 关键技术组件说明
+
+| 组件 | 职责 |
+|------|------|
+| `api/admin` | 管理系统接口层（`/api/v1` 与 `/api/admin/v1` 双路径兼容），JWT + RBAC 权限校验，覆盖认证、用户、角色、权限、审计、文件、公告、通知、AI 助手、开放应用审批等 18 个路由模块 |
+| `api/open` | 开放平台接口层（`/api/open/v1`），AppId/AppKey + HanJiang-1 HMAC 签名鉴权，`@app_scope` 声明式注册 scope，覆盖健康 / 应用 / 用户 / 角色 / 文件 5 类能力 |
+| `api/open_portal` | 开放平台门户接口层（`/api/open-portal/v1`），开发者会话 JWT + Redis 有状态登录态，覆盖注册登录、开发者资料与认证、应用与 scope 申请、站内信 |
+| `assistant` | AI 助手编排：SSE 流式对话、记忆压缩（滚动摘要 + 最近原文）、知识库检索、工具调用、👍👎 反馈收集 |
+| `notification` | 通知子系统：事件分发、模板渲染、多渠道 Provider（站内信/邮件/钉钉/飞书/短信）、失败自动重试 |
+| `infras` | 基础设施：数据库连接池、Redis 缓存、邮件、HTTP 客户端、存储抽象（本地/S3）、LLM 客户端（openai_compat） |
+| `core` | 核心支撑：配置加载（env/yaml）、统一异常、日志（loguru）、中间件、JWT 令牌、种子数据 |
+| `repositories` | Repository 模式数据访问层，统一 CRUD 与查询 |
+| `scheduling` | 后台调度：通知重试 Worker（轮询 Redis 重试队列） |
 
 ## 🛠️ 技术栈
 
@@ -687,6 +706,49 @@ graph LR
 | GET | `/api/open/v1/users/{id}` | 用户详情 | `user:read` |
 | PATCH | `/api/open/v1/users/{id}` | 更新用户 | `user:write` |
 | DELETE | `/api/open/v1/users/{id}` | 删除用户 | `user:write` |
+| GET | `/api/open/v1/roles` | 角色列表 | `role:read` |
+| POST | `/api/open/v1/roles` | 创建角色 | `role:write` |
+| GET | `/api/open/v1/roles/{role_id}` | 角色详情 | `role:read` |
+| PATCH | `/api/open/v1/roles/{role_id}` | 更新角色 | `role:write` |
+| DELETE | `/api/open/v1/roles/{role_id}` | 删除角色（软删除） | `role:write` |
+| GET | `/api/open/v1/roles/{role_id}/permissions` | 角色绑定权限列表 | `role:read` |
+| GET | `/api/open/v1/files` | 文件列表 | `file:read` |
+| POST | `/api/open/v1/files` | 上传文件（Base64 内嵌 JSON） | `file:write` |
+| GET | `/api/open/v1/files/{file_path:path}` | 下载文件（本地流 / 云存储 302） | `file:read` |
+| DELETE | `/api/open/v1/files/{file_id}` | 删除文件（软删除） | `file:write` |
+
+**开放平台门户接口（开发者会话 JWT 鉴权）：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/open-portal/v1/auth/register` | 注册开发者账号 |
+| POST | `/api/open-portal/v1/auth/login` | 开发者登录（签发 access/refresh 令牌对） |
+| POST | `/api/open-portal/v1/auth/refresh` | 刷新令牌（旧 access 令牌随即失效） |
+| POST | `/api/open-portal/v1/auth/logout` | 退出登录（撤销服务端会话） |
+| POST | `/api/open-portal/v1/auth/change-password` | 修改密码（成功后需重新登录） |
+| GET | `/api/open-portal/v1/developer/profile` | 当前开发者资料 |
+| PUT | `/api/open-portal/v1/developer/profile` | 更新资料（姓名/手机号） |
+| POST | `/api/open-portal/v1/developer/certification` | 提交认证申请（个人/企业） |
+| GET | `/api/open-portal/v1/apps` | 我的应用分页列表（owner 隔离） |
+| POST | `/api/open-portal/v1/apps` | 创建应用（app_key 仅此一次返回，进入审批流） |
+| GET | `/api/open-portal/v1/apps/{app_id}` | 应用详情（含审批状态/意见） |
+| PUT | `/api/open-portal/v1/apps/{app_id}` | 更新应用 |
+| DELETE | `/api/open-portal/v1/apps/{app_id}` | 删除应用（软删） |
+| PUT | `/api/open-portal/v1/apps/{app_id}/scopes` | 提交 scope 申请 / 调整（复位待审） |
+| POST | `/api/open-portal/v1/apps/{app_id}/rotate-key` | 重置 App Key（新 key 仅此一次返回） |
+| GET | `/api/open-portal/v1/apps/scopes` | scope 目录 |
+| GET | `/api/open-portal/v1/messages/unread-count` | 未读消息数 |
+| GET | `/api/open-portal/v1/messages` | 我的站内信列表（分页） |
+| POST | `/api/open-portal/v1/messages/{msg_id}/read` | 标记单条已读 |
+| POST | `/api/open-portal/v1/messages/read-all` | 全部已读 |
+
+**开发者审批（管理端，双路径兼容）：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| PUT | `/api/v1/admin/apps/{app_id}/approval` | 审批开发者应用 / scope 申请（通过/驳回 + 意见） |
+| GET | `/api/v1/open-developers` | 开发者列表（含认证状态） |
+| GET | `/api/v1/open-developers/{developer_id}/apps` | 开发者名下应用 |
 
 ### 🛡️ 权限控制说明
 
@@ -694,6 +756,7 @@ graph LR
 - **核心权限项**：公告管理 `announcement:view / create / edit / delete / publish`；通知管理 `notification:view / create / config`（发布/撤回系统通知、渠道配置管理）
 - **AI 助手**：`assistant:chat`（对话与会话管理，自动注册，实际仅要求登录）、`assistant:feedback`（消息反馈）
 - **开放平台接口**：AppId + AppKey（明文模式）或 HanJiang-1 HMAC 签名认证，通过 `@app_scope` 声明的 scope 控制接口访问范围；scope 同样在启动时自动同步
+- **开放平台门户接口**：开发者会话 JWT（Bearer Token），登录态存 Redis（`login_dev:{developer_id}`），登出 / 改密 / 刷新令牌后旧 access 令牌立即失效；应用与 scope 申请须管理端审批通过后方可调用开放接口
 
 ## 🗄️ 存储配置说明
 
@@ -701,7 +764,7 @@ graph LR
 
 - **类型**：MySQL 8.0+
 - **配置**：通过 `.env` 配置 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`、`MYSQL_POOL_SIZE`
-- **迁移**：使用 Alembic 管理数据库版本，当前迁移版本包含用户、通知记录、用户通知配置、开放平台应用、系统通知、公告等核心表
+- **迁移**：使用 Alembic 管理数据库版本（0001~0020），覆盖用户、通知记录、用户通知配置、开放平台应用、系统通知、公告、AI 助手会话、开发者、开发者消息、文件归属等核心表
 - **注意**：生产环境务必通过环境变量注入数据库密码，且不写入版本库
 
 ### ⚡ 缓存

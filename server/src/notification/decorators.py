@@ -1,12 +1,12 @@
 """通知装饰器 — 用切面方式自动触发通知，业务代码不再手写通知逻辑。
 
 Usage:
-    @notify(NotificationEvent.USER_CREATED, target="owner")
+    @notify(NotificationEvent.USER_CREATED, target="self")
     def create(self, data):
         ...
-    target="owner" → 从返回值.owner_user_id 取接收人
-    target="self"  → 从返回值.id 取接收人（通知自己）
-    target=1       → 固定通知 user_id=1
+    target="self"            → 从返回值.id 取接收人（通知自己）
+    target=1                 → 固定通知 user_id=1
+    target=callable(result)  → 自定义函数从返回值解析接收人 user_id
 """
 
 from __future__ import annotations
@@ -25,8 +25,6 @@ def _resolve_target(target: Any, result: Any) -> int | None:
         return target(result)
     if isinstance(target, int):
         return target
-    if target == "owner":
-        return getattr(result, "owner_user_id", None)
     if target == "self":
         return getattr(result, "id", None)
     return None
@@ -50,8 +48,7 @@ def notify(
 
     Args:
         event_type: 通知事件枚举
-        target: "self"=通知返回值.id 对应用户; "owner"=通知返回值.owner_user_id;
-                int=固定 user_id; callable(result)->int
+        target: "self"=通知返回值.id 对应用户; int=固定 user_id; callable(result)->int
         vars_extractor: 从返回值提取模板变量
     """
 

@@ -40,6 +40,7 @@ def register(
         email=body.email,
         password=body.password,
         confirm_password=body.confirm_password,
+        name=body.name,
         certification_type=body.certification_type,
     )
     return success_response(data.model_dump(), request, code=201)

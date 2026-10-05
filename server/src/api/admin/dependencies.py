@@ -33,6 +33,11 @@ from src.services.admin.permission_service import PermissionService
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
+    from src.repositories.assistant_repository import (
+        AssistantConversationRepository,
+        AssistantFeedbackRepository,
+        AssistantMessageRepository,
+    )
     from src.repositories.login_log_repository import LoginLogRepository
     from src.repositories.menu_repository import MenuRepository
     from src.repositories.notification_preference_repository import NotificationPreferenceRepository
@@ -44,6 +49,7 @@ if TYPE_CHECKING:
     from src.services.admin.announcement_service import AnnouncementService
     from src.services.admin.assistant_service import AssistantService
     from src.services.admin.dashboard_service import DashboardService
+    from src.services.admin.developer_admin_service import DeveloperAdminService
     from src.services.admin.login_log_service import LoginLogService
     from src.services.admin.openapi_app_service import OpenApiAppService
     from src.services.admin.profile_service import ProfileService
@@ -54,9 +60,6 @@ if TYPE_CHECKING:
     from src.services.file_service import FileStorageService
     from src.services.role_service import RoleService
     from src.services.user_service import UserService
-    from src.repositories.assistant_repository import AssistantConversationRepository
-    from src.repositories.assistant_repository import AssistantMessageRepository
-    from src.repositories.assistant_repository import AssistantFeedbackRepository
 
 
 
@@ -299,6 +302,21 @@ def get_openapi_app_service(
     from src.services.admin.openapi_app_service import OpenApiAppService
 
     return OpenApiAppService(repo=OpenApiAppRepository(session=db_session))
+
+
+def get_developer_admin_service(
+    db_session: Session = Depends(get_db_session),
+) -> DeveloperAdminService:
+    """创建开放平台开发者用户管理服务（管理端查询）。"""
+    from src.repositories.developer_repository import DeveloperRepository
+    from src.repositories.openapi_app_repository import OpenApiAppRepository
+    from src.services.admin.developer_admin_service import DeveloperAdminService
+    from src.services.admin.openapi_app_service import OpenApiAppService
+
+    return DeveloperAdminService(
+        repository=DeveloperRepository(session=db_session),
+        openapi_app_service=OpenApiAppService(repo=OpenApiAppRepository(session=db_session)),
+    )
 
 
 def get_search_service(

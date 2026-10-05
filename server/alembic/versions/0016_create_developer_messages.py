@@ -6,7 +6,7 @@ Create Date: 2026-10-03 15:30:00.000000
 
 开放平台开发者站内信表：
 1. developer_messages：开发者门户站内信（与管理系统用户站内信 notification_records 分表），
-   developer_id 直接绑定开发者（developers.id），字段按 web/open 前端
+   developer_id 直接绑定开发者（developers.id），字段按 web/open_portal 前端
    OpenMessage 约定（title/content/category/read/created_at）设计；
 2. 索引：idx_dev_msg_developer（developer_id），支撑"我的站内信"按收件人过滤。
 """

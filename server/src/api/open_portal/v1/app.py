@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """开放平台开发者应用接口（门户 JWT，owner 隔离）。
 路由前缀：/api/open-portal/v1/apps（含 GET /apps/scopes scope 目录）
-说明：应用数据表 openapi_apps 与管理端共用，归属 owner_type='developer' + owner_id=当前开发者；
+说明：应用数据表 openapi_apps 与管理系统端共用，归属 owner_type='developer' + owner_id=当前开发者；
 开发者只能查询/操作本人名下应用（他人应用一律 404，不暴露存在性）。
 scope 目录接口（GET /apps/scopes）的元数据唯一来源为 openapi_scopes 表（constants/scopes.py 启动时对账），
 与管理端 /api/v1/admin/apps/scopes 路径风格一致，业务实现下放 DeveloperOpenApiAppService.list_scopes。

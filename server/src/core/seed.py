@@ -61,6 +61,7 @@ _SEED_MENUS = [
     (0, "开放平台", "/open", "Connection", None, 5, "directory"),
     ("开放平台", "应用管理", "/apps", "Grid", PermissionCode.OPENAPI_APP_VIEW.mark, 1, "menu"),
     ("开放平台", "权限管理", "/app-scopes", "Lock", PermissionCode.OPENAPI_APP_VIEW.mark, 2, "menu"),
+    ("开放平台", "用户管理", "/open-developers", "Avatar", PermissionCode.OPENAPI_DEV_VIEW.mark, 3, "menu"),
 ]
 
 
@@ -213,21 +214,22 @@ def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:
 
 
 def _seed_menus(session) -> None:
-    """初始化菜单数据（幂等）。"""
-    # 先查已有菜单，按 title 建索引
+    """初始化菜单数据（幂等）。
+
+    幂等键为 ``(parent_id, title)``：菜单树中允许不同父级下存在同名菜单
+    （如"系统管理/用户管理"与"开放平台/用户管理"），仅按 title 判断会误跳过。
+    """
     existing = session.execute(select(MenuEntity)).scalars().all()
-    title_map = {m.title: m for m in existing}
-    parent_map: dict[str, MenuEntity] = {}
-    for item in existing:
-        parent_map[item.title] = item
+    key_map = {(m.parent_id, m.title): m for m in existing}
+    parent_map = {m.title: m for m in existing}
     for parent_title, title, path, icon, perm_code, sort_order, mtype in _SEED_MENUS:
-        if title in title_map:
-            continue
         parent_id = 0
         if parent_title != 0:
             parent = parent_map.get(parent_title)
             if parent:
                 parent_id = parent.id
+        if (parent_id, title) in key_map:
+            continue
         m = MenuEntity(
             parent_id=parent_id,
             title=title,
@@ -241,6 +243,7 @@ def _seed_menus(session) -> None:
         session.add(m)
         session.flush()
         parent_map[title] = m
+        key_map[(parent_id, title)] = m
         logger.info(f"Seed menu created: title={title}")
 
 

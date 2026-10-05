@@ -26,12 +26,16 @@ from src.core.exceptions import NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
 from src.models.entities.notification_entity import NotificationRecordEntity
-from src.notification.decorators import notify
 from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.admin.openapi_app import OpenApiAppResponse
 from src.services.admin.base_service import BaseService, audit_crud
 from src.utils import security
-from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, parse_scopes
+from src.utils.openapi_utils import (
+    build_scope_dict_list,
+    generate_app_id,
+    parse_scopes,
+    validate_scopes,
+)
 from src.utils.security import generate_secret_key
 
 # ============================================================
@@ -80,6 +84,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         审批流仅面向开发者自助应用：admin 自建应用无审批概念，
         approval_status 保持 NULL（开发者域创建时才写 pending）。
         """
+        validate_scopes(scopes)
         app_id = generate_app_id()
         while self._repository.get_by_app_id(app_id) is not None:
             app_id = generate_app_id()
@@ -121,6 +126,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self,
         keyword: str | None = None,
         owner_type: str | None = None,
+        owner_id: int | None = None,
         scope: str | None = None,
         operator_id: int | None = None,
         page: int = 1,
@@ -131,6 +137,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         Args:
             keyword: 按名称模糊搜索
             owner_type: 按归属类型过滤（developer 开发者自助 / admin 管理员分配）
+            owner_id: 按归属方 ID 过滤（与 owner_type 组合，如查询某开发者名下的应用）
             scope: 管理端个人视角类目：
                 "created"  = 我新建的（owner_type=admin 且 owner_id=当前用户）
                 "approved" = 我审批的（待审批 pending 或 审批人 approved_by=当前用户）
@@ -176,6 +183,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             rows, total = self._repository.search_by_keyword(
                 keyword=keyword,
                 owner_type=owner_type,
+                owner_id=owner_id,
                 skip=skip,
                 limit=page_size,
             )
@@ -195,11 +203,6 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     # ── 更新 ────────────────────────────────────────────
 
-    @notify(
-        NotificationEvent.OPENAPI_APP_UPDATED,
-        target="owner",
-        vars_extractor=lambda r: {"app_name": r.name, "app_id": r.app_id},
-    )
     @audit_crud(PermissionAction.EDIT.mark)
     def update(self, id: int, patch: dict[str, Any], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
         """更新应用基本信息（不含 scopes / status，走专用方法）。"""
@@ -209,15 +212,16 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         for k, v in patch.items():
             if v is not None and hasattr(e, k):
                 setattr(e, k, v)
+        self._notify_owner_action(
+            e,
+            action="编辑",
+            event=NotificationEvent.OPENAPI_APP_UPDATED,
+            operator=operator,
+        )
         self._repository.flush()
         self._commit()
         return self._to_response(e)
 
-    @notify(
-        NotificationEvent.OPENAPI_APP_UPDATED,
-        target="owner",
-        vars_extractor=lambda r: {"app_name": r.name, "app_id": r.app_id},
-    )
     @audit_crud(PermissionAction.SCOPES.mark)
     def update_scopes(self, id: int, scopes: list[str], operator: dict[str, Any] | None = None) -> OpenApiAppResponse:
         """覆盖更新应用 scope 列表。
@@ -226,12 +230,19 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         管理端授权调整视为审批通过置 approved；管理端自建应用（NULL）无审批概念，
         直接改 scope 不产生审批状态。
         """
+        validate_scopes(scopes)
         e = self._repository.get_by_id(id)
         if e is None:
             raise NotFoundException(message=f"应用 {id} 不存在")
         e.scopes = ",".join(scopes)
         if e.approval_status is not None:
             e.approval_status = AppApprovalStatus.APPROVED.value
+        self._notify_owner_action(
+            e,
+            action="授权范围变更",
+            event=NotificationEvent.OPENAPI_APP_UPDATED,
+            operator=operator,
+        )
         self._repository.flush()
         self._commit()
         return self._to_response(e)
@@ -409,7 +420,6 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             rate_limit_per_minute=e.rate_limit_per_minute,
             owner_type=e.owner_type,
             owner_id=e.owner_id,
-            owner_user_id=e.owner_user_id,
             owner_name=owner_name,
             approval_status=e.approval_status,
             approved_by=e.approved_by,

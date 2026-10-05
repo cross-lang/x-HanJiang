@@ -13,6 +13,12 @@ class DeveloperRegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=100, description="邮箱")
     password: str = Field(min_length=8, max_length=64, description="密码")
     confirm_password: str = Field(min_length=8, max_length=64, description="确认密码")
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="昵称（注册时可选，为空时回退为用户名）",
+    )
     certification_type: str | None = Field(
         default=None,
         pattern="^(personal|enterprise)$",

@@ -58,6 +58,7 @@ class DeveloperAuthService:
         email: str,
         password: str,
         confirm_password: str,
+        name: str | None = None,
         certification_type: str | None = None,
     ) -> DeveloperProfileResponse:
         """注册开发者账号。
@@ -67,6 +68,7 @@ class DeveloperAuthService:
             email: 邮箱
             password: 密码
             confirm_password: 确认密码
+            name: 昵称（可选，为空时回退为用户名）
             certification_type: 认证主体类型（预留）
 
         Returns:
@@ -86,6 +88,7 @@ class DeveloperAuthService:
             username=username,
             email=email,
             password_hash=hash_password(password),
+            name=name or username,
             certification_type=certification_type,
             status=DeveloperStatus.ENABLED.value,
         )

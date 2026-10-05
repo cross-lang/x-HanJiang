@@ -27,7 +27,12 @@ from src.schemas.open_portal.app import (
     OpenAppResponse,
 )
 from src.utils import security
-from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, parse_scopes
+from src.utils.openapi_utils import (
+    build_scope_dict_list,
+    generate_app_id,
+    parse_scopes,
+    validate_scopes,
+)
 
 # 开放应用审批权限码（管理端 openapi_app.py 的 update_app_approval 依赖此权限）
 _APPROVAL_PERM_CODE = "openapi_app:scopes"
@@ -59,6 +64,7 @@ class DeveloperOpenApiAppService:
         Returns:
             (响应 DTO, 明文 AppKey)。明文仅此一次返回（由 API 层组装进响应）。
         """
+        validate_scopes(scopes)
         app_id = generate_app_id()
         while self._repository.get_by_app_id(app_id) is not None:
             app_id = generate_app_id()
@@ -184,6 +190,7 @@ class DeveloperOpenApiAppService:
         审批动作（通过/驳回）由管理系统管理员执行（admin/v1 的 scopes 与 approval 端点），
         通过后 approval_status=approved、驳回后保留 pending 待开发者调整重提。
         """
+        validate_scopes(scopes)
         e = self._require_owned(app_id, developer_id)
         e.scopes = ",".join(scopes)
         e.approval_status = AppApprovalStatus.PENDING.value

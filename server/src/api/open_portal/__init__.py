@@ -5,7 +5,7 @@
 
 与开放接口（/api/open/v1/...，AppId/AppKey 签名鉴权）严格区分：
 本包只承载开放平台网站页面自身的接口（开发者账号、个人中心、应用管理、scope 目录等），
-调用方是 web/open 前端，鉴权走开发者登录会话（参考管理系统登录会话管理模块实现）。
+调用方是 web/open_portal 前端，鉴权走开发者登录会话（参考管理系统登录会话管理模块实现）。
 """
 
 from fastapi import APIRouter

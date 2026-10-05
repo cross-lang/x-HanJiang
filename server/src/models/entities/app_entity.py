@@ -36,8 +36,7 @@ class OpenApiAppEntity(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment="应用名")
     description: Mapped[str] = mapped_column(String(255), nullable=False, comment="应用描述")
     # 归属：owner_type 区分两类来源（developer=开发者门户自助 / admin=管理员分配），
-    # owner_id 按类型指向 developers.id 或 users.id。owner_user_id 为历史字段，
-    # 已由 owner_type/owner_id 取代，存量数据迁移时回填，新代码不再写入。
+    # owner_id 按类型指向 developers.id 或 users.id。
     owner_type: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
@@ -47,7 +46,6 @@ class OpenApiAppEntity(Base):
     owner_id: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, comment="归属方ID：developer→developers.id / admin→users.id"
     )
-    owner_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, comment="[已废弃] 历史归属用户ID，仅存量数据")  # noqa: E501
     # ── 审批流（开发者自助申请 scope → 管理员审批）────────
     # 仅"开发者自助创建"的应用参与审批流；管理端自建应用无审批概念，本列为 NULL。
     # 注意：不设 server_default——SQLAlchemy 2.0 中带 server_default 的列在属性为
@@ -94,7 +92,6 @@ class OpenApiAppEntity(Base):
     __table_args__ = (
         Index("uk_app_id", "app_id", unique=True),
         Index("idx_owner", "owner_type", "owner_id"),
-        Index("idx_owner_user_id", "owner_user_id"),
     )
 
 
