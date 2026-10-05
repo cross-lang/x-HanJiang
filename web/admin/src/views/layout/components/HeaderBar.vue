@@ -85,6 +85,15 @@ const userStore = useUserStore()
   display: flex;
   align-items: center;
   gap: 10px;
+  outline: none;
+}
+.user-trigger:focus,
+.user-trigger:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.user-trigger * {
+  outline: none;
 }
 .user-avatar {
   background: #79bbff;
