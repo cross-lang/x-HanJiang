@@ -28,7 +28,7 @@ from src.schemas.common import ApiResponse
 from src.schemas.open.file import OpenFileUploadRequest
 from src.services.file_service import FileStorageService
 
-router = APIRouter(prefix="/files", tags=["开放平台：文件管理"])
+router = APIRouter(prefix="/files", tags=["开放API：文件管理"])
 
 
 @router.get(

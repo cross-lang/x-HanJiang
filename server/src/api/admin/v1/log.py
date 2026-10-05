@@ -23,7 +23,7 @@ from src.services.admin.audit_service import AuditService
 from src.services.admin.login_log_service import LoginLogService
 from src.utils.csv import build_csv_stream_response
 
-router = APIRouter(prefix="/audit", tags=["审计日志"])
+router = APIRouter(prefix="/logs", tags=["管理系统：日志管理"])
 
 
 def describe_audit_action(action: str) -> str:
@@ -39,7 +39,7 @@ def describe_audit_action(action: str) -> str:
 # 业务审计日志（audit_logs 表）
 # ============================================================
 @router.get(
-    "/logs",
+    "/audit",
     summary="业务审计日志列表",
     description="查询业务审计日志（数据变更记录）",
     dependencies=[Depends(require_user_permission(PermissionCode.AUDIT_LOG_VIEW.mark))],
@@ -101,7 +101,7 @@ def list_audit_logs(
 
 
 @router.get(
-    "/logs/export",
+    "/audit/export",
     summary="导出审计日志",
     description="按筛选条件导出审计日志为 CSV 文件",
     dependencies=[Depends(require_user_permission(PermissionCode.AUDIT_LOG_EXPORT.mark))],
@@ -164,7 +164,7 @@ def export_audit_logs(
 
 
 @router.get(
-    "/logs/{log_id}",
+    "/audit/{log_id}",
     summary="业务审计日志详情",
     description="根据 ID 查询单条业务审计日志详情",
     dependencies=[Depends(require_user_permission(PermissionCode.AUDIT_LOG_VIEW.mark))],
@@ -197,7 +197,7 @@ def get_audit_log(
 
 
 @router.get(
-    "/login-logs",
+    "/login",
     summary="登录日志列表",
     description="查询登录日志",
     dependencies=[Depends(require_user_permission(PermissionCode.LOGIN_LOG_VIEW.mark))],
@@ -236,7 +236,7 @@ def list_login_logs(
 
 
 @router.get(
-    "/login-logs/export",
+    "/login/export",
     summary="导出登录日志",
     description="按筛选条件导出登录日志为 CSV 文件",
     dependencies=[Depends(require_user_permission(PermissionCode.LOGIN_LOG_EXPORT.mark))],
@@ -294,7 +294,7 @@ def export_login_logs(
 
 
 @router.get(
-    "/login-logs/{log_id}",
+    "/login/{log_id}",
     summary="登录日志详情",
     description="根据 ID 查询单条登录日志详情",
     dependencies=[Depends(require_user_permission(PermissionCode.LOGIN_LOG_VIEW.mark))],

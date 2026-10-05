@@ -5,7 +5,7 @@ import type { OpenAppCreatedResult, OpenAppFormPayload, OpenAppItem, ScopeApplyP
 /**
  * 开发者应用管理接口（门户侧）。
  * 现状：应用管理的归属（owner=开发者）与审批流为规划中的开放平台闭环，
- * 以下接口前端已接入、后端待实现；管理端审批能力（/api/v1/admin/apps）已存在。
+ * 以下接口前端已接入、后端待实现；管理端审批能力（/api/v1/apps）已存在。
  */
 
 export interface OpenAppQuery {

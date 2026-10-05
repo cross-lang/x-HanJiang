@@ -39,7 +39,7 @@ from src.schemas.admin.auth import CurrentUser
 from src.services.admin.assistant_service import AssistantService
 from src.utils.sse import build_sse_event
 
-router = APIRouter(prefix="/assistant", tags=["AI 助手"])
+router = APIRouter(prefix="/assistant", tags=["管理系统：AI 助手"])
 
 #: SSE 响应头：禁止代理缓冲，保证事件即时下发
 _SSE_HEADERS: dict[str, str] = {

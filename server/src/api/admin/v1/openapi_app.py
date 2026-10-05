@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """开放平台应用管理接口（内部管理员用，走用户态 JWT）。
-路由前缀：/api/v1/admin/apps
+路由前缀：/api/v1/apps
 权限：SUPERADMIN
 注意：AppKey 明文只在创建 / 重置时返回一次，之后无法再查看。
 """
@@ -30,7 +30,7 @@ from src.schemas.admin.openapi_app import (
 from src.schemas.common import PaginatedResponse
 from src.services.admin.openapi_app_service import OpenApiAppService
 
-router = APIRouter(prefix="/admin/apps", tags=["开放平台应用管理"])
+router = APIRouter(prefix="/apps", tags=["管理系统：开放平台应用管理"])
 
 
 @router.get(

@@ -22,7 +22,7 @@ from src.schemas.open_portal.auth import (
 )
 from src.services.open_portal.auth_service import DeveloperAuthService
 
-router = APIRouter(prefix="/auth", tags=["开放平台：开发者认证"])
+router = APIRouter(prefix="/auth", tags=["开放平台：身份认证"])
 
 
 @router.post(

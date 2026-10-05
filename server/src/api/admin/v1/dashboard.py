@@ -14,7 +14,7 @@ from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.services.admin.dashboard_service import DashboardService
 
-router = APIRouter(prefix="/dashboard", tags=["仪表盘"])
+router = APIRouter(prefix="/dashboard", tags=["管理系统：仪表盘"])
 
 
 @router.get(

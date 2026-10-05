@@ -29,7 +29,7 @@ from src.schemas.admin.role import (
 from src.schemas.common import ApiResponse, PaginatedResponse
 from src.services.role_service import RoleService
 
-router = APIRouter(prefix="/roles", tags=["开放平台：角色管理"])
+router = APIRouter(prefix="/roles", tags=["开放API：角色管理"])
 
 
 @router.get(

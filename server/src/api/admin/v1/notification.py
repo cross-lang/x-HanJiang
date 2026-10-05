@@ -29,7 +29,7 @@ from src.services.admin.notification_service import NotificationService
 from src.services.admin.system_notification_config_service import SystemNotificationConfigService
 from src.services.admin.system_notification_service import SystemNotificationService
 
-router = APIRouter(prefix="/notifications", tags=["通知管理"])
+router = APIRouter(prefix="/notifications", tags=["管理系统：通知管理"])
 
 
 # ============================================================
@@ -280,7 +280,7 @@ def get_notification(
 # 系统通知渠道配置管理（管理员）
 # ============================================================
 
-admin_router = APIRouter(prefix="/admin/notification-configs", tags=["通知管理"])
+admin_router = APIRouter(prefix="/admin/notification-configs", tags=["管理系统：通知管理"])
 
 
 @admin_router.get(

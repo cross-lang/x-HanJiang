@@ -14,22 +14,22 @@ export interface AuditQuery {
 
 /** 审计日志列表 */
 export function listAuditLogs(params: AuditQuery) {
-  return request.get<PageResult<AuditLogItem>>('/audit/logs', { params })
+  return request.get<PageResult<AuditLogItem>>('/logs/audit', { params })
 }
 
 /** 登录日志列表 */
 export function listLoginLogs(params: AuditQuery) {
-  return request.get<PageResult<LoginLogItem>>('/audit/login-logs', { params })
+  return request.get<PageResult<LoginLogItem>>('/logs/login', { params })
 }
 
 /** 审计日志详情 */
 export function getAuditLogDetail(id: number) {
-  return request.get<AuditLogItem>(`/audit/logs/${id}`)
+  return request.get<AuditLogItem>(`/logs/audit/${id}`)
 }
 
 /** 登录日志详情 */
 export function getLoginLogDetail(id: number) {
-  return request.get<LoginLogItem>(`/audit/login-logs/${id}`)
+  return request.get<LoginLogItem>(`/logs/login/${id}`)
 }
 
 /** 导出审计日志 CSV（原始 fetch，后端直接返回文件流） */
@@ -38,7 +38,7 @@ export function exportAuditCsv(params: { keyword?: string }): Promise<Response> 
   if (params.keyword) query.set('keyword', params.keyword)
   const suffix = query.toString()
   const token = localStorage.getItem('access_token')
-  return fetch(`/api/v1/audit/logs/export${suffix ? `?${suffix}` : ''}`, {
+  return fetch(`/api/v1/logs/audit/export${suffix ? `?${suffix}` : ''}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
 }
@@ -49,7 +49,7 @@ export function exportLoginLogCsv(params: { keyword?: string }): Promise<Respons
   if (params.keyword) query.set('keyword', params.keyword)
   const suffix = query.toString()
   const token = localStorage.getItem('access_token')
-  return fetch(`/api/v1/audit/login-logs/export${suffix ? `?${suffix}` : ''}`, {
+  return fetch(`/api/v1/logs/login/export${suffix ? `?${suffix}` : ''}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
 }

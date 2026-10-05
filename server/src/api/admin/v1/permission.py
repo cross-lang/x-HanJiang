@@ -24,7 +24,7 @@ from src.schemas.admin.role import PermissionResponse
 from src.schemas.common import PaginatedResponse
 from src.services.admin.permission_service import PermissionService
 
-router = APIRouter(prefix="/permissions", tags=["权限管理"])
+router = APIRouter(prefix="/permissions", tags=["管理系统：权限管理"])
 
 
 @router.get(

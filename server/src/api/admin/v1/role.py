@@ -37,7 +37,7 @@ from src.schemas.common import PaginatedResponse
 from src.services.admin.permission_service import PermissionService
 from src.services.role_service import RoleService
 
-router = APIRouter(prefix="/roles", tags=["角色管理"])
+router = APIRouter(prefix="/roles", tags=["管理系统：角色管理"])
 
 
 @router.get(

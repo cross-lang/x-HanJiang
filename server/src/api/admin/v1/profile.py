@@ -46,7 +46,7 @@ from src.schemas.admin.profile import (
 )
 from src.services.admin.profile_service import ProfileService
 
-router = APIRouter(prefix="/profile", tags=["个人中心"])
+router = APIRouter(prefix="/profile", tags=["管理系统：个人中心"])
 
 
 @router.get(

@@ -16,7 +16,7 @@ from src.schemas.open_portal.auth import CurrentDeveloper
 from src.schemas.open_portal.message import DeveloperMessageCountResponse, DeveloperMessageResponse
 from src.services.open_portal.developer_message_service import DeveloperMessageService
 
-router = APIRouter(prefix="/messages", tags=["开放平台门户：站内信"])
+router = APIRouter(prefix="/messages", tags=["开放平台：站内信"])
 
 
 @router.get(

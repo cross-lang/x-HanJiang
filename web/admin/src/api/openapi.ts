@@ -11,36 +11,36 @@ export interface OpenAppQuery {
 }
 
 export function listApps(params: OpenAppQuery) {
-  return request.get<PageResult<OpenAppItem>>('/admin/apps', { params })
+  return request.get<PageResult<OpenAppItem>>('/apps', { params })
 }
 
 export function listScopes() {
-  return request.get<OpenScope[]>('/admin/apps/scopes')
+  return request.get<OpenScope[]>('/apps/scopes')
 }
 
 export function createApp(data: OpenAppFormPayload) {
-  return request.post<OpenAppCreatedResult>('/admin/apps', data)
+  return request.post<OpenAppCreatedResult>('/apps', data)
 }
 
 export function updateApp(id: number, data: Partial<OpenAppFormPayload>) {
-  return request.put<OpenAppItem>(`/admin/apps/${id}`, data)
+  return request.put<OpenAppItem>(`/apps/${id}`, data)
 }
 
 /** 审批开发者 scope 申请：approved=true 通过 / false 驳回，note 为审批意见（驳回必填） */
 export function updateApproval(id: number, data: { approved: boolean; note?: string }) {
-  return request.put<OpenAppItem>(`/admin/apps/${id}/approval`, data)
+  return request.put<OpenAppItem>(`/apps/${id}/approval`, data)
 }
 
 export function updateAppStatus(id: number, status: string) {
-  return request.put<OpenAppItem>(`/admin/apps/${id}/status`, { status })
+  return request.put<OpenAppItem>(`/apps/${id}/status`, { status })
 }
 
 export function rotateAppKey(id: number) {
-  return request.post<{ app_id: string; app_key: string }>(`/admin/apps/${id}/rotate-key`)
+  return request.post<{ app_id: string; app_key: string }>(`/apps/${id}/rotate-key`)
 }
 
 export function deleteApp(id: number) {
-  return request.delete<{ message: string }>(`/admin/apps/${id}`)
+  return request.delete<{ message: string }>(`/apps/${id}`)
 }
 
 export interface DeveloperQuery {

@@ -18,13 +18,13 @@ from src.schemas.open_portal.auth import (
 )
 from src.services.open_portal.developer_service import DeveloperService
 
-router = APIRouter(prefix="/developer", tags=["开放平台：开发者资料"])
+router = APIRouter(prefix="/developer", tags=["开放平台：个人中心"])
 
 
 @router.get(
     "/profile",
-    summary="开发者资料",
-    description="当前登录开发者的个人资料（含认证类型与认证状态）",
+    summary="开发者信息",
+    description="当前登录开发者的个人信息（含认证类型与认证状态）",
 )
 def get_profile(
     request: Request,
@@ -36,7 +36,7 @@ def get_profile(
 
 @router.put(
     "/profile",
-    summary="更新开发者资料",
+    summary="更新开发者信息",
     description="更新姓名/手机号",
 )
 def update_profile(

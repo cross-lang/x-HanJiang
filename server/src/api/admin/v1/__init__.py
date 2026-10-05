@@ -9,12 +9,12 @@ from src.api.admin.v1 import (
     alert,
     announcement,
     assistant,
-    audit,
     auth,
     dashboard,
     developer,
     file,
     health,
+    log,
     notification,
     openapi_app,
     permission,
@@ -26,7 +26,7 @@ from src.api.admin.v1 import (
 )
 from src.constants import API_VERSION_V1_PREFIX
 
-# v1 聚合路由：所有挂在它下面的接口最终路径为 /api/v1/...
+# v1 聚合路由
 v1_router = APIRouter(prefix=API_VERSION_V1_PREFIX)
 
 # 注册健康管理路由
@@ -47,8 +47,8 @@ v1_router.include_router(role.router)
 # 注册权限管理路由
 v1_router.include_router(permission.router)
 
-# 注册审计日志路由
-v1_router.include_router(audit.router)
+# 注册审计日志路由（业务审计 + 登录日志）
+v1_router.include_router(log.router)
 
 # 注册文件管理路由
 v1_router.include_router(file.router)

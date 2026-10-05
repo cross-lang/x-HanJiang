@@ -16,7 +16,7 @@ from src.schemas.admin.auth import CurrentUser
 from src.services.admin.permission_service import PermissionService
 from src.services.admin.search_service import SearchService
 
-router = APIRouter(prefix="/search", tags=["全局搜索"])
+router = APIRouter(prefix="/search", tags=["管理系统：全局搜索"])
 
 # 分类 → 查看权限编码
 _CATEGORY_PERMS: dict[str, str] = {

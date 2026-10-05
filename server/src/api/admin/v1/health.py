@@ -20,11 +20,11 @@ from src.core.config import settings
 from src.schemas.admin.health import HealthResponse, VersionResponse
 from src.services.admin.health_service import HealthService
 
-router = APIRouter(tags=["健康检查"])
+router = APIRouter(tags=["管理系统：健康检查"])
 
 
 @router.get(
-    "/health",
+    "health",
     summary="健康检查",
     description="返回服务健康状态信息，包含数据库、缓存连通状态",
 )

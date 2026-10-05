@@ -21,7 +21,7 @@ from src.schemas.admin.user import UserCreateRequest, UserResponse, UserUpdateRe
 from src.schemas.common import ApiResponse, PaginatedResponse
 from src.services.user_service import UserService
 
-router = APIRouter(prefix="/users", tags=["开放平台：用户管理"])
+router = APIRouter(prefix="/users", tags=["开放API：用户管理"])
 
 
 @router.post(

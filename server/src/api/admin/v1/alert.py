@@ -21,7 +21,7 @@ from src.constants.permissions import PermissionCode
 from src.schemas.admin.alert import AlertSendRequest
 from src.services.admin.alert_service import AlertService
 
-router = APIRouter(prefix="/alerts", tags=["系统告警"])
+router = APIRouter(prefix="/alerts", tags=["管理系统：系统告警"])
 
 
 @router.post(

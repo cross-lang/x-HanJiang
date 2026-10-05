@@ -669,14 +669,14 @@ graph LR
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/admin/apps/scopes` | 可用 scope 列表 |
-| POST | `/api/v1/admin/apps` | 创建开放应用（返回 AppId + AppKey） |
-| GET | `/api/v1/admin/apps` | 应用列表 |
-| GET | `/api/v1/admin/apps/{app_id}` | 应用详情 |
-| PUT | `/api/v1/admin/apps/{app_id}` | 更新应用 |
-| PUT | `/api/v1/admin/apps/{app_id}/scopes` | 更新应用 scope |
-| POST | `/api/v1/admin/apps/{app_id}/rotate-key` | 重置 AppKey |
-| DELETE | `/api/v1/admin/apps/{app_id}` | 删除应用 |
+| GET | `/api/v1/apps/scopes` | 可用 scope 列表 |
+| POST | `/api/v1/apps` | 创建开放应用（返回 AppId + AppKey） |
+| GET | `/api/v1/apps` | 应用列表 |
+| GET | `/api/v1/apps/{app_id}` | 应用详情 |
+| PUT | `/api/v1/apps/{app_id}` | 更新应用 |
+| PUT | `/api/v1/apps/{app_id}/scopes` | 更新应用 scope |
+| POST | `/api/v1/apps/{app_id}/rotate-key` | 重置 AppKey |
+| DELETE | `/api/v1/apps/{app_id}` | 删除应用 |
 
 **全局搜索：**
 
@@ -746,7 +746,7 @@ graph LR
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| PUT | `/api/v1/admin/apps/{app_id}/approval` | 审批开发者应用 / scope 申请（通过/驳回 + 意见） |
+| PUT | `/api/v1/apps/{app_id}/approval` | 审批开发者应用 / scope 申请（通过/驳回 + 意见） |
 | GET | `/api/v1/open-developers` | 开发者列表（含认证状态） |
 | GET | `/api/v1/open-developers/{developer_id}/apps` | 开发者名下应用 |
 

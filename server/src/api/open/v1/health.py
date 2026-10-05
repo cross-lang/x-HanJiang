@@ -9,7 +9,7 @@ from src.constants import APP_NAME, APP_VERSION
 from src.schemas.common import ApiResponse
 from src.schemas.open.health import HealthResponse, VersionResponse
 
-router = APIRouter(tags=["开放平台：健康管理"])
+router = APIRouter(tags=["开放API：健康管理"])
 
 
 @router.get(

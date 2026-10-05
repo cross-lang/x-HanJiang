@@ -24,7 +24,7 @@ from src.schemas.admin.auth import (
 from src.services.admin.auth_service import AuthService
 from src.utils.helpers import get_client_ip
 
-router = APIRouter(prefix="/auth", tags=["身份认证"])
+router = APIRouter(prefix="/auth", tags=["管理系统：身份认证"])
 
 
 @router.post(

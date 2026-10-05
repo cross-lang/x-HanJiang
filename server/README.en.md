@@ -669,14 +669,14 @@ Once the backend is running:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/admin/apps/scopes` | Available scopes |
-| POST | `/api/v1/admin/apps` | Create open app (returns AppId + AppKey) |
-| GET | `/api/v1/admin/apps` | App list |
-| GET | `/api/v1/admin/apps/{app_id}` | App detail |
-| PUT | `/api/v1/admin/apps/{app_id}` | Update app |
-| PUT | `/api/v1/admin/apps/{app_id}/scopes` | Update app scopes |
-| POST | `/api/v1/admin/apps/{app_id}/rotate-key` | Rotate AppKey |
-| DELETE | `/api/v1/admin/apps/{app_id}` | Delete app |
+| GET | `/api/v1/apps/scopes` | Available scopes |
+| POST | `/api/v1/apps` | Create open app (returns AppId + AppKey) |
+| GET | `/api/v1/apps` | App list |
+| GET | `/api/v1/apps/{app_id}` | App detail |
+| PUT | `/api/v1/apps/{app_id}` | Update app |
+| PUT | `/api/v1/apps/{app_id}/scopes` | Update app scopes |
+| POST | `/api/v1/apps/{app_id}/rotate-key` | Rotate AppKey |
+| DELETE | `/api/v1/apps/{app_id}` | Delete app |
 
 **Global Search:**
 
@@ -746,7 +746,7 @@ Once the backend is running:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| PUT | `/api/v1/admin/apps/{app_id}/approval` | Approve/reject developer app or scope requests (with note) |
+| PUT | `/api/v1/apps/{app_id}/approval` | Approve/reject developer app or scope requests (with note) |
 | GET | `/api/v1/open-developers` | Developer list (incl. certification status) |
 | GET | `/api/v1/open-developers/{developer_id}/apps` | Apps owned by a developer |
 

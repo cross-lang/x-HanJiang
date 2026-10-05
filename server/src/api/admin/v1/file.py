@@ -10,7 +10,7 @@ from src.constants.permissions import PermissionCode
 from src.schemas.admin.auth import CurrentUser
 from src.services.file_service import FileStorageService
 
-router = APIRouter(prefix="/files", tags=["文件管理"])
+router = APIRouter(prefix="/files", tags=["管理系统：文件管理"])
 
 
 @router.post(

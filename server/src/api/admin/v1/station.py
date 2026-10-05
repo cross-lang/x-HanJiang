@@ -14,7 +14,7 @@ from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.services.admin.station_service import StationMessageService
 
-router = APIRouter(prefix="/station/messages", tags=["站内信"])
+router = APIRouter(prefix="/station/messages", tags=["管理系统：站内信"])
 
 
 @router.get(

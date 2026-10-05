@@ -38,7 +38,7 @@ from src.schemas.common import PaginatedResponse
 from src.services.user_service import UserService
 from src.utils.csv import build_csv_stream_response, parse_csv_rows
 
-router = APIRouter(prefix="/users", tags=["用户管理"])
+router = APIRouter(prefix="/users", tags=["管理系统：用户管理"])
 
 
 @router.post(
