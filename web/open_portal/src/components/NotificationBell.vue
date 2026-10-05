@@ -75,14 +75,24 @@ async function fetchList() {
 }
 
 async function toggleExpand(item: OpenMessage) {
+  // 审批结果类站内信（category=audit / 标题含"审批"）：直接跳转应用管理查看最新状态，
+  // 跳转优先于已读操作（已读异步执行，失败不阻塞跳转）
+  if (item.category === 'audit' || item.title.includes('审批')) {
+    if (!item.read) {
+      void markMessageRead(item.id).catch(() => {})
+      fetchUnread()
+    }
+    router.push('/apps')
+    return
+  }
   expandedId.value = expandedId.value === item.id ? null : item.id
   if (!item.read) {
-    await markMessageRead(item.id)
+    try {
+      await markMessageRead(item.id)
+    } catch {
+      // 已读失败不影响展开
+    }
     fetchUnread()
-  }
-  // 审批结果类站内信：点击跳转到我的应用列表查看最新状态
-  if (item.title.includes('审批')) {
-    router.push('/apps')
   }
 }
 

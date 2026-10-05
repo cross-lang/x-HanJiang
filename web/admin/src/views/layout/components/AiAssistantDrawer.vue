@@ -139,6 +139,22 @@
                 <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
                 怎么修改我的个人资料？
               </div>
+              <div class="ai-quick-q" @click="askQuickQuestion('怎么管理开放平台应用？')">
+                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                怎么管理开放平台应用？
+              </div>
+              <div class="ai-quick-q" @click="askQuickQuestion('怎么处理应用审批？')">
+                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                怎么处理应用审批？
+              </div>
+              <div class="ai-quick-q" @click="askQuickQuestion('怎么查看审计日志？')">
+                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                怎么查看审计日志？
+              </div>
+              <div class="ai-quick-q" @click="askQuickQuestion('怎么查看登录日志？')">
+                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                怎么查看登录日志？
+              </div>
             </div>
           </div>
           <div
@@ -481,6 +497,9 @@ watch(visible, v => {
   background: #eef1fc;
   border-radius: 8px;
   padding: 10px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 10px;
 }
 .ai-q-arrow {
   color: #5a6cf0;

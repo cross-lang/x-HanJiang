@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="dialogVisible" title="审批应用申请" width="600px" @closed="resetForm">
+  <el-dialog v-model="dialogVisible" :title="readonly ? '申请详情' : '审批应用申请'" width="600px" @closed="resetForm">
     <!-- 申请信息 -->
     <el-descriptions :column="1" border class="hj-mb-16">
       <el-descriptions-item label="申请码">
@@ -44,7 +44,7 @@
       </template>
     </el-descriptions>
 
-    <el-form v-if="isPending" ref="formRef" :model="form" :rules="rules" label-width="80px">
+    <el-form v-if="isPending && !readonly" ref="formRef" :model="form" :rules="rules" label-width="80px">
       <el-form-item label="审批结论">
         <el-radio-group v-model="form.approved">
           <el-radio-button :value="true">通过</el-radio-button>
@@ -64,7 +64,7 @@
     </el-form>
 
     <template #footer>
-      <template v-if="isPending">
+      <template v-if="isPending && !readonly">
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSubmit">
           {{ form.approved ? '确认通过' : '确认驳回' }}
@@ -89,6 +89,8 @@ const props = defineProps<{
   visible: boolean
   /** 待审批的申请（批次） */
   record: AppRegistrationItem | null
+  /** 只读详情模式：隐藏审批表单，仅展示申请信息与审批结果 */
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{

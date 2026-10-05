@@ -45,7 +45,13 @@ from src.schemas.open_portal.app import (
     OpenAppScopeApplyRequest,
     OpenAppUpdateRequest,
 )
-from src.utils.openapi_utils import build_scope_dict_list, generate_registration_code
+from src.utils import security
+from src.utils.openapi_utils import (
+    build_scope_dict_list,
+    generate_app_id,
+    generate_registration_code,
+)
+from src.utils.security import generate_secret_key
 
 logger = logging.getLogger(__name__)
 
@@ -178,11 +184,17 @@ class DeveloperOpenApiAppService:
         )
         if same_name is not None:
             raise ConflictException(message=f"开发者名下已存在名为「{payload.name}」的应用")
+        app_id = generate_app_id()
+        while self._repo.get_by_app_id(app_id) is not None:
+            app_id = generate_app_id()
+        # 密钥以哈希 + 加密明文落库（与管理系统同一密钥模型），明文仅生成时刻可用
+        app_key_plain = generate_secret_key()
         entity = OpenApiAppEntity(
             name=payload.name,
             description=payload.description,
-            app_id=self._repo.generate_app_id(),
-            app_key=self._repo.generate_app_key(),
+            app_id=app_id,
+            app_key_hash=security.sha256_hex(app_key_plain),
+            app_key_encrypted=security.encrypt_text(app_key_plain),
             scopes=_join_scopes(payload.scopes),
             auth_mode=payload.auth_mode,
             status=AppStatus.ACTIVE.value,
@@ -259,10 +271,12 @@ class DeveloperOpenApiAppService:
         """重置应用 AppKey（即时生效，不涉及审批）。"""
         entity = self._require_owned(app_id, developer_id)
         self._require_operable(entity)
-        entity.app_key = self._repo.generate_app_key()
+        new_plain = generate_secret_key()
+        entity.app_key_hash = security.sha256_hex(new_plain)
+        entity.app_key_encrypted = security.encrypt_text(new_plain)
         self._session.commit()
         logger.info("developer %s rotated app key app_id=%s", developer_id, app_id)
-        return {"app_id": entity.app_id, "app_key": entity.app_key}
+        return {"app_id": entity.app_id, "app_key": new_plain}
 
     def delete_app(self, app_id: int, developer_id: int) -> None:
         """软删除应用，并将该应用待审批的申请置为已驳回（保留历史批次）。"""

@@ -67,9 +67,9 @@ async function toggleExpand(item: StationMessage) {
     await markStationMessageRead(item.id)
     fetchUnread()
   }
-  // 审批类站内信：点击直接跳转到开放应用管理页处理待审批事项
-  if (item.title.includes('审批')) {
-    router.push('/apps')
+  // 开放应用申请待审批类站内信：点击跳转到应用审批页处理
+  if (item.event_type === 'openapi_app_registration') {
+    router.push('/app-approvals')
   }
 }
 

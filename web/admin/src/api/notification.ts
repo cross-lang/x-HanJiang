@@ -64,6 +64,8 @@ export interface StationMessage {
   id: number
   title: string
   content: string
+  /** 事件类型（如 openapi_app_registration：开放应用申请待审批） */
+  event_type: string
   is_read: boolean
   created_at: string
 }

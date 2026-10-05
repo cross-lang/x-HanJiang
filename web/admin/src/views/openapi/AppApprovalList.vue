@@ -57,17 +57,17 @@
       <el-table-column prop="created_at" label="提交时间" width="170">
         <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="handleDetail(row as AppRegistrationItem)">详情</el-button>
-          <el-button
-            v-if="row.status === 'pending'"
-            size="small"
-            type="primary"
-            @click="handleApprove(row as AppRegistrationItem)"
-          >
-            审批
-          </el-button>
+          <template v-if="row.status === 'pending'">
+            <el-button size="small" type="primary" @click="handleApprovePass(row as AppRegistrationItem)"
+              >通过</el-button
+            >
+            <el-button size="small" type="danger" @click="handleApproveReject(row as AppRegistrationItem)"
+              >驳回</el-button
+            >
+          </template>
         </template>
       </el-table-column>
     </el-table>
@@ -81,14 +81,15 @@
     />
   </el-card>
 
-  <ApproveDialog v-model:visible="approveVisible" :record="approveRecord" @submitted="onApproveSubmitted" />
+  <ApproveDialog v-model:visible="detailVisible" :record="detailRecord" readonly @submitted="onApproveSubmitted" />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
-import { listAppRegistrations } from '@/api/openapi'
+import { listAppRegistrations, reviewAppRegistration } from '@/api/openapi'
 import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
 import type { AppRegistrationItem } from '@/types/openapi'
 import ApproveDialog from './components/ApproveDialog.vue'
@@ -104,8 +105,8 @@ const keyword = ref('')
 const typeFilter = ref('')
 const statusFilter = ref('')
 
-const approveVisible = ref(false)
-const approveRecord = ref<AppRegistrationItem | null>(null)
+const detailVisible = ref(false)
+const detailRecord = ref<AppRegistrationItem | null>(null)
 
 /** 审批状态 → 中文标签 */
 function statusLabel(status: string): string {
@@ -147,21 +148,54 @@ function handleSizeChange() {
   fetchList()
 }
 
-/** 查看申请详情（含快照与审批意见） */
+/** 查看申请详情（只读：申请信息 + 审批结果，不含审批操作） */
 function handleDetail(row: AppRegistrationItem) {
-  // 复用审批弹窗展示批次详情；无审批按钮的终态批次仅查看
-  approveRecord.value = row
-  approveVisible.value = true
+  detailRecord.value = row
+  detailVisible.value = true
 }
 
-function handleApprove(row: AppRegistrationItem) {
-  approveRecord.value = row
-  approveVisible.value = true
+/** 审批通过：确认后直接提交（无需填写备注） */
+async function handleApprovePass(row: AppRegistrationItem) {
+  try {
+    await ElMessageBox.confirm(
+      `确认通过该「${row.registration_type === 'create' ? '创建' : '修改'}」申请？通过后应用将可正常调用开放接口。`,
+      '通过申请',
+      { type: 'info', confirmButtonText: '确认通过', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await reviewAppRegistration(row.id, { approved: true })
+    ElMessage.success('已通过，应用可正常调用开放接口')
+    fetchList()
+  } catch {
+    // 错误已处理
+  }
 }
 
-/** 审批提交成功：关闭并刷新列表 */
+/** 审批驳回：必须填写驳回原因，开发者将据此调整后重新提交 */
+async function handleApproveReject(row: AppRegistrationItem) {
+  try {
+    const { value } = await ElMessageBox.prompt('请填写驳回原因（必填），开发者将据此调整后重新提交', '驳回申请', {
+      inputType: 'textarea',
+      inputPlaceholder: '请输入驳回原因',
+      inputValidator: v => (v && v.trim().length > 0 ? true : '驳回原因不能为空'),
+      confirmButtonText: '确认驳回',
+      cancelButtonText: '取消',
+      inputErrorMessage: '驳回原因不能为空',
+    })
+    await reviewAppRegistration(row.id, { approved: false, note: value.trim() })
+    ElMessage.success('已驳回，开发者可调整后重新提交')
+    fetchList()
+  } catch {
+    // 用户取消或请求失败
+  }
+}
+
+/** 详情弹窗关闭后刷新（只读模式不会触发提交，保留兜底刷新） */
 function onApproveSubmitted() {
-  approveVisible.value = false
+  detailVisible.value = false
   fetchList()
 }
 

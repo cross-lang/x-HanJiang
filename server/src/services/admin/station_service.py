@@ -25,6 +25,7 @@ class StationMessageService:
                 "id": r.id,
                 "title": r.subject,
                 "content": r.content,
+                "event_type": r.event_type,
                 "is_read": r.status == StationMessageStatus.READ.value,
                 "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",
             }

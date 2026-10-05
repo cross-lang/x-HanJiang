@@ -513,6 +513,8 @@ def get_assistant_message_repository(
     db_session: Session = Depends(get_db_session),
 ) -> AssistantMessageRepository:
     """获取 AI 助手消息仓库实例。"""
+    from src.repositories.assistant_repository import AssistantMessageRepository
+
     return AssistantMessageRepository(session=db_session)
 
 
@@ -520,6 +522,8 @@ def get_assistant_feedback_repository(
     db_session: Session = Depends(get_db_session),
 ) -> AssistantFeedbackRepository:
     """获取 AI 助手反馈仓库实例。"""
+    from src.repositories.assistant_repository import AssistantFeedbackRepository
+
     return AssistantFeedbackRepository(session=db_session)
 
 
@@ -529,6 +533,8 @@ def get_assistant_service(
     feedback_repository: AssistantFeedbackRepository = Depends(get_assistant_feedback_repository),
 ) -> AssistantService:
     """创建 AI 助手编排服务（LLM / 工具注册表 / 知识库默认懒加载单例）。"""
+    from src.services.admin.assistant_service import AssistantService
+
     return AssistantService(
         conversation_repository=conversation_repository,
         message_repository=message_repository,

@@ -134,6 +134,7 @@ async function handleCreate() {
   try {
     const res = await createApp(form.value)
     emit('created', { app_id: res.data.app_id, app_key: res.data.app_key })
+    emit('update:visible', false)
   } catch {
     // 错误已处理
   }

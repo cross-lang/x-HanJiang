@@ -111,13 +111,6 @@
   <ApprovalRecordsDialog v-model:visible="approvalDialogVisible" :record="approvalRecord" />
 
   <SecretResultDialog
-    v-model:visible="resultVisible"
-    title="申请已提交"
-    type="success"
-    :secret="createdApp"
-    tip="应用创建申请已提交，审批通过后即可使用下方 App ID / App Key 调用接口。"
-  />
-  <SecretResultDialog
     v-model:visible="rotateResultVisible"
     title="App Key 重置成功"
     type="warning"
@@ -155,9 +148,6 @@ const scopeRecord = ref<OpenAppItem | null>(null)
 
 const approvalDialogVisible = ref(false)
 const approvalRecord = ref<OpenAppItem | null>(null)
-
-const resultVisible = ref(false)
-const createdApp = ref<AppSecret>({ app_id: '', app_key: '' })
 
 const rotateResultVisible = ref(false)
 const rotateResult = ref<AppSecret>({ app_id: '', app_key: '' })
@@ -218,10 +208,9 @@ function handleApprovals(row: OpenAppItem) {
   approvalDialogVisible.value = true
 }
 
-/** 创建成功：展示密钥弹窗并刷新列表 */
-function onAppCreated(secret: AppSecret) {
-  createdApp.value = secret
-  resultVisible.value = true
+/** 创建成功：提示申请已提交并刷新列表（创建后无明文密钥，密钥待审批通过后可用） */
+function onAppCreated() {
+  ElMessage.success('创建申请已提交，等待管理员审批')
   fetchList()
 }
 
