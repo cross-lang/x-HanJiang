@@ -21,16 +21,16 @@
     </div>
     <el-table :data="list" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="app_id" label="App ID" width="200" />
-      <el-table-column prop="name" label="应用名称" />
-      <el-table-column prop="auth_mode" label="鉴权模式" width="110">
+      <el-table-column prop="app_id" label="App ID" min-width="210" show-overflow-tooltip />
+      <el-table-column prop="name" label="应用名称" min-width="150" />
+      <el-table-column prop="auth_mode" label="鉴权模式" width="90">
         <template #default="{ row }">
           <el-tag v-if="row.auth_mode === 'plain'" type="warning">明文</el-tag>
           <el-tag v-else-if="row.auth_mode === 'hmac'" type="success">HMAC 签名</el-tag>
           <el-tag v-else type="primary">双模式</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="scopes" label="权限范围">
+      <el-table-column prop="scopes" label="权限范围" min-width="300">
         <template #default="{ row }">
           <el-tag v-for="s in row.scopes" :key="s" size="small" class="hj-mr-4">
             {{ scopeNameOf(s) === s ? s : `${scopeNameOf(s)}（${s}）` }}

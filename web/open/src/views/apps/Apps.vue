@@ -17,7 +17,7 @@
 
     <el-table :data="list" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="app_id" label="App ID" width="190" />
+      <el-table-column prop="app_id" label="App ID" min-width="200" show-overflow-tooltip />
       <el-table-column prop="name" label="应用名称" />
       <el-table-column prop="auth_mode" label="鉴权模式" width="110">
         <template #default="{ row }">

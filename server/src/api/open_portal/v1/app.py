@@ -4,7 +4,7 @@
 说明：应用数据表 openapi_apps 与管理端共用，归属 owner_type='developer' + owner_id=当前开发者；
 开发者只能查询/操作本人名下应用（他人应用一律 404，不暴露存在性）。
 scope 目录接口（GET /apps/scopes）的元数据唯一来源为 openapi_scopes 表（constants/scopes.py 启动时对账），
-与管理端 /api/v1/admin/apps/scopes 路径风格一致，业务实现下放 DeveloperOpenAppService.list_scopes。
+与管理端 /api/v1/admin/apps/scopes 路径风格一致，业务实现下放 DeveloperOpenApiAppService.list_scopes。
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from src.api.open_portal.dependencies import (
     get_current_developer,
-    get_developer_open_app_service,
+    get_developer_openapi_app_service,
 )
 from src.api.response import success_response
 from src.schemas.common import PaginatedResponse
@@ -25,7 +25,7 @@ from src.schemas.open_portal.app import (
     OpenAppUpdateRequest,
 )
 from src.schemas.open_portal.auth import CurrentDeveloper
-from src.services.open_portal.app_service import DeveloperOpenAppService
+from src.services.open_portal.app_service import DeveloperOpenApiAppService
 
 router = APIRouter(prefix="/apps", tags=["开放平台：开发者应用"])
 
@@ -40,7 +40,7 @@ def list_apps(
     page_size: int = 20,
     keyword: str | None = None,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     result = service.list_apps(
         developer_id=current_developer.id,
@@ -70,7 +70,7 @@ def list_apps(
 def list_scopes(
     request: Request,
     _current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     return success_response(service.list_scopes(), request)
 
@@ -84,7 +84,7 @@ def create_app(
     body: OpenAppCreateRequest,
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     resp, app_key = service.create_app(
         developer_id=current_developer.id,
@@ -106,7 +106,7 @@ def get_app(
     app_id: int,
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     return success_response(service.get_app(app_id, current_developer.id).model_dump(), request)
 
@@ -121,7 +121,7 @@ def update_app(
     body: OpenAppUpdateRequest,
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     return success_response(
         service.update_app(
@@ -143,7 +143,7 @@ def apply_scopes(
     body: OpenAppScopeApplyRequest,
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     return success_response(
         service.apply_scopes(
@@ -165,7 +165,7 @@ def rotate_key(
     app_id: int,
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     resp, new_key = service.rotate_key(app_id, current_developer.id)
     data = OpenAppSecretResponse(app_id=resp.app_id, app_key=new_key).model_dump()
@@ -181,7 +181,7 @@ def delete_app(
     app_id: int,
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
-    service: DeveloperOpenAppService = Depends(get_developer_open_app_service),
+    service: DeveloperOpenApiAppService = Depends(get_developer_openapi_app_service),
 ) -> JSONResponse:
     ok = service.delete_app(app_id, current_developer.id)
     return success_response({"deleted": ok}, request)

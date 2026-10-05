@@ -33,7 +33,7 @@ from src.utils.openapi_utils import build_scope_dict_list, generate_app_id, pars
 _APPROVAL_PERM_CODE = "openapi_app:scopes"
 
 
-class DeveloperOpenAppService:
+class DeveloperOpenApiAppService:
     """开发者门户应用管理。"""
 
     def __init__(self, repo: OpenApiAppRepository) -> None:

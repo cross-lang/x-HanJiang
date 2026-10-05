@@ -45,7 +45,7 @@
 .auth-card-title {
   position: relative;
   margin: 0 0 18px;
-  padding-left: 12px;
+  padding-left: 0;
   font-size: 16px;
   font-weight: 600;
   color: var(--hj-text-title);
@@ -53,7 +53,7 @@
 .auth-card-title::before {
   content: '';
   position: absolute;
-  left: 0;
+  left: -12px;
   top: 2px;
   bottom: 2px;
   width: 4px;

@@ -23,7 +23,7 @@ from src.schemas.open_portal.auth import CurrentDeveloper
 
 if TYPE_CHECKING:
     from src.repositories.developer_repository import DeveloperRepository
-    from src.services.open_portal.app_service import DeveloperOpenAppService
+    from src.services.open_portal.app_service import DeveloperOpenApiAppService
     from src.services.open_portal.auth_service import DeveloperAuthService
     from src.services.open_portal.developer_message_service import DeveloperMessageService
     from src.services.open_portal.developer_service import DeveloperService
@@ -66,14 +66,14 @@ def get_developer_service(
     return DeveloperService(repository=developer_repository)
 
 
-def get_developer_open_app_service(
+def get_developer_openapi_app_service(
     db_session: Session = Depends(get_db_session),
-) -> DeveloperOpenAppService:
+) -> DeveloperOpenApiAppService:
     """获取开发者应用管理服务（门户域）。"""
     from src.repositories.openapi_app_repository import OpenApiAppRepository
-    from src.services.open_portal.app_service import DeveloperOpenAppService
+    from src.services.open_portal.app_service import DeveloperOpenApiAppService
 
-    return DeveloperOpenAppService(repo=OpenApiAppRepository(session=db_session))
+    return DeveloperOpenApiAppService(repo=OpenApiAppRepository(session=db_session))
 
 
 def get_current_developer(
