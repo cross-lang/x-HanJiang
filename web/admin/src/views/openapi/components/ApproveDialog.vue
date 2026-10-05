@@ -1,7 +1,7 @@
 <template>
   <el-dialog v-model="dialogVisible" :title="readonly ? '申请详情' : '审批应用申请'" width="600px" @closed="resetForm">
     <!-- 申请信息 -->
-    <el-descriptions :column="1" border class="hj-mb-16">
+    <el-descriptions :column="1" border label-width="112px" class="hj-mb-16">
       <el-descriptions-item label="申请码">
         <code class="reg-id-code">{{ record?.registration_code || `#${record?.id}` }}</code>
       </el-descriptions-item>
@@ -9,6 +9,9 @@
         <el-tag :type="record?.registration_type === 'create' ? 'primary' : 'warning'" size="small">
           {{ record?.registration_type === 'create' ? '创建申请' : '修改申请' }}
         </el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="提交时间">
+        {{ record?.created_at ? formatDateTime(record.created_at) : '-' }}
       </el-descriptions-item>
       <el-descriptions-item label="应用名称">{{ record?.app_name }}</el-descriptions-item>
       <el-descriptions-item label="App ID">
@@ -186,5 +189,8 @@ async function handleSubmit() {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+:deep(.el-descriptions__label) {
+  white-space: nowrap;
 }
 </style>

@@ -6,7 +6,7 @@
     <div class="header-right">
       <GlobalSearch />
       <NotificationBell />
-      <el-dropdown trigger="click" @command="$emit('command', $event)">
+      <el-dropdown trigger="hover" :hide-on-click="false" @command="$emit('command', $event)">
         <span class="user-entry">
           <el-avatar :size="32" class="user-avatar">{{ initial }}</el-avatar>
           <span class="user-meta">

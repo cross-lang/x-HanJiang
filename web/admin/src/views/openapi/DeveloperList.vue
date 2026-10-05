@@ -19,9 +19,9 @@
     </div>
     <el-table :data="list" v-loading="loading">
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="用户名" />
-      <el-table-column prop="name" label="姓名" />
-      <el-table-column prop="email" label="邮箱" />
+      <el-table-column prop="username" label="用户名" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="name" label="姓名" width="120" />
+      <el-table-column prop="email" label="邮箱" min-width="230" show-overflow-tooltip />
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column label="认证状态" width="100">
         <template #default="{ row }">

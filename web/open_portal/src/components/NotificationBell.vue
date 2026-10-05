@@ -79,6 +79,7 @@ async function toggleExpand(item: OpenMessage) {
   // 跳转优先于已读操作（已读异步执行，失败不阻塞跳转）
   if (item.category === 'audit' || item.title.includes('审批')) {
     if (!item.read) {
+      markLocalRead(item.id)
       void markMessageRead(item.id).catch(() => {})
       fetchUnread()
     }
@@ -89,11 +90,19 @@ async function toggleExpand(item: OpenMessage) {
   if (!item.read) {
     try {
       await markMessageRead(item.id)
+      // 已读成功后同步本地列表状态：条目左侧红点立即消失（无需重开面板）
+      markLocalRead(item.id)
     } catch {
       // 已读失败不影响展开
     }
     fetchUnread()
   }
+}
+
+/** 将本地列表中指定消息标记为已读（同步条目红点与角标） */
+function markLocalRead(id: number) {
+  const target = list.value.find(m => m.id === id)
+  if (target) target.read = true
 }
 
 async function markAllRead() {
