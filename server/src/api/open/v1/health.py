@@ -3,7 +3,7 @@
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import get_current_app
+from src.api.open.dependencies import get_current_app
 from src.api.response import success_response
 from src.constants import APP_NAME, APP_VERSION
 from src.schemas.common import ApiResponse

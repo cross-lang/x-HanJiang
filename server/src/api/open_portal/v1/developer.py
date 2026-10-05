@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from src.api.dependencies import (
+from src.api.open_portal.dependencies import (
     get_current_developer,
     get_developer_service,
 )

@@ -13,7 +13,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from src.api.dependencies import get_health_service
+from src.api.admin.dependencies import get_health_service
 from src.api.response import success_response
 from src.constants import APP_NAME
 from src.core.config import settings

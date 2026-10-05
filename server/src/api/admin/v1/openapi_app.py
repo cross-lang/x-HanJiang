@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from src.api.admin.permission_decorator import permission
-from src.api.dependencies import (
+from src.api.admin.dependencies import (
     get_current_user,
     get_openapi_app_service,
     get_user_operator_context,

@@ -17,7 +17,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 
 from src.api.admin.permission_decorator import permission
-from src.api.dependencies import (
+from src.api.admin.dependencies import (
     get_current_user,
     get_permission_service,
     get_role_service,

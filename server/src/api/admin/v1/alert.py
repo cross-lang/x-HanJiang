@@ -12,7 +12,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 
 from src.api.admin.permission_decorator import permission
-from src.api.dependencies import (
+from src.api.admin.dependencies import (
     get_alert_service,
     require_user_permission,
 )

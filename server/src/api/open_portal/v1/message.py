@@ -6,7 +6,7 @@
 
 from fastapi import APIRouter, Depends, Path, Query, Request
 
-from src.api.dependencies import (
+from src.api.open_portal.dependencies import (
     get_current_developer,
     get_developer_message_service,
 )

@@ -11,7 +11,7 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.dependencies import (
+from src.api.admin.dependencies import (
     get_auth_service,
     get_current_user,
 )
