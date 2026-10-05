@@ -1,48 +1,44 @@
 <template>
-  <el-table :data="rows" class="doc-table" :header-cell-style="headerStyle" :cell-style="cellStyle" row-key="name">
+  <el-table :data="rows" class="doc-table" :header-cell-style="headerStyle" row-key="name">
     <!-- 位置列（仅 Query/Path 场景） -->
-    <el-table-column v-if="showLoc" label="位置" width="86">
+    <el-table-column v-if="showLoc" label="位置" width="82">
       <template #default="{ row }">
         <span class="loc-tag" :class="row.__loc === 'path' ? 'loc-path' : 'loc-query'">
           {{ row.__loc }}
         </span>
       </template>
     </el-table-column>
-    <el-table-column :label="nameLabel" min-width="170">
+    <el-table-column :label="nameLabel" min-width="180">
       <template #default="{ row }">
         <span class="param-name">{{ row.name }}</span>
       </template>
     </el-table-column>
-    <el-table-column prop="type" label="参数类型" min-width="110">
+    <el-table-column prop="type" label="类型" min-width="110">
       <template #default="{ row }">
         <code class="type-code">{{ row.type }}</code>
       </template>
     </el-table-column>
-    <el-table-column label="是否必填" width="96">
+    <el-table-column label="必填" width="88">
       <template #default="{ row }">
         <span class="req-badge" :class="row.required ? 'req-yes' : 'req-no'">
           {{ row.required ? '必填' : '可选' }}
         </span>
       </template>
     </el-table-column>
-    <el-table-column label="可选值" min-width="120">
+    <el-table-column label="说明" min-width="320">
       <template #default="{ row }">
-        <span :class="{ 'text-muted': row.values === '-' }">{{ row.values ?? '-' }}</span>
-      </template>
-    </el-table-column>
-    <el-table-column label="限制" min-width="140">
-      <template #default="{ row }">
-        <span :class="{ 'text-muted': row.limit === '-' }">{{ row.limit ?? '-' }}</span>
-      </template>
-    </el-table-column>
-    <el-table-column label="示例" min-width="150">
-      <template #default="{ row }">
-        <code class="example-code">{{ row.example ?? '-' }}</code>
-      </template>
-    </el-table-column>
-    <el-table-column label="描述" min-width="200">
-      <template #default="{ row }">
-        <span class="desc-text">{{ row.desc }}</span>
+        <div class="desc-cell">
+          <span class="desc-text">{{ row.desc }}</span>
+          <span v-if="row.values && row.values !== '-'" class="desc-extra">
+            可选值：<code>{{ row.values }}</code>
+          </span>
+          <span v-if="row.limit && row.limit !== '-'" class="desc-extra">
+            限制：<code>{{ row.limit }}</code>
+          </span>
+          <span v-if="row.example && row.example !== '-'" class="desc-extra">
+            示例：<code>{{ row.example }}</code>
+          </span>
+        </div>
       </template>
     </el-table-column>
   </el-table>
@@ -68,10 +64,6 @@ const headerStyle = {
   fontSize: '13px',
   padding: '12px 16px',
 }
-const cellStyle = {
-  padding: '12px 16px',
-  fontSize: '13px',
-}
 </script>
 
 <style scoped>
@@ -87,12 +79,14 @@ const cellStyle = {
 .doc-table :deep(td.el-table__cell) {
   border-bottom: 1px solid var(--hj-border-lighter);
   color: var(--hj-text-regular);
+  vertical-align: top;
 }
 .param-name {
   color: var(--hj-text-title);
   font-weight: 600;
   font-family: var(--hj-font-mono);
   font-size: 12.5px;
+  word-break: break-all;
 }
 .type-code {
   font-family: var(--hj-font-mono);
@@ -101,15 +95,7 @@ const cellStyle = {
   background: #f6f4fe;
   padding: 1px 6px;
   border-radius: 4px;
-}
-.example-code {
-  font-family: var(--hj-font-mono);
-  font-size: 12px;
-  color: var(--hj-primary);
-  background: var(--hj-primary-bg);
-  padding: 1px 6px;
-  border-radius: 4px;
-  word-break: break-all;
+  white-space: nowrap;
 }
 .req-badge {
   display: inline-block;
@@ -146,11 +132,29 @@ const cellStyle = {
   color: #e6a23c;
   background: #fdf6ec;
 }
-.text-muted {
-  color: var(--hj-text-muted);
+/* ─── 说明列：主描述 + 追加信息（可选值/限制/示例），紧凑展示 ─── */
+.desc-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .desc-text {
   color: var(--hj-text-regular);
-  line-height: 1.7;
+  line-height: 1.65;
+}
+.desc-extra {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--hj-text-secondary);
+  line-height: 1.6;
+}
+.desc-extra code {
+  font-family: var(--hj-font-mono);
+  font-size: 12px;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
+  padding: 0 5px;
+  border-radius: 3px;
+  word-break: break-all;
 }
 </style>

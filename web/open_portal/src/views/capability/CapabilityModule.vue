@@ -1,127 +1,114 @@
 <template>
   <div class="capability-page">
     <!-- 模块头 -->
-    <div class="module-head">
-      <div class="crumbs">开放能力 / {{ module?.name ?? '接口文档' }}</div>
-      <h1 class="module-title">{{ module?.name }}</h1>
-      <p class="module-desc">{{ module?.desc }}</p>
-    </div>
+    <PageHead
+      :crumbs="`开放能力 / ${module?.name ?? '接口文档'}`"
+      :title="module?.name ?? '接口文档'"
+      :desc="module?.desc ?? ''"
+    />
 
     <main v-if="currentApi" class="doc-main">
+      <!-- 页内锚点导航 -->
+      <AuthAnchorNav :anchors="anchors" />
+
       <!-- 接口头部 -->
       <header class="api-hero">
         <div class="hero-method" :class="methodClass(currentApi.method)">{{ currentApi.method }}</div>
         <div class="hero-body">
           <div class="hero-title-row">
             <h2 class="hero-title">{{ currentApi.name }}</h2>
-            <el-tag size="small" class="scope-tag" :type="currentApi.scope.startsWith('仅需') ? 'info' : 'warning'" effect="light">
-              {{ currentApi.scope }}
-            </el-tag>
+            <span class="scope-pill">
+              <span class="scope-pill-label">权限</span>{{ currentApi.scope }}
+            </span>
           </div>
           <p class="hero-summary">{{ currentApi.summary }}</p>
-          <code class="hero-path">{{ BASE }}{{ currentApi.path }}</code>
+          <div class="hero-path-row">
+            <code class="hero-path">{{ BASE }}{{ currentApi.path }}</code>
+            <button class="path-copy" @click="copy(fullUrl)">
+              <el-icon :size="13"><CopyDocument /></el-icon>
+              <span>{{ copied === fullUrl ? '已复制' : '复制' }}</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      <!-- API 说明 -->
-      <section class="doc-section">
+      <!-- API 说明：三列信息卡 -->
+      <section id="about" class="doc-section">
         <h3 class="section-title">API 说明</h3>
-        <p class="api-summary">{{ currentApi.summary }}</p>
-        <template v-if="currentApi.notes.length">
-          <div class="sub-title">注意事项</div>
-          <ul class="doc-list">
-            <li v-for="(n, i) in currentApi.notes" :key="i">{{ n }}</li>
-          </ul>
-        </template>
-        <template v-if="currentApi.limits.length">
-          <div class="sub-title">使用限制</div>
-          <ul class="doc-list">
-            <li v-for="(l, i) in currentApi.limits" :key="i">{{ l }}</li>
-          </ul>
-        </template>
+        <div class="info-grid">
+          <div class="info-card info-main">
+            <div class="info-card-title">接口说明</div>
+            <div class="info-card-body">{{ currentApi.summary }}</div>
+          </div>
+          <div v-if="currentApi.notes.length" class="info-card info-note">
+            <div class="info-card-title">注意事项</div>
+            <ul class="info-card-list">
+              <li v-for="(n, i) in currentApi.notes" :key="i">{{ n }}</li>
+            </ul>
+          </div>
+          <div v-if="currentApi.limits.length" class="info-card info-limit">
+            <div class="info-card-title">使用限制</div>
+            <ul class="info-card-list">
+              <li v-for="(l, i) in currentApi.limits" :key="i">{{ l }}</li>
+            </ul>
+          </div>
+        </div>
       </section>
 
-      <!-- 请求说明 -->
-      <section class="doc-section">
+      <!-- 请求说明：端点摘要条 -->
+      <section id="request-info" class="doc-section">
         <h3 class="section-title">请求说明</h3>
-        <div class="meta-grid">
-          <div class="meta-row">
-            <span class="meta-label">请求地址</span>
-            <code class="meta-value url-code">{{ BASE }}{{ currentApi.path }}</code>
+        <div class="endpoint-bar">
+          <div class="endpoint-main">
+            <span class="method-inline" :class="methodClass(currentApi.method)">{{ currentApi.method }}</span>
+            <code class="endpoint-url">{{ BASE }}{{ currentApi.path }}</code>
+            <button class="path-copy" @click="copy(fullUrl)">
+              <el-icon :size="13"><CopyDocument /></el-icon>
+              <span>{{ copied === fullUrl ? '已复制' : '复制' }}</span>
+            </button>
           </div>
-          <div class="meta-row">
-            <span class="meta-label">HTTP 方法</span>
-            <span class="meta-value">
-              <span class="method-inline" :class="methodClass(currentApi.method)">{{ currentApi.method }}</span>
-            </span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">签名方式</span>
-            <span class="meta-value">HanJiang-1（HMAC-SHA256）</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">限频策略</span>
-            <span class="meta-value">暂未启用（预留 429 限流）</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">权限要求</span>
-            <span class="meta-value scope-text">{{ currentApi.scope }}</span>
+          <div class="endpoint-badges">
+            <span class="ep-badge ep-sign">HanJiang-1 签名</span>
+            <span class="ep-badge ep-limit">限流未启用</span>
+            <span class="ep-badge ep-scope">scope：{{ currentApi.scope }}</span>
           </div>
         </div>
       </section>
 
       <!-- 请求头 (Headers) -->
-      <section class="doc-section">
+      <section id="headers" class="doc-section">
         <h3 class="section-title">请求头 (Headers)</h3>
         <ParamTable :rows="currentApi.headers" name-label="Header 名称" />
       </section>
 
       <!-- 查询参数 (Query / Path) -->
-      <section v-if="paramRows.length" class="doc-section">
+      <section v-if="paramRows.length" id="query" class="doc-section">
         <h3 class="section-title">查询参数 (Query / Path)</h3>
         <ParamTable :rows="paramRows" name-label="属性名" show-loc />
       </section>
 
       <!-- 请求体 (Body) -->
-      <section v-if="currentApi.body.length" class="doc-section">
+      <section v-if="currentApi.body.length" id="body" class="doc-section">
         <h3 class="section-title">请求体 (Body)</h3>
         <ParamTable :rows="currentApi.body" name-label="属性名" />
       </section>
 
       <!-- 请求示例 -->
-      <section class="doc-section">
+      <section id="request-example" class="doc-section">
         <h3 class="section-title">请求示例</h3>
-        <div class="code-wrap">
-          <div class="code-head">
-            <span class="code-tab">cURL</span>
-            <button class="copy-btn" @click="copy(currentApi.curl)">
-              <el-icon :size="14"><CopyDocument /></el-icon>
-              <span>{{ copied === currentApi.curl ? '已复制' : '复制' }}</span>
-            </button>
-          </div>
-          <pre class="code-block">{{ currentApi.curl }}</pre>
-        </div>
+        <CodeBlock :code="currentApi.curl" label="cURL" language="bash" />
       </section>
 
       <!-- 响应体 (Response) -->
-      <section class="doc-section">
+      <section id="response-fields" class="doc-section">
         <h3 class="section-title">响应体 (Response)</h3>
         <ParamTable :rows="currentApi.responseFields" name-label="参数名称" />
       </section>
 
       <!-- 响应示例 -->
-      <section class="doc-section">
+      <section id="response-example" class="doc-section">
         <h3 class="section-title">响应示例</h3>
-        <div class="code-wrap">
-          <div class="code-head">
-            <span class="code-tab">JSON</span>
-            <button class="copy-btn" @click="copy(currentApi.responseExample)">
-              <el-icon :size="14"><CopyDocument /></el-icon>
-              <span>{{ copied === currentApi.responseExample ? '已复制' : '复制' }}</span>
-            </button>
-          </div>
-          <pre class="code-block">{{ currentApi.responseExample }}</pre>
-        </div>
+        <CodeBlock :code="currentApi.responseExample" label="JSON" language="json" />
         <div class="resp-desc">{{ currentApi.responseDesc }}</div>
       </section>
     </main>
@@ -138,6 +125,9 @@ import { CopyDocument } from '@element-plus/icons-vue'
 import { capabilityModuleMap, BASE } from '@/data/capability'
 import type { CapabilityApi, CapabilityModule } from '@/types/capability'
 import ParamTable from './components/ParamTable.vue'
+import CodeBlock from '@/components/CodeBlock.vue'
+import PageHead from '@/components/PageHead.vue'
+import AuthAnchorNav, { type AuthAnchor } from '@/components/AuthAnchorNav.vue'
 
 const route = useRoute()
 
@@ -153,6 +143,9 @@ const currentApi = computed<CapabilityApi | null>(() => {
   return module.value?.apis.find(a => a.id === id) ?? null
 })
 
+/** 完整请求地址（含域名） */
+const fullUrl = computed(() => `${BASE}${currentApi.value?.path ?? ''}`)
+
 /** Query + Path 参数合并展示（Path 行带位置标记） */
 const paramRows = computed(() => {
   const api = currentApi.value
@@ -161,6 +154,23 @@ const paramRows = computed(() => {
     ...api.query.map(r => ({ ...r, __loc: 'query' as const })),
     ...api.pathParams.map(r => ({ ...r, __loc: 'path' as const })),
   ]
+})
+
+/** 页内锚点（按实际区块动态生成） */
+const anchors = computed<AuthAnchor[]>(() => {
+  const api = currentApi.value
+  if (!api) return []
+  const list: AuthAnchor[] = [
+    { id: 'about', label: 'API 说明' },
+    { id: 'request-info', label: '请求说明' },
+    { id: 'headers', label: '请求头' },
+  ]
+  if (paramRows.value.length) list.push({ id: 'query', label: '查询参数' })
+  if (api.body.length) list.push({ id: 'body', label: '请求体' })
+  list.push({ id: 'request-example', label: '请求示例' })
+  list.push({ id: 'response-fields', label: '响应体' })
+  list.push({ id: 'response-example', label: '响应示例' })
+  return list
 })
 
 /** 复制反馈（记录最近一次复制的文本，用于按钮文案切换） */
@@ -192,9 +202,8 @@ function methodClass(method: CapabilityApi['method']): string {
 
 <style scoped>
 .capability-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 4px 8px 24px;
+  /* 全宽铺满内容区，减少无用的空白 */
+  padding: 4px 4px 24px;
 }
 
 /* ─── 模块头 ─── */
@@ -267,8 +276,23 @@ function methodClass(method: CapabilityApi['method']): string {
   font-weight: 700;
   color: var(--hj-text-title);
 }
-.scope-tag {
+.scope-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--hj-font-mono);
+  font-size: 12px;
+  color: var(--hj-primary);
+  background: var(--hj-primary-bg);
+  border: 1px solid var(--hj-primary-border);
+  padding: 2px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.scope-pill-label {
+  font-size: 11px;
+  color: var(--hj-text-muted);
+  font-family: inherit;
 }
 .hero-summary {
   margin: 8px 0 10px;
@@ -276,17 +300,39 @@ function methodClass(method: CapabilityApi['method']): string {
   color: var(--hj-text-regular);
   line-height: 1.7;
 }
-.hero-path,
-.url-code {
-  display: inline-block;
+.hero-path-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--hj-primary-border);
+  border-radius: 8px;
+  padding: 5px 8px 5px 12px;
+}
+.hero-path {
   font-family: var(--hj-font-mono);
   font-size: 13px;
   color: var(--hj-text-title);
-  background: #fff;
-  border: 1px solid var(--hj-primary-border);
-  padding: 5px 12px;
-  border-radius: 6px;
   word-break: break-all;
+}
+.path-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--hj-primary-border);
+  background: var(--hj-primary-bg);
+  color: var(--hj-primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.path-copy:hover {
+  background: var(--hj-primary);
+  color: #fff;
+  border-color: var(--hj-primary);
 }
 
 /* ─── 区块卡片 ─── */
@@ -316,130 +362,120 @@ function methodClass(method: CapabilityApi['method']): string {
   border-radius: 2px;
   background: linear-gradient(180deg, var(--hj-primary), var(--hj-primary-weak));
 }
-.api-summary {
-  margin: 0 0 10px;
-  font-size: 13.5px;
-  color: var(--hj-text-regular);
-  line-height: 1.8;
-}
-.sub-title {
-  margin: 14px 0 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--hj-text-title);
-}
-.doc-list {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 13.5px;
-  color: var(--hj-text-regular);
-  line-height: 2;
-}
 
-/* ─── 请求说明 ─── */
-.meta-grid {
+/* ─── API 说明：三列信息卡 ─── */
+.info-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-  border: 1px solid var(--hj-border-light);
-  border-radius: 8px;
-  overflow: hidden;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
 }
-.meta-row {
+.info-card {
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.info-main {
+  background: var(--hj-bg-page);
+  border: 1px solid var(--hj-border-light);
+}
+.info-note {
+  background: #fff8f0;
+  border: 1px solid #f3d9b5;
+}
+.info-limit {
+  background: #f0f7ff;
+  border: 1px solid #bcd7f5;
+}
+.info-card-title {
   display: flex;
   align-items: center;
-  min-height: 44px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--hj-border-lighter);
-}
-.meta-row:last-child {
-  border-bottom: none;
-}
-.meta-label {
-  flex-shrink: 0;
-  width: 120px;
+  gap: 6px;
   font-size: 13px;
-  color: var(--hj-text-secondary);
+  font-weight: 600;
+  margin-bottom: 8px;
 }
-.meta-value {
-  font-size: 13.5px;
-  color: var(--hj-text-title);
-  word-break: break-all;
+.info-main .info-card-title { color: var(--hj-text-title); }
+.info-note .info-card-title { color: #b45309; }
+.info-limit .info-card-title { color: #1d4ed8; }
+.info-card-body {
+  font-size: 13px;
+  color: var(--hj-text-regular);
+  line-height: 1.75;
+}
+.info-card-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  color: var(--hj-text-regular);
+  line-height: 1.85;
+}
+
+/* ─── 请求说明：端点摘要条 ─── */
+.endpoint-bar {
+  border: 1px solid var(--hj-border-light);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--hj-bg-page);
+}
+.endpoint-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  flex-wrap: wrap;
 }
 .method-inline {
   display: inline-block;
-  min-width: 52px;
+  min-width: 58px;
   text-align: center;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #fff;
-  line-height: 22px;
-  border-radius: 4px;
+  line-height: 26px;
+  border-radius: 6px;
   font-family: var(--hj-font-mono);
 }
-.scope-text {
+.endpoint-url {
+  flex: 1;
+  min-width: 0;
   font-family: var(--hj-font-mono);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hj-text-title);
+  word-break: break-all;
+}
+.endpoint-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 18px 14px;
+}
+.ep-badge {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ep-sign {
   color: var(--hj-primary);
   background: var(--hj-primary-bg);
-  padding: 2px 10px;
-  border-radius: 4px;
+  border: 1px solid var(--hj-primary-border);
+}
+.ep-limit {
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+.ep-scope {
+  color: #7c3aed;
+  background: #f6f4fe;
+  border: 1px solid #e4d9f7;
+  font-family: var(--hj-font-mono);
 }
 
-/* ─── 代码块（深色高亮主题，与认证文档页 CodeBlock 的 One Dark 风格一致） ─── */
-.code-wrap {
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #21252b;
-  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.08);
-}
-.code-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #21252b;
-  border-bottom: 1px solid #2c323c;
-  padding: 8px 14px;
-}
-.code-tab {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #abb2bf;
-  font-family: var(--hj-font-mono);
-  letter-spacing: 0.5px;
-}
-.copy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid #3a414d;
-  background: transparent;
-  color: #abb2bf;
-  font-size: 12.5px;
-  cursor: pointer;
-  padding: 3px 10px;
-  border-radius: 6px;
-  transition: all 0.15s;
-}
-.copy-btn:hover {
-  color: #e6e6e6;
-  background: #2c323c;
-  border-color: #4b5261;
-}
-.code-block {
-  margin: 0;
-  padding: 16px 20px;
-  background: #282c34;
-  font-family: var(--hj-font-mono);
-  font-size: 12.5px;
-  line-height: 1.8;
-  color: #abb2bf;
-  overflow-x: auto;
-  user-select: text;
-  white-space: pre;
-}
 .resp-desc {
-  margin-top: 10px;
+  margin-top: 12px;
   font-size: 13px;
   color: var(--hj-text-secondary);
   line-height: 1.7;

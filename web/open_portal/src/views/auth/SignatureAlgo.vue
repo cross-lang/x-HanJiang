@@ -1,47 +1,42 @@
 <template>
   <div class="auth-page">
     <!-- 模块头 -->
-    <div class="auth-head">
-      <div class="auth-crumbs">认证和授权 / 签名说明</div>
-      <h1 class="auth-title">签名说明</h1>
-      <p class="auth-desc">
-        开放接口面向外部应用，鉴权与门户自身会话登录（JWT + Redis）完全隔离。调用方应用经管理端审批通过后，凭应用凭证 + HanJiang-1 签名调用。
-      </p>
-    </div>
+    <PageHead
+      crumbs="认证和授权 / 签名算法"
+      title="签名算法 HanJiang-1"
+      desc="hmac 模式采用 HanJiang-1 签名协议：拼接固定签名串后以 AppKey 计算 HMAC-SHA256，输出十六进制小写签名。全程无分隔符、无随机因子，服务端在 300 秒时间窗内校验。"
+    />
 
-    <!-- 鉴权模式 -->
-    <section class="auth-card">
-      <h3 class="auth-card-title">鉴权模式</h3>
-      <p class="auth-lead">
-        开放接口 <code>/api/open/v1</code> 支持三种鉴权模式，按应用 <code>auth_mode</code> 分流：
-      </p>
-      <el-table :data="authModes" class="auth-table" row-key="mode">
-        <el-table-column prop="mode" label="模式" width="130">
-          <template #default="{ row }">
-            <code class="mono-cell mode-cell">{{ row.mode }}</code>
-          </template>
-        </el-table-column>
-        <el-table-column prop="credential" label="凭证方式" />
-        <el-table-column prop="scenario" label="适用场景" width="220" />
-      </el-table>
-      <div class="auth-alert auth-alert-info">
-        <el-icon :size="15"><InfoFilled /></el-icon>
-        <span>
-          生产对接推荐 <b>hmac</b> 签名模式：明文模式下 AppKey 在请求头中直接暴露，仅建议在可信内网使用。
-        </span>
+    <AuthAnchorNav :anchors="anchors" />
+
+    <!-- 签名公式：分步可视化 -->
+    <section id="formula" class="auth-card">
+      <h3 class="auth-card-title">签名公式</h3>
+      <p class="auth-lead">签名串由 6 段固定拼接（无分隔符），再经 HMAC-SHA256 得到签名值：</p>
+
+      <div class="sig-flow">
+        <div class="sig-seg sig-alg">HanJiang-1</div>
+        <div class="sig-plus">+</div>
+        <div class="sig-seg">METHOD</div>
+        <div class="sig-plus">+</div>
+        <div class="sig-seg">URI</div>
+        <div class="sig-plus">+</div>
+        <div class="sig-seg">Content-Type</div>
+        <div class="sig-plus">+</div>
+        <div class="sig-seg">Date</div>
+        <div class="sig-plus">+</div>
+        <div class="sig-seg sig-hash">SHA256(body)</div>
+      </div>
+      <div class="sig-result">
+        <span>签名值</span>
+        <code>= HMAC-SHA256(AppKey, 签名串) → 十六进制小写</code>
       </div>
     </section>
 
-    <!-- 签名算法 -->
-    <section class="auth-card">
-      <h3 class="auth-card-title">HanJiang-1 签名算法</h3>
-
-      <div class="auth-formula">
-        HanJiang-1 + METHOD + URI + Content-Type + Date + SHA256(body)
-        <span class="auth-formula-note">各段直接拼接，无分隔符；签名值 = HMAC-SHA256(AppKey, 签名串)，输出十六进制小写</span>
-      </div>
-
-      <div class="auth-algo" style="margin-top: 16px">
+    <!-- 参数说明 -->
+    <section id="segments" class="auth-card">
+      <h3 class="auth-card-title">签名串各段说明</h3>
+      <div class="auth-algo">
         <div class="auth-algo-row">
           <span class="auth-algo-label">签名串</span>
           <span class="auth-algo-value"><code>HanJiang-1 + METHOD + URI + Content-Type + Date + SHA256(body)</code>，各段直接拼接无分隔符</span>
@@ -71,22 +66,23 @@
           <span class="auth-algo-value">服务端校验 <code>X-App-Date</code> 与服务器时间差在 300 秒内，超出即拒绝</span>
         </div>
       </div>
+    </section>
 
-      <div style="margin-top: 20px">
-        <div class="sub-title">签名步骤</div>
-        <ol class="auth-steps">
-          <li>生成 RFC1123 GMT 格式的当前时间 <code>date</code>（与请求头 <code>X-App-Date</code> 必须是同一个值，单点生成）；</li>
-          <li>构造 URI：接口路径 + 查询串（如 <code>/api/open/v1/users?page=1</code>，不含域名）；</li>
-          <li>有请求体时计算 <code>SHA256(body)</code>（body 为 UTF-8 JSON 字节流），无请求体取空字符串；</li>
-          <li>按上述公式拼接待签名串，以 <b>AppKey</b> 为密钥计算 <code>HMAC-SHA256</code>，得十六进制签名 <code>signature</code>；</li>
-          <li>请求头携带 <code>X-App-Id</code>、<code>X-App-Date</code>、<code>X-App-Authorization: HanJiang-1 {app_id}:{signature}</code>，并固定携带 <code>Content-Type: application/json</code>；</li>
-          <li>服务端校验签名与时间窗后放行；scope 未授权或应用未审批将返回 403。</li>
-        </ol>
-      </div>
+    <!-- 签名步骤 -->
+    <section id="steps" class="auth-card">
+      <h3 class="auth-card-title">签名步骤</h3>
+      <ol class="auth-steps">
+        <li>生成 RFC1123 GMT 格式的当前时间 <code>date</code>（与请求头 <code>X-App-Date</code> 必须是同一个值，单点生成）；</li>
+        <li>构造 URI：接口路径 + 查询串（如 <code>/api/open/v1/users?page=1</code>，不含域名）；</li>
+        <li>有请求体时计算 <code>SHA256(body)</code>（body 为 UTF-8 JSON 字节流），无请求体取空字符串；</li>
+        <li>按上述公式拼接待签名串，以 <b>AppKey</b> 为密钥计算 <code>HMAC-SHA256</code>，得十六进制签名 <code>signature</code>；</li>
+        <li>请求头携带 <code>X-App-Id</code>、<code>X-App-Date</code>、<code>X-App-Authorization: HanJiang-1 {app_id}:{signature}</code>，并固定携带 <code>Content-Type: application/json</code>；</li>
+        <li>服务端校验签名与时间窗后放行；scope 未授权或应用未审批将返回 403。</li>
+      </ol>
     </section>
 
     <!-- 代码示例 -->
-    <section class="auth-card">
+    <section id="examples" class="auth-card">
       <h3 class="auth-card-title">代码示例</h3>
       <el-tabs v-model="activeTab">
         <el-tab-pane label="Python" name="python">
@@ -102,8 +98,8 @@
       </el-tabs>
     </section>
 
-    <!-- curl 示例 -->
-    <section class="auth-card">
+    <!-- curl 调试示例 -->
+    <section id="curl" class="auth-card">
       <h3 class="auth-card-title">curl 调试示例</h3>
       <p class="auth-lead">
         调试阶段可在开放平台「应用管理 → 重置 Key」后使用明文模式快速验证；签名模式下需先按上述算法生成 <code>X-App-Authorization</code>：
@@ -115,15 +111,18 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { InfoFilled } from '@element-plus/icons-vue'
-import CodeBlock from './components/CodeBlock.vue'
+import CodeBlock from '@/components/CodeBlock.vue'
+import PageHead from '@/components/PageHead.vue'
+import AuthAnchorNav from '@/components/AuthAnchorNav.vue'
 
 const activeTab = ref('python')
 
-const authModes = [
-  { mode: 'plain', credential: '请求头直接携带 X-App-Id + X-App-Key（明文）', scenario: '可信内网 / 联调调试' },
-  { mode: 'hmac', credential: 'X-App-Id + X-App-Date + X-App-Authorization（HanJiang-1 签名）', scenario: '生产环境（推荐）' },
-  { mode: 'both', credential: '两种凭证均接受', scenario: '灰度迁移期' },
+const anchors = [
+  { id: 'formula', label: '签名公式' },
+  { id: 'segments', label: '各段说明' },
+  { id: 'steps', label: '签名步骤' },
+  { id: 'examples', label: '代码示例' },
+  { id: 'curl', label: 'curl 调试' },
 ]
 
 const pythonCode = `import hashlib, hmac, json, time
@@ -266,14 +265,62 @@ curl -X POST "http://127.0.0.1:8000/api/open/v1/users" \\
 <style scoped>
 @import '@/styles/auth-guide.css';
 
-.sub-title {
-  margin: 0 0 10px;
+/* ─── 签名公式分步可视化 ─── */
+.sig-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 12px;
+  background: linear-gradient(135deg, var(--hj-primary-bg) 0%, #f5faff 100%);
+  border: 1px solid var(--hj-primary-border);
+  border-radius: var(--hj-radius-md);
+}
+.sig-seg {
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--hj-primary-border);
+  color: var(--hj-text-title);
+  font-family: var(--hj-font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.08);
+  white-space: nowrap;
+}
+.sig-alg {
+  background: linear-gradient(135deg, var(--hj-primary), var(--hj-primary-weak));
+  border: none;
+  color: #fff;
+}
+.sig-hash {
+  background: #eef4ff;
+}
+.sig-plus {
+  color: var(--hj-text-muted);
   font-size: 13px;
+  font-weight: 700;
+}
+.sig-result {
+  margin-top: 14px;
+  padding: 12px 18px;
+  border: 1px dashed var(--hj-primary-border);
+  border-radius: 8px;
+  background: var(--hj-bg-card);
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--hj-text-regular);
+}
+.sig-result span {
   font-weight: 600;
   color: var(--hj-text-title);
+  margin-right: 8px;
 }
-/* 鉴权模式：模式值（plain / hmac / both）单行展示，不换行 */
-.mode-cell {
-  white-space: nowrap;
+.sig-result code {
+  font-family: var(--hj-font-mono);
+  font-size: 12.5px;
+  color: var(--hj-primary);
+  word-break: break-all;
 }
 </style>

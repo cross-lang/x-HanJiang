@@ -1,13 +1,13 @@
 <template>
   <el-dialog
     :model-value="visible"
-    :title="`审批记录 - ${record?.name || ''}`"
+    :title="`申请记录 - ${record?.name || ''}`"
     width="820px"
     destroy-on-close
     @update:model-value="emit('update:visible', $event)"
   >
     <div v-loading="loading">
-      <div v-if="records.length === 0 && !loading" class="hj-empty">暂无审批记录</div>
+      <div v-if="records.length === 0 && !loading" class="hj-empty">暂无申请记录</div>
       <el-timeline v-else>
         <el-timeline-item
           v-for="r in records"

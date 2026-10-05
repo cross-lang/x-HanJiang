@@ -146,8 +146,8 @@ onMounted(async () => {
 
 <style scoped>
 .home-page {
-  max-width: 1080px;
-  margin: 0 auto;
+  /* 全宽铺满内容区，减少无用的空白 */
+  padding: 4px 4px 24px;
 }
 
 /* ===== 欢迎横幅 ===== */

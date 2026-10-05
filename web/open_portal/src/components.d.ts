@@ -11,6 +11,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AuthAnchorNav: typeof import('./components/AuthAnchorNav.vue')['default']
+    CodeBlock: typeof import('./components/CodeBlock.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElBadge: typeof import('element-plus/es')['ElBadge']
@@ -49,6 +51,7 @@ declare module 'vue' {
     GlobalSearch: typeof import('./components/GlobalSearch.vue')['default']
     GroupCheckboxPanel: typeof import('./components/GroupCheckboxPanel.vue')['default']
     NotificationBell: typeof import('./components/NotificationBell.vue')['default']
+    PageHead: typeof import('./components/PageHead.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SecretResultDialog: typeof import('./components/SecretResultDialog.vue')['default']

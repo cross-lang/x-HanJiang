@@ -373,50 +373,49 @@ async function changePwd() {
 </script>
 <style scoped>
 .profile-page {
-  max-width: 1000px;
-  margin: 0 auto;
+  width: 100%;
   padding: 8px 0 24px;
 }
 
-/* ===== 顶部信息横幅 ===== */
+/* ===== 顶部信息横幅（参考开放平台：紧凑、左对齐） ===== */
 .hero-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
   flex-wrap: wrap;
-  padding: 28px 32px;
-  border-radius: 16px;
+  padding: 20px 24px;
+  border-radius: 12px;
   color: #303133;
   background: #fff;
   border: 1px solid #eef0f4;
-  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.06);
+  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.05);
 }
 
 .hero-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .hero-avatar {
   background: #79bbff;
   color: #fff;
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 600;
   border: none;
   flex-shrink: 0;
 }
 
 .hero-name {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
 .hero-sub {
-  margin-top: 4px;
-  font-size: 14px;
+  margin-top: 3px;
+  font-size: 13px;
   color: #909399;
 }
 
@@ -424,11 +423,11 @@ async function changePwd() {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .hero-tag {
-  padding: 3px 12px;
+  padding: 2px 10px;
   font-size: 12px;
   border-radius: 999px;
   border: 1px solid #e4e8f2;
@@ -439,45 +438,45 @@ async function changePwd() {
 .hero-stats {
   display: flex;
   align-items: center;
-  gap: 22px;
-  padding: 18px 26px;
-  border-radius: 12px;
+  gap: 16px;
+  padding: 12px 18px;
+  border-radius: 10px;
   background: #f7f9fc;
   border: 1px solid #eef0f4;
 }
 
 .stat-item {
   text-align: center;
-  min-width: 64px;
+  min-width: 56px;
 }
 
 .stat-num {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 600;
 }
 
 .stat-label {
-  margin-top: 4px;
+  margin-top: 3px;
   font-size: 12px;
   color: #909399;
 }
 
 .stat-divider {
   width: 1px;
-  height: 32px;
+  height: 28px;
   background: #e0e6ef;
 }
 
 /* ===== 主体卡片 ===== */
 .main-card {
-  margin-top: 20px;
-  border-radius: 16px;
+  margin-top: 16px;
+  border-radius: 12px;
   border: 1px solid #eef0f4;
-  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.06);
+  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.05);
 }
 
 .profile-tabs :deep(.el-tabs__header) {
-  padding: 0 24px;
+  padding: 0 20px;
   margin-bottom: 0;
 }
 
@@ -486,7 +485,7 @@ async function changePwd() {
 }
 
 .pane-body {
-  padding: 28px 32px 36px;
+  padding: 20px 24px 28px;
 }
 
 .pane-title {
@@ -502,7 +501,8 @@ async function changePwd() {
 }
 
 .info-form {
-  max-width: 520px;
+  width: 100%;
+  max-width: none;
 }
 
 /* ===== 角色权限 ===== */
@@ -614,7 +614,8 @@ async function changePwd() {
 }
 
 .sec-form {
-  max-width: 520px;
+  width: 100%;
+  max-width: none;
 }
 
 .code-row {

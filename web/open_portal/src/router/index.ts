@@ -42,9 +42,10 @@ const router = createRouter({
         {
           path: 'auth',
           name: 'AuthGuide',
-          redirect: '/auth/signature',
+          redirect: '/auth/modes',
           children: [
-            { path: 'signature', name: 'SignatureDoc', component: () => import('@/views/auth/SignatureDoc.vue') },
+            { path: 'modes', name: 'AuthModes', component: () => import('@/views/auth/AuthModes.vue') },
+            { path: 'signature', name: 'SignatureAlgo', component: () => import('@/views/auth/SignatureAlgo.vue') },
             { path: 'params', name: 'CommonParams', component: () => import('@/views/auth/CommonParams.vue') },
             { path: 'errors', name: 'ErrorCodes', component: () => import('@/views/auth/ErrorCodes.vue') },
           ],

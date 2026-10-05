@@ -42,7 +42,7 @@ const COMMON_HEADERS = [
     values: '-',
     limit: '-',
     example: 'HanJiang-1 hj_xxxxxxxx:{signature}',
-    desc: 'HanJiang-1 签名值，详见「认证和授权 → 签名说明」',
+    desc: 'HanJiang-1 签名值，详见「认证和授权 → 签名算法」',
   },
 ]
 

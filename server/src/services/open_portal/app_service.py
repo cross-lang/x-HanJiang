@@ -389,6 +389,7 @@ class DeveloperOpenApiAppService:
             pending_registration_id=pending_registration_id,
             last_used_at=entity.last_used_at,
             created_at=entity.created_at,
+            updated_at=entity.updated_at,
         )
 
     def _notify_approvers(

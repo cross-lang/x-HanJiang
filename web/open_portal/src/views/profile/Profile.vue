@@ -242,9 +242,8 @@ async function submitCertification() {
 
 <style scoped>
 .profile-page {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 8px 0 24px;
+  /* 全宽铺满内容区，减少无用的空白 */
+  padding: 8px 4px 24px;
 }
 
 /* ===== 顶部信息横幅 ===== */
@@ -306,15 +305,14 @@ async function submitCertification() {
   min-width: 64px;
 }
 .stat-num {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   color: var(--hj-text-title);
-  font-family: var(--hj-font-mono);
 }
 .stat-label {
-  margin-top: 4px;
+  margin-top: 3px;
   font-size: 12px;
-  color: var(--hj-text-secondary);
+  color: #909399;
 }
 .stat-divider {
   width: 1px;

@@ -1,10 +1,8 @@
 /* 认证和授权文档页共享样式（对齐开放能力页，WPS 风格 + 全局设计令牌） */
 
-/* ─── 页面容器 ─── */
+/* ─── 页面容器（全站统一：表格/文档型页面均全宽，减少空白） ─── */
 .auth-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 4px 8px 24px;
+  padding: 4px 4px 24px;
 }
 
 /* ─── 模块头 ─── */
@@ -196,9 +194,9 @@
 }
 .auth-algo-row {
   display: flex;
-  align-items: flex-start;
-  min-height: 44px;
-  padding: 11px 18px;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 18px;
   border-bottom: 1px solid var(--hj-border-lighter);
 }
 .auth-algo-row:last-child {
@@ -216,7 +214,7 @@
   min-width: 0;
   font-size: 13.5px;
   color: var(--hj-text-title);
-  line-height: 1.8;
+  line-height: 1.6;
   word-break: break-all;
 }
 .auth-algo-value code {

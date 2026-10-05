@@ -1,16 +1,16 @@
 <template>
   <div class="auth-page">
     <!-- 模块头 -->
-    <div class="auth-head">
-      <div class="auth-crumbs">认证和授权 / 通用参数</div>
-      <h1 class="auth-title">通用参数</h1>
-      <p class="auth-desc">
-        开放接口调用涉及的公共请求头、凭证约定、统一响应结构与通用分页参数，全部接口通用。
-      </p>
-    </div>
+    <PageHead
+      crumbs="认证和授权 / 通用参数"
+      title="通用参数"
+      desc="开放接口调用涉及的公共请求头、凭证约定、统一响应结构与通用分页参数，全部接口通用。"
+    />
+
+    <AuthAnchorNav :anchors="anchors" />
 
     <!-- 公共请求头 -->
-    <section class="auth-card">
+    <section id="headers" class="auth-card">
       <h3 class="auth-card-title">公共请求头</h3>
       <p class="auth-lead">
         所有开放接口 <code>/api/open/v1</code> 请求均需携带应用凭证头（明文 / 签名模式取值不同）：
@@ -44,7 +44,7 @@
     </section>
 
     <!-- 凭证与调用约定 -->
-    <section class="auth-card">
+    <section id="terms" class="auth-card">
       <h3 class="auth-card-title">凭证与调用约定</h3>
       <div class="auth-algo">
         <div v-for="t in terms" :key="t.name" class="auth-algo-row">
@@ -55,7 +55,7 @@
     </section>
 
     <!-- 通用 Query 参数 -->
-    <section class="auth-card">
+    <section id="query" class="auth-card">
       <h3 class="auth-card-title">通用 Query 参数</h3>
       <p class="auth-lead">列表类接口通用分页参数（具体以各接口文档为准）：</p>
       <el-table :data="queryParams" class="auth-table" row-key="name">
@@ -81,7 +81,7 @@
     </section>
 
     <!-- 公共响应结构 -->
-    <section class="auth-card">
+    <section id="response" class="auth-card">
       <h3 class="auth-card-title">公共响应结构</h3>
       <p class="auth-lead">
         所有接口统一返回如下 JSON 结构（成功与失败一致），HTTP 状态码与响应体 <code>code</code> 相同：
@@ -108,7 +108,16 @@
 
 <script setup lang="ts">
 import { WarningFilled } from '@element-plus/icons-vue'
-import CodeBlock from './components/CodeBlock.vue'
+import CodeBlock from '@/components/CodeBlock.vue'
+import PageHead from '@/components/PageHead.vue'
+import AuthAnchorNav from '@/components/AuthAnchorNav.vue'
+
+const anchors = [
+  { id: 'headers', label: '公共请求头' },
+  { id: 'terms', label: '凭证与调用约定' },
+  { id: 'query', label: '通用 Query 参数' },
+  { id: 'response', label: '公共响应结构' },
+]
 
 const headers = [
   {

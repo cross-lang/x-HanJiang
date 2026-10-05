@@ -1,16 +1,16 @@
 <template>
   <div class="auth-page">
     <!-- 模块头 -->
-    <div class="auth-head">
-      <div class="auth-crumbs">认证和授权 / 通用错误码</div>
-      <h1 class="auth-title">通用错误码</h1>
-      <p class="auth-desc">
-        开放接口统一返回 <code>{code, message, data, timestamp, request_id}</code> 结构，<code>code</code> 与 HTTP 状态码一致。以下为常见状态码与处理建议。
-      </p>
-    </div>
+    <PageHead
+      crumbs="认证和授权 / 通用错误码"
+      title="通用错误码"
+      desc="开放接口统一返回 {code, message, data, timestamp, request_id} 结构，code 与 HTTP 状态码一致。以下为常见状态码与处理建议。"
+    />
+
+    <AuthAnchorNav :anchors="anchors" />
 
     <!-- 常用错误码 -->
-    <section class="auth-card">
+    <section id="common" class="auth-card">
       <h3 class="auth-card-title">常用错误码</h3>
       <el-table :data="errorCodes" class="auth-table" row-key="code">
         <el-table-column label="HTTP 状态码" width="130">
@@ -25,7 +25,7 @@
     </section>
 
     <!-- 网关鉴权错误 -->
-    <section class="auth-card">
+    <section id="gateway" class="auth-card">
       <h3 class="auth-card-title">网关鉴权错误（401 / 403）</h3>
       <p class="auth-lead">
         开放接口网关按序执行：凭证有效性 → 审批门槛 → 模式分流 → scope 授权，错误信息与真实后端一致：
@@ -52,7 +52,7 @@
     </section>
 
     <!-- 排查指引 -->
-    <section class="auth-card">
+    <section id="troubleshoot" class="auth-card">
       <h3 class="auth-card-title">401 鉴权失败排查指引</h3>
       <ol class="auth-steps">
         <li><b>AppId / AppKey</b> 是否正确（含前后空格）；</li>
@@ -63,7 +63,7 @@
     </section>
 
     <!-- 错误响应示例 -->
-    <section class="auth-card">
+    <section id="examples" class="auth-card">
       <h3 class="auth-card-title">错误响应示例</h3>
       <p class="auth-note">成功与失败统一返回同一 JSON 结构；以下为两类典型失败示例：</p>
       <CodeBlock :code="forbiddenExample" label="403 · 未审批 / scope 不足" language="json" />
@@ -74,7 +74,16 @@
 </template>
 
 <script setup lang="ts">
-import CodeBlock from './components/CodeBlock.vue'
+import CodeBlock from '@/components/CodeBlock.vue'
+import PageHead from '@/components/PageHead.vue'
+import AuthAnchorNav from '@/components/AuthAnchorNav.vue'
+
+const anchors = [
+  { id: 'common', label: '常用错误码' },
+  { id: 'gateway', label: '网关鉴权错误' },
+  { id: 'troubleshoot', label: '401 排查指引' },
+  { id: 'examples', label: '错误响应示例' },
+]
 
 const errorCodes = [
   { code: 400, scenario: '请求语法错误 / 业务校验失败', message: '请求参数不合法', suggestion: '检查请求参数与接口文档' },

@@ -54,6 +54,7 @@ class OpenAppResponse(BaseModel):
     pending_registration_id: int | None = None
     last_used_at: datetime | None
     created_at: datetime
+    updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
 

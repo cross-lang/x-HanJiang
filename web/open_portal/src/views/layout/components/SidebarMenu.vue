@@ -40,8 +40,11 @@
           <el-icon><Lock /></el-icon>
           <span>认证和授权</span>
         </template>
+        <el-menu-item index="/auth/modes">
+          <template #title>鉴权模式</template>
+        </el-menu-item>
         <el-menu-item index="/auth/signature">
-          <template #title>签名说明</template>
+          <template #title>签名算法</template>
         </el-menu-item>
         <el-menu-item index="/auth/params">
           <template #title>通用参数</template>
