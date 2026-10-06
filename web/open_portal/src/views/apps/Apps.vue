@@ -36,14 +36,14 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="scopes" label="权限范围" width="320">
+        <el-table-column prop="scopes" label="权限范围" width="200">
           <template #default="{ row }">
             <span class="scope-chip">
               {{ scopeText(row.scopes[0]) }}
             </span>
             <el-popover
               v-if="row.scopes.length > 1"
-              :width="280"
+              :width="220"
               trigger="click"
               placement="bottom-start"
             >
@@ -91,7 +91,7 @@
         <el-table-column prop="updated_at" label="最后修改时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.updated_at) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="330" fixed="right">
+        <el-table-column label="操作" width="410" fixed="right">
           <template #default="{ row }">
             <!-- 被管理员禁用的应用：不能执行任何操作，仅可删除与查看申请记录 -->
             <template v-if="row.status === 'disabled'">
@@ -99,6 +99,16 @@
               <el-button size="small" text @click="handleApprovals(row as OpenAppItem)">申请记录</el-button>
             </template>
             <template v-else>
+              <!-- 查看密钥（一次性）：仅创建审批通过且从未查看过时展示，查看后入口消失 -->
+              <el-button
+                v-if="row.approved && !row.app_key_viewed_at"
+                size="small"
+                type="primary"
+                plain
+                @click="handleViewSecret(row as OpenAppItem)"
+              >
+                查看密钥
+              </el-button>
               <el-button
                 size="small"
                 type="primary"
@@ -156,6 +166,12 @@
       type="warning"
       :secret="rotateResult"
     />
+    <SecretResultDialog
+      v-model:visible="viewSecretVisible"
+      title="查看 App Key"
+      type="success"
+      :secret="viewSecretResult"
+    />
   </div>
 </template>
 
@@ -165,7 +181,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Key, MoreFilled } from '@element-plus/icons-vue'
 import { formatDateTime } from '@/utils/format'
-import { listMyApps, deleteApp, rotateAppKey } from '@/api/apps'
+import { listMyApps, deleteApp, rotateAppKey, viewAppSecret } from '@/api/apps'
 import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
 import type { OpenAppItem } from '@/types/app'
 import PageHead from '@/components/PageHead.vue'
@@ -193,6 +209,9 @@ const approvalRecord = ref<OpenAppItem | null>(null)
 
 const rotateResultVisible = ref(false)
 const rotateResult = ref<AppSecret>({ app_id: '', app_key: '' })
+
+const viewSecretVisible = ref(false)
+const viewSecretResult = ref<AppSecret>({ app_id: '', app_key: '' })
 
 async function fetchList() {
   loading.value = true
@@ -289,6 +308,18 @@ async function handleRotateKey(row: OpenAppItem) {
     const res = await rotateAppKey(row.id)
     rotateResult.value = { app_id: res.data.app_id, app_key: res.data.app_key }
     rotateResultVisible.value = true
+  } catch {
+    // 错误已处理
+  }
+}
+
+/** 查看 AppKey 明文（一次性）：展示后后端记录 viewed_at，本行按钮随即消失 */
+async function handleViewSecret(row: OpenAppItem) {
+  try {
+    const res = await viewAppSecret(row.id)
+    viewSecretResult.value = { app_id: res.data.app_id, app_key: res.data.app_key }
+    viewSecretVisible.value = true
+    fetchList()
   } catch {
     // 错误已处理
   }

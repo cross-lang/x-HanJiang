@@ -2,9 +2,10 @@
 """开放平台应用数据访问。"""
 
 from datetime import datetime
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import ConflictException
@@ -147,3 +148,51 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         existing.deleted_at = datetime.now()
         self.session.flush()
         return True
+
+    def update_status_by_owner(self, owner_type: str, owner_id: int, status: str) -> int:
+        """批量更新某归属方名下全部未删除应用的启用状态。
+
+        用于"禁用/删除开发者账号"的级联操作：开发者账号状态变化时，
+        其名下自助应用一并启停，避免账号禁用而应用仍可对外提供服务。
+
+        Args:
+            owner_type: 归属类型（developer / admin）
+            owner_id: 归属方 ID（developers.id / users.id）
+            status: 目标应用状态（active / disabled）
+
+        Returns:
+            int: 受影响行数
+        """
+        stmt = (
+            update(OpenApiAppEntity)
+            .where(
+                OpenApiAppEntity.owner_type == owner_type,
+                OpenApiAppEntity.owner_id == owner_id,
+                OpenApiAppEntity.deleted_at.is_(None),
+            )
+            .values(status=status)
+        )
+        result = cast("CursorResult[Any]", self.session.execute(stmt))
+        return result.rowcount or 0
+
+    def soft_delete_by_owner(self, owner_type: str, owner_id: int) -> int:
+        """批量软删除某归属方名下全部未删除应用。
+
+        Args:
+            owner_type: 归属类型（developer / admin）
+            owner_id: 归属方 ID（developers.id / users.id）
+
+        Returns:
+            int: 受影响行数
+        """
+        stmt = (
+            update(OpenApiAppEntity)
+            .where(
+                OpenApiAppEntity.owner_type == owner_type,
+                OpenApiAppEntity.owner_id == owner_id,
+                OpenApiAppEntity.deleted_at.is_(None),
+            )
+            .values(deleted_at=datetime.now())
+        )
+        result = cast("CursorResult[Any]", self.session.execute(stmt))
+        return result.rowcount or 0

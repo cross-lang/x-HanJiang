@@ -32,6 +32,11 @@ class OpenApiAppEntity(Base):
     app_key_encrypted: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="Fernet 加密的明文 AppKey，HMAC 模式解密用"
     )
+    # 明文 AppKey 最近一次查看时间：NULL=尚未查看过（审批通过后可查看一次）；
+    # 非 NULL=已展示过一次，此后只能通过重置密钥再次获取新明文。
+    app_key_viewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, comment="AppKey 明文最近一次查看时间（NULL=未查看过）"
+    )
     # ── 元信息 ──────────────────────────────────────────
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment="应用名")
     description: Mapped[str] = mapped_column(String(255), nullable=False, comment="应用描述")

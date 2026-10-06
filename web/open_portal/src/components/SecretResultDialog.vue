@@ -58,7 +58,26 @@ function copyText(text: string) {
   gap: 8px;
   margin-bottom: 12px;
 }
+.secret-row strong {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .secret-row span {
-  word-break: break-all;
+  /* App ID / App Key 单行展示：不换行，超长时可横向滚动查看完整内容 */
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 12.5px;
+  color: var(--hj-text-title);
+  scrollbar-width: thin;
+}
+.secret-row span::-webkit-scrollbar {
+  height: 4px;
+}
+.secret-row span::-webkit-scrollbar-thumb {
+  background: var(--hj-border-light);
+  border-radius: 2px;
 }
 </style>

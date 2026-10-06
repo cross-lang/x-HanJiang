@@ -238,6 +238,56 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self._commit()
         return self._to_response(e)
 
+    # ── 按归属方批量启停/软删（开发者账号禁用/删除的级联入口）────────
+
+    def disable_apps_by_owner(self, *, owner_type: str, owner_id: int) -> int:
+        """批量禁用某归属方名下全部启用中的应用，并驳回其待审批申请。
+
+        供开发者账号禁用级联调用：账号被禁用后，其名下自助应用立即停止对外服务，
+        处于 pending 的申请批次一并驳回，避免悬空。应用不逐条发站内信，
+        由开发者账号禁用通知统一说明；返回受影响应用数供调用方记录。
+
+        Args:
+            owner_type: 归属类型（developer / admin）
+            owner_id: 归属方 ID
+
+        Returns:
+            int: 被禁用的应用数量
+        """
+        affected = self._repository.update_status_by_owner(
+            owner_type=owner_type,
+            owner_id=owner_id,
+            status=AppStatus.DISABLED.value,
+        )
+        if affected:
+            apps = self._repository.search_by_keyword(
+                owner_type=owner_type,
+                owner_id=owner_id,
+                skip=0,
+                limit=100000,
+            )[0]
+            self._registration_repo.reject_pending_by_app_ids(
+                [app.id for app in apps],
+                note="开发者账号被管理员禁用，其名下应用的待审批申请已一并驳回。",
+            )
+        return affected
+
+    def soft_delete_apps_by_owner(self, *, owner_type: str, owner_id: int) -> int:
+        """批量软删除某归属方名下全部未删除应用。
+
+        供开发者账号删除级联调用：账号删除后其名下应用随之软删除，
+        应用从管理端/门户端列表消失，AppSecret 停止对外服务；
+        历史审批记录（申请表）保留，不做级联清理。
+
+        Args:
+            owner_type: 归属类型（developer / admin）
+            owner_id: 归属方 ID
+
+        Returns:
+            int: 被软删除的应用数量
+        """
+        return self._repository.soft_delete_by_owner(owner_type=owner_type, owner_id=owner_id)
+
     # ── 重置 AppKey（轮换）────────────────────────────
 
     def rotate_key(self, id: int) -> tuple[OpenApiAppResponse, str]:

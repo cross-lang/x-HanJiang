@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     from src.services.admin.announcement_service import AnnouncementService
     from src.services.admin.assistant_service import AssistantService
     from src.services.admin.dashboard_service import DashboardService
-    from src.services.admin.developer_admin_service import DeveloperAdminService
+    from src.services.admin.developer_admin_service import DeveloperService
     from src.services.admin.login_log_service import LoginLogService
     from src.services.admin.openapi_app_registration_service import (
         OpenApiAppRegistrationService,
@@ -276,19 +276,19 @@ def get_openapi_app_registration_service(
     )
 
 
-def get_developer_admin_service(
+def get_developer_service(
     db_session: Session = Depends(get_db_session),
-) -> DeveloperAdminService:
+) -> DeveloperService:
     """创建开放平台开发者用户管理服务（管理端查询）。"""
     from src.repositories.developer_repository import DeveloperRepository
     from src.repositories.openapi_app_registration_repository import (
         OpenApiAppRegistrationRepository,
     )
     from src.repositories.openapi_app_repository import OpenApiAppRepository
-    from src.services.admin.developer_admin_service import DeveloperAdminService
+    from src.services.admin.developer_admin_service import DeveloperService
     from src.services.admin.openapi_app_service import OpenApiAppService
 
-    return DeveloperAdminService(
+    return DeveloperService(
         repository=DeveloperRepository(session=db_session),
         openapi_app_service=OpenApiAppService(
             repo=OpenApiAppRepository(session=db_session),

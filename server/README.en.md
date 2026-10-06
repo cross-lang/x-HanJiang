@@ -624,10 +624,10 @@ Once the backend is running:
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| GET | `/api/admin/v1/admin/notification-configs` | All system notification channel configs | `notification:config` |
-| PUT | `/api/admin/v1/admin/notification-configs/{channel}` | Update channel config (hot reload) | `notification:config` |
-| GET | `/api/admin/v1/admin/notification-configs/monitor/system` | System monitor status | `notification:config` |
-| POST | `/api/admin/v1/admin/notification-configs/{channel}/test` | Send channel test message | `notification:config` |
+| GET | `/api/admin/v1/notification-configs` | All system notification channel configs | `notification:config` |
+| PUT | `/api/admin/v1/notification-configs/{channel}` | Update channel config (hot reload) | `notification:config` |
+| GET | `/api/admin/v1/notification-configs/monitor/system` | System monitor status | `notification:config` |
+| POST | `/api/admin/v1/notification-configs/{channel}/test` | Send channel test message | `notification:config` |
 
 **Announcements:**
 

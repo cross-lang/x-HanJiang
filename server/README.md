@@ -624,10 +624,10 @@ graph LR
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |------|------|------|------|
-| GET | `/api/admin/v1/admin/notification-configs` | 所有系统通知渠道配置 | `notification:config` |
-| PUT | `/api/admin/v1/admin/notification-configs/{channel}` | 更新渠道配置（热生效，无需重启） | `notification:config` |
-| GET | `/api/admin/v1/admin/notification-configs/monitor/system` | 系统监控状态 | `notification:config` |
-| POST | `/api/admin/v1/admin/notification-configs/{channel}/test` | 发送渠道测试消息 | `notification:config` |
+| GET | `/api/admin/v1/notification-configs` | 所有系统通知渠道配置 | `notification:config` |
+| PUT | `/api/admin/v1/notification-configs/{channel}` | 更新渠道配置（热生效，无需重启） | `notification:config` |
+| GET | `/api/admin/v1/notification-configs/monitor/system` | 系统监控状态 | `notification:config` |
+| POST | `/api/admin/v1/notification-configs/{channel}/test` | 发送渠道测试消息 | `notification:config` |
 
 **公告管理：**
 

@@ -277,15 +277,41 @@ class DeveloperOpenApiAppService:
         return self._to_response(entity)
 
     def rotate_key(self, app_id: int, developer_id: int) -> dict[str, str]:
-        """重置应用 AppKey（即时生效，不涉及审批）。"""
+        """重置应用 AppKey（即时生效，不涉及审批）。
+
+        重置后 app_key_viewed_at 清空：新密钥重新获得"可查看一次"的机会。
+        """
         entity = self._require_owned(app_id, developer_id)
         self._require_operable(entity)
         new_plain = generate_secret_key()
         entity.app_key_hash = security.sha256_hex(new_plain)
         entity.app_key_encrypted = security.encrypt_text(new_plain)
+        entity.app_key_viewed_at = None
         self._session.commit()
         logger.info("developer %s rotated app key app_id=%s", developer_id, app_id)
         return {"app_id": entity.app_id, "app_key": new_plain}
+
+    def view_secret(self, app_id: int, developer_id: int) -> dict[str, str]:
+        """查看 AppKey 明文（一次性：仅创建审批通过后且从未查看过时允许）。
+
+        返回明文并记录 app_key_viewed_at，此后该应用不再展示"查看密钥"入口，
+        如需再次获取明文只能走重置密钥（rotate_key）。
+        """
+        entity = self._require_owned(app_id, developer_id)
+        self._require_operable(entity)
+        if not entity.approved:
+            raise ConflictException(message="应用尚未通过创建审批，无法查看密钥")
+        if entity.app_key_viewed_at is not None:
+            raise ConflictException(
+                message="AppKey 明文已展示过一次，如需再次获取请重置密钥"
+            )
+        if not entity.app_key_encrypted:
+            raise ConflictException(message="应用密钥数据异常，请重置密钥")
+        plain = security.decrypt_text(entity.app_key_encrypted)
+        entity.app_key_viewed_at = datetime.now(UTC)
+        self._session.commit()
+        logger.info("developer %s viewed app key once app_id=%s", developer_id, app_id)
+        return {"app_id": entity.app_id, "app_key": plain}
 
     def delete_app(self, app_id: int, developer_id: int) -> None:
         """软删除应用，并将该应用待审批的申请置为已驳回（保留历史批次）。"""
@@ -397,6 +423,7 @@ class DeveloperOpenApiAppService:
             approved=entity.approved,
             approval_status=approval_status,
             pending_registration_id=pending_registration_id,
+            app_key_viewed_at=entity.app_key_viewed_at,
             last_used_at=entity.last_used_at,
             created_at=entity.created_at,
             updated_at=entity.updated_at,

@@ -15,6 +15,8 @@ export interface OpenAppItem {
   approval_status: string | null
   /** 存在待审批申请时的申请ID（批次号），无则 null */
   pending_registration_id: number | null
+  /** AppKey 明文最近一次查看时间；null=审批通过后可查看一次，非 null=已展示过 */
+  app_key_viewed_at: string | null
   last_used_at: string | null
   created_at: string
   updated_at: string

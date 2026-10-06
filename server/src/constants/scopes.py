@@ -107,7 +107,7 @@ class OpenApiScopeCode(BaseEnum):
         "读取用户数据",
         OpenApiScopeModule.USER.mark,
         OpenApiScopeAction.READ.mark,
-        "查询开放平台用户列表与详情",
+        "查询开放平台开发者列表与详情",
         1,
     )
     USER_WRITE = (
@@ -115,7 +115,7 @@ class OpenApiScopeCode(BaseEnum):
         "写入用户数据",
         OpenApiScopeModule.USER.mark,
         OpenApiScopeAction.WRITE.mark,
-        "创建、更新或删除开放平台用户",
+        "创建、更新或删除开放平台开发者",
         2,
     )
 

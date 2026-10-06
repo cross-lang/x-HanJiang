@@ -281,8 +281,10 @@ class ProfileService:
     ) -> None:
         """按 (user, event, channel) 唯一键 upsert 通知开关。
 
-        recipient 与事件无关：若该用户在某渠道下已有 recipient（如已配置 webhook），
-        新写入的 event×channel 行继承该 recipient；station 渠道 recipient 恒为空串。
+        recipient 与事件无关：非 email/station 渠道（如已配置 webhook）继承该渠道
+        已有 recipient；station 渠道 recipient 恒为空串；
+        email 渠道的 recipient 固定取当前用户表中的邮箱地址（未绑定邮箱时置空），
+        每次保存同步刷新，保证邮件推送始终落到本人邮箱。
 
         Args:
             user_id: 当前用户 ID
@@ -297,6 +299,13 @@ class ProfileService:
                     existing_by_channel[ch.mark] = r.recipient
                     break
 
+        # 涉及 email 渠道时，取当前用户表邮箱（惰性查询，最多一次）
+        user_email: str | None = None
+        for event_type, channels in prefs.items():
+            if "email" in channels:
+                user_email = self._require_user(user_id).email or None
+                break
+
         for event_type, channels in prefs.items():
             for channel, enabled in channels.items():
                 row = self._config_repository.get_by_user_event_channel(
@@ -304,8 +313,15 @@ class ProfileService:
                 )
                 if row:
                     row.enabled = bool(enabled)
+                    if channel == "email":
+                        row.recipient = user_email or ""
                 else:
-                    recipient = "" if channel == "station" else existing_by_channel.get(channel, "")
+                    if channel == "station":
+                        recipient = ""
+                    elif channel == "email":
+                        recipient = user_email or ""
+                    else:
+                        recipient = existing_by_channel.get(channel, "")
                     self._config_repository.create(
                         UserNotificationConfigEntity(
                             user_id=user_id,

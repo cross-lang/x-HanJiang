@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """开放平台应用申请表数据访问（申请批次 / 审批查询）。"""
 
-from sqlalchemy import func, or_, select
+from datetime import datetime
+from typing import Any, cast
 
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.engine import CursorResult
+
+from src.constants.enums import AppApprovalStatus
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.app_registration_entity import OpenApiAppRegistrationEntity
 from src.repositories.base_repository import BaseRepository
@@ -72,6 +77,36 @@ class OpenApiAppRegistrationRepository(BaseRepository[OpenApiAppRegistrationEnti
             OpenApiAppRegistrationEntity.status == "pending",
         )
         return self.session.execute(stmt).scalars().first()
+
+    def reject_pending_by_app_ids(self, app_ids: list[int], note: str) -> int:
+        """批量驳回指定应用集合下的全部待审批申请。
+
+        用于"禁用开发者账号"级联场景：开发者账号被禁用时，
+        其名下应用待审批的申请批次一并驳回，避免申请悬空。
+
+        Args:
+            app_ids: 应用 ID 列表
+            note: 驳回原因（写入 approval_note）
+
+        Returns:
+            int: 受影响行数
+        """
+        if not app_ids:
+            return 0
+        stmt = (
+            update(OpenApiAppRegistrationEntity)
+            .where(
+                OpenApiAppRegistrationEntity.app_id.in_(app_ids),
+                OpenApiAppRegistrationEntity.status == "pending",
+            )
+            .values(
+                status=AppApprovalStatus.REJECTED.value,
+                approval_note=note,
+                approved_at=datetime.now(),
+            )
+        )
+        result = cast("CursorResult[Any]", self.session.execute(stmt))
+        return result.rowcount or 0
 
     def find_latest_by_app(self, app_id: int) -> OpenApiAppRegistrationEntity | None:
         """查询指定应用最近一条申请记录（用于门户端派生最近审批结果）。"""

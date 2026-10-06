@@ -91,3 +91,13 @@ export interface DeveloperAppsQuery {
 export function listDeveloperApps(developerId: number, params: DeveloperAppsQuery) {
   return request.get<PageResult<OpenAppItem>>(`/developers/${developerId}/apps`, { params })
 }
+
+/** 启用/禁用开发者账号（禁用将级联禁用其名下应用并驳回待审批申请） */
+export function updateDeveloperStatus(developerId: number, status: 'enabled' | 'disabled') {
+  return request.post(`/developers/${developerId}/status`, { status })
+}
+
+/** 删除开发者账号（级联软删除其名下应用） */
+export function deleteDeveloper(developerId: number) {
+  return request.post(`/developers/${developerId}/delete`)
+}

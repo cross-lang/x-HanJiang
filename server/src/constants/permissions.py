@@ -37,7 +37,7 @@ class PermissionModule(StrBaseEnum):
     MAINTENANCE = ("maintenance", "维护管理")
     OPENAPI_APP = ("openapi_app", "开放平台应用")
     OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
-    OPENAPI_DEV = ("openapi_dev", "开放平台用户")
+    OPENAPI_DEV = ("openapi_dev", "开放平台开发者")
     HOME = ("home", "首页")
     DASHBOARD = ("dashboard", "仪表盘")
     SWAGGER = ("swagger", "接口文档")
@@ -424,11 +424,27 @@ class PermissionCode(BaseEnum):
     )
     OPENAPI_DEV_VIEW = (
         "openapi_dev:view",
-        "查看开放平台用户",
+        "查看开放平台开发者",
         PermissionModule.OPENAPI_DEV.mark,
         PermissionAction.VIEW.mark,
         "查看开放平台开发者用户列表与旗下应用",
         68,
+    )
+    OPENAPI_DEV_STATUS = (
+        "openapi_dev:status",
+        "启停开放平台开发者",
+        PermissionModule.OPENAPI_DEV.mark,
+        PermissionAction.STATUS.mark,
+        "启用或禁用开放平台开发者账号（禁用将连带禁用其名下应用）",
+        69,
+    )
+    OPENAPI_DEV_DELETE = (
+        "openapi_dev:delete",
+        "删除开放平台开发者",
+        PermissionModule.OPENAPI_DEV.mark,
+        PermissionAction.DELETE.mark,
+        "删除开放平台开发者账号（连带删除其名下应用）",
+        70,
     )
 
     # ── 首页域 ────────────────────────────────────────────

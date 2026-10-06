@@ -46,11 +46,27 @@
       <el-table-column prop="created_at" label="创建时间" width="170">
         <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="110" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" plain @click="handleViewApps(row as DeveloperItem)"
             >查看应用</el-button
           >
+          <el-button
+            v-if="userStore.hasPerm('openapi_dev:status')"
+            size="small"
+            :type="row.status === 'enabled' ? 'warning' : 'success'"
+            @click="handleToggleStatus(row as DeveloperItem)"
+          >
+            {{ row.status === 'enabled' ? '禁用' : '启用' }}
+          </el-button>
+          <el-button
+            v-if="userStore.hasPerm('openapi_dev:delete')"
+            size="small"
+            type="danger"
+            @click="handleDelete(row as DeveloperItem)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -117,11 +133,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
-import { listDevelopers, listDeveloperApps } from '@/api/openapi'
+import { listDevelopers, listDeveloperApps, updateDeveloperStatus, deleteDeveloper } from '@/api/openapi'
 import { fetchScopes, scopeNameOf } from '@/composables/useScopeCatalog'
+import { useUserStore } from '@/stores/user'
 import type { DeveloperItem, OpenAppItem } from '@/types/openapi'
 
+const userStore = useUserStore()
 const list = ref<DeveloperItem[]>([])
 const loading = ref(false)
 const keyword = ref('')
@@ -196,6 +215,53 @@ async function handleViewApps(row: DeveloperItem) {
   appsPage.value = 1
   appsVisible.value = true
   await fetchApps()
+}
+
+/** 启用/禁用开发者账号（禁用级联禁用其名下应用并驳回待审批申请） */
+async function handleToggleStatus(row: DeveloperItem) {
+  const newStatus = row.status === 'enabled' ? 'disabled' : 'enabled'
+  const displayName = row.name || row.username
+  try {
+    await ElMessageBox.confirm(
+      `确定${newStatus === 'enabled' ? '启用' : '禁用'}开发者「${displayName}」吗？${
+        newStatus === 'disabled'
+          ? '\n禁用后该开发者将无法登录开放平台门户，其名下全部开放应用将被一并禁用，待审批的申请将一并驳回。'
+          : ''
+      }`,
+      '危险操作确认',
+      { type: 'warning', confirmButtonText: newStatus === 'enabled' ? '确认启用' : '确认禁用' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await updateDeveloperStatus(row.id, newStatus)
+    ElMessage.success(newStatus === 'enabled' ? '已启用' : '已禁用')
+    fetchList()
+  } catch {
+    // 错误已处理
+  }
+}
+
+/** 删除开发者账号（级联软删除其名下应用） */
+async function handleDelete(row: DeveloperItem) {
+  const displayName = row.name || row.username
+  try {
+    await ElMessageBox.confirm(
+      `确定删除开发者「${displayName}」吗？\n删除后其名下全部开放应用将被一并删除，AppSecret 立即停止对外服务，此操作不可撤销！`,
+      '危险操作确认',
+      { type: 'error', confirmButtonText: '确定删除' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteDeveloper(row.id)
+    ElMessage.success('删除成功')
+    fetchList()
+  } catch {
+    // 错误已处理
+  }
 }
 
 async function fetchApps() {

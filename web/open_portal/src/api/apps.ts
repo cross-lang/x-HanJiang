@@ -45,6 +45,11 @@ export function rotateAppKey(id: number) {
   return request.post<{ app_id: string; app_key: string }>(`/apps/${id}/rotate-key`)
 }
 
+/** 查看 AppKey 明文（一次性：审批通过后且未查看过；查看后入口关闭） */
+export function viewAppSecret(id: number) {
+  return request.post<{ app_id: string; app_key: string }>(`/apps/${id}/view-secret`)
+}
+
 /** 申请/调整 scope（提交后进入管理员审批） */
 export function applyAppScopes(id: number, data: ScopeApplyPayload) {
   return request.put<OpenAppItem>(`/apps/${id}/scopes`, data)

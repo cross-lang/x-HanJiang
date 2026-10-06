@@ -7,11 +7,18 @@
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class DeveloperAdminResponse(BaseModel):
+class DeveloperStatusRequest(BaseModel):
+    """开发者账号启停请求（管理端）。"""
+
+    status: Literal["enabled", "disabled"] = Field(description="目标账号状态：enabled 启用 / disabled 禁用")
+
+
+class DeveloperResponse(BaseModel):
     """开发者用户列表/详情响应（管理端）。"""
 
     id: int
@@ -29,4 +36,4 @@ class DeveloperAdminResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-__all__ = ["DeveloperAdminResponse"]
+__all__ = ["DeveloperResponse", "DeveloperStatusRequest"]

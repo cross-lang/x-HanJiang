@@ -65,6 +65,8 @@ _SEED_MENUS = [
     ("开放平台", "应用审批", "/app-approvals", "Stamp", PermissionCode.OPENAPI_APP_APPROVE.mark, 2, "menu"),
     ("开放平台", "权限管理", "/app-scopes", "Lock", PermissionCode.OPENAPI_APP_VIEW.mark, 3, "menu"),
     ("开放平台", "开发者管理", "/open-developers", "Avatar", PermissionCode.OPENAPI_DEV_VIEW.mark, 4, "menu"),
+    # 个人中心（一级菜单，参考开放平台门户样式）
+    (0, "个人中心", "/profile", "User", PermissionCode.PROFILE_VIEW.mark, 6, "menu"),
 ]
 
 

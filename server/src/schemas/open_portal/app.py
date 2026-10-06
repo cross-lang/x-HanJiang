@@ -52,6 +52,9 @@ class OpenAppResponse(BaseModel):
     approved: bool
     approval_status: str | None
     pending_registration_id: int | None = None
+    app_key_viewed_at: datetime | None = Field(
+        default=None, description="AppKey 明文最近一次查看时间（NULL=审批通过后可查看一次，非 NULL=已展示过）"
+    )
     last_used_at: datetime | None
     created_at: datetime
     updated_at: datetime
