@@ -150,6 +150,9 @@ const rules: FormRules = {
       trigger: 'blur',
     },
   ],
+  certification_type: [
+    { required: true, message: '请选择认证主体类型', trigger: 'change' },
+  ],
 }
 
 async function handleRegister() {

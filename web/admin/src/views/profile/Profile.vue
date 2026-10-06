@@ -197,7 +197,7 @@
               <div class="sec-header">
                 <el-icon class="sec-icon"><Iphone /></el-icon>
                 <div>
-                  <div class="sec-title">绑定手机</div>
+                  <div class="sec-title">{{ userStore.userInfo?.phone ? '更换手机号' : '绑定手机' }}</div>
                   <div class="sec-current">当前：{{ userStore.userInfo?.phone || '未绑定' }}</div>
                 </div>
               </div>
@@ -222,7 +222,7 @@
               <div class="sec-header">
                 <el-icon class="sec-icon"><Message /></el-icon>
                 <div>
-                  <div class="sec-title">绑定邮箱</div>
+                  <div class="sec-title">{{ userStore.userInfo?.email ? '更换邮箱' : '绑定邮箱' }}</div>
                   <div class="sec-current">当前：{{ userStore.userInfo?.email || '未绑定' }}</div>
                 </div>
               </div>

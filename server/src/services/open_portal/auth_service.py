@@ -14,10 +14,13 @@ Classes:
 
 from __future__ import annotations
 
+import contextlib
+import secrets
 from datetime import datetime
 
 from src.constants.constants import TOKEN_TTL_SECONDS
 from src.constants.enums import DeveloperStatus
+from src.core.config import settings
 from src.core.exceptions import AuthenticationException, ConflictException
 from src.core.logger import logger
 from src.core.tokens import (
@@ -59,8 +62,8 @@ class DeveloperAuthService:
         email: str,
         password: str,
         confirm_password: str,
-        name: str | None = None,
-        certification_type: str | None = None,
+        name: str,
+        certification_type: str,
     ) -> DeveloperProfileResponse:
         """注册开发者账号。
 
@@ -69,8 +72,8 @@ class DeveloperAuthService:
             email: 邮箱
             password: 密码
             confirm_password: 确认密码
-            name: 昵称（可选，为空时回退为用户名）
-            certification_type: 认证主体类型（预留）
+            name: 昵称（必填）
+            certification_type: 认证主体类型（personal/enterprise，必填）
 
         Returns:
             DeveloperProfileResponse: 注册成功的开发者资料
@@ -89,7 +92,7 @@ class DeveloperAuthService:
             username=username,
             email=email,
             password_hash=hash_password(password),
-            name=name or username,
+            name=name,
             certification_type=certification_type,
             status=DeveloperStatus.ENABLED.value,
         )
@@ -189,6 +192,115 @@ class DeveloperAuthService:
         self._repository.commit()
         # 改密后撤销全部已签发令牌（开发者域无验证码二次认证，改密即失效更安全）
         self.logout(developer_id)
+
+    # ── 忘记密码（邮箱二次认证）─────────────────────────
+
+    # 重置令牌键前缀：pwd_reset_dev:{token} -> developer_id
+    _PWD_RESET_KEY_PREFIX = "pwd_reset_dev:"
+    # 重置令牌有效期（秒）
+    _PWD_RESET_TTL = 30 * 60
+
+    def request_password_reset(self, email: str) -> dict[str, str]:
+        """忘记密码：向注册邮箱发送含重置令牌的邮件。
+
+        安全策略：
+        - 邮箱不存在时同样返回成功提示，避免账号枚举；
+        - 令牌为 32 字节随机串，仅存 Redis（TTL 30 分钟），不落库；
+        - 邮件发送失败抛出业务异常（仅发生在账号存在且 SMTP 异常时）。
+        """
+        dev = self._repository.get_by_email(email)
+        if dev is None:
+            logger.info("forgot password for unregistered email=%s", email)
+            return {
+                "message": "如果该邮箱已注册，重置链接已发送至邮箱，请查收（30 分钟内有效）"
+            }
+        token = secrets.token_urlsafe(32)
+        try:
+            provider = self._cache_provider()
+            provider.set(
+                f"{self._PWD_RESET_KEY_PREFIX}{token}",
+                str(dev.id),
+                ttl=self._PWD_RESET_TTL,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"重置令牌写入 Redis 失败: {e}")
+            raise ConflictException(message="重置令牌生成失败，请稍后重试") from e
+        try:
+            self._send_reset_email(dev.email, token)
+        except Exception as e:  # noqa: BLE001
+            # 清理令牌，避免无效令牌残留
+            with contextlib.suppress(Exception):
+                provider.delete(f"{self._PWD_RESET_KEY_PREFIX}{token}")
+            logger.error(f"重置邮件发送失败: email={email} error={e}")
+            raise ConflictException(message="重置邮件发送失败，请稍后重试或联系管理员") from e
+        return {
+            "message": "如果该邮箱已注册，重置链接已发送至邮箱，请查收（30 分钟内有效）"
+        }
+
+    def reset_password(self, token: str, new_password: str, confirm_password: str) -> None:
+        """重置密码：校验邮件中的令牌后更新密码，撤销该开发者全部登录态并作废令牌。"""
+        if new_password != confirm_password:
+            raise AuthenticationException(message="两次输入的密码不一致")
+        try:
+            provider = self._cache_provider()
+            dev_id_raw = provider.get(f"{self._PWD_RESET_KEY_PREFIX}{token}")
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"重置令牌校验失败: {e}")
+            raise AuthenticationException(message="重置链接无效或已过期，请重新申请") from e
+        if dev_id_raw is None:
+            raise AuthenticationException(message="重置链接无效或已过期，请重新申请")
+        dev = self._repository.get_by_id(int(dev_id_raw))
+        if dev is None:
+            raise AuthenticationException(message="开发者不存在，请联系管理员")
+        dev.password_hash = hash_password(new_password)
+        self._repository.commit()
+        # 重置后：撤销全部登录态（强制重新登录）+ 作废令牌（一次性）
+        self.logout(dev.id)
+        try:
+            provider.delete(f"{self._PWD_RESET_KEY_PREFIX}{token}")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"重置令牌删除失败: {e}")
+        logger.info("developer password reset via email: id=%s", dev.id)
+
+    def _send_reset_email(self, to_email: str, token: str) -> None:
+        """发送密码重置邮件（HTML 正文，含一次性重置链接）。"""
+        from src.infras.email import get_cached_email_provider
+
+        reset_url = f"{settings.open_portal_base_url}/reset-password?token={token}"
+        subject = "汉江开放平台 - 密码重置"
+        card_style = (
+            "font-family:'Microsoft YaHei',Arial,sans-serif;max-width:600px;"
+            "margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;"
+        )
+        para_style = "font-size:14px;color:#333;line-height:1.7;"
+        btn_style = (
+            "display:inline-block;padding:10px 28px;background:#409eff;color:#fff;"
+            "text-decoration:none;border-radius:6px;font-size:14px;"
+        )
+        html = f"""
+        <div style="{card_style}">
+          <div style="font-size:20px;font-weight:700;color:#1f3a5f;margin-bottom:16px;">
+            汉江开放平台 - 密码重置
+          </div>
+          <p style="{para_style}">您好：</p>
+          <p style="{para_style}">
+            您正在重置汉江开放平台的登录密码。请点击下方链接完成重置，
+            <b style="color:#e6a23c;">链接 30 分钟内有效，且仅可使用一次</b>：
+          </p>
+          <p style="text-align:center;margin:24px 0;">
+            <a href="{reset_url}" style="{btn_style}">立即重置密码</a>
+          </p>
+          <p style="font-size:13px;color:#888;line-height:1.6;">
+            如果按钮无法点击，请复制以下链接到浏览器地址栏打开：<br/>
+            <span style="color:#409eff;word-break:break-all;">{reset_url}</span>
+          </p>
+          <p style="font-size:12px;color:#aaa;margin-top:16px;border-top:1px solid #eee;padding-top:12px;">
+            若非本人操作，请忽略此邮件，您的账号密码不会被修改。
+          </p>
+        </div>
+        """
+        provider = get_cached_email_provider()
+        provider.send_email(to_email, subject, html)
 
     # ── 内部工具 ────────────────────────────────────────
 

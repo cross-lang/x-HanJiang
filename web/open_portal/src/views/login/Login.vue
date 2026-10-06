@@ -42,6 +42,7 @@
             </el-form-item>
 
             <div class="remember-row">
+              <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
               <el-checkbox v-model="rememberMe">记住账号和密码</el-checkbox>
             </div>
 
@@ -196,9 +197,11 @@ async function handleLogin() {
     persistCredentials()
     ElMessage.success('登录成功')
     router.push('/home')
-  } catch {
-    // 登录失败重置滑块，需重新验证
+  } catch (err: unknown) {
+    // 登录失败重置滑块，需重新验证；401 等业务错误由拦截器静默，这里主动提示
     resetSlider()
+    const data = (err as { response?: { data?: { message?: string } } })?.response?.data
+    ElMessage.error(data?.message || '登录失败，请检查账号和密码')
   } finally {
     loading.value = false
   }
@@ -339,15 +342,25 @@ async function handleLogin() {
   transform: translateY(1px);
 }
 
-/* ── 记住账号和密码 ─────────────────────────────────── */
+/* ── 记住账号和密码 / 忘记密码 ─────────────────────── */
 .remember-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin: -16px 0 18px;
 }
 .remember-row :deep(.el-checkbox__label) {
   font-size: 13px;
   color: var(--hj-text-regular);
+}
+.forgot-link {
+  font-size: 13px;
+  color: var(--hj-primary);
+  text-decoration: none;
+}
+.forgot-link:hover {
+  color: #66b1ff;
+  text-decoration: underline;
 }
 
 /* ── 滑动验证 ────────────────────────────────────────── */

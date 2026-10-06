@@ -17,6 +17,16 @@ const router = createRouter({
       component: () => import('@/views/register/Register.vue'),
     },
     {
+      path: '/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('@/views/forgot-password/ForgotPassword.vue'),
+    },
+    {
+      path: '/reset-password',
+      name: 'ResetPassword',
+      component: () => import('@/views/reset-password/ResetPassword.vue'),
+    },
+    {
       path: '/',
       component: () => import('@/views/layout/Layout.vue'),
       redirect: '/home',
@@ -56,8 +66,13 @@ const router = createRouter({
   ],
 })
 
-// 无需登录即可访问的公共路径（登录/注册对外可见）
-const PUBLIC_PATHS: ReadonlySet<string> = new Set(['/login', '/register'])
+// 无需登录即可访问的公共路径（登录/注册/忘记密码/重置密码对外可见）
+const PUBLIC_PATHS: ReadonlySet<string> = new Set([
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+])
 
 /**
  * 全局路由守卫：登录态校验。

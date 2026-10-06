@@ -211,6 +211,8 @@ class NotificationEvent(StrBaseEnum):
     FILE_UPLOADED = "file.uploaded", "文件上传完成"
     FILE_DELETED = "file.deleted", "文件已删除"
     FILE_DOWNLOADED = "file.downloaded", "文件被下载"
+    # ── 安全域 ──────────────────────────────────
+    SECURITY_VERIFY_CODE = "security.verify_code", "邮箱验证码"
 
 
 # 默认通知路由表：事件类型 → 默认发送渠道
@@ -271,6 +273,10 @@ DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
     ],
     NotificationEvent.FILE_DOWNLOADED: [
         NotificationChannel.STATION
+    ],
+    # 安全域
+    NotificationEvent.SECURITY_VERIFY_CODE: [
+        NotificationChannel.EMAIL
     ],
     # 开放应用域
     NotificationEvent.OPENAPI_APP_CREATED: [

@@ -63,6 +63,8 @@ ASSISTANT_ROLL_TRIGGER_FACTOR: int = 2
 ASSISTANT_ENTITY_TYPE: str = "assistant"
 #: 会话消息列表查询上限
 ASSISTANT_MESSAGE_LIST_LIMIT: int = 100
+#: 非流式结果直接切片输出时的单块字符数（模拟流式体验，避免重复调用 LLM）
+ASSISTANT_TOKEN_CHUNK_SIZE: int = 24
 
 
 # ── 系统入口清单（跳转工具的知识源）────────────────────────

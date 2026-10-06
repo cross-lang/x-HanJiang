@@ -7,22 +7,16 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class DeveloperRegisterRequest(BaseModel):
-    """开发者注册请求。"""
+    """开发者注册请求（所有字段均为必填）。"""
 
     username: str = Field(min_length=3, max_length=50, description="用户名")
     email: str = Field(min_length=3, max_length=100, description="邮箱")
     password: str = Field(min_length=8, max_length=64, description="密码")
     confirm_password: str = Field(min_length=8, max_length=64, description="确认密码")
-    name: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=100,
-        description="昵称（注册时可选，为空时回退为用户名）",
-    )
-    certification_type: str | None = Field(
-        default=None,
+    name: str = Field(min_length=1, max_length=100, description="昵称（必填）")
+    certification_type: str = Field(
         pattern="^(personal|enterprise)$",
-        description="认证主体类型（预留，注册时可不填）",
+        description="认证主体类型：personal 个人 / enterprise 企业",
     )
 
 
@@ -54,6 +48,20 @@ class DeveloperChangePasswordRequest(BaseModel):
 
     old_password: str = Field(min_length=1, max_length=64, description="原密码")
     new_password: str = Field(min_length=8, max_length=64, description="新密码")
+
+
+class DeveloperForgotPasswordRequest(BaseModel):
+    """开发者忘记密码：提交注册邮箱，触发重置邮件。"""
+
+    email: str = Field(min_length=3, max_length=100, description="注册邮箱")
+
+
+class DeveloperResetPasswordRequest(BaseModel):
+    """开发者重置密码：携带邮件中的重置令牌 + 新密码。"""
+
+    token: str = Field(min_length=1, description="邮件中携带的重置令牌")
+    new_password: str = Field(min_length=8, max_length=64, description="新密码")
+    confirm_password: str = Field(min_length=8, max_length=64, description="确认密码")
 
 
 class CurrentDeveloper(BaseModel):

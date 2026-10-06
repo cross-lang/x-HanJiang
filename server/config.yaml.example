@@ -147,9 +147,9 @@ ai:
   memory:
     enabled: true
     # 第 3 层：保留的最近原文轮数（一轮 = 一问一答）
-    recent_raw_rounds: 8
+    recent_raw_rounds: 6
     # 历史上下文 token 预算上限（不含系统提示词与输出预留）
-    token_budget: 54000
+    token_budget: 32000
     # 滚动摘要使用的模型（留空复用主模型）
     summary_model: ""
   retriever:

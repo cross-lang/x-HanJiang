@@ -8,7 +8,7 @@
           </div>
           <span class="ai-drawer-name">小江</span>
         </div>
-        <el-button text size="small" @click="toggleConvPanel">
+        <el-button text size="small" class="ai-conv-toggle" @click="toggleConvPanel">
           <el-icon><ChatDotRound /></el-icon>&nbsp;{{ aiConvPanelVisible ? '收起会话' : '会话管理' }}
         </el-button>
       </div>
@@ -338,6 +338,10 @@ watch(visible, v => {
 .ai-drawer-name {
   font-size: 16px;
   font-weight: 600;
+}
+/* 会话管理按钮：比 small 默认字号略放大 */
+.ai-conv-toggle {
+  font-size: 14px;
 }
 
 /* ===== 抽屉主体 ===== */

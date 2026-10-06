@@ -1,5 +1,12 @@
 import request from './request'
-import type { ChangePasswordRequest, LoginRequest, LoginResult, RegisterRequest } from '@/types/auth'
+import type {
+  ChangePasswordRequest,
+  ForgotPasswordRequest,
+  LoginRequest,
+  LoginResult,
+  RegisterRequest,
+  ResetPasswordRequest,
+} from '@/types/auth'
 
 /**
  * 开放平台门户账号体系接口。
@@ -30,4 +37,14 @@ export function logout() {
 /** 修改密码（成功后服务端登录态被撤销，需重新登录） */
 export function changePassword(data: ChangePasswordRequest) {
   return request.post<{ message: string }>('/auth/change-password', data)
+}
+
+/** 忘记密码：提交注册邮箱，向邮箱发送一次性重置链接（30 分钟有效） */
+export function forgotPassword(data: ForgotPasswordRequest) {
+  return request.post<{ message: string }>('/auth/forgot-password', data)
+}
+
+/** 重置密码：携带邮件令牌 + 新密码完成重置 */
+export function resetPassword(data: ResetPasswordRequest) {
+  return request.post<{ reset: boolean }>('/auth/reset-password', data)
 }

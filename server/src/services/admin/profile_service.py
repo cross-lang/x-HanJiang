@@ -301,7 +301,7 @@ class ProfileService:
 
         # 涉及 email 渠道时，取当前用户表邮箱（惰性查询，最多一次）
         user_email: str | None = None
-        for event_type, channels in prefs.items():
+        for _event_type, channels in prefs.items():
             if "email" in channels:
                 user_email = self._require_user(user_id).email or None
                 break
@@ -462,7 +462,7 @@ class ProfileService:
             )
             return {"success": ok, "error": None if ok else "发送失败，请检查 Webhook 地址"}
         except Exception as exc:  # noqa: BLE001 - 测试失败统一收敛
-            logger.warning("User webhook test failed user=%s channel=%s: %s", user_id, channel, exc)
+            logger.warning("User webhook test failed user={} channel={}: {}", user_id, channel, exc)
             return {"success": False, "error": "发送失败，请检查 Webhook 地址"}
 
     # ── 安全设置：邮箱二次认证 ─────────────────────────────
@@ -475,6 +475,7 @@ class ProfileService:
 
         Raises:
             ValidationException: 账号未绑定邮箱时抛出
+            ValidationException: 验证码邮件发送失败时抛出（不再静默返回成功）
         """
         user = self._require_user(user_id)
         if not user.email:
@@ -487,8 +488,9 @@ class ProfileService:
                 email=user.email,
                 variables={"code": code, "username": user.name or user.username},
             )
-        except Exception as exc:  # noqa: BLE001 - 邮件发送失败不阻断接口，但必须记录
-            logger.error("验证码邮件发送失败: user_id=%s error=%s", user.id, exc)
+        except Exception as exc:  # noqa: BLE001 - 发送失败统一收敛为业务异常，便于前端感知
+            logger.error("验证码邮件发送失败: user_id={} error={}", user.id, exc)
+            raise ValidationException(message="验证码邮件发送失败，请稍后重试") from exc
 
     def verify_and_update_phone(self, user_id: int, code: str, phone: str) -> None:
         """通过验证码校验后修改手机号。

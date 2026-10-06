@@ -16,9 +16,11 @@ from src.api.response import success_response
 from src.schemas.open_portal.auth import (
     CurrentDeveloper,
     DeveloperChangePasswordRequest,
+    DeveloperForgotPasswordRequest,
     DeveloperLoginRequest,
     DeveloperRefreshRequest,
     DeveloperRegisterRequest,
+    DeveloperResetPasswordRequest,
 )
 from src.services.open_portal.auth_service import DeveloperAuthService
 
@@ -99,3 +101,31 @@ def change_password(
 ) -> JSONResponse:
     service.change_password(current_developer.id, body.old_password, body.new_password)
     return success_response({"changed": True}, request)
+
+
+@router.post(
+    "/forgot-password",
+    summary="忘记密码：发送重置邮件",
+    description="提交注册邮箱，向邮箱发送含一次性重置令牌的邮件（30 分钟有效）。"
+    "邮箱未注册时同样返回成功提示，避免账号枚举",
+)
+def forgot_password(
+    body: DeveloperForgotPasswordRequest,
+    request: Request,
+    service: DeveloperAuthService = Depends(get_developer_auth_service),
+) -> JSONResponse:
+    return success_response(service.request_password_reset(body.email), request)
+
+
+@router.post(
+    "/reset-password",
+    summary="重置密码（邮箱二次认证）",
+    description="携带邮件中的重置令牌 + 新密码完成重置；重置后撤销全部登录态并作废令牌",
+)
+def reset_password(
+    body: DeveloperResetPasswordRequest,
+    request: Request,
+    service: DeveloperAuthService = Depends(get_developer_auth_service),
+) -> JSONResponse:
+    service.reset_password(body.token, body.new_password, body.confirm_password)
+    return success_response({"reset": True}, request)

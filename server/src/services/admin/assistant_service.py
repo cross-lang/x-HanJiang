@@ -34,6 +34,7 @@ from src.constants.assistant import (
     ASSISTANT_MESSAGE_LIST_LIMIT,
     ASSISTANT_ROLL_CHUNK_SIZE,
     ASSISTANT_ROLL_TRIGGER_FACTOR,
+    ASSISTANT_TOKEN_CHUNK_SIZE,
     AssistantEventType,
     AssistantMessageRole,
 )
@@ -386,19 +387,26 @@ class AssistantService:
                 self._maybe_rename(conversation, query, reply)
                 yield self._done_event(conversation.id, saved.id)
                 return
-            answer_chunks: list[str] = []
-            for chunk in llm_provider.chat_stream(
-                messages=cast(ChatMessage, messages),
-                temperature=llm_cfg.temperature,
-                max_tokens=llm_cfg.max_tokens,
-            ):
-                answer_chunks.append(chunk)
-                yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
-            content = "".join(answer_chunks).strip()
-            if not content:
-                # 空回复兜底：模型未输出任何内容，给用户友好提示而非空白
-                content = ASSISTANT_EMPTY_REPLY_MESSAGE
-                yield {"type": AssistantEventType.TOKEN.mark, "content": content}
+            # 非流式 chat 已返回最终答案：直接按块切片输出（模拟流式），
+            # 避免同一答案再走一次 chat_stream 重复生成，节省一次完整 LLM 调用
+            content = (result.content or "").strip()
+            if content:
+                for chunk in self._chunk_text(content):
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
+            else:
+                # 兜底：模型未返回任何内容时尝试流式再取一次，仍为空则给友好提示
+                answer_chunks: list[str] = []
+                for chunk in llm_provider.chat_stream(
+                    messages=cast(ChatMessage, messages),
+                    temperature=llm_cfg.temperature,
+                    max_tokens=llm_cfg.max_tokens,
+                ):
+                    answer_chunks.append(chunk)
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
+                content = "".join(answer_chunks).strip()
+                if not content:
+                    content = ASSISTANT_EMPTY_REPLY_MESSAGE
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": content}
             saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
             self._maybe_roll_summary(conversation)
             self._maybe_rename(conversation, query, content)
@@ -462,6 +470,21 @@ class AssistantService:
             str: 拼接文本
         """
         return "\n".join(str(item.get("content", "")) for item in messages)
+
+    @staticmethod
+    def _chunk_text(text: str) -> Iterator[str]:
+        """将完整回复按固定窗口切块，模拟流式输出体验。
+
+        非流式 chat 已拿到完整答案时直接切片下发，避免重复调用 LLM。
+
+        Args:
+            text: 完整回复文本
+
+        Yields:
+            str: 切块后的文本片段
+        """
+        for index in range(0, len(text), ASSISTANT_TOKEN_CHUNK_SIZE):
+            yield text[index : index + ASSISTANT_TOKEN_CHUNK_SIZE]
 
     def _retrieve_context(self, query: str) -> str:
         """获取检索补充知识（RAG 预留；未启用时返回空串）。
@@ -740,13 +763,18 @@ class AssistantService:
         query: str,
         reply: str,
     ) -> None:
-        """每轮对话完成后自动归纳会话主题名（失败静默，不影响主流程）。
+        """为未命名会话归纳主题名（失败静默，不影响主流程）。
+
+        仅当会话尚未命名时调用一次 LLM 生成标题；已有标题的会话
+        不再每轮重复生成，避免每轮对话额外等待一次完整模型调用。
 
         Args:
             conversation: 会话实体
             query: 本轮用户输入
             reply: 本轮助手最终回复（兜底跳转文案或正常回答）
         """
+        if conversation.title:
+            return
         try:
             title = generate_title(
                 self._get_llm(),

@@ -266,8 +266,8 @@ class AIMemoryConfig:
     """
 
     enabled: bool = True
-    recent_raw_rounds: int = 8
-    token_budget: int = 54000
+    recent_raw_rounds: int = 6
+    token_budget: int = 32000
     summary_model: str = ""
 
 
@@ -525,8 +525,8 @@ class Settings:
                 },
                 "memory": {
                     "enabled": True,
-                    "recent_raw_rounds": 8,
-                    "token_budget": 54000,
+                    "recent_raw_rounds": 6,
+                    "token_budget": 32000,
                     "summary_model": "",
                 },
                 "retriever": {
@@ -741,6 +741,10 @@ class Settings:
         # SMTP 邮件配置
         smtp_raw = self._config.get("smtp", {})
         self.smtp = SmtpConfig(**smtp_raw)
+        # 开放平台门户前端地址（用于邮件中的重置密码链接等，可通过 OPEN_PORTAL_BASE_URL 覆盖）
+        self.open_portal_base_url: str = os.environ.get(
+            "OPEN_PORTAL_BASE_URL", "http://localhost:5174"
+        ).rstrip("/")
         # 通知渠道配置
         notification_raw = self._config.get("notification", {})
         self.notification = NotificationConfig(**notification_raw)

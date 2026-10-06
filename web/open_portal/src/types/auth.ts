@@ -1,15 +1,15 @@
 /** 开放平台门户账号体系类型（与 server 侧 developers 域约定对齐） */
 
-/** 注册请求 */
+/** 注册请求（所有字段均为必填） */
 export interface RegisterRequest {
   username: string
   email: string
   password: string
   confirm_password: string
-  /** 昵称（注册时录入，为空时服务端回退为用户名） */
-  name?: string
-  /** 预留：注册时可选择的认证主体类型（personal / enterprise） */
-  certification_type?: 'personal' | 'enterprise'
+  /** 昵称（必填） */
+  name: string
+  /** 认证主体类型（必填）：personal / enterprise */
+  certification_type: 'personal' | 'enterprise'
 }
 
 /** 登录请求 */
@@ -30,6 +30,18 @@ export interface LoginResult {
 /** 修改密码请求 */
 export interface ChangePasswordRequest {
   old_password: string
+  new_password: string
+  confirm_password: string
+}
+
+/** 忘记密码请求：提交注册邮箱，触发重置邮件 */
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+/** 重置密码请求：邮件令牌 + 新密码 */
+export interface ResetPasswordRequest {
+  token: string
   new_password: string
   confirm_password: string
 }
