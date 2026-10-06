@@ -108,29 +108,73 @@ CREATE TABLE `audit_logs` (
     KEY `idx_audit_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务审计日志表';
 
--- 通知发送记录表
-DROP TABLE IF EXISTS `notification_records`;
-CREATE TABLE `notification_records` (
+-- 系统通知投递明细表（投递实况 + 失败重试队列）
+DROP TABLE IF EXISTS `system_notice_delivery`;
+CREATE TABLE `system_notice_delivery` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `system_notification_id` BIGINT NULL COMMENT '关联系统通知ID（非系统通知来源为空）',
+    `source` VARCHAR(32) NOT NULL COMMENT '通知来源（system_notice/station/alert/openapi_app）',
     `event_type` VARCHAR(64) NOT NULL COMMENT '事件类型',
+    `user_id` BIGINT NULL COMMENT '目标用户ID（渠道级投递如告警webhook为空）',
     `channel` VARCHAR(32) NOT NULL COMMENT '发送渠道',
-    `recipient` VARCHAR(256) NOT NULL COMMENT '接收人',
-    `subject` VARCHAR(512) NOT NULL DEFAULT '' COMMENT '通知主题',
-    `content` TEXT NOT NULL COMMENT '渲染后正文',
+    `recipient` VARCHAR(256) NOT NULL COMMENT '接收人（发送时实际地址快照）',
     `status` VARCHAR(16) NOT NULL DEFAULT 'pending' COMMENT '发送状态',
     `retry_count` BIGINT NOT NULL DEFAULT 0 COMMENT '已重试次数',
     `max_retries` BIGINT NOT NULL DEFAULT 3 COMMENT '最大重试次数',
     `error_message` TEXT NULL COMMENT '错误信息',
-    `metadata_json` TEXT NULL COMMENT '扩展元数据 JSON',
+    `receive_at` DATETIME NULL COMMENT '送达/接收时间',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `sent_at` DATETIME NULL COMMENT '发送时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_event_type` (`event_type`),
-    KEY `idx_channel` (`channel`),
-    KEY `idx_status` (`status`),
-    KEY `idx_status_retry` (`status`, `retry_count`),
-    KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知发送记录表';
+    KEY `idx_delivery_notification` (`system_notification_id`),
+    KEY `idx_delivery_user` (`user_id`),
+    KEY `idx_delivery_status_retry` (`status`, `retry_count`),
+    KEY `idx_delivery_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统通知投递明细表';
+
+-- 管理系统用户站内信表（独立收件箱）
+DROP TABLE IF EXISTS `station_messages`;
+CREATE TABLE `station_messages` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_id` BIGINT NOT NULL COMMENT '接收用户ID',
+    `operator_id` BIGINT NULL COMMENT '发送人用户ID（系统自动为空）',
+    `subject` VARCHAR(200) NOT NULL COMMENT '消息标题',
+    `content` TEXT NOT NULL COMMENT '消息正文',
+    `source` VARCHAR(32) NOT NULL COMMENT '消息来源（system_notice/station/alert/openapi_app）',
+    `event_type` VARCHAR(64) NULL COMMENT '事件类型（前端跳转依据）',
+    `is_read` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读',
+    `read_at` DATETIME NULL COMMENT '阅读时间',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_station_user` (`user_id`),
+    KEY `idx_station_user_read` (`user_id`, `is_read`),
+    KEY `idx_station_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理系统用户站内信表';
+
+-- 系统通知主表（发布/撤回）
+DROP TABLE IF EXISTS `system_notifications`;
+CREATE TABLE `system_notifications` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `title` VARCHAR(200) NOT NULL COMMENT '通知标题',
+    `content` TEXT NOT NULL COMMENT '通知正文',
+    `notice_type` VARCHAR(32) NOT NULL DEFAULT 'notice' COMMENT '通知类型（notice/maintenance）',
+    `maintenance_time` DATETIME NULL COMMENT '维护开始时间',
+    `duration` VARCHAR(64) NULL COMMENT '预计持续时长',
+    `reason` VARCHAR(500) NULL COMMENT '维护原因',
+    `event_type` VARCHAR(64) NOT NULL DEFAULT 'system.notice' COMMENT '事件类型',
+    `status` VARCHAR(16) NOT NULL DEFAULT 'published' COMMENT '发布状态（published/withdrawn）',
+    `operator_id` BIGINT NULL COMMENT '操作人用户ID',
+    `operator_name` VARCHAR(64) NULL COMMENT '操作人用户名',
+    `sent_at` DATETIME NULL COMMENT '首次投递时间',
+    `metadata_json` JSON NULL COMMENT '扩展元数据',
+    `published_at` DATETIME NULL COMMENT '发布时间',
+    `withdrawn_at` DATETIME NULL COMMENT '撤回时间',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_notice_status` (`status`),
+    KEY `idx_notice_type` (`notice_type`),
+    KEY `idx_notice_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统通知表';
 
 -- 用户通知渠道配置表
 DROP TABLE IF EXISTS `user_notification_configs`;
@@ -138,7 +182,7 @@ CREATE TABLE `user_notification_configs` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
     `channel` VARCHAR(32) NOT NULL COMMENT '通知渠道（email/sms/dingtalk/feishu）',
-    `recipient` VARCHAR(256) NOT NULL COMMENT '渠道接收人标识',
+    `recipient` JSON NOT NULL COMMENT '渠道接收人列表 JSON，如 [{"recipient":"xxx@qq.com","label":"私人邮箱","enabled":1}]（enabled 1=启用 0=禁用）',
     `enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -147,5 +191,18 @@ CREATE TABLE `user_notification_configs` (
     UNIQUE KEY `uk_user_channel` (`user_id`, `channel`),
     CONSTRAINT `fk_unc_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户通知渠道配置表';
+
+-- 系统通知渠道配置表（全局共用，非用户级）
+DROP TABLE IF EXISTS `system_notification_configs`;
+CREATE TABLE `system_notification_configs` (
+    `id` INT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `channel` VARCHAR(32) NOT NULL COMMENT '渠道（dingtalk/feishu/email）',
+    `config` JSON NOT NULL COMMENT '渠道配置对象，如webhook地址、密钥等',
+    `enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_channel` (`channel`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统通知渠道配置表';
 
 SET FOREIGN_KEY_CHECKS = 1;

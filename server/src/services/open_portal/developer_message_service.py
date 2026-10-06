@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """开发者站内信服务（开放平台门户域）。
 仅调用 DeveloperMessageRepository 存取数据，不直接操作数据库会话。
-与管理系统用户站内信（StationMessageService + notification_records）分表隔离。
+与管理系统用户站内信（StationMessageService + station_messages）分表隔离。
 """
 
 from src.constants.enums import DeveloperMessageCategory, DeveloperMessageStatus

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, text
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infras.database import Base
@@ -19,7 +19,7 @@ class SystemNotificationConfigEntity(Base):
     channel: Mapped[str] = mapped_column(
         String(32), nullable=False, unique=True, comment="渠道（dingtalk/feishu/email）"
     )
-    config_json: Mapped[str] = mapped_column(Text, nullable=False, comment="渠道配置JSON，如webhook地址、密钥等")
+    config: Mapped[dict] = mapped_column(JSON, nullable=False, comment="渠道配置对象，如webhook地址、密钥等")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"), comment="是否启用")
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

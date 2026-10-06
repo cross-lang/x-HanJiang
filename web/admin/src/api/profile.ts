@@ -8,9 +8,8 @@ export interface PreferenceEvent {
   channels: { code: string; enabled: boolean }[]
 }
 
-/** 通知接收人 */
+/** 通知接收人（存储于用户通知渠道配置的 JSON 数组，无独立主键，以 channel+recipient 定位） */
 export interface NotificationRecipient {
-  id: number
   channel: string
   recipient: string
   label: string | null
@@ -61,17 +60,29 @@ export function listNotificationRecipients() {
   return request.get<{ items: NotificationRecipient[] }>('/profile/notification-recipients')
 }
 
-/** 新增通知接收人 */
-export function addNotificationRecipient(data: { channel: string; recipient: string; label?: string }) {
-  return request.post<NotificationRecipient>('/profile/notification-recipients', data)
+/** 新增通知接收人（同渠道同接收人重复添加时幂等更新） */
+export function addNotificationRecipient(data: {
+  channel: string
+  recipient: string
+  label?: string
+  enabled?: boolean
+}) {
+  return request.post<{ updated: boolean }>('/profile/notification-recipients', data)
 }
 
-/** 启用/停用通知接收人 */
-export function updateNotificationRecipient(id: number, enabled: boolean) {
-  return request.put<NotificationRecipient>(`/profile/notification-recipients/${id}`, { enabled })
+/** 更新通知接收人（channel+recipient 定位，label/enabled 可更新） */
+export function updateNotificationRecipient(data: {
+  channel: string
+  recipient: string
+  label?: string
+  enabled?: boolean
+}) {
+  return request.put<{ updated: boolean }>('/profile/notification-recipients', data)
 }
 
-/** 删除通知接收人 */
-export function removeNotificationRecipient(id: number) {
-  return request.delete<{ message: string }>(`/profile/notification-recipients/${id}`)
+/** 删除通知接收人（channel+recipient 定位） */
+export function removeNotificationRecipient(channel: string, recipient: string) {
+  return request.delete<{ deleted: boolean }>('/profile/notification-recipients', {
+    params: { channel, recipient },
+  })
 }

@@ -2,7 +2,7 @@
 """
 开发者站内信数据访问实现（开放平台门户域）。
 本模块提供开发者站内信表 developer_messages 的 Repository 实现，
-与管理系统用户站内信（notification_records + StationMessageRepository）分表隔离。
+与管理系统用户站内信（station_messages + StationMessageRepository）分表隔离。
 
 支持未读数统计、分页查询、标记已读、全部已读、写入（发送）。
 分层约束：

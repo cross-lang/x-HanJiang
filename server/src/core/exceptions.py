@@ -40,6 +40,7 @@ class AppException(Exception):
         message: 异常描述信息
         code: HTTP 状态码
         details: 附加详情信息
+        error_code: 业务错误码（可选，前端可据此做文案映射与分支处理）
     """
 
     def __init__(
@@ -47,6 +48,7 @@ class AppException(Exception):
         message: str = "Application error",
         code: int = HttpStatusCode.INTERNAL_SERVER_ERROR.mark,
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化应用异常。
 
@@ -54,10 +56,12 @@ class AppException(Exception):
             message: 异常描述信息
             code: HTTP 状态码
             details: 附加详情（如校验错误列表）
+            error_code: 业务错误码（枚举 mark 值，可选）
         """
         self.message: str = message
         self.code: int = code
         self.details: Any | None = details
+        self.error_code: str | None = error_code
         super().__init__(self.message)
 
 
@@ -71,6 +75,7 @@ class BusinessException(AppException):
         message: str = "Business error",
         code: int = HttpStatusCode.BAD_REQUEST.mark,
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化业务异常。
 
@@ -78,8 +83,9 @@ class BusinessException(AppException):
             message: 异常描述信息
             code: HTTP 状态码（默认 400）
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=code, details=details)
+        super().__init__(message=message, code=code, details=details, error_code=error_code)
 
 
 class ValidationException(BusinessException):
@@ -91,14 +97,16 @@ class ValidationException(BusinessException):
         self,
         message: str = "Validation error",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化校验异常。
 
         Args:
             message: 异常描述信息
             details: 校验错误详情列表
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=422, details=details)
+        super().__init__(message=message, code=422, details=details, error_code=error_code)
 
 
 class AuthenticationException(BusinessException):
@@ -110,14 +118,16 @@ class AuthenticationException(BusinessException):
         self,
         message: str = "Authentication failed",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化认证异常。
 
         Args:
             message: 异常描述信息
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=401, details=details)
+        super().__init__(message=message, code=401, details=details, error_code=error_code)
 
 
 class AuthorizationException(BusinessException):
@@ -129,14 +139,16 @@ class AuthorizationException(BusinessException):
         self,
         message: str = "Permission denied",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化授权异常。
 
         Args:
             message: 异常描述信息
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=403, details=details)
+        super().__init__(message=message, code=403, details=details, error_code=error_code)
 
 
 class NotFoundException(BusinessException):
@@ -148,14 +160,16 @@ class NotFoundException(BusinessException):
         self,
         message: str = "Resource not found",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化资源未找到异常。
 
         Args:
             message: 异常描述信息
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=404, details=details)
+        super().__init__(message=message, code=404, details=details, error_code=error_code)
 
 
 class ConflictException(BusinessException):
@@ -167,14 +181,16 @@ class ConflictException(BusinessException):
         self,
         message: str = "Resource conflict",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化资源冲突异常。
 
         Args:
             message: 异常描述信息
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=409, details=details)
+        super().__init__(message=message, code=409, details=details, error_code=error_code)
 
 
 class SystemException(AppException):
@@ -187,6 +203,7 @@ class SystemException(AppException):
         message: str = HttpStatusCode.INTERNAL_SERVER_ERROR.desc,
         code: int = HttpStatusCode.INTERNAL_SERVER_ERROR.mark,
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化系统异常。
 
@@ -194,8 +211,9 @@ class SystemException(AppException):
             message: 异常描述信息
             code: HTTP 状态码（默认 500）
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=code, details=details)
+        super().__init__(message=message, code=code, details=details, error_code=error_code)
 
 
 class DatabaseException(SystemException):
@@ -207,14 +225,16 @@ class DatabaseException(SystemException):
         self,
         message: str = "Database error",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化数据库异常。
 
         Args:
             message: 异常描述信息
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=500, details=details)
+        super().__init__(message=message, code=500, details=details, error_code=error_code)
 
 
 class ExternalServiceException(SystemException):
@@ -226,14 +246,16 @@ class ExternalServiceException(SystemException):
         self,
         message: str = "External service error",
         details: Any | None = None,
+        error_code: str | None = None,
     ) -> None:
         """初始化外部服务异常。
 
         Args:
             message: 异常描述信息
             details: 附加详情
+            error_code: 业务错误码（可选）
         """
-        super().__init__(message=message, code=502, details=details)
+        super().__init__(message=message, code=502, details=details, error_code=error_code)
 
 
 async def _app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
@@ -262,6 +284,8 @@ async def _app_exception_handler(request: Request, exc: AppException) -> JSONRes
     data: dict[str, Any] | None = None
     if exc.details is not None and show_details:
         data = {"details": exc.details}
+    if exc.error_code:
+        data = {"error_code": exc.error_code, **(data or {})}
     return error_response(
         request=request,
         code=exc.code,

@@ -1,7 +1,7 @@
 """开放平台开发者站内信数据实体。
 
 与管理系统用户站内信分表：
-- 管理系统用户站内信 → notification_records 表（channel=station，recipient="user:{id}"）；
+- 管理系统用户站内信 → station_messages 表；
 - 开放平台开发者站内信 → developer_messages 表（developer_id 直接外键语义）。
 
 遵循"不同平台用户身份分表"的既定原则（developers 与 users 分表同源），

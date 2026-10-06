@@ -77,7 +77,7 @@ class UpdateNotificationPreferencesRequest(BaseModel):
 
 
 class NotificationRecipientCreateRequest(BaseModel):
-    """新增通知接收人入参。"""
+    """新增通知接收人入参（追加到用户通知渠道配置的 JSON 数组）。"""
 
     channel: str
     recipient: str
@@ -86,10 +86,10 @@ class NotificationRecipientCreateRequest(BaseModel):
 
 
 class NotificationRecipientUpdateRequest(BaseModel):
-    """更新通知接收人入参（全部字段可选，仅更新传入字段）。"""
+    """更新通知接收人入参（channel+recipient 定位，label/enabled 可更新）。"""
 
-    channel: str | None = None
-    recipient: str | None = None
+    channel: str
+    recipient: str
     label: str | None = None
     enabled: bool | None = None
 

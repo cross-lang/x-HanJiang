@@ -64,6 +64,7 @@ class PermissionAction(StrBaseEnum):
     PUBLISH = ("publish", "发布")
     UNPUBLISH = ("unpublish", "下架")
     WITHDRAW = ("withdraw", "撤回")
+    REPUBLISH = ("republish", "重新发布")
     PERMISSION = ("permission", "权限配置")
     CONFIG = ("config", "配置")
     BROADCAST = ("broadcast", "广播")

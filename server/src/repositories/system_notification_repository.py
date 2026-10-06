@@ -44,6 +44,25 @@ class SystemNotificationRepository:
             .first()
         )
 
+    def get_by_client_request_id(self, client_request_id: str) -> SystemNotificationEntity | None:
+        """按发布幂等键查询已存在的系统通知（幂等命中检测）。
+
+        Args:
+            client_request_id: 发布幂等键
+
+        Returns:
+            SystemNotificationEntity | None: 已存在的通知实体或未命中时为 None
+        """
+        return (
+            self._session.execute(
+                select(SystemNotificationEntity).where(
+                    SystemNotificationEntity.client_request_id == client_request_id
+                )
+            )
+            .scalars()
+            .first()
+        )
+
     def search(
         self,
         notice_type: str | None = None,

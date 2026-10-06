@@ -23,7 +23,7 @@ from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.developer_entity import DeveloperEntity
 from src.models.entities.file_entity import FileEntity
 from src.models.entities.log_entity import LoginLogEntity
-from src.models.entities.notification_entity import NotificationRecordEntity
+from src.models.entities.system_notice_delivery_entity import SystemNoticeDeliveryEntity
 from src.models.entities.user_entity import RoleEntity, UserEntity, UserRoleEntity
 
 
@@ -125,17 +125,17 @@ class DashboardRepository:
         ).all()
 
     def notify_status_trend(self, start_date: date) -> list:
-        """近 N 天通知发送状态趋势（按日+状态分组）。"""
+        """近 N 天通知投递状态趋势（按日+状态分组）。"""
         return self._session.execute(
             select(
-                func.date(NotificationRecordEntity.created_at).label("date"),
-                NotificationRecordEntity.status,
-                func.count(NotificationRecordEntity.id).label("count"),
+                func.date(SystemNoticeDeliveryEntity.created_at).label("date"),
+                SystemNoticeDeliveryEntity.status,
+                func.count(SystemNoticeDeliveryEntity.id).label("count"),
             )
-            .where(func.date(NotificationRecordEntity.created_at) >= start_date)
+            .where(func.date(SystemNoticeDeliveryEntity.created_at) >= start_date)
             .group_by(
-                func.date(NotificationRecordEntity.created_at),
-                NotificationRecordEntity.status,
+                func.date(SystemNoticeDeliveryEntity.created_at),
+                SystemNoticeDeliveryEntity.status,
             )
         ).all()
 
@@ -159,12 +159,12 @@ class DashboardRepository:
         ).all()
 
     def notify_channel_distribution(self) -> list:
-        """通知渠道分布。"""
+        """通知投递渠道分布。"""
         return self._session.execute(
             select(
-                NotificationRecordEntity.channel,
-                func.count(NotificationRecordEntity.id).label("count"),
-            ).group_by(NotificationRecordEntity.channel)
+                SystemNoticeDeliveryEntity.channel,
+                func.count(SystemNoticeDeliveryEntity.id).label("count"),
+            ).group_by(SystemNoticeDeliveryEntity.channel)
         ).all()
 
     # ── 最近记录 ──────────────────────────────────────────

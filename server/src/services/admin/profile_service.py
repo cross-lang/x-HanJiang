@@ -36,12 +36,12 @@ from src.constants.permissions import PermissionModule
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.cache import CacheProvider, get_cached_cache_provider
+from src.models.entities.notification_config_entity import UserNotificationConfigEntity
 from src.models.entities.notification_preference_entity import UserNotificationPreferenceEntity
-from src.models.entities.notification_recipient_entity import NotificationRecipientEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.menu_repository import MenuRepository
+from src.repositories.notification_config_repository import UserNotificationConfigRepository
 from src.repositories.notification_preference_repository import NotificationPreferenceRepository
-from src.repositories.notification_recipient_repository import NotificationRecipientRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.admin.auth import CurrentUser
 from src.schemas.admin.profile import (
@@ -65,7 +65,7 @@ class ProfileService:
         user_repository: UserRepository,
         menu_repository: MenuRepository,
         preference_repository: NotificationPreferenceRepository,
-        recipient_repository: NotificationRecipientRepository,
+        config_repository: UserNotificationConfigRepository,
         dispatcher: NotificationDispatcher | None = None,
         station_service: StationMessageService | None = None,
         cache: CacheProvider | None = None,
@@ -76,7 +76,7 @@ class ProfileService:
             user_repository: 用户数据访问仓库
             menu_repository: 菜单数据访问仓库
             preference_repository: 通知偏好数据访问仓库
-            recipient_repository: 通知接收人数据访问仓库
+            config_repository: 用户通知渠道配置仓库（接收人 JSON 数组读写）
             dispatcher: 通知调度器（可选，未注入时邮件通知静默跳过）
             station_service: 站内信服务（可选，未注入时站内信静默跳过）
             cache: 缓存客户端（可选，未注入时使用全局缓存提供者）
@@ -84,7 +84,7 @@ class ProfileService:
         self._user_repository = user_repository
         self._menu_repository = menu_repository
         self._preference_repository = preference_repository
-        self._recipient_repository = recipient_repository
+        self._config_repository = config_repository
         self._dispatcher = dispatcher
         self._station_service = station_service
         self._cache = cache or get_cached_cache_provider()
@@ -304,89 +304,113 @@ class ProfileService:
     # ── 通知接收人 ─────────────────────────────────────────
 
     def get_recipients(self, user_id: int) -> dict[str, Any]:
-        """获取当前用户的通知接收人列表。
+        """获取当前用户的通知接收人列表（按渠道聚合的 JSON 数组展开）。
 
         Args:
             user_id: 当前用户 ID
 
         Returns:
-            dict[str, Any]: {"items": [{id, channel, recipient, label, enabled}]}
+            dict[str, Any]: {"items": [{channel, recipient, label, enabled}]}
         """
-        rows = self._recipient_repository.list_by_user(user_id)
-        return {
-            "items": [
+        configs = self._config_repository.list_by_user_id(user_id)
+        items: list[dict[str, Any]] = []
+        for cfg in configs:
+            for item in UserNotificationConfigRepository.parse_recipient_items(cfg.recipient):
+                items.append(
+                    {
+                        "channel": cfg.channel,
+                        "recipient": item["recipient"],
+                        "label": item.get("label", ""),
+                        "enabled": bool(item.get("enabled", True)),
+                    }
+                )
+        return {"items": items}
+
+    def add_recipient(self, user_id: int, request: NotificationRecipientCreateRequest) -> None:
+        """新增当前用户的通知接收人（追加到渠道 JSON 数组，同渠道同接收人幂等 upsert）。
+
+        Args:
+            user_id: 当前用户 ID
+            request: 新增接收人入参（channel/recipient/label/enabled）
+        """
+        cfg = self._config_repository.get_by_user_and_channel(user_id, request.channel)
+        items = UserNotificationConfigRepository.parse_recipient_items(cfg.recipient) if cfg else []
+        item = next((it for it in items if it["recipient"] == request.recipient), None)
+        if item is not None:
+            item["label"] = request.label
+            item["enabled"] = 1 if request.enabled else 0
+        else:
+            items.append(
                 {
-                    "id": r.id,
-                    "channel": r.channel,
-                    "recipient": r.recipient,
-                    "label": r.label,
-                    "enabled": r.enabled,
+                    "recipient": request.recipient,
+                    "label": request.label,
+                    "enabled": 1 if request.enabled else 0,
                 }
-                for r in rows
-            ]
-        }
-
-    def add_recipient(self, user_id: int, request: NotificationRecipientCreateRequest) -> int:
-        """新增当前用户的通知接收人。
-
-        Args:
-            user_id: 当前用户 ID
-            request: 新增接收人入参
-
-        Returns:
-            int: 新建接收人的主键 ID
-        """
-        entity = self._recipient_repository.create(
-            NotificationRecipientEntity(
-                user_id=user_id,
-                channel=request.channel,
-                recipient=request.recipient,
-                label=request.label,
-                enabled=request.enabled,
             )
-        )
-        self._recipient_repository.commit()
-        return entity.id
+        if cfg is not None:
+            cfg.recipient = items
+        else:
+            self._config_repository.create(
+                UserNotificationConfigEntity(
+                    user_id=user_id,
+                    channel=request.channel,
+                    recipient=items,
+                    enabled=True,
+                )
+            )
+        self._config_repository.commit()
 
     def update_recipient(
         self,
         user_id: int,
-        recipient_id: int,
         request: NotificationRecipientUpdateRequest,
     ) -> None:
-        """更新当前用户的通知接收人（仅更新传入字段）。
+        """更新当前用户的通知接收人（channel+recipient 定位，仅更新传入字段）。
 
         Args:
             user_id: 当前用户 ID
-            recipient_id: 接收人主键 ID
-            request: 更新接收人入参
+            request: 更新接收人入参（含定位键与可选更新字段）
 
         Raises:
-            NotFoundException: 接收人不存在或不属于当前用户时抛出
+            NotFoundException: 渠道配置或接收人不存在时抛出
         """
-        row = self._recipient_repository.get_by_id_and_user(recipient_id, user_id)
-        if row is None:
+        cfg = self._config_repository.get_by_user_and_channel(user_id, request.channel)
+        items = UserNotificationConfigRepository.parse_recipient_items(cfg.recipient) if cfg else []
+        target = next((it for it in items if it["recipient"] == request.recipient), None)
+        if cfg is None or target is None:
             raise NotFoundException(message="接收人不存在")
         patch = request.model_dump(exclude_unset=True)
         for key, value in patch.items():
-            setattr(row, key, value)
-        self._recipient_repository.commit()
+            if key in ("channel", "recipient"):
+                continue
+            target[key] = 1 if value else 0 if key == "enabled" else value
+        cfg.recipient = items
+        self._config_repository.commit()
 
-    def delete_recipient(self, user_id: int, recipient_id: int) -> None:
-        """删除当前用户的通知接收人。
+    def delete_recipient(self, user_id: int, channel: str, recipient: str) -> None:
+        """删除当前用户的通知接收人（按 channel+recipient 定位）。
+
+        渠道下接收人全部删除后，移除整行渠道配置。
 
         Args:
             user_id: 当前用户 ID
-            recipient_id: 接收人主键 ID
+            channel: 通知渠道
+            recipient: 接收人地址
 
         Raises:
-            NotFoundException: 接收人不存在或不属于当前用户时抛出
+            NotFoundException: 渠道配置或接收人不存在时抛出
         """
-        row = self._recipient_repository.get_by_id_and_user(recipient_id, user_id)
-        if row is None:
+        cfg = self._config_repository.get_by_user_and_channel(user_id, channel)
+        items = UserNotificationConfigRepository.parse_recipient_items(cfg.recipient) if cfg else []
+        if cfg is None or not any(it["recipient"] == recipient for it in items):
             raise NotFoundException(message="接收人不存在")
-        self._recipient_repository.delete(recipient_id)
-        self._recipient_repository.commit()
+        items = [it for it in items if it["recipient"] != recipient]
+        if items:
+            cfg.recipient = items
+            self._config_repository.commit()
+        else:
+            self._config_repository.delete(cfg.id)
+            self._config_repository.commit()
 
     # ── 安全设置：邮箱二次认证 ─────────────────────────────
 

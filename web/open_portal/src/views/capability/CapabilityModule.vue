@@ -343,6 +343,8 @@ function methodClass(method: CapabilityApi['method']): string {
   padding: 22px 26px;
   margin-bottom: 18px;
   box-shadow: var(--hj-shadow-card);
+  /* 锚点滚动偏移：避开吸顶锚点导航与页面头部 */
+  scroll-margin-top: 96px;
 }
 .section-title {
   position: relative;

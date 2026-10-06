@@ -26,8 +26,12 @@ NOTIFICATION_RETRY_QUEUE_KEY = "notification:retry_queue"
 def handle_notification_retry(data: dict[str, Any]) -> bool:
     """处理单条通知重试任务。
 
+    发送成功回写投递明细（status=success, receive_at）；
+    发送失败回写重试次数与错误信息，并返回 False 保留待下次重试。
+
     Args:
-        data: 从 Redis 队列取出的任务数据，包含 channel、recipient、subject、content 等
+        data: 从 Redis 队列取出的任务数据，含 delivery_id、channel、recipient、
+            subject、content、retry_count
 
     Returns:
         True=发送成功（出队），False=发送失败（保留待下次重试）
@@ -44,13 +48,46 @@ def handle_notification_retry(data: dict[str, Any]) -> bool:
         content=data.get("content", ""),
     )
     success = provider.send(message)
+    delivery_id = data.get("delivery_id")
+    if delivery_id is not None:
+        _sync_delivery_state(delivery_id=delivery_id, success=success)
     if success:
         logger.info(
-            "Notification retry success: channel={} recipient={}",
+            "Notification retry success: delivery_id={} channel={} recipient={}",
+            delivery_id,
             channel,
             data["recipient"],
         )
     return success
+
+
+def _sync_delivery_state(delivery_id: int, success: bool) -> None:
+    """重试后回写投递明细状态（失败不影响主流程）。
+
+    Args:
+        delivery_id: 投递明细 ID
+        success: 本次重试是否成功
+    """
+    try:
+        from src.infras.database import get_cached_database_provider
+        from src.repositories.system_notice_delivery_repository import SystemNoticeDeliveryRepository
+
+        session = get_cached_database_provider().get_session_factory()()
+        try:
+            repo = SystemNoticeDeliveryRepository(session=session)
+            delivery = repo.get_by_id(delivery_id)
+            if delivery is None:
+                logger.warning("Retry delivery not found: id={}", delivery_id)
+                return
+            if success:
+                repo.mark_sent(delivery)
+            else:
+                repo.mark_retry_failed(delivery, error_message="Retry attempt failed")
+            repo.commit()
+        finally:
+            session.close()
+    except Exception as exc:
+        logger.error("Failed to sync delivery state after retry: id={} error={}", delivery_id, exc)
 
 
 def setup_notification_system() -> asyncio.Task | None:

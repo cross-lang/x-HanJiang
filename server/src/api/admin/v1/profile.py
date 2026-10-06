@@ -16,8 +16,8 @@ Endpoints:
     PUT    /profile/notification-preferences:  更新我的通知偏好
     GET    /profile/notification-recipients:   获取我的通知接收人列表
     POST   /profile/notification-recipients:   添加通知接收人
-    PUT    /profile/notification-recipients/{id}:  更新通知接收人
-    DELETE /profile/notification-recipients/{id}: 删除通知接收人
+    PUT    /profile/notification-recipients:   更新通知接收人（channel+recipient 定位）
+    DELETE /profile/notification-recipients:   删除通知接收人（channel+recipient 定位）
     POST   /profile/send-verify-code:          发送验证码
     POST   /profile/update-phone:              修改手机号
     POST   /profile/update-email:              修改邮箱
@@ -26,12 +26,12 @@ Endpoints:
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from src.api.admin.permission_decorator import permission
 from src.api.admin.dependencies import (
     get_current_user,
     get_profile_service,
     require_user_permission,
 )
+from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.admin.auth import CurrentUser
@@ -182,43 +182,43 @@ def add_recipient(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """添加当前用户的通知接收人。"""
-    recipient_id = profile_service.add_recipient(current_user.id, body)
-    return success_response({"id": recipient_id}, request, code=201)
+    """添加当前用户的通知接收人（同渠道同接收人重复添加时幂等更新）。"""
+    profile_service.add_recipient(current_user.id, body)
+    return success_response({"updated": True}, request, code=201)
 
 
 @router.put(
-    "/notification-recipients/{recipient_id}",
+    "/notification-recipients",
     summary="更新通知接收人",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
 @permission(PermissionCode.PROFILE_EDIT)
 def update_recipient(
-    recipient_id: int,
     request: Request,
     body: NotificationRecipientUpdateRequest,
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """更新当前用户的通知接收人。"""
-    profile_service.update_recipient(current_user.id, recipient_id, body)
+    """更新当前用户的通知接收人（channel+recipient 定位，label/enabled 可更新）。"""
+    profile_service.update_recipient(current_user.id, body)
     return success_response({"updated": True}, request)
 
 
 @router.delete(
-    "/notification-recipients/{recipient_id}",
+    "/notification-recipients",
     summary="删除通知接收人",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
 @permission(PermissionCode.PROFILE_EDIT)
 def delete_recipient(
-    recipient_id: int,
+    channel: str,
+    recipient: str,
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """删除当前用户的通知接收人。"""
-    profile_service.delete_recipient(current_user.id, recipient_id)
+    """删除当前用户的通知接收人（channel+recipient 定位）。"""
+    profile_service.delete_recipient(current_user.id, channel, recipient)
     return success_response({"deleted": True}, request)
 
 

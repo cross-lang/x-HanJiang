@@ -59,7 +59,7 @@ class BaseNotificationProvider(ABC):
 
 
 class StationNotificationProvider(BaseNotificationProvider):
-    """站内信通知渠道（直接写 notification_records 表）。"""
+    """站内信通知渠道（收件箱由 dispatcher 写入 station_messages 表）。"""
 
     @property
     def channel_name(self) -> str:
@@ -490,8 +490,6 @@ def reload_providers_from_db() -> NotificationProviderRegistry:
     在应用启动时和管理员修改渠道配置后调用，实现改完即生效、无需重启。
     数据库中未配置的渠道回退到 .env 配置。
     """
-    import json
-
     from sqlalchemy import select
 
     from src.infras.database import get_cached_database_provider
@@ -514,10 +512,8 @@ def reload_providers_from_db() -> NotificationProviderRegistry:
         row = db_configs.get(channel)
         if not row or not row.enabled:
             return {}
-        try:
-            return json.loads(row.config_json) if row.config_json else {}
-        except (json.JSONDecodeError, TypeError):
-            return {}
+        # config 列为 JSON 类型，ORM 读取后即 Python dict
+        return row.config or {}
 
     # 邮件：优先用数据库配置，没有则回退 .env
     email_cfg = _cfg("email")

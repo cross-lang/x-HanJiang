@@ -25,15 +25,14 @@ from src.constants.enums import (
     AppStatus,
     DeveloperMessageCategory,
     DeveloperMessageStatus,
-    NotificationChannel,
+    NotificationSource,
     NotificationEvent,
-    StationMessageStatus,
 )
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
-from src.models.entities.notification_entity import NotificationRecordEntity
+from src.models.entities.station_message_entity import StationMessageEntity
 from src.repositories.openapi_app_registration_repository import (
     OpenApiAppRegistrationRepository,
 )
@@ -322,7 +321,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         """禁用/删除等影响应用归属方的操作，站内信通知应用 owner。
 
         - developer 归属 → 开发者站内信（developer_messages）
-        - admin 归属   → 管理端站内信（notification_records）
+        - admin 归属   → 管理端站内信（station_messages）
         操作者本人对自己名下的应用操作不通知（自管自用无需打扰）；
         通知失败不影响主流程（随本事务提交）。
         content_suffix 追加在正文末尾（如"其待审批的申请已一并驳回"）。
@@ -350,15 +349,13 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
                 )
             elif e.owner_type == AppOwnerType.ADMIN.value and e.owner_id is not None:
                 self._repository.session.add(
-                    NotificationRecordEntity(
-                        event_type=event.mark,
-                        channel=NotificationChannel.STATION.value,
-                        recipient=f"user:{e.owner_id}",
+                    StationMessageEntity(
+                        user_id=e.owner_id,
                         subject=f"【开放平台】应用{action}通知",
                         content=f"{app_ref}已被{op_name}{action}{suffix}，如有疑问请联系管理员。",
-                        status=StationMessageStatus.UNREAD.value,
-                        retry_count=0,
-                        max_retries=0,
+                        source=NotificationSource.OPENAPI_APP.value,
+                        event_type=event.mark,
+                        is_read=False,
                     )
                 )
         except Exception:

@@ -56,9 +56,12 @@
         <el-table-column label="发布时间" width="170">
           <template #default="{ row }">{{ fmtTime(row.published_at) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="160">
+        <el-table-column label="操作" width="240">
           <template #default="{ row }">
             <el-button size="small" @click="viewNotice(row as SystemNotificationItem)">详情</el-button>
+            <el-button size="small" type="primary" link @click="viewDeliveries(row as SystemNotificationItem)"
+              >投递</el-button
+            >
             <el-button
               v-if="row.status === 'published'"
               size="small"
@@ -66,6 +69,14 @@
               link
               @click="withdraw(row as SystemNotificationItem)"
               >撤回</el-button
+            >
+            <el-button
+              v-if="row.status === 'withdrawn'"
+              size="small"
+              type="primary"
+              link
+              @click="republish(row as SystemNotificationItem)"
+              >重新发布</el-button
             >
           </template>
         </el-table-column>
@@ -90,7 +101,11 @@
             <el-tag>{{ channelNames[row.channel] || row.channel }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="config_json" label="配置" show-overflow-tooltip />
+        <el-table-column label="配置" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="config-preview">{{ formatConfig(row.config) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="enabled" label="启用" width="80">
           <template #default="{ row }">
             <el-switch v-model="row.enabled" @change="saveConfig(row as NotificationConfig)" />
@@ -122,9 +137,13 @@
             </el-tag>
           </el-descriptions-item>
           <template v-if="detail.notice_type === 'maintenance'">
-            <el-descriptions-item label="维护时间">{{ detail.maintenance_time || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="预计时长">{{ detail.duration || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="维护原因">{{ detail.reason || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="维护时间">{{
+              detail.metadata_json?.maintenance_time || '-'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="预计时长">
+              {{ detail.metadata_json?.duration_hours != null ? detail.metadata_json?.duration_hours + ' 小时' : '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="维护原因">{{ detail.metadata_json?.reason || '-' }}</el-descriptions-item>
           </template>
           <el-descriptions-item label="发布人">{{ detail.operator_name || '-' }}</el-descriptions-item>
           <el-descriptions-item label="发布时间">{{ fmtTime(detail.published_at) || '-' }}</el-descriptions-item>
@@ -137,6 +156,66 @@
     </el-dialog>
 
     <ChannelConfigDialog v-model:visible="configDialogVisible" :record="configRecord" @saved="onConfigSaved" />
+
+    <el-drawer v-model="deliveriesVisible" title="投递明细" size="720px">
+      <template v-if="deliveries">
+        <div class="hj-flex hj-gap-8 hj-mb-12">
+          <el-tag type="success">成功 {{ deliveries.stats.success || 0 }}</el-tag>
+          <el-tag type="danger">失败 {{ deliveries.stats.failed || 0 }}</el-tag>
+          <el-tag>待发送 {{ deliveries.stats.pending || 0 }}</el-tag>
+          <div class="hj-flex-1"></div>
+          <el-select
+            v-model="deliveryFilter.channel"
+            placeholder="渠道"
+            clearable
+            style="width: 130px"
+            @change="fetchDeliveries"
+          >
+            <el-option label="站内信" value="station" />
+            <el-option label="邮件" value="email" />
+            <el-option label="钉钉" value="dingtalk" />
+            <el-option label="飞书" value="feishu" />
+          </el-select>
+          <el-select
+            v-model="deliveryFilter.status"
+            placeholder="状态"
+            clearable
+            style="width: 120px"
+            @change="fetchDeliveries"
+          >
+            <el-option label="成功" value="success" />
+            <el-option label="失败" value="failed" />
+            <el-option label="待发送" value="pending" />
+          </el-select>
+        </div>
+        <el-table :data="deliveries.items" v-loading="deliveryLoading" border>
+          <el-table-column prop="id" label="ID" width="70" />
+          <el-table-column label="渠道" width="100">
+            <template #default="{ row }">{{ channelNames[row.channel] || row.channel }}</template>
+          </el-table-column>
+          <el-table-column prop="recipient" label="接收人" min-width="140" show-overflow-tooltip />
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'success' ? 'success' : row.status === 'failed' ? 'danger' : 'info'">
+                {{ row.status === 'success' ? '成功' : row.status === 'failed' ? '失败' : '待发送' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="error_message" label="错误信息" min-width="150" show-overflow-tooltip />
+          <el-table-column label="送达时间" width="170">
+            <template #default="{ row }">{{ fmtTime(row.receive_at) || '-' }}</template>
+          </el-table-column>
+        </el-table>
+        <el-pagination
+          class="hj-pagination hj-mt-12"
+          v-model:current-page="deliveryPage"
+          v-model:page-size="deliveryPageSize"
+          :total="deliveries.total"
+          layout="total, prev, pager, next"
+          @current-change="fetchDeliveries"
+        />
+      </template>
+    </el-drawer>
   </div>
 </template>
 <script setup lang="ts">
@@ -147,9 +226,12 @@ import {
   listPublishedNotifications,
   getPublishedNotification,
   withdrawNotification,
+  republishNotification,
+  listNotificationDeliveries,
   listNotificationConfigs,
   updateNotificationConfig,
   testNotificationConfig,
+  type NotificationDeliveryPage,
 } from '@/api/notification'
 import type { SystemNotificationItem, NotificationConfig, NoticeType } from '@/types/notification'
 import PublishNoticeDialog from './components/PublishNoticeDialog.vue'
@@ -179,7 +261,16 @@ const configs = ref<NotificationConfig[]>([])
 const configDialogVisible = ref(false)
 const configRecord = ref<NotificationConfig | null>(null)
 
+const deliveriesVisible = ref(false)
+const deliveries = ref<NotificationDeliveryPage | null>(null)
+const deliveryLoading = ref(false)
+const deliveryPage = ref(1)
+const deliveryPageSize = ref(20)
+const deliveryFilter = ref<{ channel: string; status: string }>({ channel: '', status: '' })
+const deliveryNoticeId = ref(0)
+
 const channelNames: Record<string, string> = {
+  station: '站内信',
   dingtalk: '钉钉群机器人',
   feishu: '飞书群机器人',
   email: 'SMTP邮件',
@@ -187,6 +278,12 @@ const channelNames: Record<string, string> = {
 
 function fmtTime(v: string | null | undefined): string {
   return formatDateTime(v)
+}
+
+/** 渠道配置对象紧凑 JSON 化展示（表格列预览） */
+function formatConfig(config: Record<string, unknown> | null | undefined): string {
+  if (!config || Object.keys(config).length === 0) return '{}'
+  return JSON.stringify(config)
 }
 
 async function fetchNotices() {
@@ -245,6 +342,53 @@ async function withdraw(row: SystemNotificationItem) {
     fetchNotices()
   } catch {
     /* ignore */
+  }
+}
+
+/** 重新发布已撤回的通知（按首次发布的受众快照重新广播） */
+async function republish(row: SystemNotificationItem) {
+  try {
+    await ElMessageBox.confirm(
+      `确认重新发布通知「${row.title}」？将按首次发布的受众重新推送站内信（产生新的未读红点）。`,
+      '重新发布确认',
+      { type: 'warning', confirmButtonText: '重新发布', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await republishNotification(row.id)
+    ElMessage.success('已重新发布')
+    fetchNotices()
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 打开投递明细抽屉 */
+function viewDeliveries(row: SystemNotificationItem) {
+  deliveryNoticeId.value = row.id
+  deliveryPage.value = 1
+  deliveryFilter.value = { channel: '', status: '' }
+  deliveriesVisible.value = true
+  fetchDeliveries()
+}
+
+/** 查询当前通知投递明细（分页 + 状态统计） */
+async function fetchDeliveries() {
+  deliveryLoading.value = true
+  try {
+    const res = await listNotificationDeliveries(deliveryNoticeId.value, {
+      page: deliveryPage.value,
+      page_size: deliveryPageSize.value,
+      channel: deliveryFilter.value.channel || undefined,
+      status: deliveryFilter.value.status || undefined,
+    })
+    deliveries.value = res.data
+  } catch {
+    /* 错误已由拦截器处理 */
+  } finally {
+    deliveryLoading.value = false
   }
 }
 

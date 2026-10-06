@@ -5,7 +5,7 @@
         <el-input :model-value="channelName" disabled />
       </el-form-item>
       <el-form-item label="配置JSON">
-        <el-input v-model="form.config_json" type="textarea" :rows="8" placeholder='{"webhook": "https://..."}' />
+        <el-input v-model="configText" type="textarea" :rows="8" placeholder='{"webhook": "https://..."}' />
       </el-form-item>
       <el-form-item label="启用">
         <el-switch v-model="form.enabled" />
@@ -49,6 +49,8 @@ const dialogVisible = computed({
 })
 
 const form = ref<Partial<NotificationConfig>>({})
+/** 配置 JSON 文本中间态（textArea 编辑，保存时解析为对象） */
+const configText = ref('{}')
 
 const channelName = computed(() => (form.value.channel ? CHANNEL_NAMES[form.value.channel] || form.value.channel : ''))
 
@@ -56,14 +58,24 @@ const channelName = computed(() => (form.value.channel ? CHANNEL_NAMES[form.valu
 watch(
   () => props.visible,
   v => {
-    if (v && props.record) form.value = { ...props.record }
+    if (v && props.record) {
+      form.value = { ...props.record }
+      configText.value = props.record.config ? JSON.stringify(props.record.config, null, 2) : '{}'
+    }
   },
 )
 
 async function save() {
   if (!form.value.channel) return
+  let config: Record<string, unknown>
   try {
-    await updateNotificationConfig(form.value.channel, form.value)
+    config = JSON.parse(configText.value || '{}')
+  } catch {
+    ElMessage.error('配置 JSON 格式不正确')
+    return
+  }
+  try {
+    await updateNotificationConfig(form.value.channel, { config, enabled: !!form.value.enabled })
     ElMessage.success('已保存')
     emit('saved')
   } catch {

@@ -1,31 +1,36 @@
 """通知管理 API。
 
-提供通知记录查询、统计、手动触发接口，以及系统级通知渠道的
-配置查询与更新、渠道连通性测试、系统监控状态查询接口。
+提供系统通知的发布（幂等、定向受众、多渠道强推）、撤回、重新发布、
+列表、详情与投递明细查询；以及系统级通知渠道的配置查询与更新、
+渠道连通性测试、系统监控状态查询接口。
 """
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 
-from src.api.admin.permission_decorator import permission
 from src.api.admin.dependencies import (
     get_current_user,
-    get_notification_service,
     get_system_notification_config_service,
     get_system_notification_service,
     require_user_permission,
 )
+from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
-from src.constants.enums import SystemNotificationType
+from src.constants.enums import NotificationErrorCode
 from src.constants.permissions import PermissionCode
+from src.core.logger import logger
 from src.schemas.admin.auth import CurrentUser
 from src.schemas.admin.notification import (
-    NotificationStatsResponse,
+    ChannelTestResponse,
+    OperationResponse,
     PublishNotificationRequest,
+    PublishResultResponse,
+    SystemNoticeDeliveryListResponse,
+    SystemNotificationConfigResponse,
     SystemNotificationResponse,
     UpdateNotificationConfigRequest,
 )
-from src.services.admin.notification_service import NotificationService
+from src.schemas.common import PaginatedResponse
 from src.services.admin.system_notification_config_service import SystemNotificationConfigService
 from src.services.admin.system_notification_service import SystemNotificationService
 
@@ -33,14 +38,16 @@ router = APIRouter(prefix="/notifications", tags=["管理系统：通知管理"]
 
 
 # ============================================================
-# 系统通知（广播）管理：发布 / 撤回 / 列表 / 详情
+# 系统通知（广播）管理：发布 / 撤回 / 重新发布 / 列表 / 详情 / 投递明细
 # ============================================================
 
 
 @router.post(
     "/publish",
     summary="发布系统通知",
-    description="面向全体活跃用户发布系统通知（普通通知/系统维护），推送站内信产生未读红点",
+    description="面向目标受众发布系统通知（普通通知/系统维护），推送站内信产生未读红点；"
+    "支持幂等键（client_request_id）、定向受众（all/roles/users）与多渠道强推",
+    response_model=PublishResultResponse,
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CREATE.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_CREATE)
@@ -52,47 +59,49 @@ def publish_notice(
 ) -> JSONResponse:
     """发布系统通知接口。
 
-    notice_type=maintenance 时按系统维护语义发布（维护时间/时长为必填），
-    在站内信广播基础上额外按用户渠道配置推送多渠道通知。
+    通知类型（普通通知/系统维护）仅表达语义标签；
+    携带维护参数（maintenance_time/duration_hours）时正文由系统按维护参数自动拼接；
+    指定 target_type/target_roles/target_user_ids 时定向发布而非全员广播；
+    指定 client_request_id 时同一请求键重复提交返回首次结果（幂等）。
 
     Args:
         request: 当前请求对象。
-        body: 发布请求体（标题、正文、类型与维护参数）。
+        body: 发布请求体（标题、正文、类型、维护参数、强推渠道、幂等键、受众）。
         current_user: 当前登录用户（记录操作人）。
         service: 系统通知业务服务。
 
     Returns:
-        JSONResponse: 统一响应结构，data 为系统通知详情（维护类型附 sent_count）。
+        JSONResponse: 统一响应结构，data 为通知详情（含 sent_count 与 idempotent）。
     """
     operator = {
         "operator_id": current_user.id,
         "operator_name": current_user.username,
     }
-    if body.notice_type == SystemNotificationType.MAINTENANCE:
-        notice_id, sent_count = service.publish_maintenance(
-            title=body.title,
-            maintenance_time=body.maintenance_time or "",
-            duration=body.duration or "",
-            reason=body.reason,
-            operator=operator,
-        )
-        data = SystemNotificationResponse.model_validate(service.get_notice(notice_id)).model_dump()
-        data["sent_count"] = sent_count
-        return success_response(data, request)
-    entity = service.publish(
+    entity, sent_count, idempotent = service.publish(
         title=body.title,
         content=body.content,
         notice_type=body.notice_type,
+        maintenance_time=body.maintenance_time,
+        duration_hours=body.duration_hours,
+        reason=body.reason,
+        push_channels=[ch.value for ch in body.push_channels] if body.push_channels else None,
+        client_request_id=body.client_request_id,
+        target_type=body.target_type,
+        target_roles=body.target_roles,
+        target_user_ids=body.target_user_ids,
         operator=operator,
     )
-    data = SystemNotificationResponse.model_validate(entity).model_dump()
+    data = PublishResultResponse.model_validate(entity).model_dump()
+    data["sent_count"] = sent_count
+    data["idempotent"] = idempotent
     return success_response(data, request)
 
 
 @router.post(
     "/{notice_id}/withdraw",
     summary="撤回系统通知",
-    description="撤回已发布的系统通知（幂等）",
+    description="撤回已发布的系统通知（幂等，已撤回则直接返回）",
+    response_model=OperationResponse,
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_WITHDRAW.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_WITHDRAW)
@@ -117,13 +126,48 @@ def withdraw_notice(
         notice_id=notice_id,
         operator={"operator_id": current_user.id, "operator_name": current_user.username},
     )
-    return success_response({"message": "通知已撤回"}, request)
+    return success_response(OperationResponse(message="通知已撤回").model_dump(), request)
+
+
+@router.post(
+    "/{notice_id}/republish",
+    summary="重新发布已撤回的通知",
+    description="将已撤回的系统通知按首次发布的受众快照重新广播（站内信重新推送产生新红点）",
+    response_model=PublishResultResponse,
+    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CREATE.mark))],
+)
+@permission(PermissionCode.NOTIFICATION_CREATE)
+def republish_notice(
+    notice_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    service: SystemNotificationService = Depends(get_system_notification_service),
+) -> JSONResponse:
+    """重新发布系统通知接口（仅限已撤回状态）。
+
+    Args:
+        notice_id: 系统通知 ID。
+        request: 当前请求对象。
+        current_user: 当前登录用户（记录操作人）。
+        service: 系统通知业务服务。
+
+    Returns:
+        JSONResponse: 统一响应结构，data 为通知详情（含 sent_count）。
+    """
+    entity, sent_count = service.republish(
+        notice_id=notice_id,
+        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+    )
+    data = PublishResultResponse.model_validate(entity).model_dump()
+    data["sent_count"] = sent_count
+    return success_response(data, request)
 
 
 @router.get(
     "/published",
     summary="系统通知列表",
-    description="分页查询已发布的系统通知（普通通知/系统维护）",
+    description="分页查询已发布的系统通知（普通通知/系统维护），支持类型/状态过滤与关键字搜索",
+    response_model=PaginatedResponse[SystemNotificationResponse],
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_VIEW)
@@ -164,6 +208,7 @@ def list_published_notices(
     "/published/{notice_id}",
     summary="系统通知详情",
     description="查询单条系统通知详情",
+    response_model=SystemNotificationResponse,
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_VIEW)
@@ -187,92 +232,43 @@ def get_published_notice(
 
 
 @router.get(
-    "",
-    summary="通知列表",
-    description="分页查询当前用户的通知发送记录",
+    "/{notice_id}/deliveries",
+    summary="系统通知投递明细",
+    description="分页查询系统通知的投递明细（可按渠道/状态过滤），并返回各状态统计",
+    response_model=SystemNoticeDeliveryListResponse,
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_VIEW)
-def list_notifications(
+def list_notice_deliveries(
+    notice_id: int,
     request: Request,
+    channel: str | None = Query(None, description="按渠道过滤（station/email/dingtalk/feishu/sms）"),
+    status: str | None = Query(None, description="按投递状态过滤（pending/success/failed）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    event_type: str | None = Query(None, description="按事件类型过滤"),
-    channel: str | None = Query(None, description="按渠道过滤"),
-    status: str | None = Query(None, description="按状态过滤"),
-    notification_service: NotificationService = Depends(get_notification_service),
+    service: SystemNotificationService = Depends(get_system_notification_service),
 ) -> JSONResponse:
-    """查询通知记录列表（分页）。
+    """系统通知投递明细接口。
 
     Args:
+        notice_id: 系统通知 ID。
         request: 当前请求对象。
-        page: 页码（从 1 开始）。
-        page_size: 每页数量（1~100）。
-        event_type: 事件类型过滤条件。
-        channel: 渠道过滤条件。
-        status: 状态过滤条件。
-        notification_service: 通知业务服务。
+        channel: 渠道过滤。
+        status: 投递状态过滤。
+        page: 页码。
+        page_size: 每页数量。
+        service: 系统通知业务服务。
 
     Returns:
-        JSONResponse: 统一响应结构，data 为分页通知记录。
+        JSONResponse: 统一响应结构，data 为投递明细分页与状态统计。
     """
-    result = notification_service.list_records(
-        page=page,
-        page_size=page_size,
-        event_type=event_type,
+    result = service.get_deliveries(
+        notice_id=notice_id,
         channel=channel,
         status=status,
+        page=page,
+        page_size=page_size,
     )
-    return success_response(result.model_dump(), request)
-
-
-@router.get(
-    "/stats",
-    summary="通知统计",
-    description="查询通知发送的成功/失败/待发送统计",
-    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
-)
-@permission(PermissionCode.NOTIFICATION_VIEW)
-def get_notification_stats(
-    request: Request,
-    notification_service: NotificationService = Depends(get_notification_service),
-) -> JSONResponse:
-    """通知统计接口。
-
-    Args:
-        request: 当前请求对象。
-        notification_service: 通知业务服务。
-
-    Returns:
-        JSONResponse: 统一响应结构，data 为通知统计结果。
-    """
-    stats = NotificationStatsResponse(**notification_service.get_stats())
-    return success_response(stats.model_dump(), request)
-
-
-@router.get(
-    "/{notification_id}",
-    summary="通知详情",
-    description="查询单条通知记录详情",
-    dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_VIEW.mark))],
-)
-@permission(PermissionCode.NOTIFICATION_VIEW)
-def get_notification(
-    request: Request,
-    notification_id: int,
-    notification_service: NotificationService = Depends(get_notification_service),
-) -> JSONResponse:
-    """查询单条通知记录。
-
-    Args:
-        request: 当前请求对象。
-        notification_id: 通知记录 ID。
-        notification_service: 通知业务服务。
-
-    Returns:
-        JSONResponse: 统一响应结构，data 为通知记录详情。
-    """
-    result = notification_service.get_record(notification_id)
     return success_response(result.model_dump(), request)
 
 
@@ -286,13 +282,14 @@ admin_router = APIRouter(prefix="/admin/notification-configs", tags=["管理系�
 @admin_router.get(
     "",
     summary="获取所有系统通知渠道配置",
+    response_model=SystemNotificationConfigResponse,
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CONFIG.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_CONFIG)
 def list_configs(
     request: Request,
     service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
-):
+) -> JSONResponse:
     """获取所有系统通知渠道配置。
 
     Args:
@@ -303,12 +300,7 @@ def list_configs(
         统一响应，包含全部通知渠道的配置项列表。
     """
     items = [
-        {
-            "id": cfg.id,
-            "channel": cfg.channel,
-            "config_json": cfg.config_json,
-            "enabled": cfg.enabled,
-        }
+        SystemNotificationConfigResponse.model_validate(cfg).model_dump()
         for cfg in service.list_configs()
     ]
     return success_response({"items": items}, request)
@@ -317,6 +309,7 @@ def list_configs(
 @admin_router.put(
     "/{channel}",
     summary="更新某渠道配置",
+    response_model=OperationResponse,
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CONFIG.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_CONFIG)
@@ -325,13 +318,13 @@ def update_config(
     request: Request,
     body: UpdateNotificationConfigRequest,
     service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
-):
+) -> JSONResponse:
     """更新指定通知渠道的配置。
 
     Args:
         channel: 通知渠道标识（如 email、dingtalk、feishu、station）。
         request: FastAPI 请求对象。
-        body: 更新配置请求体（config_json 与 enabled）。
+        body: 更新配置请求体（config 与 enabled）。
         service: 系统通知服务实例（依赖注入）。
 
     Returns:
@@ -342,14 +335,14 @@ def update_config(
     """
     service.update_config(
         channel=channel,
-        config_json=body.config_json,
+        config=body.config,
         enabled=body.enabled,
     )
     # 配置变更后立即重建 provider，无需重启
     from src.infras.notification import reload_providers_from_db
 
     reload_providers_from_db()
-    return success_response({"updated": True}, request)
+    return success_response(OperationResponse(message="配置已更新").model_dump(), request)
 
 
 @admin_router.get(
@@ -361,7 +354,7 @@ def update_config(
 def system_monitor(
     request: Request,
     service: SystemNotificationConfigService = Depends(get_system_notification_config_service),
-):
+) -> JSONResponse:
     """获取系统通知监控状态。
 
     Args:
@@ -377,6 +370,7 @@ def system_monitor(
 @admin_router.post(
     "/{channel}/test",
     summary="发送测试消息",
+    response_model=ChannelTestResponse,
     dependencies=[Depends(require_user_permission(PermissionCode.NOTIFICATION_CONFIG.mark))],
 )
 @permission(PermissionCode.NOTIFICATION_CONFIG)
@@ -384,13 +378,30 @@ def test_channel(
     channel: str,
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
-):
-    """向指定渠道发送一条测试消息，验证配置是否可用。"""
+) -> JSONResponse:
+    """向指定渠道发送一条测试消息，验证配置是否可用。
+
+    发送失败时不向前端透出底层异常详情，仅返回统一文案与错误码，详情落服务端日志。
+
+    Args:
+        channel: 渠道标识。
+        request: FastAPI 请求对象。
+        current_user: 当前登录用户（测试消息接收人）。
+
+    Returns:
+        统一响应，包含发送结果（success 与失败统一提示）。
+    """
     from src.infras.notification import NotificationMessage, get_registry
 
     provider = get_registry().get(channel)
     if provider is None:
-        return success_response({"success": False, "error": f"渠道 {channel} 未注册或未启用"}, request)
+        return success_response(
+            ChannelTestResponse(
+                success=False,
+                error="渠道未注册或未启用，请先完成渠道配置",
+            ).model_dump(),
+            request,
+        )
     recipient = ""
     if channel == "email":
         recipient = current_user.email or ""
@@ -406,6 +417,13 @@ def test_channel(
                 content=f"这是一条来自汉江管理系统的渠道测试消息（{channel}）。",
             )
         )
-        return success_response({"success": ok}, request)
-    except Exception as exc:
-        return success_response({"success": False, "error": str(exc)}, request)
+        return success_response(ChannelTestResponse(success=ok).model_dump(), request)
+    except Exception as exc:  # noqa: BLE001 - 测试失败统一收敛，不暴露底层细节
+        logger.warning("Channel test failed channel=%s: %s", channel, exc)
+        return success_response(
+            ChannelTestResponse(
+                success=False,
+                error=NotificationErrorCode.CHANNEL_TEST_FAILED.desc,
+            ).model_dump(),
+            request,
+        )

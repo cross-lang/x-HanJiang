@@ -7,7 +7,7 @@
     3. 渲染模板
     4. 调用 Provider 发送
     5. 失败写 Redis 重试队列
-    6. 全程写 DB 记录
+    6. 全程写投递明细（system_notice_delivery）与站内信（station_messages）
 
 Usage:
 
@@ -30,6 +30,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import time
 from datetime import datetime
 from typing import Any
@@ -38,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from src.constants.enums import (
     DEFAULT_ROUTES,
+    NotificationSource,
     NotificationChannel,
     NotificationEvent,
     NotificationStatus,
@@ -47,17 +49,22 @@ from src.infras.notification import (
     NotificationMessage,
     NotificationProviderRegistry,
 )
-from src.models.entities.notification_entity import NotificationRecordEntity
+from src.models.entities.station_message_entity import StationMessageEntity
+from src.models.entities.system_notice_delivery_entity import SystemNoticeDeliveryEntity
 from src.notification.template import render_template
 from src.repositories.notification_config_repository import (
     UserNotificationConfigRepository,
 )
-from src.repositories.notification_repository import NotificationRepository
+from src.repositories.system_notice_delivery_repository import SystemNoticeDeliveryRepository
+
+_STATION_RECIPIENT_RE = re.compile(r"^user:(\d+)$")
 
 
 class NotificationDispatcher:
-    """
-    通知调度器。
+    """通知调度器。
+
+    面向抽象渠道 Provider 发送，并将每次投递的实际情况写入
+    system_notice_delivery（外部渠道）/ station_messages（站内信）。
     """
 
     def __init__(
@@ -65,93 +72,125 @@ class NotificationDispatcher:
         registry: NotificationProviderRegistry,
         session: Session | None = None,
     ) -> None:
+        """初始化调度器。
+
+        Args:
+            registry: 渠道 Provider 注册表
+            session: SQLAlchemy 会话（可选，未提供则投递明细不落库）
+        """
         self._registry = registry
         self._session = session
-        self._repository = NotificationRepository(session=session) if session else None
+        self._repository = SystemNoticeDeliveryRepository(session=session) if session else None
 
     def dispatch(
         self,
         event_type: str | NotificationEvent,
-        recipients: dict[str, str],
+        recipients: dict[str, str | list[str]],
         variables: dict[str, Any] | None = None,
         channels: list[str | NotificationChannel] | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> list[NotificationRecordEntity]:
-        """发送通知。
+        pre_rendered: tuple[str, str] | None = None,
+        *,
+        source: str = NotificationSource.SYSTEM_NOTICE.value,
+        system_notification_id: int | None = None,
+    ) -> list[SystemNoticeDeliveryEntity]:
+        """发送通知并记录投递明细。
+
+        同一渠道支持多个接收人（值可为单个字符串或字符串列表），
+        每个接收人独立生成一条投递明细并发送一次；
+        站内信渠道（station）额外写入 station_messages 收件箱。
+
         Args:
             event_type: 事件类型（字符串或枚举），如 "user.password_changed"
-            recipients: 渠道→接收人映射，如 {"email": "a@b.com"}
+            recipients: 渠道→接收人映射，如 {"email": ["a@b.com", "c@d.com"]}
             variables: 模板变量，如 {"username": "张三"}
-            channels: 指定通知渠道（覆盖默认路由表），为None 则用路由表
+            channels: 指定通知渠道（覆盖默认路由表），为 None 则用路由表
             metadata: 扩展元数据
+            pre_rendered: 已渲染好的 (subject, content)，提供后跳过模板渲染，
+                适用于正文由调用方直接给出的事件（如系统通知广播），避免依赖模板文件
+            source: 通知来源（system_notice/station/alert/openapi_app）
+            system_notification_id: 关联系统通知 ID（系统通知广播时传入）
+
         Returns:
-            通知记录列表
+            list[SystemNoticeDeliveryEntity]: 投递明细列表
         """
         variables = variables or {}
         # 统一转为枚举，兼容字符串和枚举入参
         event_enum = event_type if isinstance(event_type, NotificationEvent) else NotificationEvent(str(event_type))
         event_type_str = event_enum.value
         target_channels = channels or DEFAULT_ROUTES.get(event_enum, [NotificationChannel.EMAIL])
-        records: list[NotificationRecordEntity] = []
+        deliveries: list[SystemNoticeDeliveryEntity] = []
+        inbox_items: list[tuple[SystemNoticeDeliveryEntity, str, str]] = []
+        retry_items: list[tuple[SystemNoticeDeliveryEntity, str, str]] = []
         for channel in target_channels:
             channel_str = channel.value if isinstance(channel, NotificationChannel) else str(channel)
-            recipient = recipients.get(channel_str)
-            if not recipient:
+            recipient_spec = recipients.get(channel_str)
+            if not recipient_spec:
                 logger.debug(
                     "No recipient for channel={} event={}, skipping",
                     channel_str,
                     event_type_str,
                 )
                 continue
+            recipient_list = recipient_spec if isinstance(recipient_spec, list) else [recipient_spec]
             provider = self._registry.get(channel_str)
             if provider is None:
                 logger.warning("No provider registered for channel={}, skipping", channel_str)
                 continue
-            subject, content = render_template(event_type_str, channel_str, variables)
-            # 拼接通知发送记录
-            record = NotificationRecordEntity(
-                event_type=event_type_str,
-                channel=channel_str,
-                recipient=recipient,
-                subject=subject,
-                content=content,
-                status=NotificationStatus.PENDING.value,
-                metadata_json=json.dumps(metadata, ensure_ascii=False) if metadata else None,
-            )
-            # 发送消息
-            message = NotificationMessage(
-                recipient=recipient,
-                subject=subject,
-                content=content,
-                content_type="html" if channel_str == NotificationChannel.EMAIL.value else "text",
-                metadata=metadata or {},
-            )
-            try:
-                success = provider.send(message)
-                if success:
-                    record.status = NotificationStatus.SUCCESS.value
-                    record.sent_at = datetime.utcnow()
-                else:
-                    record.status = NotificationStatus.FAILED.value
-                    record.error_message = "Provider returned False"
-            except Exception as exc:
-                record.status = NotificationStatus.FAILED.value
-                record.error_message = str(exc)[:1000]
-                logger.error(
-                    "Notification send failed: event={} channel={} error={}",
-                    event_type_str,
-                    channel_str,
-                    exc,
+            if pre_rendered is not None:
+                subject, content = pre_rendered
+            else:
+                subject, content = render_template(event_type_str, channel_str, variables)
+            for recipient in recipient_list:
+                if not recipient:
+                    continue
+                delivery = SystemNoticeDeliveryEntity(
+                    system_notification_id=system_notification_id,
+                    source=source,
+                    event_type=event_type_str,
+                    channel=channel_str,
+                    recipient=recipient,
+                    status=NotificationStatus.PENDING.value,
                 )
-            records.append(record)
-        # 持久化通知发送记录
-        if self._repository and records:
-            self._persist_records(records)
+                # 发送消息
+                message = NotificationMessage(
+                    recipient=recipient,
+                    subject=subject,
+                    content=content,
+                    content_type="html" if channel_str == NotificationChannel.EMAIL.value else "text",
+                    metadata=metadata or {},
+                )
+                try:
+                    success = provider.send(message)
+                    if success:
+                        delivery.status = NotificationStatus.SUCCESS.value
+                        delivery.receive_at = datetime.utcnow()
+                    else:
+                        delivery.status = NotificationStatus.FAILED.value
+                        delivery.error_message = "Provider returned False"
+                except Exception as exc:
+                    delivery.status = NotificationStatus.FAILED.value
+                    delivery.error_message = str(exc)[:1000]
+                    logger.error(
+                        "Notification send failed: event={} channel={} error={}",
+                        event_type_str,
+                        channel_str,
+                        exc,
+                    )
+                deliveries.append(delivery)
+                if channel_str == NotificationChannel.STATION.value:
+                    inbox_items.append((delivery, subject, content))
+                elif delivery.status == NotificationStatus.FAILED.value:
+                    retry_items.append((delivery, subject, content))
+        # 持久化投递明细（站内信渠道额外写收件箱）
+        if self._repository and deliveries:
+            self._persist_deliveries(deliveries)
+        if self._session is not None and inbox_items:
+            self._write_station_inboxes(source, inbox_items)
         # 失败的写入重试队列
-        failed = [r for r in records if r.status == NotificationStatus.FAILED.value]
-        if failed:
-            self._enqueue_retry(failed)
-        return records
+        if retry_items:
+            self._enqueue_retry(retry_items)
+        return deliveries
 
     def dispatch_for_user(
         self,
@@ -160,18 +199,28 @@ class NotificationDispatcher:
         variables: dict[str, Any] | None = None,
         channels: list[str | NotificationChannel] | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> list[NotificationRecordEntity]:
+        pre_rendered: tuple[str, str] | None = None,
+        *,
+        source: str = NotificationSource.SYSTEM_NOTICE.value,
+        system_notification_id: int | None = None,
+    ) -> list[SystemNoticeDeliveryEntity]:
         """根据用户通知配置自动发送通知。
+
         从 user_notification_configs 表查询用户已启用的渠道配置，
         自动构建 recipients 映射后委托 dispatch() 发送。
+
         Args:
-            user_id: 用户ID
+            user_id: 用户 ID
             event_type: 事件类型（字符串或枚举）
             variables: 模板变量
             channels: 指定渠道（覆盖路由表），None 则用路由表
             metadata: 扩展元数据
+            pre_rendered: 已渲染好的 (subject, content)，提供后跳过模板渲染
+            source: 通知来源（system_notice/station/alert/openapi_app）
+            system_notification_id: 关联系统通知 ID
+
         Returns:
-            通知记录列表
+            list[SystemNoticeDeliveryEntity]: 投递明细列表
         """
         config_repo = UserNotificationConfigRepository(session=self._session)
         recipients = config_repo.build_recipients_map(user_id)
@@ -189,40 +238,126 @@ class NotificationDispatcher:
             variables=variables,
             channels=channels,
             metadata=metadata,
+            pre_rendered=pre_rendered,
+            source=source,
+            system_notification_id=system_notification_id,
         )
 
-    def _persist_records(self, records: list[NotificationRecordEntity]) -> None:
-        """持久化通知记录到数据库。"""
+    def dispatch_pre_rendered(
+        self,
+        event_type: str | NotificationEvent,
+        recipients: dict[str, str | list[str]],
+        subject: str,
+        content: str,
+        channels: list[str | NotificationChannel] | None = None,
+        metadata: dict[str, Any] | None = None,
+        *,
+        source: str = NotificationSource.SYSTEM_NOTICE.value,
+        system_notification_id: int | None = None,
+    ) -> list[SystemNoticeDeliveryEntity]:
+        """用已渲染好的主题与正文发送通知（跳过模板渲染）。
+
+        适用于正文由调用方直接给出的场景（如系统通知广播/告警），
+        复用 dispatch() 的投递明细与失败重试能力，不依赖 YAML 模板文件。
+
+        Args:
+            event_type: 事件类型（字符串或枚举）
+            recipients: 渠道→接收人映射（单个字符串或字符串列表）
+            subject: 已渲染好的通知主题
+            content: 已渲染好的通知正文
+            channels: 指定通知渠道（覆盖路由表），None 则用路由表
+            metadata: 扩展元数据
+            source: 通知来源
+            system_notification_id: 关联系统通知 ID
+
+        Returns:
+            list[SystemNoticeDeliveryEntity]: 投递明细列表
+        """
+        return self.dispatch(
+            event_type=event_type,
+            recipients=recipients,
+            variables={},
+            channels=channels,
+            metadata=metadata,
+            pre_rendered=(subject, content),
+            source=source,
+            system_notification_id=system_notification_id,
+        )
+
+    def _persist_deliveries(self, deliveries: list[SystemNoticeDeliveryEntity]) -> None:
+        """持久化投递明细到数据库。"""
         try:
-            for record in records:
-                self._repository.create(record)
+            for delivery in deliveries:
+                self._repository.create(delivery)
             self._session.commit()  # type: ignore[union-attr]
         except Exception as exc:
             self._session.rollback()  # type: ignore[union-attr]
-            logger.error("Failed to persist notification records: {}", exc)
+            logger.error("Failed to persist notification deliveries: {}", exc)
 
-    def _enqueue_retry(self, records: list[NotificationRecordEntity]) -> None:
-        """将失败记录写入 Redis 重试队列（ZSET，score 为下次重试时间戳）。"""
+    def _write_station_inboxes(
+        self,
+        source: str,
+        inbox_items: list[tuple[SystemNoticeDeliveryEntity, str, str]],
+    ) -> None:
+        """将站内信渠道的投递同步写入 station_messages 收件箱。
+
+        Args:
+            source: 通知来源
+            inbox_items: (投递明细, 主题, 正文) 三元组列表
+        """
+        messages: list[StationMessageEntity] = []
+        for delivery, subject, content in inbox_items:
+            match = _STATION_RECIPIENT_RE.match(delivery.recipient)
+            if match is None:
+                continue
+            messages.append(
+                StationMessageEntity(
+                    user_id=int(match.group(1)),
+                    subject=subject,
+                    content=content,
+                    source=source,
+                    event_type=delivery.event_type,
+                    is_read=False,
+                )
+            )
+        if messages:
+            self._session.add_all(messages)
+            try:
+                self._session.commit()
+            except Exception as exc:
+                self._session.rollback()
+                logger.error("Failed to persist station inbox messages: {}", exc)
+
+    def _enqueue_retry(self, retry_items: list[tuple[SystemNoticeDeliveryEntity, str, str]]) -> None:
+        """将失败投递写入 Redis 重试队列（ZSET，score 为下次重试时间戳）。
+
+        载荷携带投递 ID 与渲染后正文，重试成功后直接回写状态，
+        修复此前重试队列不含正文、无法真正重发的问题。
+
+        Args:
+            retry_items: (投递明细, 主题, 正文) 三元组列表
+        """
         from src.notification.bootstrap import NOTIFICATION_RETRY_QUEUE_KEY
 
         try:
             from src.infras.cache import get_cached_cache_provider
 
             redis = get_cached_cache_provider()
-            for record in records:
-                if record.retry_count >= record.max_retries:
+            for delivery, subject, content in retry_items:
+                if delivery.retry_count >= delivery.max_retries:
                     continue
                 retry_data = json.dumps(
                     {
-                        "event_type": record.event_type,
-                        "channel": record.channel,
-                        "recipient": record.recipient,
-                        "retry_count": record.retry_count + 1,
-                        "metadata": record.metadata_json,
+                        "delivery_id": delivery.id,
+                        "channel": delivery.channel,
+                        "recipient": delivery.recipient,
+                        "subject": subject,
+                        "content": content,
+                        "retry_count": delivery.retry_count + 1,
                     },
                     ensure_ascii=False,
                 )
-                delay = 2**record.retry_count * 60  # 1min, 2min, 4min
+                delay = 2**delivery.retry_count * 60  # 1min, 2min, 4min
                 score = time.time() + delay
                 redis.zadd(NOTIFICATION_RETRY_QUEUE_KEY, {retry_data: score})
         except Exception as exc:

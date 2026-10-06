@@ -131,23 +131,31 @@ a:hover {
   background: transparent;
 }
 
-/* 开放平台面向开发者：全站允许选中与复制文本（含 Element Plus 组件、菜单、表格、标签等），
-   便于开发者复制接口路径、参数、示例代码等内容；粘贴在输入框/文本域默认允许，无全局拦截。 */
-*,
-*::before,
-*::after {
-  -webkit-user-select: text !important;
-  user-select: text !important;
+/* ── 文本选中策略 ─────────────────────────────────────────
+   全局默认禁止选中：避免拖选文本产生大面积黑色选区（对齐管理系统
+   已修复的"拖选黑框"问题）。仅对开发者真正需要复制的可复制内容
+   （代码块、接口路径、参数名、示例代码、输入框）放行选中。 */
+body {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* 表单输入框等可交互元素允许选中文本（与全局放行一致，显式保留） */
-input,
-textarea,
-.code-block,
-.el-message,
-.el-message-box,
-.el-notification {
+/* 可复制内容白名单：代码块、等宽代码/路径/参数、接口路径等 */
+code,
+pre,
+.mono,
+.mono-cell,
+.path-cell,
+.param-name {
   user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 表单输入框等可交互元素允许选中文本 */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* ── Element Plus 组件细节覆盖 ─────────────────────────── */

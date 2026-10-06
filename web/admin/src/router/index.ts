@@ -100,6 +100,12 @@ const router = createRouter({
           name: 'Files',
           component: () => import('@/views/file/FileList.vue'),
         },
+        {
+          path: 'station-messages',
+          name: 'StationMessages',
+          component: () => import('@/views/station/StationMessages.vue'),
+          meta: { perm: 'station:view' },
+        },
       ],
     },
   ],

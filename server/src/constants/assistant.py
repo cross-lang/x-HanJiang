@@ -142,6 +142,13 @@ ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (
         "permission": PermissionCode.FILE_VIEW.mark,
     },
     {
+        "page": "station-messages",
+        "path": "/station-messages",
+        "title": "站内信",
+        "description": "我的站内信：历史消息列表、按来源/接收日期/关键词过滤、查看详情、导出CSV",
+        "permission": PermissionCode.STATION_VIEW.mark,
+    },
+    {
         "page": "profile",
         "path": "/profile",
         "title": "个人中心",

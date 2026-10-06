@@ -115,6 +115,73 @@
           </div>
         </el-tab-pane>
 
+        <el-tab-pane label="第三方账号绑定" name="binding">
+          <div class="pane-body">
+            <el-alert type="info" :closable="false" class="pane-alert">
+              填写钉钉 / 飞书 Webhook
+              地址后，通知将按您的偏好推送到对应群聊。标准授权绑定（扫码登录授权、应用内一键绑定）将在后续版本开放。
+            </el-alert>
+
+            <!-- 钉钉 -->
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><ChatDotRound /></el-icon>
+                <div>
+                  <div class="sec-title">钉钉</div>
+                  <div class="sec-current">{{ bindingDisplay.dingtalk }}</div>
+                </div>
+              </div>
+              <el-form label-width="130px" class="sec-form">
+                <el-form-item label="Webhook 地址">
+                  <el-input
+                    v-model="bindingForms.dingtalk"
+                    placeholder="https://oapi.dingtalk.com/robot/send?access_token=..."
+                  />
+                </el-form-item>
+                <el-form-item label="推送启用">
+                  <el-switch v-model="bindingEnabled.dingtalk" @change="toggleBinding('dingtalk')" />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" round @click="saveWebhook('dingtalk')">保存</el-button>
+                  <el-button v-if="bindingState.dingtalk" round @click="unbindWebhook('dingtalk')">解除绑定</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+
+            <!-- 飞书 -->
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Message /></el-icon>
+                <div>
+                  <div class="sec-title">飞书</div>
+                  <div class="sec-current">{{ bindingDisplay.feishu }}</div>
+                </div>
+              </div>
+              <el-form label-width="130px" class="sec-form">
+                <el-form-item label="Webhook 地址">
+                  <el-input
+                    v-model="bindingForms.feishu"
+                    placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                  />
+                </el-form-item>
+                <el-form-item label="推送启用">
+                  <el-switch v-model="bindingEnabled.feishu" @change="toggleBinding('feishu')" />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" round @click="saveWebhook('feishu')">保存</el-button>
+                  <el-button v-if="bindingState.feishu" round @click="unbindWebhook('feishu')">解除绑定</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+
+            <!-- 标准绑定预留（二期 / 三期实质性接入） -->
+            <el-alert type="success" :closable="false" class="pane-alert">
+              预留能力：后续版本将支持钉钉 / 飞书标准授权绑定（扫码登录授权、应用内一键绑定）， 绑定后无需手动维护
+              Webhook 地址，通知将自动推送到您的个人账号。
+            </el-alert>
+          </div>
+        </el-tab-pane>
+
         <el-tab-pane label="安全设置" name="security">
           <div class="pane-body">
             <el-alert type="warning" :closable="false" class="pane-alert">
@@ -215,7 +282,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Avatar, Iphone, Message, Lock } from '@element-plus/icons-vue'
+import { Avatar, Iphone, Message, Lock, ChatDotRound } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   updateMe,
@@ -225,6 +292,10 @@ import {
   updateEmail,
   getNotificationPreferences,
   updateNotificationPreferences,
+  listNotificationRecipients,
+  addNotificationRecipient,
+  updateNotificationRecipient,
+  removeNotificationRecipient,
   type PreferenceEvent,
 } from '@/api/profile'
 import type { UserRoleBrief, ProfilePermission } from '@/types/auth'
@@ -235,6 +306,21 @@ const roles = ref<UserRoleBrief[]>([])
 const permissions = ref<string[]>([])
 const permissionList = ref<ProfilePermission[]>([])
 const preferenceEvents = ref<PreferenceEvent[]>([])
+
+/** 第三方账号绑定：钉钉 / 飞书 Webhook（作为该渠道推送的默认接收人） */
+const bindingState = ref<Record<string, string>>({ dingtalk: '', feishu: '' })
+const bindingForms = ref<Record<string, string>>({ dingtalk: '', feishu: '' })
+const bindingEnabled = ref<Record<string, boolean>>({ dingtalk: true, feishu: true })
+
+/** 当前已配置 Webhook 的展示文案（脱敏截断） */
+const bindingDisplay = computed(() => {
+  const display: Record<string, string> = {}
+  for (const ch of ['dingtalk', 'feishu'] as const) {
+    const url = bindingState.value[ch]
+    display[ch] = url ? `已配置：${url.length > 40 ? `${url.slice(0, 40)}…` : url}` : '未配置 Webhook'
+  }
+  return display
+})
 
 const channelList = [
   { code: 'station', name: '站内信' },
@@ -294,6 +380,7 @@ onMounted(async () => {
   } catch {
     /* ignore */
   }
+  await loadBindings()
 })
 
 async function sendCode() {
@@ -342,6 +429,81 @@ async function toggleChannel(event: string, channel: string, enabled: boolean) {
   try {
     await updateNotificationPreferences({ [event]: { [channel]: enabled } })
     ElMessage.success('已更新')
+  } catch {
+    /* 错误已处理 */
+  }
+}
+
+/** 加载第三方绑定：读取钉钉 / 飞书渠道已配置的 Webhook 接收人 */
+async function loadBindings() {
+  try {
+    const res = await listNotificationRecipients()
+    for (const item of res.data.items) {
+      if (item.channel === 'dingtalk' || item.channel === 'feishu') {
+        bindingState.value[item.channel] = item.recipient
+        bindingForms.value[item.channel] = item.recipient
+        bindingEnabled.value[item.channel] = item.enabled
+      }
+    }
+  } catch {
+    /* 错误已处理 */
+  }
+}
+
+/** 保存 Webhook 绑定（新增幂等，重复保存即更新） */
+async function saveWebhook(channel: 'dingtalk' | 'feishu') {
+  const url = bindingForms.value[channel].trim()
+  if (!url) {
+    ElMessage.warning('请填写 Webhook 地址')
+    return
+  }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    ElMessage.warning('Webhook 地址需以 http:// 或 https:// 开头')
+    return
+  }
+  try {
+    await addNotificationRecipient({
+      channel,
+      recipient: url,
+      label: channel === 'dingtalk' ? '钉钉 Webhook' : '飞书 Webhook',
+      enabled: bindingEnabled.value[channel],
+    })
+    bindingState.value[channel] = url
+    ElMessage.success('绑定成功')
+  } catch {
+    /* 错误已处理 */
+  }
+}
+
+/** 启停推送开关（保留已配置的 Webhook） */
+async function toggleBinding(channel: 'dingtalk' | 'feishu') {
+  const url = bindingState.value[channel]
+  if (!url) {
+    // 无已存 Webhook 时仅记录开关状态，等待用户填写后保存
+    return
+  }
+  try {
+    await updateNotificationRecipient({
+      channel,
+      recipient: url,
+      enabled: bindingEnabled.value[channel],
+    })
+    ElMessage.success(bindingEnabled.value[channel] ? '已启用推送' : '已停用推送')
+  } catch {
+    /* 错误已处理 */
+  }
+}
+
+/** 解除绑定：删除该渠道 Webhook 接收人 */
+async function unbindWebhook(channel: 'dingtalk' | 'feishu') {
+  const url = bindingState.value[channel]
+  if (!url) return
+  try {
+    await removeNotificationRecipient(channel, url)
+    bindingState.value[channel] = ''
+    bindingForms.value[channel] = ''
+    bindingEnabled.value[channel] = true
+    ElMessage.success('已解除绑定')
   } catch {
     /* 错误已处理 */
   }

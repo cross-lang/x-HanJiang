@@ -25,8 +25,7 @@ from src.constants.enums import (
     AppOwnerType,
     AppRegistrationType,
     AppStatus,
-    NotificationChannel,
-    StationMessageStatus,
+    NotificationSource,
 )
 from src.constants.permissions import PermissionCode
 from src.core.exceptions import (
@@ -36,7 +35,7 @@ from src.core.exceptions import (
 )
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.app_registration_entity import OpenApiAppRegistrationEntity
-from src.models.entities.notification_entity import NotificationRecordEntity
+from src.models.entities.station_message_entity import StationMessageEntity
 from src.repositories.base_repository import BaseRepository
 from src.schemas.open_portal.app import (
     OpenAppApprovalResponse,
@@ -400,8 +399,8 @@ class DeveloperOpenApiAppService:
     ) -> None:
         """站内信通知拥有应用审批权限的管理员（超级管理员自动具备）。
 
-        与管理端站内信同一模型（notification_records 一条消息一条记录）：
-        channel=station / recipient=user:{id} / subject+content 渲染正文。
+        与管理端站内信同一模型（station_messages，一条消息一条记录）：
+        user_id=管理员 / subject+content 渲染正文，source=openapi_app 支撑前端跳转审批页。
         通知失败不影响主流程（随本事务提交）。
         """
         admin_ids = self._repo.list_user_ids_by_perm(PermissionCode.OPENAPI_APP_APPROVE.mark)
@@ -410,17 +409,15 @@ class DeveloperOpenApiAppService:
             return
         for admin_id in admin_ids:
             self._session.add(
-                NotificationRecordEntity(
-                    event_type="openapi_app_registration",
-                    channel=NotificationChannel.STATION.value,
-                    recipient=f"user:{admin_id}",
+                StationMessageEntity(
+                    user_id=admin_id,
                     subject="开放应用申请待审批",
                     content=(
                         f"开发者提交了应用「{app.name}」的申请（申请码：{registration_code}），"
                         "请前往 开放平台 → 应用审批 查看并处理。"
                     ),
-                    status=StationMessageStatus.UNREAD.value,
-                    retry_count=0,
-                    max_retries=0,
+                    source=NotificationSource.OPENAPI_APP.value,
+                    event_type="openapi_app_registration",
+                    is_read=False,
                 )
             )

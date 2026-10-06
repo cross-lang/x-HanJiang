@@ -7,16 +7,13 @@
     </template>
     <div class="bell-list">
       <div v-if="list.length === 0" class="bell-empty">暂无消息</div>
-      <div v-for="item in list" :key="item.id" class="bell-item">
-        <div class="bell-item-head" @click="toggleExpand(item)">
+      <div v-for="item in list" :key="item.id" class="bell-item" @click="openMessage(item)">
+        <div class="bell-item-head">
           <div class="hj-flex-center hj-gap-8">
             <span v-if="!item.is_read" class="bell-dot"></span>
             <span class="bell-title">{{ item.title }}</span>
           </div>
           <div class="bell-time">{{ formatDateTime(item.created_at) }}</div>
-        </div>
-        <div v-if="expandedId === item.id" class="bell-content">
-          {{ item.content }}
         </div>
       </div>
     </div>
@@ -34,8 +31,7 @@ import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/format'
 import { getToken } from '@/utils/storage'
 import {
-  getUnreadCount,
-  listStationMessages,
+  getRecentStationMessages,
   markAllStationMessagesRead,
   markStationMessageRead,
   type StationMessage,
@@ -44,47 +40,42 @@ import {
 const router = useRouter()
 const unreadCount = ref(0)
 const list = ref<StationMessage[]>([])
-const expandedId = ref<number | null>(null)
 
-async function fetchUnread() {
+async function fetchList() {
   // 未登录不轮询，避免登录页持续 401
   if (!getToken()) {
     unreadCount.value = 0
     return
   }
-  const res = await getUnreadCount()
-  unreadCount.value = res.data.count
-}
-
-async function fetchList() {
-  const res = await listStationMessages()
+  const res = await getRecentStationMessages(10)
   list.value = res.data.items
+  unreadCount.value = res.data.unread_count
 }
 
-async function toggleExpand(item: StationMessage) {
-  expandedId.value = expandedId.value === item.id ? null : item.id
+/** 点击消息：标记已读后按来源跳转（审批消息跳审批页，其余跳站内信列表） */
+async function openMessage(item: StationMessage) {
   if (!item.is_read) {
     await markStationMessageRead(item.id)
-    fetchUnread()
+    fetchList()
   }
-  // 开放应用申请待审批类站内信：点击跳转到应用审批页处理
   if (item.event_type === 'openapi_app_registration') {
     router.push('/app-approvals')
+    return
   }
+  router.push('/station-messages')
 }
 
 async function markAllRead() {
   await markAllStationMessagesRead()
   ElMessage.success('全部已读')
-  fetchUnread()
   fetchList()
 }
 
 let pollTimer: number | undefined
 
 onMounted(() => {
-  fetchUnread()
-  pollTimer = window.setInterval(fetchUnread, 15000)
+  fetchList()
+  pollTimer = window.setInterval(fetchList, 15000)
 })
 
 onUnmounted(() => {
@@ -133,12 +124,6 @@ onUnmounted(() => {
   color: #999;
   margin-top: 4px;
   margin-left: 16px;
-}
-.bell-content {
-  padding: 8px 12px 12px 16px;
-  background: #fafafa;
-  font-size: 13px;
-  color: #666;
 }
 .bell-footer {
   padding: 8px;

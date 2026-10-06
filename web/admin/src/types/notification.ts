@@ -8,44 +8,33 @@ export interface SystemNotificationItem {
   title: string
   content: string
   notice_type: NoticeType
-  maintenance_time: string | null
-  duration: string | null
-  reason: string | null
   status: NoticeStatus
   operator_id: number | null
   operator_name: string | null
+  /** 扩展元数据：维护参数 / 受众快照 / 强推渠道 / 强推成功数 */
+  metadata_json: {
+    maintenance_time?: string
+    duration_hours?: number | string
+    reason?: string
+    push_channels?: string[]
+    target_type?: string
+    target_roles?: string[]
+    target_user_ids?: number[]
+    sent_count?: number
+    [key: string]: unknown
+  } | null
   published_at: string | null
   withdrawn_at: string | null
   created_at: string | null
+  updated_at: string | null
 }
 
 export interface NotificationConfig {
   channel: string
   recipient: string
-  config_json: string
+  config: Record<string, unknown>
   enabled: boolean
   updated_at: string | null
-}
-
-export interface NotificationRecord {
-  id: number
-  event_type: string
-  channel: string
-  recipient: string
-  subject: string
-  content: string
-  status: string
-  retry_count: number
-  error_message: string | null
-  created_at: string
-  sent_at: string | null
-}
-
-export interface NotificationStats {
-  total: number
-  success: number
-  failed: number
-  pending: number
 }
 
 export interface NotificationPreferenceMap {

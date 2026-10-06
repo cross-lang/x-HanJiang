@@ -143,7 +143,7 @@ class CertificationStatus(StrBaseEnum):
 class DeveloperMessageStatus(StrBaseEnum):
     """开发者站内信阅读状态（对齐 developer_messages.status 列）。
 
-    开发者站内信与管理系统用户站内信（notification_records）分表，
+    开发者站内信与管理系统用户站内信（station_messages）分表，
     独立表 developer_messages 的状态取值沿用站内信惯例：unread / read。
     """
 
@@ -311,11 +311,20 @@ class NotificationStatus(StrBaseEnum):
     RETRYING = "retrying", "重试中"
 
 
-class StationMessageStatus(StrBaseEnum):
-    """站内信阅读状态（对齐 notification_records.status 列的站内信取值）。"""
+class NotificationSource(StrBaseEnum):
+    """通知投递来源（system_notice_delivery.source / station_messages.source）。
 
-    UNREAD = "unread", "未读"
-    READ = "read", "已读"
+    用于区分同一条投递/消息由哪个业务域产生：
+    - system_notice: 系统通知广播（通知管理发布）
+    - station: 站内信直发（如改密等业务站内信）
+    - alert: 系统告警
+    - openapi_app: 开放应用审批通知
+    """
+
+    SYSTEM_NOTICE = "system_notice", "系统通知"
+    STATION = "station", "站内信直发"
+    ALERT = "alert", "系统告警"
+    OPENAPI_APP = "openapi_app", "开放应用审批"
 
 
 class SystemNotificationType(StrBaseEnum):
@@ -330,6 +339,27 @@ class SystemNotificationStatus(StrBaseEnum):
 
     PUBLISHED = "published", "已发布"
     WITHDRAWN = "withdrawn", "已撤回"
+
+
+class NotificationTargetType(StrBaseEnum):
+    """系统通知发布受众类型。"""
+
+    ALL = "all", "全体用户"
+    ROLES = "roles", "指定角色"
+    USERS = "users", "指定用户"
+
+
+class NotificationErrorCode(StrBaseEnum):
+    """通知模块业务错误码（随异常 error_code 返回，前端据此做文案映射与分支处理）。"""
+
+    NOTICE_NOT_FOUND = "notice_not_found", "通知不存在"
+    NOTICE_ALREADY_WITHDRAWN = "notice_already_withdrawn", "通知已撤回"
+    NOTICE_CANNOT_WITHDRAW = "notice_cannot_withdraw", "当前状态不可撤回"
+    NOTICE_CANNOT_REPUBLISH = "notice_cannot_republish", "当前状态不可重新发布"
+    TARGET_ROLES_NOT_FOUND = "target_roles_not_found", "目标角色不存在"
+    TARGET_USERS_EMPTY = "target_users_empty", "目标用户为空"
+    NO_ACTIVE_USERS = "no_active_users", "没有可推送的活跃用户"
+    CHANNEL_TEST_FAILED = "channel_test_failed", "渠道测试发送失败"
 
 
 # ── 公告域 ────────────────────────────────────────────

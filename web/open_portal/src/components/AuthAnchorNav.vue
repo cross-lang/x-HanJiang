@@ -28,8 +28,9 @@ const activeId = ref('')
 function scrollTo(id: string) {
   const el = document.getElementById(id)
   if (!el) return
-  const top = el.getBoundingClientRect().top + window.scrollY - 88
-  window.scrollTo({ top, behavior: 'smooth' })
+  // 页面滚动容器是 .main-area（overflow-y: auto），不能依赖 window.scrollTo；
+  // scrollIntoView 会沿 DOM 向上找到最近的滚动祖先并平滑滚动（偏移由目标的 scroll-margin-top 承担）
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   activeId.value = id
 }
 

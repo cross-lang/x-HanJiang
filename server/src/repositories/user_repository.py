@@ -67,6 +67,20 @@ class UserRepository(BaseRepository[UserEntity, int]):
         )
         return list(self.session.execute(stmt).scalars().all())
 
+    def get_by_ids(self, user_ids: list[int]) -> list[UserEntity]:
+        """按用户 ID 列表批量查询未删除用户（用于定向发布）。
+
+        Args:
+            user_ids: 用户 ID 列表
+
+        Returns:
+            list[UserEntity]: 命中的未删除用户实体列表
+        """
+        if not user_ids:
+            return []
+        stmt = self._base_query().where(UserEntity.id.in_(user_ids))
+        return list(self.session.execute(stmt).scalars().all())
+
     def get_roles_by_user_id(self, user_id: int) -> list[RoleEntity]:
         """查询用户关联的所有角色（含角色编码，用于登录态/详情组装）。"""
         stmt = (

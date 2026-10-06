@@ -54,6 +54,7 @@ _SEED_MENUS = [
     ("系统管理", "公告管理", "/announcements", "Tickets", PermissionCode.ANNOUNCEMENT_VIEW.mark, 6, "menu"),
     ("系统管理", "审计日志", "/audit", "Document", PermissionCode.AUDIT_LOG_VIEW.mark, 7, "menu"),
     ("系统管理", "登录日志", "/audit/login", "User", PermissionCode.LOGIN_LOG_VIEW.mark, 8, "menu"),
+    ("系统管理", "站内信", "/station-messages", "Message", PermissionCode.STATION_VIEW.mark, 9, "menu"),
     # 接口管理
     (0, "接口管理", "/apis", "Link", None, 4, "directory"),
     ("接口管理", "Swagger文档", "/apis/swagger", "Document", PermissionCode.SWAGGER_VIEW.mark, 1, "menu"),
@@ -280,8 +281,6 @@ def _seed_notification_configs(session) -> None:
     把 .env / config.yaml 里已有的 SMTP 配置写入 system_notification_configs 表，
     这样管理后台就能看到并编辑；表已有记录则跳过。
     """
-    import json
-
     from src.core.config import settings
     from src.models.entities.system_notification_config_entity import (
         SystemNotificationConfigEntity,
@@ -303,7 +302,7 @@ def _seed_notification_configs(session) -> None:
         session.add(
             SystemNotificationConfigEntity(
                 channel="email",
-                config_json=json.dumps(email_cfg, ensure_ascii=False),
+                config=email_cfg,
                 enabled=True,
             )
         )
@@ -322,7 +321,7 @@ def _seed_notification_configs(session) -> None:
             session.add(
                 SystemNotificationConfigEntity(
                     channel="dingtalk",
-                    config_json=json.dumps(dt_cfg, ensure_ascii=False),
+                    config=dt_cfg,
                     enabled=True,
                 )
             )
@@ -340,7 +339,7 @@ def _seed_notification_configs(session) -> None:
             session.add(
                 SystemNotificationConfigEntity(
                     channel="feishu",
-                    config_json=json.dumps(fs_cfg, ensure_ascii=False),
+                    config=fs_cfg,
                     enabled=True,
                 )
             )

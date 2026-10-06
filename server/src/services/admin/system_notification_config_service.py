@@ -48,15 +48,15 @@ class SystemNotificationConfigService:
         """
         return self._repository.list_all()
 
-    def update_config(self, channel: str, config_json: str, enabled: bool) -> None:
+    def update_config(self, channel: str, config: dict, enabled: bool) -> None:
         """按渠道更新或创建配置（upsert）并提交事务。
 
         Args:
             channel: 通知渠道标识（email / dingtalk / feishu / station 等）
-            config_json: 渠道配置 JSON 字符串
+            config: 渠道配置对象（webhook 地址、密钥等）
             enabled: 是否启用该渠道
         """
-        self._repository.upsert(channel=channel, config_json=config_json, enabled=enabled)
+        self._repository.upsert(channel=channel, config=config, enabled=enabled)
         self._repository.commit()
         logger.info("System notification config updated: channel=%s enabled=%s", channel, enabled)
 

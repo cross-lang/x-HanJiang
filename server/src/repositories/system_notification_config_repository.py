@@ -37,18 +37,18 @@ class SystemNotificationConfigRepository(BaseRepository[SystemNotificationConfig
     def upsert(
         self,
         channel: str,
-        config_json: str,
+        config: dict,
         enabled: bool,
     ) -> SystemNotificationConfigEntity:
         """按渠道更新或创建配置。"""
         row = self.get_by_channel(channel)
         if row:
-            row.config_json = config_json
+            row.config = config
             row.enabled = enabled
         else:
             row = SystemNotificationConfigEntity(
                 channel=channel,
-                config_json=config_json,
+                config=config,
                 enabled=enabled,
             )
             self.session.add(row)
