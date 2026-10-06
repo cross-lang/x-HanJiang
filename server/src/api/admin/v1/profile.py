@@ -229,8 +229,8 @@ def delete_recipient(
 )
 @permission(PermissionCode.PROFILE_EDIT)
 def test_my_recipient(
-    channel: str = Query(..., description="渠道标识（dingtalk / feishu）"),
     request: Request,
+    channel: str = Query(..., description="渠道标识（dingtalk / feishu）"),
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:

@@ -13,11 +13,11 @@ import binascii
 
 from fastapi import APIRouter, Depends, Path, Query, Request
 
+from src.api.dependencies import get_file_service
 from src.api.open.dependencies import (
     CurrentApp,
     get_app_operator_context,
     get_current_app,
-    get_file_service,
     require_app_scope,
 )
 from src.api.open.scope_decorator import app_scope

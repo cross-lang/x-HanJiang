@@ -2,11 +2,12 @@
 """
 管理系统（admin 域）FastAPI 依赖注入模块。
 
-本文件承载管理后台（/api/v1、/api/admin/v1）的全部依赖工厂：
-- 用户/角色/权限/审计/文件/仪表盘/公告/站内信/菜单/个人中心/AI 助手等服务工厂
+本文件承载管理后台（/api/admin/v1）的全部依赖工厂：
+- 权限/审计/告警/仪表盘/公告/站内信/菜单/个人中心/AI 助手等服务工厂
 - 管理端会话鉴权族（get_current_user / require_user_role / require_user_permission 等）
 
-跨域公共依赖（get_db_session / get_notification_dispatcher / _bearer_scheme 等）
+跨域公共依赖（get_db_session / get_notification_dispatcher / _bearer_scheme 及
+用户/角色/文件共享服务工厂 get_user_service / get_role_service / get_file_service）
 位于 src/api/dependencies.py；开放接口域见 src/api/open/dependencies.py；
 开放平台门户域见 src/api/open_portal/dependencies.py。
 """
@@ -59,9 +60,6 @@ if TYPE_CHECKING:
     from src.services.admin.system_monitor_service import SystemMonitorService
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
     from src.services.admin.system_notification_service import SystemNotificationService
-    from src.services.file_service import FileStorageService
-    from src.services.role_service import RoleService
-    from src.services.user_service import UserService
 
 
 
@@ -90,21 +88,6 @@ def get_role_repository(
     from src.repositories.role_repository import RoleRepository
 
     return RoleRepository(session=db_session)
-
-
-def get_user_service(
-    user_repository: UserRepository = Depends(get_user_repository),
-    role_repository: RoleRepository = Depends(get_role_repository),
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
-) -> UserService:
-    """使用当前请求的 Repository 创建用户服务。"""
-    from src.services.user_service import UserService
-
-    return UserService(
-        user_repository=user_repository,
-        role_repository=role_repository,
-        dispatcher=dispatcher,
-    )
 
 
 def get_alert_service(
@@ -162,22 +145,6 @@ def get_audit_service(
     from src.repositories.audit_log_repository import AuditLogRepository
 
     return AuditService(audit_log_repository=AuditLogRepository(session=db_session))
-
-
-def get_file_service(
-    db_session: Session = Depends(get_db_session),
-    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
-) -> FileStorageService:
-    """获取文件存储服务，使用 StorageProvider 抽象层 + 请求级仓库。"""
-    from src.infras.storage import get_cached_storage_provider
-    from src.repositories.file_repository import FileRepository
-    from src.services.file_service import FileStorageService
-
-    return FileStorageService(
-        file_repository=FileRepository(session=db_session),
-        provider=get_cached_storage_provider(),
-        dispatcher=dispatcher,
-    )
 
 
 def get_dashboard_service(
@@ -239,21 +206,6 @@ def get_auth_service(
         role_repository=role_repository,
         login_log_repository=login_log_repository,
         dispatcher=dispatcher,
-    )
-
-
-def get_role_service(
-    role_repository: RoleRepository = Depends(get_role_repository),
-    role_permission_repository: RolePermissionRepository = Depends(get_role_permission_repository),
-    permission_repository: PermissionRepository = Depends(get_permission_repository),
-) -> RoleService:
-    """使用当前请求的 Repository 创建角色服务。"""
-    from src.services.role_service import RoleService
-
-    return RoleService(
-        role_repository=role_repository,
-        role_permission_repository=role_permission_repository,
-        permission_repository=permission_repository,
     )
 
 

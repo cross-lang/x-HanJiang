@@ -51,7 +51,7 @@ export interface CapabilityApi {
 /** 开放能力模块（一级菜单"开放能力"下的二级菜单） */
 export interface CapabilityModule {
   /** 路由参数，对应 /capability/:module */
-  key: 'user' | 'role' | 'file' | 'app' | 'health'
+  key: 'user' | 'role' | 'file' | 'app' | 'health' | 'alert'
   name: string
   desc: string
   apis: CapabilityApi[]

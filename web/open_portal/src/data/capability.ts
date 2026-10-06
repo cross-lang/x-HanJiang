@@ -709,8 +709,7 @@ export const capabilityModules: CapabilityModule[] = [
     key: 'file',
     name: '文件管理',
     desc: '文件上传 / 下载 / 删除的开放能力（需 file:read / file:write scope）。',
-    apis: [
-      {
+    apis: [      {
         id: 'file-list',
         name: '文件列表',
         method: 'GET',
@@ -867,6 +866,60 @@ export const capabilityModules: CapabilityModule[] = [
           2,
         ),
         responseDesc: '删除结果标记。',
+      },
+    ],
+  },
+
+  // ─────────────────────────── 告警管理 ───────────────────────────
+  {
+    key: 'alert',
+    name: '告警管理',
+    desc: '系统告警推送的开放能力（需 alert:write scope）。',
+    apis: [
+      {
+        id: 'alert-send',
+        name: '发送系统告警',
+        method: 'POST',
+        path: '/alert/send',
+        scope: 'alert:write',
+        summary: '发送系统告警通知，告警将自动推送给超级管理员（邮箱/短信）以及已启用的钉钉/飞书 webhook。',
+        notes: [
+          '需 alert:write scope，未授权返回 403。',
+          '超级管理员渠道自动追加，recipients 仅用于指定额外接收人。',
+          '告警来源记录为调用方应用（App ID），便于追责与排查。',
+        ],
+        limits: ['subject 最长 200 字；message 最长 2000 字。'],
+        headers: COMMON_HEADERS,
+        query: [],
+        pathParams: [],
+        body: [
+          { name: 'subject', type: 'string', required: true, values: '-', limit: '最长 200 字', example: '服务异常', desc: '告警标题' },
+          { name: 'message', type: 'string', required: true, values: '-', limit: '最长 2000 字', example: '订单服务 5 分钟错误率超过阈值', desc: '告警内容' },
+          { name: 'recipients', type: 'object', required: false, values: '渠道→地址', limit: '-', example: '{"email":"ops@example.com"}', desc: '额外接收人（渠道→地址），超管渠道自动追加' },
+        ],
+        curl: `curl -X POST "${BASE}/alert/send" \\
+  -H "X-App-Id: hj_xxxxxxxx" \\
+  -H "X-App-Date: Sat, 03 Oct 2026 12:00:00 GMT" \\
+  -H "X-App-Authorization: HanJiang-1 hj_xxxxxxxx:{signature}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"subject":"服务异常","message":"订单服务 5 分钟错误率超过阈值","recipients":{"email":"ops@example.com"}}'`,
+        responseFields: [
+          ...COMMON_RESPONSE_FIELDS,
+          { name: 'data.delivered', type: 'integer', required: false, values: '-', limit: '实际触达渠道数', example: '3', desc: '告警成功触达的渠道数量' },
+          { name: 'data.message', type: 'string', required: false, values: '-', limit: '-', example: '告警已发送', desc: '发送结果提示' },
+        ],
+        responseExample: JSON.stringify(
+          {
+            code: 200,
+            message: 'OK',
+            data: { delivered: 3, message: '告警已发送' },
+            timestamp: '2026-10-06T12:00:00Z',
+            request_id: 'req_open_xxxxx',
+          },
+          null,
+          2,
+        ),
+        responseDesc: 'delivered 表示告警成功触达的渠道数量（邮件/短信/webhook 各自计数）。',
       },
     ],
   },

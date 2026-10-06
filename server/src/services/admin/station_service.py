@@ -1,5 +1,4 @@
 """站内信服务。
-仅调用 StationMessageRepository 存取数据，不直接操作数据库会话。
 """
 
 from datetime import datetime
@@ -9,8 +8,10 @@ from src.models.entities.station_message_entity import StationMessageEntity
 from src.repositories.station_message_repository import StationMessageRepository
 
 # 来源 → 中文名（与前端站内信页面 SOURCE_LABELS 保持一致）
+# station 直发不入 NotificationSource 枚举（见枚举 docstring），用字面量
 _SOURCE_LABELS: dict[str, str] = {
     NotificationSource.SYSTEM_NOTICE.value: "系统通知",
+    "station": "站内信",
     NotificationSource.MANUAL.value: "手动触发",
     NotificationSource.ALERT.value: "系统告警",
     NotificationSource.OPENAPI_APP.value: "开放平台",
@@ -243,7 +244,7 @@ class StationMessageService:
         title: str,
         content: str,
         *,
-        source: str = NotificationSource.STATION.value,
+        source: str = "station",
         event_type: str | None = None,
         operator_id: int | None = None,
     ) -> None:

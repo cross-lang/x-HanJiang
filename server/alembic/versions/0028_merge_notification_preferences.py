@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0028"
-down_revision = "0027_simplify_system_notifications"
+down_revision = "0027"
 branch_labels = None
 depends_on = None
 
@@ -51,8 +51,8 @@ def upgrade() -> None:
         unique=True,
     )
 
-    # 5) 删除旧 preferences 表
-    op.drop_table("user_notification_preferences")
+    # 5) 删除旧 preferences 表（可能不存在，使用 IF EXISTS 兼容）
+    op.execute("DROP TABLE IF EXISTS user_notification_preferences")
 
 
 def downgrade() -> None:

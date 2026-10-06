@@ -2,7 +2,6 @@
 """系统运行监控业务逻辑。
 
 基于 psutil 采集 CPU / 内存 / 磁盘 / 网络 / 运行时长，供仪表盘监控面板展示。
-与通知渠道配置、通知发送链路无业务关联，独立成 service。
 """
 
 from __future__ import annotations

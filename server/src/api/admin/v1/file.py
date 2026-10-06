@@ -3,8 +3,9 @@
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 
-from src.api.admin.dependencies import get_current_user, get_file_service, is_admin_user, require_user_permission
+from src.api.admin.dependencies import get_current_user, is_admin_user, require_user_permission
 from src.api.admin.permission_decorator import permission
+from src.api.dependencies import get_file_service
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.admin.auth import CurrentUser

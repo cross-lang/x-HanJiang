@@ -7,9 +7,9 @@
 - 网关鉴权（get_current_app）与 scope 门槛（require_app_scope）
 - 应用态操作人上下文（get_app_operator_context）
 
-开放能力复用管理系统业务服务（用户/角色/文件），
-get_user_service / get_role_service / get_file_service 在此转发自管理端依赖模块。
-跨域公共依赖见 src/api/dependencies.py；门户域见 src/api/open_portal/dependencies.py。
+开放能力复用跨域共享业务服务（用户/角色/文件），
+get_user_service / get_role_service / get_file_service 由 src/api/dependencies.py 提供。
+门户域依赖见 src/api/open_portal/dependencies.py。
 """
 
 from __future__ import annotations

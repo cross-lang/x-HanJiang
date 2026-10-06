@@ -22,7 +22,7 @@ from src.schemas.admin.openapi_app import OpenApiAppResponse
 from src.schemas.common import PaginatedResponse
 from src.services.admin.developer_admin_service import DeveloperAdminService
 
-router = APIRouter(prefix="/developers", tags=["管理系统：开放平台用户管理"])
+router = APIRouter(prefix="/developers", tags=["管理系统：开放平台开发者管理"])
 
 
 @router.get(

@@ -84,15 +84,15 @@ export function listNotificationDeliveries(
 }
 
 export function listNotificationConfigs() {
-  return request.get<PageResult<NotificationConfig>>('/admin/notification-configs')
+  return request.get<PageResult<NotificationConfig>>('/notification-configs')
 }
 
 export function updateNotificationConfig(channel: string, data: Partial<NotificationConfig>) {
-  return request.put<NotificationConfig>(`/admin/notification-configs/${channel}`, data)
+  return request.put<NotificationConfig>(`/notification-configs/${channel}`, data)
 }
 
 export function testNotificationConfig(channel: string, data: Partial<NotificationConfig>) {
-  return request.post<{ success: boolean; error?: string }>(`/admin/notification-configs/${channel}/test`, data)
+  return request.post<{ success: boolean; error?: string }>(`/notification-configs/${channel}/test`, data)
 }
 
 /** 站内信：未读数 */

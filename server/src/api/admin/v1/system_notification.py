@@ -2,7 +2,7 @@
 
 提供系统通知的发布（幂等、定向受众、多渠道强推）、撤回、重新发布、
 列表、详情与投递明细查询。
-系统级通知渠道的配置管理见 notification_config.py。
+系统级通知渠道的配置管理见 system_notification_config.py。
 """
 
 from fastapi import APIRouter, Depends, Query, Request

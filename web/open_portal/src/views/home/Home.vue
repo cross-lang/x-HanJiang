@@ -65,7 +65,14 @@
     <el-card shadow="never" class="hj-mt-20 guide-card">
       <h3 class="guide-title">开放能力模块</h3>
       <div class="module-grid">
-        <div v-for="m in modules" :key="m.code" class="module-card">
+        <div
+          v-for="m in modules"
+          :key="m.code"
+          class="module-card"
+          role="link"
+          :title="`查看${m.name}开放接口`"
+          @click="goModule(m.code)"
+        >
           <el-icon :size="22" class="module-icon" color="#409eff"><component :is="m.icon" /></el-icon>
           <div class="module-name">{{ m.name }}</div>
           <div class="module-scopes">
@@ -80,7 +87,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { Document, FirstAidKit, Folder, Grid, Plus, User, UserFilled } from '@element-plus/icons-vue'
+import { Document, FirstAidKit, Folder, Grid, Plus, User, UserFilled, Warning } from '@element-plus/icons-vue'
 import { capabilityModules, totalCapabilityApis } from '@/data/capability'
 import { useDeveloperStore } from '@/stores/developer'
 import { listMyApps } from '@/api/apps'
@@ -117,6 +124,7 @@ const MODULE_ICONS: Record<string, Component> = {
   user: User,
   role: UserFilled,
   file: Folder,
+  alert: Warning,
 }
 
 const modules = computed(() =>
@@ -127,6 +135,11 @@ const modules = computed(() =>
     scopes: [...new Set(m.apis.map(a => a.scope).filter(s => s && s !== '仅需有效应用凭证'))],
   })),
 )
+
+/** 跳转到对应开放能力模块（/capability/:key） */
+function goModule(code: string) {
+  router.push(`/capability/${code}`)
+}
 
 onMounted(async () => {
   void fetchScopes()
@@ -327,6 +340,7 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 18px 20px;
   background: var(--hj-bg-page);
+  cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .module-card:hover {

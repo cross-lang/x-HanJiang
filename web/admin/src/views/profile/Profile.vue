@@ -107,7 +107,9 @@
                 <template #default="{ row }">
                   <el-switch
                     :model-value="(row as PreferenceEvent).channels.find(c => c.code === ch.code)?.enabled"
-                    @change="(val: string | number | boolean) => toggleChannel(row.event, ch.code, val as boolean)"
+                    @change="
+                      (val: string | number | boolean) => toggleChannel(row as PreferenceEvent, ch.code, val as boolean)
+                    "
                   />
                 </template>
               </el-table-column>
@@ -428,12 +430,16 @@ async function updateEmailInfo() {
   }
 }
 
-async function toggleChannel(event: string, channel: string, enabled: boolean) {
+async function toggleChannel(row: PreferenceEvent, channel: string, enabled: boolean) {
+  // 乐观更新：先切 UI，再发请求；失败回滚
+  const ch = row.channels.find(c => c.code === channel)
+  const prev = ch?.enabled
+  if (ch) ch.enabled = enabled
   try {
-    await updateNotificationPreferences({ [event]: { [channel]: enabled } })
+    await updateNotificationPreferences({ [row.event]: { [channel]: enabled } })
     ElMessage.success('已更新')
   } catch {
-    /* 错误已处理 */
+    if (ch) ch.enabled = prev ?? false
   }
 }
 
@@ -516,11 +522,11 @@ async function unbindWebhook(channel: 'dingtalk' | 'feishu') {
 async function testWebhook(channel: 'dingtalk' | 'feishu') {
   if (!bindingState.value[channel]) return
   try {
-    const { success, error } = await testMyRecipient(channel)
-    if (success) {
+    const res = await testMyRecipient(channel)
+    if (res.data.success) {
       ElMessage.success('测试消息已发送，请查收')
     } else {
-      ElMessage.error(error || '发送失败')
+      ElMessage.error(res.data.error || '发送失败')
     }
   } catch {
     /* 错误已处理 */
