@@ -17,7 +17,7 @@ Classes:
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, ClassVar, Generic, NoReturn, TypeVar
+from typing import Any, ClassVar, Generic, NoReturn, Type, TypeVar
 
 from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
@@ -41,7 +41,7 @@ class BaseRepository(ABC, Generic[T, ID]):
         _handle_integrity_error(): 自定义唯一约束异常处理
     """
 
-    model_class: ClassVar[type]
+    model_class: ClassVar[Type[T]]
 
     def __init__(self, session: Session | None = None) -> None:
         """初始化 Repository。

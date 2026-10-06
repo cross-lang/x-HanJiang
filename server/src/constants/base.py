@@ -86,7 +86,7 @@ class BaseEnum(Enum):
 def _new_native_member(cls: type, native_type: type, mark: object) -> object:
     """类型混入枚举的公共构造：只用 mark 调原生构造，并回填 Enum 要求的 _value_。"""
     obj = native_type.__new__(cls, mark)
-    obj._value_ = mark
+    setattr(obj, "_value_", mark)
     return obj
 
 
