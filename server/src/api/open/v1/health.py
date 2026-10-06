@@ -2,6 +2,7 @@
 """开放 API 健康管理接口。"""
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.open.dependencies import get_current_app
 from src.api.response import success_response
@@ -20,7 +21,7 @@ router = APIRouter(tags=["开放API：健康管理"])
 )
 async def openapi_health(
     request: Request,
-):
+) -> JSONResponse:
     """轻量探活，确认开放 API 网关正常且调用方凭证有效。"""
     return success_response(
         {
@@ -40,7 +41,7 @@ async def openapi_health(
 )
 async def openapi_version(
     request: Request,
-):
+) -> JSONResponse:
     """返回开放 API 版本号。"""
     return success_response(
         {

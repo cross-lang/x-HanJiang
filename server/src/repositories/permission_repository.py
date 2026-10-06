@@ -11,7 +11,10 @@ Classes:
     PermissionRepository: 权限数据访问 SQLAlchemy 实现
 """
 
+from typing import Any, NoReturn
+
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import ConflictException
 from src.models.entities.user_entity import PermissionEntity
@@ -23,7 +26,7 @@ class PermissionRepository(BaseRepository[PermissionEntity, int]):
 
     model_class = PermissionEntity
 
-    def _handle_integrity_error(self, error, entity):
+    def _handle_integrity_error(self, error: IntegrityError, entity: Any) -> NoReturn:
         raise ConflictException(
             message="权限编码已存在",
             details={"error": str(error.orig)},
@@ -45,7 +48,7 @@ class PermissionRepository(BaseRepository[PermissionEntity, int]):
         limit: int = 100,
     ) -> tuple[list[PermissionEntity], int]:
         """按关键字/模块/操作类型搜索权限（分页）。"""
-        conditions = [PermissionEntity.is_deprecated.is_(False)]
+        conditions: list[Any] = [PermissionEntity.is_deprecated.is_(False)]
         if keyword:
             like = f"%{keyword}%"
             conditions.append((PermissionEntity.perm_name.like(like)) | (PermissionEntity.perm_code.like(like)))

@@ -2,11 +2,14 @@
 """开放平台应用数据访问。"""
 
 from datetime import datetime
+from typing import Any, NoReturn
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import ConflictException
 from src.models.entities.app_entity import OpenApiAppEntity, OpenApiScopeEntity
+from src.models.entities.developer_entity import DeveloperEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.base_repository import BaseRepository
 
@@ -24,7 +27,7 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         """
         return select(OpenApiAppEntity).where(OpenApiAppEntity.deleted_at.is_(None))
 
-    def _handle_integrity_error(self, error, entity):
+    def _handle_integrity_error(self, error: IntegrityError, entity: Any) -> NoReturn:
         raise ConflictException(
             message="AppId 已存在",
             details={"error": str(error.orig)},
@@ -86,10 +89,9 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
     def get_owner_user(self, user_id: int) -> UserEntity | None:
         """查询归属管理员用户（owner_type=admin 时组装 owner 名称）。"""
         return self.session.get(UserEntity, user_id)
-    def get_owner_developer(self, developer_id: int):
-        """查询归属开发者（owner_type=developer 时组装 owner 名称）。"""
-        from src.models.entities.developer_entity import DeveloperEntity
 
+    def get_owner_developer(self, developer_id: int) -> DeveloperEntity | None:
+        """查询归属开发者（owner_type=developer 时组装 owner 名称）。"""
         return self.session.get(DeveloperEntity, developer_id)
 
     def list_user_ids_by_perm(self, perm_code: str) -> list[int]:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.constants.enums import NotificationChannel, NotificationTargetType, SystemNotificationType
@@ -101,7 +102,7 @@ class SystemNotificationResponse(BaseModel):
     status: str = Field(description="发布状态（published/withdrawn）")
     operator_id: int | None = Field(default=None, description="操作人用户 ID")
     operator_name: str | None = Field(default=None, description="操作人用户名")
-    metadata_json: dict | None = Field(default=None, description="扩展元数据（维护参数/受众/强推快照）")
+    metadata_json: dict[str, Any] | None = Field(default=None, description="扩展元数据（维护参数/受众/强推快照）")
     published_at: datetime | None = Field(default=None, description="发布时间")
     withdrawn_at: datetime | None = Field(default=None, description="撤回时间")
     created_at: datetime | None = Field(default=None, description="创建时间")
@@ -127,7 +128,7 @@ class SystemNotificationConfigResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int = Field(description="配置 ID")
     channel: str = Field(description="渠道标识（email/dingtalk/feishu/station/sms）")
-    config: dict = Field(default_factory=dict, description="渠道配置对象")
+    config: dict[str, Any] = Field(default_factory=dict, description="渠道配置对象")
     enabled: bool = Field(description="是否启用")
 
 
@@ -205,5 +206,5 @@ class UpdateNotificationConfigRequest(BaseModel):
     对应 system_notification_configs 表的 config 与 enabled 字段。
     """
 
-    config: dict = Field(default_factory=dict, description="渠道配置对象（webhook 地址、密钥等）")
+    config: dict[str, Any] = Field(default_factory=dict, description="渠道配置对象（webhook 地址、密钥等）")
     enabled: bool = Field(default=True, description="是否启用该渠道")

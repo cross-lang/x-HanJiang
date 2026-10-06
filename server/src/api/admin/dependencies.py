@@ -21,9 +21,10 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
-from src.api.dependencies import _bearer_scheme, get_db_session, get_notification_dispatcher
+from src.api.dependencies import _bearer_scheme, get_notification_dispatcher
 from src.constants.enums import SystemRoleCode
 from src.core.exceptions import AuthorizationException
+from src.infras.database import get_db_session
 from src.schemas.admin.auth import CurrentUser
 from src.services.admin.alert_service import AlertService
 from src.services.admin.audit_service import AuditService

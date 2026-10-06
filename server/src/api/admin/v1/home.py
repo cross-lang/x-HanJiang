@@ -5,9 +5,9 @@
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
-    CurrentUser,
     get_current_user,
     get_dashboard_service,
     require_user_permission,
@@ -15,6 +15,7 @@ from src.api.admin.dependencies import (
 from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
+from src.schemas.admin.auth import CurrentUser
 from src.services.admin.dashboard_service import DashboardService
 
 router = APIRouter(prefix="/home", tags=["管理系统：首页"])
@@ -30,7 +31,7 @@ def get_my_activity(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: DashboardService = Depends(get_dashboard_service),
-):
+) -> JSONResponse:
     """获取当前用户的最近登录日志和操作日志（首页展示用）。
 
     Args:

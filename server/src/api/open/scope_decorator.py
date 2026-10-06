@@ -11,20 +11,29 @@ scope 的全部元数据均来自 src.constants.scopes.OpenApiScopeCode 统一�
 """
 
 from collections.abc import Callable
+from typing import Any, ParamSpec, TypeVar
+
+from fastapi import FastAPI
 
 from src.constants.scopes import OpenApiScopeCode
 from src.core.logger import logger
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
-def app_scope(code: OpenApiScopeCode):
+
+def app_scope(code: OpenApiScopeCode) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
     """声明开放 API 路由所需 scope（仅挂载元数据，鉴权仍用 Depends(require_app_scope(...))）。
 
     Args:
         code: OpenApiScopeCode 枚举成员，携带 scope 码 / 中文名 / 模块 /
               操作类型 / 描述 / 排序号全部元数据
+
+    Returns:
+        保持原函数签名的装饰器。
     """
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[_P, _R]) -> Callable[_P, _R]:
         func._scope_code = code.mark
         func._scope_name = code.scope_name
         func._scope_module = code.module
@@ -36,29 +45,38 @@ def app_scope(code: OpenApiScopeCode):
     return decorator
 
 
-def collect_scopes_from_app(app) -> list[dict]:
-    """扫描 FastAPI 应用所有路由，收集带 @app_scope 装饰器的 scope 元数据。"""
-    scopes = []
+def collect_scopes_from_app(app: FastAPI) -> list[dict[str, Any]]:
+    """扫描 FastAPI 应用所有路由，收集带 @app_scope 装饰器的 scope 元数据。
+
+    Args:
+        app: FastAPI 应用实例
+
+    Returns:
+        scope 元数据字典列表（scope_code / scope_name / module / operation /
+        description / sort_order），按 scope_code 去重。
+    """
+    scopes: list[dict[str, Any]] = []
     for route in app.routes:
         if hasattr(route, "endpoint"):
             endpoint = route.endpoint
             path = getattr(route, "path", "?")
-            if hasattr(endpoint, "_scope_code"):
-                logger.debug(f"Found app scope: {endpoint._scope_code} at {path}")
+            scope_code = getattr(endpoint, "_scope_code", None)
+            if scope_code is not None:
+                logger.debug(f"Found app scope: {scope_code} at {path}")
                 scopes.append(
                     {
-                        "scope_code": endpoint._scope_code,
-                        "scope_name": endpoint._scope_name or endpoint._scope_code,
-                        "module": endpoint._scope_module or "",
-                        "operation": endpoint._scope_operation or "",
+                        "scope_code": scope_code,
+                        "scope_name": getattr(endpoint, "_scope_name", None) or scope_code,
+                        "module": getattr(endpoint, "_scope_module", None) or "",
+                        "operation": getattr(endpoint, "_scope_operation", None) or "",
                         # 描述 / 排序号来自 OpenApiScopeCode 目录（非 docstring / 扫描顺序）
-                        "description": endpoint._scope_description or "",
-                        "sort_order": endpoint._scope_sort_order,
+                        "description": getattr(endpoint, "_scope_description", None) or "",
+                        "sort_order": getattr(endpoint, "_scope_sort_order", 0),
                     }
                 )
     # 按 scope_code 去重
-    seen = set()
-    unique = []
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
     for s in scopes:
         if s["scope_code"] not in seen:
             seen.add(s["scope_code"])
@@ -66,7 +84,7 @@ def collect_scopes_from_app(app) -> list[dict]:
     return unique
 
 
-def sync_scopes_to_db(app) -> tuple[int, int]:
+def sync_scopes_to_db(app: FastAPI) -> tuple[int, int]:
     """启动时将开放 API 路由上的 @app_scope 声明对账同步到 openapi_scopes 表。
 
     以代码中的 OpenApiScopeCode 声明为唯一事实来源：

@@ -147,7 +147,7 @@ class TestExceptionHandlers:
         assert response.status_code == 500
         data = response.json()
         assert data["code"] == 500
-        assert data["message"] == "Internal server error"
+        assert data["message"] == "Internal Server Error"
 
     def test_not_found_exception_handler(self):
         """测试资源未找到异常处理器。"""

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 HTTP 客户端基础设施模块
 本模块提供通用的 HTTP 请求客户端封装，支持 GET、POST、PUT、DELETE 等方法。
@@ -17,7 +17,7 @@ Usage:
 
 from __future__ import annotations
 
-import json
+import json as _json
 import time
 from abc import ABC, abstractmethod
 from typing import Any
@@ -165,7 +165,7 @@ class RequestsHttpProvider(HttpProvider):
         response: Response = self._request("GET", url, params=params, **kwargs)
         try:
             return response.json()
-        except json.JSONDecodeError:
+        except _json.JSONDecodeError:
             return response.text
 
     def post(
@@ -188,7 +188,7 @@ class RequestsHttpProvider(HttpProvider):
         response: Response = self._request("POST", url, data=data, json=json, **kwargs)
         try:
             return response.json()
-        except json.JSONDecodeError:
+        except _json.JSONDecodeError:
             return response.text
 
     def put(
@@ -211,7 +211,7 @@ class RequestsHttpProvider(HttpProvider):
         response: Response = self._request("PUT", url, data=data, json=json, **kwargs)
         try:
             return response.json()
-        except json.JSONDecodeError:
+        except _json.JSONDecodeError:
             return response.text
 
     def delete(self, url: str, **kwargs: Any) -> Any:
@@ -230,7 +230,7 @@ class RequestsHttpProvider(HttpProvider):
         response: Response = self._request("DELETE", url, **kwargs)
         try:
             return response.json()
-        except json.JSONDecodeError:
+        except _json.JSONDecodeError:
             return response.text
 
     def close(self) -> None:

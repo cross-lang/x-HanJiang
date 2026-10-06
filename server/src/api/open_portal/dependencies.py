@@ -18,7 +18,8 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
-from src.api.dependencies import _bearer_scheme, get_db_session
+from src.api.dependencies import _bearer_scheme
+from src.infras.database import get_db_session
 from src.schemas.open_portal.auth import CurrentDeveloper
 
 if TYPE_CHECKING:

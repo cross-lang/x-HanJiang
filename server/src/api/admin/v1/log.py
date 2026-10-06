@@ -4,6 +4,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from src.api.admin.dependencies import (
     get_audit_service,
@@ -79,7 +80,7 @@ def list_audit_logs(
     page_size: int = Query(default=20, ge=1, le=100, description="每页条数，1-100。"),
     audit_service: AuditService = Depends(get_audit_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     # 普通用户只能看自己的操作记录
     if not is_admin_user(current_user):
         operator_id = current_user.id
@@ -97,7 +98,8 @@ def list_audit_logs(
     user_ids = list({i["operator_id"] for i in items if i.get("operator_id")})
     user_map = audit_service.get_operator_names(user_ids)
     for i in items:
-        u = user_map.get(i.get("operator_id"))
+        operator_id = i.get("operator_id")
+        u = user_map.get(operator_id) if isinstance(operator_id, int) else None
         i["operator_username"] = u["username"] if u else ""
         i["operator_real_name"] = u["name"] if u else ""
     result["items"] = items
@@ -118,7 +120,7 @@ def export_audit_logs(
     start_time: datetime | None = None,
     end_time: datetime | None = None,
     audit_service: AuditService = Depends(get_audit_service),
-):
+) -> StreamingResponse:
     result = audit_service.search(
         entity_type=entity_type,
         action=action,
@@ -178,8 +180,8 @@ def get_audit_log(
     log_id: int,
     request: Request,
     audit_service: AuditService = Depends(get_audit_service),
-    _=Depends(get_current_user),
-):
+    _: CurrentUser = Depends(get_current_user),
+) -> JSONResponse:
     result = audit_service.get_by_id(log_id)
     if result is None:
         raise NotFoundException(message=f"审计日志 {log_id} 不存在")
@@ -222,7 +224,7 @@ def list_login_logs(
     page_size: int = Query(default=20, ge=1, le=100),
     login_service: LoginLogService = Depends(get_login_log_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     # 普通用户只能看自己的登录日志
     if not is_admin_user(current_user):
         user_id = current_user.id
@@ -254,7 +256,7 @@ def export_login_logs(
     end_time: datetime | None = None,
     login_service: LoginLogService = Depends(get_login_log_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> StreamingResponse:
     user_id = None if is_admin_user(current_user) else current_user.id
     result = login_service.search(
         user_id=user_id,
@@ -308,8 +310,8 @@ def get_login_log(
     log_id: int,
     request: Request,
     login_service: LoginLogService = Depends(get_login_log_service),
-    _=Depends(get_current_user),
-):
+    _: CurrentUser = Depends(get_current_user),
+) -> JSONResponse:
     result = login_service.get_detail(log_id)
     if result is None:
         raise NotFoundException(message=f"登录日志 {log_id} 不存在")

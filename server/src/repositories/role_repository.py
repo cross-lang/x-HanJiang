@@ -12,8 +12,11 @@ Classes:
 """
 
 from datetime import datetime
+from typing import Any, NoReturn
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import Select
 
 from src.core.exceptions import ConflictException, DatabaseException
 from src.models.entities.user_entity import RoleEntity, UserRoleEntity
@@ -25,11 +28,11 @@ class RoleRepository(BaseRepository[RoleEntity, int]):
 
     model_class = RoleEntity
 
-    def _base_query(self):
+    def _base_query(self) -> Select[Any]:
         """排除软删除角色。"""
         return select(RoleEntity).where(RoleEntity.deleted_at.is_(None))
 
-    def _handle_integrity_error(self, error, entity):
+    def _handle_integrity_error(self, error: IntegrityError, entity: Any) -> NoReturn:
         raise ConflictException(
             message="角色编码或名称已存在",
             details={"error": str(error.orig)},
@@ -74,7 +77,7 @@ class RoleRepository(BaseRepository[RoleEntity, int]):
         limit: int = 100,
     ) -> tuple[list[RoleEntity], int]:
         """按关键字/类型/状态搜索未删除角色（分页）。"""
-        conditions = [RoleEntity.deleted_at.is_(None)]
+        conditions: list[Any] = [RoleEntity.deleted_at.is_(None)]
         if keyword:
             like = f"%{keyword}%"
             conditions.append((RoleEntity.role_name.like(like)) | (RoleEntity.role_code.like(like)))

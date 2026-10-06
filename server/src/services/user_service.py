@@ -10,7 +10,7 @@ Classes:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from src.constants.constants import SUPERADMIN_USERNAME
 from src.constants.enums import NotificationEvent, NotificationSource, UserStatus
@@ -304,9 +304,9 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             id=entity.id,
             username=entity.username,
             email=entity.email,
-            name=getattr(entity, "name", None),
-            gender=getattr(entity, "gender", None),
-            birthday=getattr(entity, "birthday", None),
+            name=entity.name,
+            gender=entity.gender,
+            birthday=entity.birthday.strftime("%Y-%m-%d"),
             phone=entity.phone,
             avatar_url=entity.avatar_url,
             roles=roles,
@@ -320,13 +320,13 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
     def _find_by_email(self, email: str) -> UserEntity | None:
         finder = getattr(self._repository, "get_by_email", None)
         if finder is not None:
-            return finder(email)
+            return cast(UserEntity | None, finder(email))
         return next((item for item in self._repository.get_all() if item.email == email), None)
 
     def _find_by_username(self, username: str) -> UserEntity | None:
         finder = getattr(self._repository, "get_by_username", None)
         if finder is not None:
-            return finder(username)
+            return cast(UserEntity | None, finder(username))
         return next((item for item in self._repository.get_all() if item.username == username), None)
 
     def _dispatch_notification(

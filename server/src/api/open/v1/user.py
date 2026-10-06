@@ -4,11 +4,14 @@
 operator 上下文记录为调用方应用，而非终端用户。
 """
 
+
+from typing import Any
+
 from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi.responses import JSONResponse
 
 from src.api.dependencies import get_user_service
 from src.api.open.dependencies import (
-    CurrentApp,
     get_app_operator_context,
     get_current_app,
     require_app_scope,
@@ -19,6 +22,7 @@ from src.constants.enums import UserStatus
 from src.constants.scopes import OpenApiScopeCode
 from src.schemas.admin.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.schemas.common import ApiResponse, PaginatedResponse
+from src.schemas.open.app import CurrentApp
 from src.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["开放API：用户管理"])
@@ -37,7 +41,7 @@ def create_user(
     request: Request,
     app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
-):
+) -> JSONResponse:
     """创建用户（需 `user:write` scope）。"""
     result = service.create(body.model_dump(), operator=get_app_operator_context(app))
     return success_response(result.model_dump(), request, code=201)
@@ -58,7 +62,7 @@ def list_users(
     status: UserStatus | None = Query(default=None, description="用户状态过滤"),
     app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
-):
+) -> JSONResponse:
     """查询用户列表（需 `user:read` scope）。"""
     status_value = status.value if status is not None else None
     result = service.search(keyword=keyword, status=status_value, page=page, page_size=page_size)
@@ -82,11 +86,11 @@ def list_users(
 )
 @app_scope(OpenApiScopeCode.USER_READ)
 def get_user(
+    request: Request,
     user_id: int = Path(ge=1, description="用户 ID"),
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
-):
+) -> JSONResponse:
     """查询单个用户详情（需 `user:read` scope）。"""
     from src.core.exceptions import NotFoundException
 
@@ -104,12 +108,12 @@ def get_user(
 )
 @app_scope(OpenApiScopeCode.USER_WRITE)
 def update_user(
+    body: UserUpdateRequest,
+    request: Request,
     user_id: int = Path(ge=1, description="用户 ID"),
-    body: UserUpdateRequest = ...,
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
-):
+) -> JSONResponse:
     """更新用户信息（需 `user:write` scope）。"""
     result = service.update(user_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app))
     return success_response(result.model_dump(), request)
@@ -118,16 +122,16 @@ def update_user(
 @router.delete(
     "/{user_id}",
     summary="开放 API 删除用户",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.USER_WRITE.mark))],
 )
 @app_scope(OpenApiScopeCode.USER_WRITE)
 def delete_user(
+    request: Request,
     user_id: int = Path(ge=1, description="用户 ID"),
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: UserService = Depends(get_user_service),
-):
+) -> JSONResponse:
     """软删除用户（需 `user:write` scope）。"""
     service.delete(user_id, operator=get_app_operator_context(app))
     return success_response({"deleted": True}, request)

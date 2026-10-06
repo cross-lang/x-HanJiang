@@ -307,7 +307,7 @@ async def _validation_exception_handler(request: Request, exc: RequestValidation
     from src.core.logger import logger
 
     request_id: str | None = getattr(request.state, "request_id", None)
-    errors: list[dict[str, Any]] = exc.errors()
+    errors = exc.errors()
     logger.bind(request_id=request_id or "-").warning(f"Validation error: {errors}")
     return error_response(
         request=request,
@@ -352,7 +352,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     """
     app.add_exception_handler(AppException, _app_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(Exception, _generic_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, _generic_exception_handler)
 
 
 __all__ = [

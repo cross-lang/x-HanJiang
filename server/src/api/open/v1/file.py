@@ -10,12 +10,14 @@ operator 上下文记录为调用方应用，而非终端用户。
 
 import base64
 import binascii
+from typing import Any
 
 from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from src.api.dependencies import get_file_service
 from src.api.open.dependencies import (
-    CurrentApp,
     get_app_operator_context,
     get_current_app,
     require_app_scope,
@@ -25,6 +27,7 @@ from src.api.response import success_response
 from src.constants.scopes import OpenApiScopeCode
 from src.core.exceptions import ValidationException
 from src.schemas.common import ApiResponse
+from src.schemas.open.app import CurrentApp
 from src.schemas.open.file import OpenFileUploadRequest
 from src.services.file_service import FileStorageService
 
@@ -34,7 +37,7 @@ router = APIRouter(prefix="/files", tags=["开放API：文件管理"])
 @router.get(
     "",
     summary="开放 API 文件列表",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.FILE_READ.mark))],
 )
 @app_scope(OpenApiScopeCode.FILE_READ)
@@ -46,7 +49,7 @@ def list_files(
     page_size: int = Query(default=20, ge=1, le=100, description="每页记录数"),
     app: CurrentApp = Depends(get_current_app),
     service: FileStorageService = Depends(get_file_service),
-):
+) -> JSONResponse:
     """查询文件列表（需 `file:read` scope）。"""
     result = service.list_files(folder=folder, keyword=keyword, page=page, page_size=page_size)
     return success_response(result, request)
@@ -55,7 +58,7 @@ def list_files(
 @router.post(
     "",
     summary="开放 API 上传文件",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     status_code=201,
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.FILE_WRITE.mark))],
 )
@@ -65,7 +68,7 @@ def upload_file(
     request: Request,
     app: CurrentApp = Depends(get_current_app),
     service: FileStorageService = Depends(get_file_service),
-):
+) -> JSONResponse:
     """上传文件（需 `file:write` scope；内容 base64 内嵌 JSON body）。"""
     try:
         data = base64.b64decode(body.content_base64, validate=True)
@@ -90,11 +93,11 @@ def upload_file(
 )
 @app_scope(OpenApiScopeCode.FILE_READ)
 def get_file(
+    request: Request,
     file_path: str = Path(description="文件路径（存储 key 或相对路径）"),
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: FileStorageService = Depends(get_file_service),
-):
+) -> Response:
     """下载文件（需 `file:read` scope；本地存储返回文件流，云存储返回 302 重定向 URL）。"""
     result = service.download_file(file_path, operator=get_app_operator_context(app))
     return result
@@ -103,16 +106,16 @@ def get_file(
 @router.delete(
     "/{file_id}",
     summary="开放 API 删除文件",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.FILE_WRITE.mark))],
 )
 @app_scope(OpenApiScopeCode.FILE_WRITE)
 def delete_file(
+    request: Request,
     file_id: int = Path(ge=1, description="文件 ID"),
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: FileStorageService = Depends(get_file_service),
-):
+    ) -> JSONResponse:
     """软删除文件（需 `file:write` scope）。"""
     service.delete_file(file_id, operator=get_app_operator_context(app))
     return success_response({"deleted": True}, request)

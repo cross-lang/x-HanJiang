@@ -18,6 +18,7 @@ from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.enums import AppOwnerType
 from src.constants.permissions import PermissionCode
+from src.schemas.admin.auth import CurrentUser
 from src.schemas.admin.openapi_app import (
     OpenApiAppCreatedResponse,
     OpenApiAppCreateRequest,
@@ -55,9 +56,9 @@ def list_scopes(
 def create_app(
     body: OpenApiAppCreateRequest,
     request: Request,
-    current_user=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     """创建开放应用。
     响应里的 app_key 仅本次返回，之后无法再查看。
     """
@@ -88,7 +89,7 @@ def list_apps(
     keyword: str | None = None,
     owner_type: str | None = None,
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     """返回分页应用列表（仅应用自身信息），结构与用户列表等接口一致：{items, total, page, page_size}。
 
     申请/审批相关记录由"应用审批"菜单（/app-registrations）独立承接。
@@ -121,7 +122,7 @@ def get_app(
     app_id: int,
     request: Request,
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     return success_response(service.get_by_id(app_id).model_dump(), request)
 
 
@@ -135,9 +136,9 @@ def update_app(
     app_id: int,
     body: OpenApiAppUpdateRequest,
     request: Request,
-    current_user=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     return success_response(
         service.update(
             app_id,
@@ -159,9 +160,9 @@ def update_app_scopes(
     app_id: int,
     body: OpenApiAppScopesUpdateRequest,
     request: Request,
-    current_user=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     """覆盖更新应用的 scope 列表。传入的 scopes 会完全覆盖原有值。"""
     return success_response(
         service.update_scopes(
@@ -184,9 +185,9 @@ def update_app_status(
     app_id: int,
     body: OpenApiAppStatusUpdateRequest,
     request: Request,
-    current_user=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     """启用或禁用应用（独立于通用更新，单独权限控制）。"""
     return success_response(
         service.update_status(
@@ -209,7 +210,7 @@ def rotate_key(
     app_id: int,
     request: Request,
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     resp, new_key = service.rotate_key(app_id)
     return success_response(
         {**resp.model_dump(), "app_key": new_key, "warning": "新 AppKey 仅本次返回"},
@@ -226,8 +227,8 @@ def rotate_key(
 def delete_app(
     app_id: int,
     request: Request,
-    current_user=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
-):
+) -> JSONResponse:
     ok = service.delete(app_id, operator=get_user_operator_context(current_user, request))
     return success_response({"deleted": ok}, request)

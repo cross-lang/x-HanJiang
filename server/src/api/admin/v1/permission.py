@@ -12,6 +12,7 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
     get_permission_service,
@@ -37,7 +38,7 @@ router = APIRouter(prefix="/permissions", tags=["管理系统：权限管理"])
 def permission_meta(
     request: Request,
     service: PermissionService = Depends(get_permission_service),
-):
+) -> JSONResponse:
     """返回模块和操作类型的去重列表。"""
     modules = service.get_all_modules()
     operations = service.get_all_operations()
@@ -59,7 +60,7 @@ def list_permissions(
     module: str | None = None,
     operation: str | None = None,
     service: PermissionService = Depends(get_permission_service),
-):
+) -> JSONResponse:
     """权限列表接口。"""
     result = service.search(
         keyword=keyword,
@@ -91,7 +92,7 @@ def get_permission(
     perm_id: int,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
-):
+) -> JSONResponse:
     """查询单个权限接口。"""
     from src.core.exceptions import NotFoundException
 

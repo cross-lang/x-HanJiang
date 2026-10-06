@@ -39,11 +39,20 @@ from src.repositories.role_repository import RoleRepository
 from src.repositories.system_notification_repository import SystemNotificationRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.admin.notification import (
+    NotificationDeliveryItemResponse,
     NotificationDeliveryListResponse,
     SystemNotificationResponse,
 )
 from src.schemas.common import PaginatedResponse
 from src.services.admin.station_service import StationMessageService
+
+
+def _resolve_target_type(value: str) -> NotificationTargetType:
+    """按 mark 反查发布受众类型枚举；未命中回退为全体用户。"""
+    for member in NotificationTargetType:
+        if member.mark == value:
+            return member
+    return NotificationTargetType.ALL
 
 
 class SystemNotificationService:
@@ -278,7 +287,8 @@ class SystemNotificationService:
             )
 
         metadata = entity.metadata_json or {}
-        target_type = NotificationTargetType(metadata.get("target_type", NotificationTargetType.ALL.value))
+        target_type_value = metadata.get("target_type", NotificationTargetType.ALL.value)
+        target_type = _resolve_target_type(str(target_type_value))
         push_channels = metadata.get("push_channels") or []
         now = datetime.now()
 
@@ -427,7 +437,7 @@ class SystemNotificationService:
         )
         stats = self._delivery_repository.count_by_notification_status(notice_id)
         return NotificationDeliveryListResponse(
-            items=items,
+            items=[NotificationDeliveryItemResponse.model_validate(item) for item in items],
             total=total,
             page=page,
             page_size=page_size,

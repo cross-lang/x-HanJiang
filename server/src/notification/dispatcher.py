@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
@@ -60,6 +61,14 @@ from src.repositories.notification_delivery_repository import NotificationDelive
 _STATION_RECIPIENT_RE = re.compile(r"^user:(\d+)$")
 
 
+def _resolve_event(event_type: str) -> NotificationEvent:
+    """按 mark 反查通知事件枚举成员；未命中抛出 ValueError（保持枚举构造语义）。"""
+    for member in NotificationEvent:
+        if member.mark == event_type:
+            return member
+    raise ValueError(f"未知通知事件: {event_type}")
+
+
 class NotificationDispatcher:
     """通知调度器。
 
@@ -85,7 +94,7 @@ class NotificationDispatcher:
     def dispatch(
         self,
         event_type: str | NotificationEvent,
-        recipients: dict[str, str | list[str]],
+        recipients: Mapping[str, str | list[str]],
         variables: dict[str, Any] | None = None,
         channels: list[str | NotificationChannel] | None = None,
         metadata: dict[str, Any] | None = None,
@@ -116,7 +125,7 @@ class NotificationDispatcher:
         """
         variables = variables or {}
         # 统一转为枚举，兼容字符串和枚举入参
-        event_enum = event_type if isinstance(event_type, NotificationEvent) else NotificationEvent(str(event_type))
+        event_enum = event_type if isinstance(event_type, NotificationEvent) else _resolve_event(str(event_type))
         event_type_str = event_enum.value
         target_channels = channels or DEFAULT_ROUTES.get(event_enum, [NotificationChannel.EMAIL])
         deliveries: list[NotificationDeliveryEntity] = []
@@ -286,12 +295,14 @@ class NotificationDispatcher:
 
     def _persist_deliveries(self, deliveries: list[NotificationDeliveryEntity]) -> None:
         """持久化投递明细到数据库。"""
+        if self._repository is None or self._session is None:
+            return
         try:
             for delivery in deliveries:
                 self._repository.create(delivery)
-            self._session.commit()  # type: ignore[union-attr]
+            self._session.commit()
         except Exception as exc:
-            self._session.rollback()  # type: ignore[union-attr]
+            self._session.rollback()
             logger.error("Failed to persist notification deliveries: {}", exc)
 
     def _write_station_inboxes(
@@ -305,6 +316,8 @@ class NotificationDispatcher:
             source: 通知来源
             inbox_items: (投递明细, 主题, 正文) 三元组列表
         """
+        if self._session is None:
+            return
         messages: list[StationMessageEntity] = []
         for delivery, subject, content in inbox_items:
             match = _STATION_RECIPIENT_RE.match(delivery.recipient)

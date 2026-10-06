@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from starlette.responses import Response
 
 from src.constants.enums import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
@@ -115,7 +116,9 @@ class FileStorageService:
             after_data={"filename": file_name, "key": result.key, "size": result.size, "folder": folder},
             remarks=f"上传文件{file_name}",
         )
-        logger.info(f"File uploaded: key={result.key} size={result.size} operator_id={uploaded_by_user} file_id={entity.id}")
+        logger.info(
+            f"File uploaded: key={result.key} size={result.size} operator_id={uploaded_by_user} file_id={entity.id}"
+        )
         return {
             "id": entity.id,
             "filename": file_name,
@@ -182,7 +185,7 @@ class FileStorageService:
         self,
         file_path: str,
         operator: dict[str, Any] | None = None,
-    ) -> FileResponse | RedirectResponse | StreamingResponse:
+    ) -> Response:
         normalized_path = file_path.strip("/")
         if not normalized_path or ".." in Path(normalized_path).parts:
             raise ValidationException(message="文件路径无效")

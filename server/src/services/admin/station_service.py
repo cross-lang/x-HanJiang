@@ -2,6 +2,7 @@
 """
 
 from datetime import datetime
+from typing import Any
 
 from src.constants.enums import NotificationEvent, NotificationSource
 from src.models.entities.station_message_entity import StationMessageEntity
@@ -74,7 +75,7 @@ class StationMessageService:
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         keyword: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """分页查询用户站内信（按时间倒序），支持来源/日期区间/关键词过滤。
 
         Args:
@@ -105,7 +106,7 @@ class StationMessageService:
                 "title": r.subject,
                 "content": r.content,
                 "event_type": r.event_type,
-                "event_type_label": NotificationEvent.get_desc_by_mark(r.event_type),
+                "event_type_label": NotificationEvent.get_desc_by_mark(r.event_type or ""),
                 "source": r.source,
                 "source_label": _source_label(r.source),
                 "is_read": r.is_read,
@@ -115,7 +116,7 @@ class StationMessageService:
         ]
         return {"total": total, "items": items}
 
-    def list_recent(self, user_id: int, limit: int = 10) -> dict:
+    def list_recent(self, user_id: int, limit: int = 10) -> dict[str, Any]:
         """查询用户最近站内信（铃铛下拉用，含未读数，一次返回）。
 
         Args:
@@ -136,7 +137,7 @@ class StationMessageService:
                 "title": r.subject,
                 "content": r.content,
                 "event_type": r.event_type,
-                "event_type_label": NotificationEvent.get_desc_by_mark(r.event_type),
+                "event_type_label": NotificationEvent.get_desc_by_mark(r.event_type or ""),
                 "source": r.source,
                 "source_label": _source_label(r.source),
                 "is_read": r.is_read,
@@ -146,7 +147,7 @@ class StationMessageService:
         ]
         return {"items": items, "unread_count": self._repository.unread_count(user_id)}
 
-    def get_message_detail(self, user_id: int, msg_id: int) -> dict | None:
+    def get_message_detail(self, user_id: int, msg_id: int) -> dict[str, Any] | None:
         """查询用户单条站内信详情。
 
         Args:
@@ -164,7 +165,7 @@ class StationMessageService:
             "title": msg.subject,
             "content": msg.content,
             "event_type": msg.event_type,
-            "event_type_label": NotificationEvent.get_desc_by_mark(msg.event_type),
+            "event_type_label": NotificationEvent.get_desc_by_mark(msg.event_type or ""),
             "source": msg.source,
             "source_label": _source_label(msg.source),
             "is_read": msg.is_read,
@@ -209,7 +210,7 @@ class StationMessageService:
                 "id": r.id,
                 "title": r.subject,
                 "content": r.content,
-                "event_type": event_type_labels.get(r.event_type, r.event_type),
+                "event_type": event_type_labels.get(r.event_type or "", r.event_type or ""),
                 "source": _source_label(r.source),
                 "status": "已读" if r.is_read else "未读",
                 "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else "",

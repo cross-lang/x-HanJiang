@@ -7,6 +7,7 @@
 
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import Request
 
@@ -58,6 +59,33 @@ def mask_sensitive(data: dict[str, Any], keys: list[str] | None = None) -> dict[
         else:
             masked[k] = v
     return masked
+
+
+def mask_url_credentials(url: str) -> str:
+    """脱敏 URL 中的账号/密码凭据，用于安全日志输出。
+
+    支持形如 ``mysql+pymysql://user:pass@host:3306/db`` 或
+    ``redis://default:pass@host:6379/0`` 的连接串；
+    密码统一替换为 ``***``，用户名保留以便排查。
+
+    Args:
+        url: 原始连接串（可能含明文账号密码）
+
+    Returns:
+        str: 脱敏后的连接串；解析失败时原样返回
+    """
+    try:
+        parsed = urlsplit(url)
+        if parsed.username is None and parsed.password is None:
+            return url
+        netloc: str = parsed.hostname or ""
+        if parsed.port:
+            netloc = f"{netloc}:{parsed.port}"
+        if parsed.username:
+            netloc = f"{parsed.username}:***@{netloc}"
+        return urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+    except ValueError:
+        return url
 
 
 def find_project_root(marker: str = "pyproject.toml") -> Path:

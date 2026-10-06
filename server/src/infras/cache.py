@@ -20,13 +20,14 @@ from typing import Any
 
 from src.core.config import settings
 from src.core.logger import logger
+from src.utils.helpers import mask_url_credentials
 
 try:
-    import redis
-    from redis import Redis
+    import redis as redis_module
+    from redis import Redis as RedisClient
 except ImportError:
-    redis = None
-    Redis = None  # type: ignore[assignment]
+    redis_module = None  # type: ignore[assignment]
+    RedisClient = None  # type: ignore[assignment,misc]
 
 
 # ============================================================
@@ -94,9 +95,9 @@ class RedisCacheProvider(CacheProvider):
     """Redis 缓存实现。"""
 
     def __init__(self, redis_url: str) -> None:
-        if redis is None:
+        if redis_module is None:
             raise ImportError("redis 库未安装，请运行 pip install redis")
-        self._client: Redis = redis.Redis.from_url(
+        self._client: RedisClient = redis_module.Redis.from_url(
             redis_url,
             decode_responses=True,
             socket_timeout=5,
@@ -105,7 +106,7 @@ class RedisCacheProvider(CacheProvider):
         )
         try:
             self._client.ping()
-            logger.info(f"RedisCacheProvider initialized: {redis_url}")
+            logger.info(f"RedisCacheProvider initialized: {mask_url_credentials(redis_url)}")
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
             raise
@@ -175,27 +176,28 @@ class RedisCacheProvider(CacheProvider):
 
     def zadd(self, key: str, mapping: dict[str, float]) -> int:
         try:
-            return self._client.zadd(key, mapping)
+            return int(self._client.zadd(key, mapping) or 0)
         except Exception as e:
             logger.warning(f"Cache zadd failed for key '{key}': {e}")
             return 0
 
     def zrem(self, key: str, *members: str) -> int:
         try:
-            return self._client.zrem(key, *members)
+            return int(self._client.zrem(key, *members) or 0)
         except Exception as e:
             logger.warning(f"Cache zrem failed for key '{key}': {e}")
             return 0
 
     def zrangebyscore(self, key: str, min_score: float, max_score: float, start: int = 0, num: int = 0) -> list[str]:
         try:
-            return self._client.zrangebyscore(key, min_score, max_score, start=start, num=num)
+            members = self._client.zrangebyscore(key, min_score, max_score, start=start, num=num)
+            return [str(member) for member in members]
         except Exception as e:
             logger.warning(f"Cache zrangebyscore failed for key '{key}': {e}")
             return []
 
     @property
-    def client(self) -> Redis:
+    def client(self) -> RedisClient:
         """暴露底层 Redis 客户端（仅供需要原生 Redis 操作的场景使用）。"""
         return self._client
 

@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.core.logger import logger
+from src.infras.email import EmailProvider
+from src.infras.http import HttpProvider
 
 
 # ============================================================
@@ -80,7 +82,7 @@ class StationNotificationProvider(BaseNotificationProvider):
 class EmailNotificationProvider(BaseNotificationProvider):
     """邮件通知渠道。"""
 
-    def __init__(self, email_provider=None) -> None:
+    def __init__(self, email_provider: EmailProvider | None = None) -> None:
         if email_provider is not None:
             self._email = email_provider
         else:
@@ -126,7 +128,7 @@ class DingTalkNotificationProvider(BaseNotificationProvider):
         app_key: str = "",
         app_secret: str = "",
         agent_id: str = "",
-        http_provider=None,
+        http_provider: HttpProvider | None = None,
     ) -> None:
         self._webhook_url = webhook_url
         self._secret = secret
@@ -248,7 +250,7 @@ class FeishuNotificationProvider(BaseNotificationProvider):
         secret: str = "",
         app_id: str = "",
         app_secret: str = "",
-        http_provider=None,
+        http_provider: HttpProvider | None = None,
     ) -> None:
         self._webhook_url = webhook_url
         self._secret = secret
@@ -508,7 +510,7 @@ def reload_providers_from_db() -> NotificationProviderRegistry:
     finally:
         session.close()
 
-    def _cfg(channel: str) -> dict:
+    def _cfg(channel: str) -> dict[str, Any]:
         row = db_configs.get(channel)
         if not row or not row.enabled:
             return {}

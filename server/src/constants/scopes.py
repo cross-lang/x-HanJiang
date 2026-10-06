@@ -16,6 +16,8 @@ view/create/edit/delete 细分动作体系相互独立。
 
 from __future__ import annotations
 
+from typing import cast
+
 from src.constants.base import BaseEnum, StrBaseEnum
 
 
@@ -89,17 +91,69 @@ class OpenApiScopeCode(BaseEnum):
         """展示排序号。"""
         return self._sort_order
 
+    @property
+    def mark(self) -> str:
+        """scope 码（覆写收窄为 str，避免与 BaseEnum 的 int|str 联合类型混淆）。"""
+        return cast(str, self._mark)
+
+    @property
+    def value(self) -> str:
+        """scope 码（枚举序列化兼容）。"""
+        return cast(str, self._mark)
+
     # ── 用户域 ────────────────────────────────────────────
-    USER_READ = ("user:read", "读取用户数据", OpenApiScopeModule.USER.mark, OpenApiScopeAction.READ.mark, "查询开放平台用户列表与详情", 1)
-    USER_WRITE = ("user:write", "写入用户数据", OpenApiScopeModule.USER.mark, OpenApiScopeAction.WRITE.mark, "创建、更新或删除开放平台用户", 2)
+    USER_READ = (
+        "user:read",
+        "读取用户数据",
+        OpenApiScopeModule.USER.mark,
+        OpenApiScopeAction.READ.mark,
+        "查询开放平台用户列表与详情",
+        1,
+    )
+    USER_WRITE = (
+        "user:write",
+        "写入用户数据",
+        OpenApiScopeModule.USER.mark,
+        OpenApiScopeAction.WRITE.mark,
+        "创建、更新或删除开放平台用户",
+        2,
+    )
 
     # ── 角色域 ────────────────────────────────────────────
-    ROLE_READ = ("role:read", "读取角色数据", OpenApiScopeModule.ROLE.mark, OpenApiScopeAction.READ.mark, "查询角色列表、详情与角色权限", 3)
-    ROLE_WRITE = ("role:write", "写入角色数据", OpenApiScopeModule.ROLE.mark, OpenApiScopeAction.WRITE.mark, "创建、更新或删除角色", 4)
+    ROLE_READ = (
+        "role:read",
+        "读取角色数据",
+        OpenApiScopeModule.ROLE.mark,
+        OpenApiScopeAction.READ.mark,
+        "查询角色列表、详情与角色权限",
+        3,
+    )
+    ROLE_WRITE = (
+        "role:write",
+        "写入角色数据",
+        OpenApiScopeModule.ROLE.mark,
+        OpenApiScopeAction.WRITE.mark,
+        "创建、更新或删除角色",
+        4,
+    )
 
     # ── 文件域 ────────────────────────────────────────────
-    FILE_READ = ("file:read", "读取文件数据", OpenApiScopeModule.FILE.mark, OpenApiScopeAction.READ.mark, "查询文件列表与下载文件", 5)
-    FILE_WRITE = ("file:write", "写入文件数据", OpenApiScopeModule.FILE.mark, OpenApiScopeAction.WRITE.mark, "上传或删除文件", 6)
+    FILE_READ = (
+        "file:read",
+        "读取文件数据",
+        OpenApiScopeModule.FILE.mark,
+        OpenApiScopeAction.READ.mark,
+        "查询文件列表与下载文件",
+        5,
+    )
+    FILE_WRITE = (
+        "file:write",
+        "写入文件数据",
+        OpenApiScopeModule.FILE.mark,
+        OpenApiScopeAction.WRITE.mark,
+        "上传或删除文件",
+        6,
+    )
 
     # ── 告警域 ────────────────────────────────────────────
     ALERT_WRITE = (

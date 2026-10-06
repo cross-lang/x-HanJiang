@@ -13,6 +13,7 @@ Functions:
 """
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.constants.constants import (
     SUPERADMIN_EMAIL,
@@ -190,12 +191,12 @@ def init_seed_data() -> None:
         session.close()
 
 
-def _find_role_by_code(session, role_code: str) -> RoleEntity | None:
+def _find_role_by_code(session: Session, role_code: str) -> RoleEntity | None:
     """按角色编码查询内置角色。"""
     return session.execute(select(RoleEntity).where(RoleEntity.role_code == role_code)).scalars().first()
 
 
-def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:
+def _ensure_role_permission(session: Session, role_id: int, permission_id: int) -> None:
     """确保角色权限关联存在，不存在则创建。"""
     relation = (
         session.execute(
@@ -216,7 +217,7 @@ def _ensure_role_permission(session, role_id: int, permission_id: int) -> None:
         session.flush()
 
 
-def _seed_menus(session) -> None:
+def _seed_menus(session: Session) -> None:
     """初始化菜单数据（幂等）。
 
     幂等键为 ``(parent_id, title)``：菜单树中允许不同父级下存在同名菜单
@@ -255,7 +256,7 @@ def _seed_menus(session) -> None:
     for parent_title, title, path, icon, perm_code, sort_order, mtype in _SEED_MENUS:
         parent_id = 0
         if parent_title != 0:
-            parent = parent_map.get(parent_title)
+            parent = parent_map.get(parent_title) if isinstance(parent_title, str) else None
             if parent:
                 parent_id = parent.id
         if (parent_id, title) in key_map:
@@ -277,7 +278,7 @@ def _seed_menus(session) -> None:
         logger.info(f"Seed menu created: title={title}")
 
 
-def _seed_notification_configs(session) -> None:
+def _seed_notification_configs(session: Session) -> None:
     """初始化通知渠道配置（幂等）。
     把 .env / config.yaml 里已有的 SMTP 配置写入 system_notification_configs 表，
     这样管理后台就能看到并编辑；表已有记录则跳过。

@@ -1,6 +1,7 @@
 """业务审计日志实体模型。"""
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, BigInteger, DateTime, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -17,8 +18,8 @@ class AuditLogEntity(Base):
     entity_id: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="实体ID")
     action: Mapped[str] = mapped_column(String(50), nullable=False, comment="操作类型")
     operator_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, comment="操作者ID")
-    before_data: Mapped[dict | None] = mapped_column(JSON, nullable=True, comment="变更前数据")
-    after_data: Mapped[dict | None] = mapped_column(JSON, nullable=True, comment="变更后数据")
+    before_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, comment="变更前数据")
+    after_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, comment="变更后数据")
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True, comment="操作IP")
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

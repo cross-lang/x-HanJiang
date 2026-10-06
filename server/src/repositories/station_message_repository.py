@@ -14,6 +14,7 @@ Classes:
 from datetime import datetime
 
 from sqlalchemy import func, select, update
+from sqlalchemy.sql import Select
 
 from src.models.entities.station_message_entity import StationMessageEntity
 from src.repositories.base_repository import BaseRepository
@@ -24,14 +25,14 @@ class StationMessageRepository(BaseRepository[StationMessageEntity, int]):
 
     model_class = StationMessageEntity
 
-    def _station_query(self, user_id: int) -> select:
+    def _station_query(self, user_id: int) -> Select[tuple[StationMessageEntity]]:
         """站内信基础查询（按接收用户过滤）。
 
         Args:
             user_id: 接收用户 ID
 
         Returns:
-            select: 站内信查询语句
+            Select[tuple[StationMessageEntity]]: 站内信查询语句
         """
         return select(StationMessageEntity).where(StationMessageEntity.user_id == user_id)
 

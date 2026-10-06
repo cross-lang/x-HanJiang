@@ -2,8 +2,10 @@
 """开放平台开发者数据访问。"""
 
 from datetime import datetime
+from typing import Any, NoReturn
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import ConflictException
 from src.models.entities.app_entity import OpenApiAppEntity
@@ -20,7 +22,7 @@ class DeveloperRepository(BaseRepository[DeveloperEntity, int]):
         """排除软删除开发者。"""
         return select(DeveloperEntity).where(DeveloperEntity.deleted_at.is_(None))
 
-    def _handle_integrity_error(self, error, entity):
+    def _handle_integrity_error(self, error: IntegrityError, entity: Any) -> NoReturn:
         raise ConflictException(
             message="用户名或邮箱已存在",
             details={"error": str(error.orig)},
@@ -97,4 +99,5 @@ class DeveloperRepository(BaseRepository[DeveloperEntity, int]):
             )
             .group_by(OpenApiAppEntity.owner_id)
         )
-        return dict(self.session.execute(stmt).all())
+        rows = self.session.execute(stmt).all()
+        return {int(r[0] or 0): int(r[1]) for r in rows}

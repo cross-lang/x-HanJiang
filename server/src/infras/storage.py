@@ -333,7 +333,7 @@ class S3CompatibleStorage(StorageProvider):
     def get_download_url(self, key: str, *, expires: int = 3600) -> str:
         """生成带签名的临时下载 URL。"""
         full_key = self._full_key(key)
-        url = self._client.generate_presigned_url(
+        url: str = self._client.generate_presigned_url(
             "get_object",
             Params={"Bucket": self._bucket_name, "Key": full_key},
             ExpiresIn=expires,

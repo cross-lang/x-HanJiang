@@ -8,11 +8,14 @@ operator 上下文记录为调用方应用，而非终端用户。
 不对外部应用开放，避免第三方集成方改动权限体系。
 """
 
+
+from typing import Any
+
 from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi.responses import JSONResponse
 
 from src.api.dependencies import get_role_service
 from src.api.open.dependencies import (
-    CurrentApp,
     get_app_operator_context,
     get_current_app,
     require_app_scope,
@@ -27,6 +30,7 @@ from src.schemas.admin.role import (
     RoleUpdateRequest,
 )
 from src.schemas.common import ApiResponse, PaginatedResponse
+from src.schemas.open.app import CurrentApp
 from src.services.role_service import RoleService
 
 router = APIRouter(prefix="/roles", tags=["开放API：角色管理"])
@@ -48,7 +52,7 @@ def list_roles(
     status: str | None = Query(default=None, description="状态过滤（enabled/disabled）"),
     app: CurrentApp = Depends(get_current_app),
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """查询角色列表（需 `role:read` scope）。"""
     result = service.search(keyword=keyword, role_type=role_type, status=status, page=page, page_size=page_size)
     page_result = PaginatedResponse[RoleResponse](
@@ -76,7 +80,7 @@ def create_role(
     request: Request,
     app: CurrentApp = Depends(get_current_app),
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """创建角色（需 `role:write` scope）。"""
     result = service.create(body.model_dump(), operator=get_app_operator_context(app))
     return success_response(result.model_dump(), request, code=201)
@@ -90,11 +94,11 @@ def create_role(
 )
 @app_scope(OpenApiScopeCode.ROLE_READ)
 def get_role(
+    request: Request,
     role_id: int = Path(ge=1, description="角色 ID"),
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """查询单个角色详情（需 `role:read` scope）。"""
     from src.core.exceptions import NotFoundException
 
@@ -112,12 +116,12 @@ def get_role(
 )
 @app_scope(OpenApiScopeCode.ROLE_WRITE)
 def update_role(
+    body: RoleUpdateRequest,
+    request: Request,
     role_id: int = Path(ge=1, description="角色 ID"),
-    body: RoleUpdateRequest = ...,
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """更新角色信息（需 `role:write` scope）。"""
     result = service.update(role_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app))
     return success_response(result.model_dump(), request)
@@ -126,16 +130,16 @@ def update_role(
 @router.delete(
     "/{role_id}",
     summary="开放 API 删除角色",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     dependencies=[Depends(require_app_scope(OpenApiScopeCode.ROLE_WRITE.mark))],
 )
 @app_scope(OpenApiScopeCode.ROLE_WRITE)
 def delete_role(
+    request: Request,
     role_id: int = Path(ge=1, description="角色 ID"),
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """软删除角色（需 `role:write` scope；有关联用户的角色不可删除）。"""
     service.delete(role_id, operator=get_app_operator_context(app))
     return success_response({"deleted": True}, request)
@@ -149,11 +153,11 @@ def delete_role(
 )
 @app_scope(OpenApiScopeCode.ROLE_READ)
 def get_role_permissions(
+    request: Request,
     role_id: int = Path(ge=1, description="角色 ID"),
-    request: Request = ...,
     app: CurrentApp = Depends(get_current_app),
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """查询角色绑定的权限列表（需 `role:read` scope）。"""
     result = service.get_permissions(role_id)
     return success_response([r.model_dump() for r in result], request)

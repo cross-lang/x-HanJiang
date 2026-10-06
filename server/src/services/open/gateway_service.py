@@ -102,7 +102,10 @@ class OpenGatewayService:
             return False
         # 3. 提取 Authorization 中的签名值
         # 格式：HanJiang-1 {app_id}:{signature}
-        parts = ctx.authorization.split(":", 1)
+        authorization = ctx.authorization
+        if not authorization:
+            return False
+        parts = authorization.split(":", 1)
         if len(parts) != 2 or not parts[1]:
             return False
         # 4. 解签：重算签名并常量时间比对（协议 Content-Type 固定 application/json）

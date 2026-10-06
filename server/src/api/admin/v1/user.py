@@ -15,6 +15,7 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from src.api.admin.dependencies import (
     get_current_user,
@@ -54,7 +55,7 @@ def create_user(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     result = service.create(body.model_dump(), operator=get_user_operator_context(current_user, request))
     return success_response(result.model_dump(), request, code=201)
 
@@ -74,7 +75,7 @@ def list_users(
     status: str | None = None,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     result = service.search(keyword=keyword, status=status, page=page, page_size=page_size)
     page_result = PaginatedResponse[UserResponse](
         items=result["items"],
@@ -99,7 +100,7 @@ def export_users(
     keyword: str | None = None,
     status: str | None = None,
     service: UserService = Depends(get_user_service),
-):
+) -> StreamingResponse:
     rows = service.search(keyword=keyword, status=status, page=1, page_size=100000)["items"]
     fieldnames = [
         "id",
@@ -154,7 +155,7 @@ def get_user(
     user_id: int,
     request: Request,
     service: UserService = Depends(get_user_service),
-):
+) -> JSONResponse:
     from src.core.exceptions import NotFoundException
 
     result = service.get_by_id(user_id)
@@ -176,7 +177,7 @@ def update_user(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     result = service.update(
         user_id, body.model_dump(exclude_unset=True), operator=get_user_operator_context(current_user, request)
     )
@@ -196,7 +197,7 @@ def reset_user_password(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     service.reset_password(user_id, body.new_password, operator=get_user_operator_context(current_user, request))
     return success_response({"message": "密码重置成功"}, request)
 
@@ -213,7 +214,7 @@ def delete_user(
     request: Request,
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     service.delete(user_id, operator=get_user_operator_context(current_user, request))
     return success_response({"message": "用户删除成功"}, request)
 
@@ -230,7 +231,7 @@ def import_users(
     file: UploadFile = File(...),
     service: UserService = Depends(get_user_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise ValidationException(message="仅支持 CSV 文件导入")
     csv_content = file.file.read().decode("utf-8-sig")

@@ -4,6 +4,8 @@
 与管理系统用户站内信（StationMessageService + station_messages）分表隔离。
 """
 
+from typing import Any
+
 from src.constants.enums import DeveloperMessageCategory, DeveloperMessageStatus
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
 from src.repositories.developer_message_repository import DeveloperMessageRepository
@@ -18,7 +20,7 @@ class DeveloperMessageService:
     def unread_count(self, developer_id: int) -> int:
         return self._repository.unread_count(developer_id)
 
-    def list_messages(self, developer_id: int, page: int, page_size: int) -> dict:
+    def list_messages(self, developer_id: int, page: int, page_size: int) -> dict[str, Any]:
         skip = (page - 1) * page_size
         rows, total = self._repository.list_messages(
             developer_id=developer_id, skip=skip, limit=page_size

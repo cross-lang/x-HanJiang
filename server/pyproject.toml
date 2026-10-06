@@ -102,6 +102,7 @@ python_version = "3.11"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+plugins = ["sqlalchemy.ext.mypy.plugin"]
 
 # 无类型存根的第三方库：跳过缺失/未类型化导入检查，仅对这些模块生效
 [[tool.mypy.overrides]]

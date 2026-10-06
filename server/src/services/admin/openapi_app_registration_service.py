@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from src.constants.enums import (
     AppApprovalStatus,
@@ -88,7 +88,7 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
             limit=page_size,
         )
         return {
-            "items": [self._to_response(reg, app) for reg, app in rows],
+            "items": [self._to_registration_response(reg, app) for reg, app in rows],
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -97,7 +97,7 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
     def get_registration(self, registration_id: int) -> AppRegistrationResponse:
         """按申请ID查询申请详情（含应用信息），不存在抛 NotFound。"""
         reg, app = self._require_registration(registration_id)
-        return self._to_response(reg, app)
+        return self._to_registration_response(reg, app)
 
     # ── 审批 ────────────────────────────────────────────
 
@@ -150,7 +150,7 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
             self._notify_developer(app, reg, approved)
         self._repository.flush()
         self._commit()
-        return self._to_response(reg, app)
+        return self._to_registration_response(reg, app)
 
     # ── 内部辅助 ────────────────────────────────────────
 
@@ -166,7 +166,25 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
             raise ConflictException(message="关联应用已被删除，无法审批该申请")
         return reg, app
 
-    def _to_response(
+    def _to_response(self, entity: Any) -> AppRegistrationResponse:
+        """基类抽象接口：按申请记录联查应用组装响应（供基类通用查询使用）。
+
+        Args:
+            entity: 申请记录实体
+
+        Returns:
+            AppRegistrationResponse: 申请响应
+
+        Raises:
+            ConflictException: 关联应用缺失或已删除时抛出
+        """
+        reg = cast(OpenApiAppRegistrationEntity, entity)
+        app = self._app_repo.get_by_id(reg.app_id) if reg.app_id is not None else None
+        if app is None or app.deleted_at is not None:
+            raise ConflictException(message="关联应用已被删除，无法查看该申请")
+        return self._to_registration_response(reg, app)
+
+    def _to_registration_response(
         self,
         reg: OpenApiAppRegistrationEntity,
         app: OpenApiAppEntity,
@@ -175,11 +193,11 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
         owner_name: str | None = None
         if app.owner_id is not None:
             if app.owner_type == AppOwnerType.DEVELOPER.value:
-                owner = self._app_repo.get_owner_developer(app.owner_id)
-                owner_name = owner.name or owner.username if owner else None
+                developer = self._app_repo.get_owner_developer(app.owner_id)
+                owner_name = developer.name or developer.username if developer else None
             else:
-                owner = self._app_repo.get_owner_user(app.owner_id)
-                owner_name = owner.name or owner.username if owner else None
+                user = self._app_repo.get_owner_user(app.owner_id)
+                owner_name = user.name or user.username if user else None
         return AppRegistrationResponse(
             id=reg.id,
             registration_code=reg.registration_code,

@@ -5,10 +5,12 @@
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
-from src.api.open.dependencies import CurrentApp, get_current_app
+from src.api.open.dependencies import get_current_app
 from src.api.response import success_response
 from src.schemas.common import ApiResponse
+from src.schemas.open.app import CurrentApp
 
 router = APIRouter(tags=["开放API：应用信息"])
 
@@ -21,6 +23,6 @@ router = APIRouter(tags=["开放API：应用信息"])
 async def me(
     request: Request,
     app: CurrentApp = Depends(get_current_app),
-):
+) -> JSONResponse:
     """返回当前调用方应用信息（需 X-App-Id / X-App-Key）。"""
     return success_response(app.model_dump(), request)

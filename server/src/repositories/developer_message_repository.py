@@ -13,7 +13,7 @@ Classes:
     DeveloperMessageRepository: 开发者站内信数据访问 SQLAlchemy 实现
 """
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Select, func, select, update
 
 from src.constants.enums import DeveloperMessageStatus
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
@@ -25,8 +25,12 @@ class DeveloperMessageRepository(BaseRepository[DeveloperMessageEntity, int]):
 
     model_class = DeveloperMessageEntity
 
-    def _developer_query(self, developer_id: int):
-        """站内信基础查询（按收件开发者过滤，排除软删除）。"""
+    def _developer_query(self, developer_id: int) -> Select[tuple[DeveloperMessageEntity]]:
+        """站内信基础查询（按收件开发者过滤，排除软删除）。
+
+        Returns:
+            Select[tuple[DeveloperMessageEntity]]: 过滤软删除与收件人的查询语句
+        """
         return select(DeveloperMessageEntity).where(
             DeveloperMessageEntity.developer_id == developer_id,
             DeveloperMessageEntity.deleted_at.is_(None),

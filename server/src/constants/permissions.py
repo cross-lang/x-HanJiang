@@ -17,6 +17,8 @@ permissions 表并绑定给内置角色，但会被启动同步标记为 depreca
 
 from __future__ import annotations
 
+from typing import cast
+
 from src.constants.base import BaseEnum, StrBaseEnum
 
 
@@ -132,60 +134,294 @@ class PermissionCode(BaseEnum):
         """展示排序号。"""
         return self._sort_order
 
+    @property
+    def mark(self) -> str:
+        """权限码（覆写收窄为 str，避免与 BaseEnum 的 int|str 联合类型混淆）。"""
+        return cast(str, self._mark)
+
+    @property
+    def value(self) -> str:
+        """权限码（枚举序列化兼容）。"""
+        return cast(str, self._mark)
+
     # ── 用户域 ────────────────────────────────────────────
-    USER_VIEW = ("user:view", "查看用户", PermissionModule.USER.mark, PermissionAction.VIEW.mark, "查看用户列表与详情", 1)
+    USER_VIEW = (
+        "user:view",
+        "查看用户",
+        PermissionModule.USER.mark,
+        PermissionAction.VIEW.mark,
+        "查看用户列表与详情",
+        1,
+    )
     USER_CREATE = ("user:create", "创建用户", PermissionModule.USER.mark, PermissionAction.CREATE.mark, "创建新用户", 2)
     USER_EDIT = ("user:edit", "编辑用户", PermissionModule.USER.mark, PermissionAction.EDIT.mark, "编辑用户信息", 3)
     USER_DELETE = ("user:delete", "删除用户", PermissionModule.USER.mark, PermissionAction.DELETE.mark, "删除用户", 4)
-    USER_EXPORT = ("user:export", "导出用户", PermissionModule.USER.mark, PermissionAction.EXPORT.mark, "导出用户列表", 5)
-    USER_IMPORT = ("user:import", "导入用户", PermissionModule.USER.mark, PermissionAction.IMPORT.mark, "导入用户列表", 6)
+    USER_EXPORT = (
+        "user:export",
+        "导出用户",
+        PermissionModule.USER.mark,
+        PermissionAction.EXPORT.mark,
+        "导出用户列表",
+        5,
+    )
+    USER_IMPORT = (
+        "user:import",
+        "导入用户",
+        PermissionModule.USER.mark,
+        PermissionAction.IMPORT.mark,
+        "导入用户列表",
+        6,
+    )
 
     # ── 角色域 ────────────────────────────────────────────
-    ROLE_VIEW = ("role:view", "查看角色", PermissionModule.ROLE.mark, PermissionAction.VIEW.mark, "查看角色列表与详情", 10)
-    ROLE_CREATE = ("role:create", "创建角色", PermissionModule.ROLE.mark, PermissionAction.CREATE.mark, "创建新角色", 11)
+    ROLE_VIEW = (
+        "role:view",
+        "查看角色",
+        PermissionModule.ROLE.mark,
+        PermissionAction.VIEW.mark,
+        "查看角色列表与详情",
+        10,
+    )
+    ROLE_CREATE = (
+        "role:create",
+        "创建角色",
+        PermissionModule.ROLE.mark,
+        PermissionAction.CREATE.mark,
+        "创建新角色",
+        11,
+    )
     ROLE_EDIT = ("role:edit", "编辑角色", PermissionModule.ROLE.mark, PermissionAction.EDIT.mark, "编辑角色信息", 12)
-    ROLE_PERMISSION = ("role:permission", "分配角色权限", PermissionModule.ROLE.mark, PermissionAction.PERMISSION.mark, "为角色绑定或解绑权限", 13)
+    ROLE_PERMISSION = (
+        "role:permission",
+        "分配角色权限",
+        PermissionModule.ROLE.mark,
+        PermissionAction.PERMISSION.mark,
+        "为角色绑定或解绑权限",
+        13,
+    )
     ROLE_DELETE = ("role:delete", "删除角色", PermissionModule.ROLE.mark, PermissionAction.DELETE.mark, "删除角色", 14)
 
     # ── 权限域 ────────────────────────────────────────
-    PERMISSION_VIEW = ("permission:view", "查看权限定义", PermissionModule.PERMISSION.mark, PermissionAction.VIEW.mark, "查询权限定义列表与详情", 15)
+    PERMISSION_VIEW = (
+        "permission:view",
+        "查看权限定义",
+        PermissionModule.PERMISSION.mark,
+        PermissionAction.VIEW.mark,
+        "查询权限定义列表与详情",
+        15,
+    )
 
     # ── 文件域 ────────────────────────────────────────────
-    FILE_VIEW = ("file:view", "查看文件", PermissionModule.FILE.mark, PermissionAction.VIEW.mark, "查看文件列表与详情", 20)
+    FILE_VIEW = (
+        "file:view",
+        "查看文件",
+        PermissionModule.FILE.mark,
+        PermissionAction.VIEW.mark,
+        "查看文件列表与详情",
+        20,
+    )
     FILE_CREATE = ("file:create", "上传文件", PermissionModule.FILE.mark, PermissionAction.CREATE.mark, "上传文件", 21)
     FILE_DELETE = ("file:delete", "删除文件", PermissionModule.FILE.mark, PermissionAction.DELETE.mark, "删除文件", 22)
 
     # ── 日志域 ────────────────────────────────────────────
-    AUDIT_LOG_VIEW = ("audit_log:view", "查看审计日志", PermissionModule.AUDIT_LOG.mark, PermissionAction.VIEW.mark, "查看业务审计日志", 30)
-    AUDIT_LOG_EXPORT = ("audit_log:export", "导出审计日志", PermissionModule.AUDIT_LOG.mark, PermissionAction.EXPORT.mark, "导出审计日志CSV", 31)
-    LOGIN_LOG_VIEW = ("login_log:view", "查看登录日志", PermissionModule.LOGIN_LOG.mark, PermissionAction.VIEW.mark, "查看登录日志", 35)
-    LOGIN_LOG_EXPORT = ("login_log:export", "导出登录日志", PermissionModule.LOGIN_LOG.mark, PermissionAction.EXPORT.mark, "导出登录日志CSV", 36)
+    AUDIT_LOG_VIEW = (
+        "audit_log:view",
+        "查看审计日志",
+        PermissionModule.AUDIT_LOG.mark,
+        PermissionAction.VIEW.mark,
+        "查看业务审计日志",
+        30,
+    )
+    AUDIT_LOG_EXPORT = (
+        "audit_log:export",
+        "导出审计日志",
+        PermissionModule.AUDIT_LOG.mark,
+        PermissionAction.EXPORT.mark,
+        "导出审计日志CSV",
+        31,
+    )
+    LOGIN_LOG_VIEW = (
+        "login_log:view",
+        "查看登录日志",
+        PermissionModule.LOGIN_LOG.mark,
+        PermissionAction.VIEW.mark,
+        "查看登录日志",
+        35,
+    )
+    LOGIN_LOG_EXPORT = (
+        "login_log:export",
+        "导出登录日志",
+        PermissionModule.LOGIN_LOG.mark,
+        PermissionAction.EXPORT.mark,
+        "导出登录日志CSV",
+        36,
+    )
 
     # ── 通知 / 告警域 ─────────────────────────────────────
-    NOTIFICATION_VIEW = ("notification:view", "查看通知", PermissionModule.NOTIFICATION.mark, PermissionAction.VIEW.mark, "查看通知记录", 40)
-    NOTIFICATION_CREATE = ("notification:create", "发布通知", PermissionModule.NOTIFICATION.mark, PermissionAction.CREATE.mark, "发布系统通知", 41)
-    NOTIFICATION_WITHDRAW = ("notification:withdraw", "撤回通知", PermissionModule.NOTIFICATION.mark, PermissionAction.WITHDRAW.mark, "撤回已发布的系统通知", 42)
-    ALERT_BROADCAST = ("alert:broadcast", "广播告警", PermissionModule.ALERT.mark, PermissionAction.BROADCAST.mark, "向全体用户广播告警", 50)
-    ALERT_SEND = ("alert:send", "发送告警", PermissionModule.ALERT.mark, PermissionAction.SEND.mark, "向指定用户或全体用户发送告警", 50)
-    NOTIFICATION_CONFIG = ("notification:config", "通知配置管理", PermissionModule.NOTIFICATION.mark, PermissionAction.CONFIG.mark, "系统通知渠道配置管理", 52)
+    NOTIFICATION_VIEW = (
+        "notification:view",
+        "查看通知",
+        PermissionModule.NOTIFICATION.mark,
+        PermissionAction.VIEW.mark,
+        "查看通知记录",
+        40,
+    )
+    NOTIFICATION_CREATE = (
+        "notification:create",
+        "发布通知",
+        PermissionModule.NOTIFICATION.mark,
+        PermissionAction.CREATE.mark,
+        "发布系统通知",
+        41,
+    )
+    NOTIFICATION_WITHDRAW = (
+        "notification:withdraw",
+        "撤回通知",
+        PermissionModule.NOTIFICATION.mark,
+        PermissionAction.WITHDRAW.mark,
+        "撤回已发布的系统通知",
+        42,
+    )
+    ALERT_BROADCAST = (
+        "alert:broadcast",
+        "广播告警",
+        PermissionModule.ALERT.mark,
+        PermissionAction.BROADCAST.mark,
+        "向全体用户广播告警",
+        50,
+    )
+    ALERT_SEND = (
+        "alert:send",
+        "发送告警",
+        PermissionModule.ALERT.mark,
+        PermissionAction.SEND.mark,
+        "向指定用户或全体用户发送告警",
+        50,
+    )
+    NOTIFICATION_CONFIG = (
+        "notification:config",
+        "通知配置管理",
+        PermissionModule.NOTIFICATION.mark,
+        PermissionAction.CONFIG.mark,
+        "系统通知渠道配置管理",
+        52,
+    )
 
     # ── 公告域 ────────────────────────────────────────────
-    ANNOUNCEMENT_VIEW = ("announcement:view", "查看公告", PermissionModule.ANNOUNCEMENT.mark, PermissionAction.VIEW.mark, "查看公告列表与详情", 53)
-    ANNOUNCEMENT_CREATE = ("announcement:create", "创建公告", PermissionModule.ANNOUNCEMENT.mark, PermissionAction.CREATE.mark, "创建新公告", 54)
-    ANNOUNCEMENT_EDIT = ("announcement:edit", "编辑公告", PermissionModule.ANNOUNCEMENT.mark, PermissionAction.EDIT.mark, "编辑公告信息", 55)
-    ANNOUNCEMENT_DELETE = ("announcement:delete", "删除公告", PermissionModule.ANNOUNCEMENT.mark, PermissionAction.DELETE.mark, "删除公告", 56)
-    ANNOUNCEMENT_PUBLISH = ("announcement:publish", "发布公告", PermissionModule.ANNOUNCEMENT.mark, PermissionAction.PUBLISH.mark, "发布/下架公告", 57)
+    ANNOUNCEMENT_VIEW = (
+        "announcement:view",
+        "查看公告",
+        PermissionModule.ANNOUNCEMENT.mark,
+        PermissionAction.VIEW.mark,
+        "查看公告列表与详情",
+        53,
+    )
+    ANNOUNCEMENT_CREATE = (
+        "announcement:create",
+        "创建公告",
+        PermissionModule.ANNOUNCEMENT.mark,
+        PermissionAction.CREATE.mark,
+        "创建新公告",
+        54,
+    )
+    ANNOUNCEMENT_EDIT = (
+        "announcement:edit",
+        "编辑公告",
+        PermissionModule.ANNOUNCEMENT.mark,
+        PermissionAction.EDIT.mark,
+        "编辑公告信息",
+        55,
+    )
+    ANNOUNCEMENT_DELETE = (
+        "announcement:delete",
+        "删除公告",
+        PermissionModule.ANNOUNCEMENT.mark,
+        PermissionAction.DELETE.mark,
+        "删除公告",
+        56,
+    )
+    ANNOUNCEMENT_PUBLISH = (
+        "announcement:publish",
+        "发布公告",
+        PermissionModule.ANNOUNCEMENT.mark,
+        PermissionAction.PUBLISH.mark,
+        "发布/下架公告",
+        57,
+    )
 
     # ── 开放平台域 ────────────────────────────────────────
-    OPENAPI_APP_VIEW = ("openapi_app:view", "查看开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.VIEW.mark, "查看开放平台应用列表", 60)
-    OPENAPI_APP_CREATE = ("openapi_app:create", "创建开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.CREATE.mark, "创建开放平台应用", 61)
-    OPENAPI_APP_EDIT = ("openapi_app:edit", "编辑开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.EDIT.mark, "编辑开放平台应用基本信息", 62)
-    OPENAPI_APP_SCOPES = ("openapi_app:scopes", "配置应用权限范围", PermissionModule.OPENAPI_APP.mark, PermissionAction.SCOPES.mark, "更新开放应用的权限范围(scope)", 63)
-    OPENAPI_APP_STATUS = ("openapi_app:status", "启停开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.STATUS.mark, "启用或禁用开放平台应用", 64)
-    OPENAPI_APP_ROTATE_KEY = ("openapi_app:rotate_key", "重置开放应用AppKey", PermissionModule.OPENAPI_APP.mark, PermissionAction.ROTATE_KEY.mark, "重置应用密钥，旧密钥立即失效", 65)
-    OPENAPI_APP_DELETE = ("openapi_app:delete", "删除开放平台应用", PermissionModule.OPENAPI_APP.mark, PermissionAction.DELETE.mark, "删除开放平台应用", 66)
-    OPENAPI_APP_APPROVE = ("openapi_app:approve", "审批开放应用申请", PermissionModule.OPENAPI_APP.mark, PermissionAction.APPROVE.mark, "查看并审批开发者提交的应用创建/修改申请", 69)
-    OPENAPI_SCOPE_VIEW = ("openapi_scope:view", "查看开放平台权限", PermissionModule.OPENAPI_SCOPE.mark, PermissionAction.VIEW.mark, "查看开放平台 scope 列表", 67)
+    OPENAPI_APP_VIEW = (
+        "openapi_app:view",
+        "查看开放平台应用",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.VIEW.mark,
+        "查看开放平台应用列表",
+        60,
+    )
+    OPENAPI_APP_CREATE = (
+        "openapi_app:create",
+        "创建开放平台应用",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.CREATE.mark,
+        "创建开放平台应用",
+        61,
+    )
+    OPENAPI_APP_EDIT = (
+        "openapi_app:edit",
+        "编辑开放平台应用",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.EDIT.mark,
+        "编辑开放平台应用基本信息",
+        62,
+    )
+    OPENAPI_APP_SCOPES = (
+        "openapi_app:scopes",
+        "配置应用权限范围",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.SCOPES.mark,
+        "更新开放应用的权限范围(scope)",
+        63,
+    )
+    OPENAPI_APP_STATUS = (
+        "openapi_app:status",
+        "启停开放平台应用",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.STATUS.mark,
+        "启用或禁用开放平台应用",
+        64,
+    )
+    OPENAPI_APP_ROTATE_KEY = (
+        "openapi_app:rotate_key",
+        "重置开放应用AppKey",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.ROTATE_KEY.mark,
+        "重置应用密钥，旧密钥立即失效",
+        65,
+    )
+    OPENAPI_APP_DELETE = (
+        "openapi_app:delete",
+        "删除开放平台应用",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.DELETE.mark,
+        "删除开放平台应用",
+        66,
+    )
+    OPENAPI_APP_APPROVE = (
+        "openapi_app:approve",
+        "审批开放应用申请",
+        PermissionModule.OPENAPI_APP.mark,
+        PermissionAction.APPROVE.mark,
+        "查看并审批开发者提交的应用创建/修改申请",
+        69,
+    )
+    OPENAPI_SCOPE_VIEW = (
+        "openapi_scope:view",
+        "查看开放平台权限",
+        PermissionModule.OPENAPI_SCOPE.mark,
+        PermissionAction.VIEW.mark,
+        "查看开放平台 scope 列表",
+        67,
+    )
     OPENAPI_DEV_VIEW = (
         "openapi_dev:view",
         "查看开放平台用户",
@@ -196,32 +432,130 @@ class PermissionCode(BaseEnum):
     )
 
     # ── 首页域 ────────────────────────────────────────────
-    HOME_VIEW = ("home:view", "查看首页", PermissionModule.HOME.mark, PermissionAction.VIEW.mark, "登录后访问首页（我的最近活动）", 69)
+    HOME_VIEW = (
+        "home:view",
+        "查看首页",
+        PermissionModule.HOME.mark,
+        PermissionAction.VIEW.mark,
+        "登录后访问首页（我的最近活动）",
+        69,
+    )
 
     # ── 仪表盘域 ────────────────────────────────────────
-    DASHBOARD_VIEW = ("dashboard:view", "查看仪表盘", PermissionModule.DASHBOARD.mark, PermissionAction.VIEW.mark, "获取仪表盘关键指标", 70)
+    DASHBOARD_VIEW = (
+        "dashboard:view",
+        "查看仪表盘",
+        PermissionModule.DASHBOARD.mark,
+        PermissionAction.VIEW.mark,
+        "获取仪表盘关键指标",
+        70,
+    )
 
     # ── 个人中心域 ────────────────────────────────────────
-    PROFILE_VIEW = ("profile:view", "查看个人中心", PermissionModule.PROFILE.mark, PermissionAction.VIEW.mark, "查看个人资料与通知设置", 71)
-    PROFILE_EDIT = ("profile:edit", "编辑个人中心", PermissionModule.PROFILE.mark, PermissionAction.EDIT.mark, "修改个人资料与通知设置", 72)
-    PROFILE_PASSWORD = ("profile:password", "修改密码", PermissionModule.PROFILE.mark, PermissionAction.PASSWORD.mark, "修改个人登录密码", 73)
-    PROFILE_EMAIL = ("profile:email", "更换邮箱", PermissionModule.PROFILE.mark, PermissionAction.EMAIL.mark, "通过验证码二次认证更换登录邮箱", 74)
-    PROFILE_PHONE = ("profile:phone", "更换手机号", PermissionModule.PROFILE.mark, PermissionAction.PHONE.mark, "通过验证码二次认证更换手机号", 75)
+    PROFILE_VIEW = (
+        "profile:view",
+        "查看个人中心",
+        PermissionModule.PROFILE.mark,
+        PermissionAction.VIEW.mark,
+        "查看个人资料与通知设置",
+        71,
+    )
+    PROFILE_EDIT = (
+        "profile:edit",
+        "编辑个人中心",
+        PermissionModule.PROFILE.mark,
+        PermissionAction.EDIT.mark,
+        "修改个人资料与通知设置",
+        72,
+    )
+    PROFILE_PASSWORD = (
+        "profile:password",
+        "修改密码",
+        PermissionModule.PROFILE.mark,
+        PermissionAction.PASSWORD.mark,
+        "修改个人登录密码",
+        73,
+    )
+    PROFILE_EMAIL = (
+        "profile:email",
+        "更换邮箱",
+        PermissionModule.PROFILE.mark,
+        PermissionAction.EMAIL.mark,
+        "通过验证码二次认证更换登录邮箱",
+        74,
+    )
+    PROFILE_PHONE = (
+        "profile:phone",
+        "更换手机号",
+        PermissionModule.PROFILE.mark,
+        PermissionAction.PHONE.mark,
+        "通过验证码二次认证更换手机号",
+        75,
+    )
 
     # ── 站内信域 ────────────────────────────────────────
-    STATION_VIEW = ("station:view", "查看站内信", PermissionModule.STATION.mark, PermissionAction.VIEW.mark, "查看站内信列表与未读数", 76)
-    STATION_EDIT = ("station:edit", "管理站内信", PermissionModule.STATION.mark, PermissionAction.EDIT.mark, "标记站内信已读", 77)
+    STATION_VIEW = (
+        "station:view",
+        "查看站内信",
+        PermissionModule.STATION.mark,
+        PermissionAction.VIEW.mark,
+        "查看站内信列表与未读数",
+        76,
+    )
+    STATION_EDIT = (
+        "station:edit",
+        "管理站内信",
+        PermissionModule.STATION.mark,
+        PermissionAction.EDIT.mark,
+        "标记站内信已读",
+        77,
+    )
 
     # ── 全局搜索域 ────────────────────────────────────────
-    SEARCH = ("search:search", "全局搜索", PermissionModule.SEARCH.mark, PermissionAction.SEARCH.mark, "跨模块关键字搜索", 78)
+    SEARCH = (
+        "search:search",
+        "全局搜索",
+        PermissionModule.SEARCH.mark,
+        PermissionAction.SEARCH.mark,
+        "跨模块关键字搜索",
+        78,
+    )
 
     # ── 接口文档域 ────────────────────────────────────────
-    SWAGGER_VIEW = ("swagger:view", "查看Swagger文档", PermissionModule.SWAGGER.mark, PermissionAction.VIEW.mark, "查看API Swagger文档", 80)
+    SWAGGER_VIEW = (
+        "swagger:view",
+        "查看Swagger文档",
+        PermissionModule.SWAGGER.mark,
+        PermissionAction.VIEW.mark,
+        "查看API Swagger文档",
+        80,
+    )
 
     # ── AI 助手域 ─────────────────────────────────────────
-    ASSISTANT_CHAT = ("assistant:chat", "AI助手对话", PermissionModule.ASSISTANT.mark, PermissionAction.CHAT.mark, "与AI助手对话", 90)
-    ASSISTANT_CONVERSATION = ("assistant:conversation", "AI助手会话管理", PermissionModule.ASSISTANT.mark, PermissionAction.CONVERSATION.mark, "创建、查询、删除或置顶会话", 91)
-    ASSISTANT_FEEDBACK = ("assistant:feedback", "AI助手反馈", PermissionModule.ASSISTANT.mark, PermissionAction.FEEDBACK.mark, "对话消息反馈", 92)
+    ASSISTANT_CHAT = (
+        "assistant:chat",
+        "AI助手对话",
+        PermissionModule.ASSISTANT.mark,
+        PermissionAction.CHAT.mark,
+        "与AI助手对话",
+        90,
+    )
+    ASSISTANT_CONVERSATION = (
+        "assistant:conversation",
+        "AI助手会话管理",
+        PermissionModule.ASSISTANT.mark,
+        PermissionAction.CONVERSATION.mark,
+        "创建、查询、删除或置顶会话",
+        91,
+    )
+    ASSISTANT_FEEDBACK = (
+        "assistant:feedback",
+        "AI助手反馈",
+        PermissionModule.ASSISTANT.mark,
+        PermissionAction.FEEDBACK.mark,
+        "对话消息反馈",
+        92,
+    )
 
 
 #: 权限目录（成员定义顺序），供种子初始化等批量场景遍历

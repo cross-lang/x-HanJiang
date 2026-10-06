@@ -12,9 +12,11 @@ Classes:
 """
 
 from datetime import datetime
+from typing import Any, NoReturn
 
 from sqlalchemy import delete, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.sql import Select
 
 from src.core.exceptions import ConflictException, DatabaseException
 from src.models.entities.user_entity import (
@@ -36,11 +38,11 @@ class UserRepository(BaseRepository[UserEntity, int]):
 
     model_class = UserEntity
 
-    def _base_query(self):
+    def _base_query(self) -> Select[Any]:
         """排除软删除用户。"""
         return select(UserEntity).where(UserEntity.deleted_at.is_(None))
 
-    def _handle_integrity_error(self, error, entity):
+    def _handle_integrity_error(self, error: IntegrityError, entity: UserEntity) -> NoReturn:
         raise ConflictException(
             message="用户名或邮箱已存在",
             details={"error": str(error.orig)},
@@ -147,7 +149,7 @@ class UserRepository(BaseRepository[UserEntity, int]):
         Returns:
             tuple[list[UserEntity], int]: (实体列表, 总数)
         """
-        conditions = [UserEntity.deleted_at.is_(None)]
+        conditions: list[Any] = [UserEntity.deleted_at.is_(None)]
         if keyword:
             like = f"%{keyword}%"
             conditions.append((UserEntity.username.like(like)) | (UserEntity.email.like(like)))

@@ -3,6 +3,8 @@
 仅通过仓库获取实体数据，再负责结果组装。
 """
 
+from typing import Any
+
 from src.models.entities.announcement_entity import AnnouncementEntity
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.file_entity import FileEntity
@@ -33,9 +35,9 @@ class SearchService:
         keyword: str,
         limit: int,
         categories: list[str] | tuple[str, ...] = SEARCHABLE_CATEGORIES,
-    ) -> dict[str, list[dict]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """按分类返回各实体前 N 条搜索结果。"""
-        result: dict[str, list[dict]] = {}
+        result: dict[str, list[dict[str, Any]]] = {}
         if "users" in categories:
             result["users"] = [self._to_user(r) for r in self._repository.search_users(keyword, limit)]
         if "roles" in categories:
@@ -57,7 +59,7 @@ class SearchService:
         return result
 
     @staticmethod
-    def _to_user(r: UserEntity) -> dict:
+    def _to_user(r: UserEntity) -> dict[str, Any]:
         return {
             "id": r.id,
             "username": r.username,
@@ -67,7 +69,7 @@ class SearchService:
         }
 
     @staticmethod
-    def _to_role(r: RoleEntity) -> dict:
+    def _to_role(r: RoleEntity) -> dict[str, Any]:
         return {
             "id": r.id,
             "role_name": r.role_name,
@@ -77,7 +79,7 @@ class SearchService:
         }
 
     @staticmethod
-    def _to_permission(r: PermissionEntity) -> dict:
+    def _to_permission(r: PermissionEntity) -> dict[str, Any]:
         return {
             "id": r.id,
             "perm_code": r.perm_code,
@@ -86,7 +88,7 @@ class SearchService:
         }
 
     @staticmethod
-    def _to_app(r: OpenApiAppEntity) -> dict:
+    def _to_app(r: OpenApiAppEntity) -> dict[str, Any]:
         return {
             "id": r.id,
             "app_id": r.app_id,
@@ -95,7 +97,7 @@ class SearchService:
         }
 
     @staticmethod
-    def _to_file(r: FileEntity) -> dict:
+    def _to_file(r: FileEntity) -> dict[str, Any]:
         return {
             "id": r.id,
             "original_name": r.original_name,
@@ -104,7 +106,7 @@ class SearchService:
         }
 
     @staticmethod
-    def _to_notice(r: SystemNotificationEntity) -> dict:
+    def _to_notice(r: SystemNotificationEntity) -> dict[str, Any]:
         return {
             "id": r.id,
             "title": r.title,
@@ -113,7 +115,7 @@ class SearchService:
         }
 
     @staticmethod
-    def _to_announcement(r: AnnouncementEntity) -> dict:
+    def _to_announcement(r: AnnouncementEntity) -> dict[str, Any]:
         return {
             "id": r.id,
             "title": r.title,

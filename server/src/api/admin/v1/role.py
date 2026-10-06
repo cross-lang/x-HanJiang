@@ -15,6 +15,7 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
     get_current_user,
@@ -55,7 +56,7 @@ def list_roles(
     role_type: str | None = None,
     status: str | None = None,
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """角色列表接口。"""
     result = service.search(
         keyword=keyword,
@@ -89,7 +90,7 @@ def create_role(
     request: Request,
     service: RoleService = Depends(get_role_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     """创建角色接口。"""
     result = service.create(body.model_dump(), operator=get_user_operator_context(current_user, request))
     return success_response(result.model_dump(), request, code=201)
@@ -106,7 +107,7 @@ def get_role(
     role_id: int,
     request: Request,
     service: RoleService = Depends(get_role_service),
-):
+) -> JSONResponse:
     """查询单个角色接口。"""
     from src.core.exceptions import NotFoundException
 
@@ -129,7 +130,7 @@ def update_role(
     request: Request,
     service: RoleService = Depends(get_role_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     """更新角色接口。"""
     result = service.update(
         role_id,
@@ -151,7 +152,7 @@ def delete_role(
     request: Request,
     service: RoleService = Depends(get_role_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     """删除角色接口。"""
     service.delete(role_id, operator=get_user_operator_context(current_user, request))
     return success_response({"message": "角色删除成功"}, request)
@@ -168,7 +169,7 @@ def get_role_permissions(
     role_id: int,
     request: Request,
     service: PermissionService = Depends(get_permission_service),
-):
+) -> JSONResponse:
     """查询角色权限列表接口。"""
     result = service.get_role_permissions(role_id)
     return success_response([r.model_dump() for r in result], request)
@@ -188,7 +189,7 @@ def bind_permission(
     request: Request,
     service: PermissionService = Depends(get_permission_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     """为角色绑定权限接口。"""
     result = service.bind_permission(
         role_id,
@@ -211,7 +212,7 @@ def unbind_permission(
     request: Request,
     service: PermissionService = Depends(get_permission_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     """解除角色权限绑定接口。"""
     service.unbind_permission(
         role_id,

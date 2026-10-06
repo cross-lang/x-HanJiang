@@ -5,6 +5,7 @@
 """
 
 from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi.responses import JSONResponse
 
 from src.api.open_portal.dependencies import (
     get_current_developer,
@@ -28,7 +29,7 @@ def unread_count(
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperMessageService = Depends(get_developer_message_service),
-):
+) -> JSONResponse:
     count = service.unread_count(current_developer.id)
     return success_response({"count": count}, request)
 
@@ -44,7 +45,7 @@ def my_messages(
     page_size: int = Query(default=20, ge=1, le=100, description="每页记录数"),
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperMessageService = Depends(get_developer_message_service),
-):
+) -> JSONResponse:
     data = service.list_messages(current_developer.id, page, page_size)
     return success_response(data, request)
 
@@ -54,11 +55,11 @@ def my_messages(
     summary="标记单条已读",
 )
 def mark_read(
+    request: Request,
     msg_id: int = Path(ge=1, description="消息 ID"),
-    request: Request = ...,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperMessageService = Depends(get_developer_message_service),
-):
+) -> JSONResponse:
     service.mark_read(current_developer.id, msg_id)
     return success_response({"message": "已标记已读"}, request)
 
@@ -71,6 +72,6 @@ def mark_all_read(
     request: Request,
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperMessageService = Depends(get_developer_message_service),
-):
+) -> JSONResponse:
     service.mark_all_read(current_developer.id)
     return success_response({"message": "全部已读"}, request)

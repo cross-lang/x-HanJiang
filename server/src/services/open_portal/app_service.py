@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypedDict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -36,7 +36,8 @@ from src.core.exceptions import (
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.app_registration_entity import OpenApiAppRegistrationEntity
 from src.models.entities.station_message_entity import StationMessageEntity
-from src.repositories.base_repository import BaseRepository
+from src.repositories.openapi_app_registration_repository import OpenApiAppRegistrationRepository
+from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.open_portal.app import (
     OpenAppApprovalResponse,
     OpenAppCreateRequest,
@@ -53,6 +54,15 @@ from src.utils.openapi_utils import (
 from src.utils.security import generate_secret_key
 
 logger = logging.getLogger(__name__)
+
+
+class _MyAppsPage(TypedDict):
+    """当前开发者应用分页结果（供门户端 API 直接消费）。"""
+
+    items: list[OpenAppResponse]
+    total: int
+    page: int
+    page_size: int
 
 
 def _parse_scopes(scopes: str | None) -> list[str]:
@@ -74,8 +84,8 @@ class DeveloperOpenApiAppService:
 
     def __init__(
         self,
-        repo: BaseRepository[OpenApiAppEntity, int],
-        registration_repo: BaseRepository[OpenApiAppRegistrationEntity, int],
+        repo: OpenApiAppRepository,
+        registration_repo: OpenApiAppRegistrationRepository,
     ) -> None:
         self._repo = repo
         self._registration_repo = registration_repo
@@ -89,7 +99,7 @@ class DeveloperOpenApiAppService:
         keyword: str | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> dict[str, object]:
+    ) -> _MyAppsPage:
         """分页查询当前开发者名下的应用（含派生审批状态）。"""
         apps, total = self._repo.search_by_keyword(
             keyword=keyword, owner_type=AppOwnerType.DEVELOPER.value, owner_id=developer_id,
@@ -121,7 +131,7 @@ class DeveloperOpenApiAppService:
             .where(OpenApiScopeEntity.is_deprecated.is_(False))
             .order_by(OpenApiScopeEntity.sort_order, OpenApiScopeEntity.id)
         ).scalars().all()
-        result = build_scope_dict_list(scopes)
+        result = build_scope_dict_list(list(scopes))
         for item, entity in zip(result, scopes, strict=False):
             item["sort_order"] = entity.sort_order
         return result
@@ -360,6 +370,7 @@ class DeveloperOpenApiAppService:
 
     def _to_response(self, entity: OpenApiAppEntity) -> OpenAppResponse:
         """将应用实体转换为响应 DTO（审批状态由申请表派生）。"""
+        approval_status: str | None = None
         pending = self._registration_repo.find_pending_by_app(entity.id)
         if pending is not None:
             approval_status = AppApprovalStatus.PENDING.value

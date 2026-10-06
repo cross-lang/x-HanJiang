@@ -57,9 +57,9 @@ class RetryWorker:
         self._interval = interval_seconds
         self._max_retries = max_retries
         self._batch_size = batch_size
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[Any] | None = None
 
-    def start(self) -> asyncio.Task:
+    def start(self) -> asyncio.Task[Any]:
         """启动后台 worker，返回 asyncio.Task。"""
         self._task = asyncio.create_task(self._run())
         logger.info(

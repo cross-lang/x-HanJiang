@@ -20,11 +20,17 @@ Usage:
     logger.bind(user_id="u123").info("User action")
 """
 
+from __future__ import annotations
+
 import json as _json
 import os
 import sys
+from typing import TYPE_CHECKING
 
 from loguru import logger as _logger
+
+if TYPE_CHECKING:
+    from loguru import Logger, Record
 
 from src.constants import APP_NAME
 
@@ -53,7 +59,7 @@ _CONSOLE_FORMAT: str = (
 # ============================================================
 # JSON 序列化（生产环境结构化日志）
 # ============================================================
-def _json_serializer(record: dict) -> str:
+def _json_serializer(record: Record) -> str:
     """将 loguru 日志记录序列化为扁平 JSON 字符串。
     输出格式示例::
         {
@@ -91,13 +97,13 @@ def _json_serializer(record: dict) -> str:
     }
     if record["exception"] is not None:
         log_entry["exception"] = {
-            "type": record["exception"].type.__name__,
+            "type": record["exception"].type.__name__ if record["exception"].type else "Exception",
             "value": str(record["exception"].value),
         }
     return _json.dumps(log_entry, ensure_ascii=False)
 
 
-def _json_formatter(record: dict) -> str:
+def _json_formatter(record: Record) -> str:
     """loguru format 回调：将日志记录格式化为 JSON 行。
     loguru 允许 format 参数为一个可调用对象，该对象接收 record 字典，
     返回一个 format 字符串。这里我们把 JSON 存入 extra，再通过
@@ -196,7 +202,7 @@ def setup_logging(
     _configured = True
 
 
-def get_logger():
+def get_logger() -> Logger:
     """获取全局日志实例。
 
     Returns:

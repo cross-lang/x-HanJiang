@@ -5,6 +5,7 @@
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
     get_current_user,
@@ -15,6 +16,7 @@ from src.api.admin.dependencies import (
 from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
+from src.schemas.admin.auth import CurrentUser
 from src.schemas.admin.openapi_app_registration import (
     AppRegistrationApprovalRequest,
     AppRegistrationResponse,
@@ -42,7 +44,7 @@ def list_registrations(
     registration_type: str | None = None,
     status: str | None = None,
     service: OpenApiAppRegistrationService = Depends(get_openapi_app_registration_service),
-):
+) -> JSONResponse:
     """分页查询应用申请批次，每行数据带申请ID。"""
     result = service.list_registrations(
         keyword=keyword,
@@ -73,7 +75,7 @@ def get_registration(
     registration_id: int,
     request: Request,
     service: OpenApiAppRegistrationService = Depends(get_openapi_app_registration_service),
-):
+) -> JSONResponse:
     """按申请ID查询申请详情（含应用与申请人信息、申请快照、审批结果）。"""
     return success_response(service.get_registration(registration_id).model_dump(), request)
 
@@ -92,9 +94,9 @@ def review_registration(
     registration_id: int,
     body: AppRegistrationApprovalRequest,
     request: Request,
-    current_user=Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
     service: OpenApiAppRegistrationService = Depends(get_openapi_app_registration_service),
-):
+) -> JSONResponse:
     """审批一条应用申请（通过 / 驳回），审批结果同步站内信通知开发者。"""
     return success_response(
         service.review(

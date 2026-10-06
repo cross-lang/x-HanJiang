@@ -2,6 +2,8 @@
 """文件管理接口。"""
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
+from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from src.api.admin.dependencies import get_current_user, is_admin_user, require_user_permission
 from src.api.admin.permission_decorator import permission
@@ -25,8 +27,8 @@ def upload_file(
     file: UploadFile = File(...),
     folder: str = Query(default="general"),
     service: FileStorageService = Depends(get_file_service),
-    current_user=Depends(get_current_user),
-):
+    current_user: CurrentUser = Depends(get_current_user),
+) -> JSONResponse:
     result = service.save_upload(
         file,
         folder,
@@ -49,7 +51,7 @@ def list_files(
     page_size: int = Query(default=20, ge=1, le=100),
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     # 普通用户只能看自己上传的文件
     uploaded_by = None if is_admin_user(current_user) else current_user.id
     result = service.list_files(folder=folder, keyword=keyword, page=page, page_size=page_size, uploaded_by=uploaded_by)
@@ -66,7 +68,7 @@ def get_file(
     file_path: str = Path(...),
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> Response:
     result = service.download_file(
         file_path,
         operator={"operator_id": current_user.id, "operator_name": current_user.username},
@@ -85,7 +87,7 @@ def delete_file(
     request: Request,
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> JSONResponse:
     service.delete_file(
         file_id,
         operator={"operator_id": current_user.id, "operator_name": current_user.username},

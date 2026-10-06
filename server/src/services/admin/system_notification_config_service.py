@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from src.core.logger import logger
 from src.models.entities.system_notification_config_entity import SystemNotificationConfigEntity
 from src.repositories.system_notification_config_repository import SystemNotificationConfigRepository
@@ -32,7 +34,7 @@ class SystemNotificationConfigService:
         """
         return self._repository.list_all()
 
-    def update_config(self, channel: str, config: dict, enabled: bool) -> None:
+    def update_config(self, channel: str, config: dict[str, Any], enabled: bool) -> None:
         """按渠道更新或创建配置（upsert）并提交事务。
 
         Args:

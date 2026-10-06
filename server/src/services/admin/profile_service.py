@@ -425,13 +425,14 @@ class ProfileService:
             raise NotFoundException(message=f"尚未配置{channel} Webhook，请先填写并保存")
 
         from src.infras.notification import (
+            BaseNotificationProvider,
             DingTalkNotificationProvider,
             FeishuNotificationProvider,
             NotificationMessage,
         )
 
         if channel == "dingtalk":
-            provider = DingTalkNotificationProvider(webhook_url=recipient)
+            provider: BaseNotificationProvider = DingTalkNotificationProvider(webhook_url=recipient)
         else:
             provider = FeishuNotificationProvider(webhook_url=recipient)
 

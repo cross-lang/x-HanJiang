@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -66,7 +67,7 @@ class AnnouncementRepository:
         Returns:
             tuple[list[AnnouncementEntity], int]: 实体列表与总条数
         """
-        conditions = []
+        conditions: list[Any] = []
         if status:
             conditions.append(AnnouncementEntity.status == status)
         if position:
@@ -103,7 +104,7 @@ class AnnouncementRepository:
             list[AnnouncementEntity]: 生效公告列表
         """
         now = datetime.now()
-        conditions = [
+        conditions: list[Any] = [
             AnnouncementEntity.status == "published",
             AnnouncementEntity.start_at <= now,
             AnnouncementEntity.end_at >= now,

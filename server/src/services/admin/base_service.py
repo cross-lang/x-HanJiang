@@ -38,7 +38,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Generic, TypeVar
+from typing import Any, Concatenate, Generic, ParamSpec, Protocol, TypeVar, cast
 
 from src.constants.permissions import PermissionAction
 from src.core.logger import logger
@@ -109,7 +109,40 @@ def _pick_label(snapshot: dict[str, Any] | None) -> str:
     return ""
 
 
-def audit_crud(action: str) -> Callable:
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+class _AuditCrudSupport(Protocol):
+    """``@audit_crud`` 装饰器对被装饰类的最小要求（结构化子类型，不限于 BaseService 子类）。
+
+    说明：``_repository`` 声明为 ``Any`` 而非 ``BaseRepository[Any, Any]``，
+    因为 BaseRepository 的泛型参数是 invariant 的，具体仓库（如 ``UserRepository``）
+    无法结构化匹配 ``BaseRepository[Any, Any]``；装饰器内部对仓库仅做
+    ``get_by_id`` 快照读取，弱类型可接受。
+    """
+
+    _repository: Any
+    entity_type: str
+
+    def _audit(
+        self,
+        entity_id: Any,
+        action: str,
+        operator: dict[str, Any] | None,
+        before_data: dict[str, Any] | None = None,
+        after_data: dict[str, Any] | None = None,
+        remarks: str | None = None,
+    ) -> None: ...
+
+
+_B = TypeVar("_B", bound=_AuditCrudSupport)
+
+
+def audit_crud(action: str) -> Callable[
+    [Callable[Concatenate[_B, _P], _R]],
+    Callable[Concatenate[_B, _P], _R],
+]:
     """CRUD 审计切面装饰器（BaseService 子类专用）。
 
     自动在方法成功返回后写入审计日志，约定如下：
@@ -130,19 +163,21 @@ def audit_crud(action: str) -> Callable:
         action: 审计动作 mark，取 :class:`PermissionAction` 的成员。
 
     Returns:
-        方法装饰器。
+        保持原方法签名的装饰器。
     """
     action_desc = PermissionAction.get_desc_by_mark(action, action)
 
-    def decorator(fn: Callable) -> Callable:
+    def decorator(fn: Callable[Concatenate[_B, _P], _R]) -> Callable[Concatenate[_B, _P], _R]:
         @functools.wraps(fn)
-        def wrapper(self: "BaseService", *args: Any, **kwargs: Any) -> Any:
-            operator = kwargs.get("operator")
+        def wrapper(self: _B, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+            args_any: tuple[Any, ...] = args
+            kwargs_any: dict[str, Any] = kwargs
+            operator = kwargs_any.get("operator")
             before_data: dict[str, Any] | None = None
             entity_id: Any = None
 
             if action != PermissionAction.CREATE.mark:
-                entity_id = args[0] if args else None
+                entity_id = args_any[0] if args_any else None
                 before_data = _snapshot(self._repository.get_by_id(entity_id))
 
             result = fn(self, *args, **kwargs)
@@ -170,13 +205,13 @@ def audit_crud(action: str) -> Callable:
             )
             return result
 
-        return wrapper
+        return cast(Callable[Concatenate[_B, _P], _R], wrapper)
 
     return decorator
 
 T = TypeVar("T")
 ID = TypeVar("ID")
-RepoType = TypeVar("RepoType", bound=BaseRepository)
+RepoType = TypeVar("RepoType", bound=BaseRepository[Any, Any])
 
 
 class BaseService(ABC, Generic[T, ID, RepoType]):

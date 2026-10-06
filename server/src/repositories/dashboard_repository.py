@@ -12,6 +12,7 @@ Classes:
 """
 
 from datetime import date
+from typing import Any
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
@@ -77,9 +78,9 @@ class DashboardRepository:
 
     # ── 趋势 ──────────────────────────────────────────────
 
-    def login_trend(self, start_date: date) -> list:
+    def login_trend(self, start_date: date) -> list[Any]:
         """近 N 天登录趋势（按日分组）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 func.date(LoginLogEntity.created_at).label("date"),
                 func.count(LoginLogEntity.id).label("count"),
@@ -87,11 +88,11 @@ class DashboardRepository:
             .where(func.date(LoginLogEntity.created_at) >= start_date)
             .group_by(func.date(LoginLogEntity.created_at))
             .order_by(func.date(LoginLogEntity.created_at))
-        ).all()
+        ).all())
 
-    def audit_trend(self, start_date: date) -> list:
+    def audit_trend(self, start_date: date) -> list[Any]:
         """近 N 天操作日志趋势（按日分组）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 func.date(AuditLogEntity.created_at).label("date"),
                 func.count(AuditLogEntity.id).label("count"),
@@ -99,11 +100,11 @@ class DashboardRepository:
             .where(func.date(AuditLogEntity.created_at) >= start_date)
             .group_by(func.date(AuditLogEntity.created_at))
             .order_by(func.date(AuditLogEntity.created_at))
-        ).all()
+        ).all())
 
-    def login_failed_trend(self, start_date: date) -> list:
+    def login_failed_trend(self, start_date: date) -> list[Any]:
         """近 N 天登录失败趋势（按日分组）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 func.date(LoginLogEntity.created_at).label("date"),
                 func.count(LoginLogEntity.id).label("count"),
@@ -111,22 +112,22 @@ class DashboardRepository:
             .where(func.date(LoginLogEntity.created_at) >= start_date)
             .where(LoginLogEntity.status == LoginStatus.FAILED.mark)
             .group_by(func.date(LoginLogEntity.created_at))
-        ).all()
+        ).all())
 
-    def new_users_trend(self, start_date: date) -> list:
+    def new_users_trend(self, start_date: date) -> list[Any]:
         """近 N 天新增用户趋势（按日分组）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 func.date(UserEntity.created_at).label("date"),
                 func.count(UserEntity.id).label("count"),
             )
             .where(func.date(UserEntity.created_at) >= start_date)
             .group_by(func.date(UserEntity.created_at))
-        ).all()
+        ).all())
 
-    def notify_status_trend(self, start_date: date) -> list:
+    def notify_status_trend(self, start_date: date) -> list[Any]:
         """近 N 天通知投递状态趋势（按日+状态分组）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 func.date(NotificationDeliveryEntity.created_at).label("date"),
                 NotificationDeliveryEntity.status,
@@ -137,48 +138,48 @@ class DashboardRepository:
                 func.date(NotificationDeliveryEntity.created_at),
                 NotificationDeliveryEntity.status,
             )
-        ).all()
+        ).all())
 
     # ── 分布 ──────────────────────────────────────────────
 
-    def role_distribution(self) -> list:
+    def role_distribution(self) -> list[Any]:
         """用户角色分布（角色名 + 关联用户数）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 RoleEntity.role_name,
                 func.count(UserRoleEntity.user_id).label("count"),
             )
             .join(UserRoleEntity, UserRoleEntity.role_id == RoleEntity.id)
             .group_by(RoleEntity.id, RoleEntity.role_name)
-        ).all()
+        ).all())
 
-    def user_status_distribution(self) -> list:
+    def user_status_distribution(self) -> list[Any]:
         """用户状态分布。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(UserEntity.status, func.count(UserEntity.id).label("count")).group_by(UserEntity.status)
-        ).all()
+        ).all())
 
-    def notify_channel_distribution(self) -> list:
+    def notify_channel_distribution(self) -> list[Any]:
         """通知投递渠道分布。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 NotificationDeliveryEntity.channel,
                 func.count(NotificationDeliveryEntity.id).label("count"),
             ).group_by(NotificationDeliveryEntity.channel)
-        ).all()
+        ).all())
 
     # ── 最近记录 ──────────────────────────────────────────
 
-    def recent_logins(self, limit: int = 10) -> list:
+    def recent_logins(self, limit: int = 10) -> list[Any]:
         """最近登录记录（关联用户名，按时间倒序）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(LoginLogEntity, UserEntity.username, UserEntity.name)
             .outerjoin(UserEntity, UserEntity.id == LoginLogEntity.user_id)
             .order_by(LoginLogEntity.created_at.desc())
             .limit(limit)
-        ).all()
+        ).all())
 
-    def recent_audits(self, limit: int = 10) -> list:
+    def recent_audits(self, limit: int = 10) -> list[Any]:
         """最近操作日志（按时间倒序，关联用户名）。"""
         return list(
             self._session.execute(
@@ -217,16 +218,16 @@ class DashboardRepository:
 
     # ── 开放平台统计 ──────────────────────────────────────
 
-    def openapi_app_status_distribution(self) -> list:
+    def openapi_app_status_distribution(self) -> list[Any]:
         """开放应用状态分布（按 active/disabled 分组，排除已删除）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 OpenApiAppEntity.status,
                 func.count(OpenApiAppEntity.id).label("count"),
             )
             .where(OpenApiAppEntity.deleted_at.is_(None))
             .group_by(OpenApiAppEntity.status)
-        ).all()
+        ).all())
 
     def openapi_developer_count(self) -> int:
         """启用状态的开发者账号总数。"""
@@ -237,18 +238,18 @@ class DashboardRepository:
             or 0
         )
 
-    def openapi_registration_status_distribution(self) -> list:
+    def openapi_registration_status_distribution(self) -> list[Any]:
         """应用申请审批状态分布（按 pending/approved/rejected 分组）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 OpenApiAppRegistrationEntity.status,
                 func.count(OpenApiAppRegistrationEntity.id).label("count"),
             ).group_by(OpenApiAppRegistrationEntity.status)
-        ).all()
+        ).all())
 
-    def openapi_registration_trend(self, start_date: date) -> list:
+    def openapi_registration_trend(self, start_date: date) -> list[Any]:
         """近 N 天应用申请提交趋势（按 created_at 日分组）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 func.date(OpenApiAppRegistrationEntity.created_at).label("date"),
                 func.count(OpenApiAppRegistrationEntity.id).label("count"),
@@ -256,11 +257,11 @@ class DashboardRepository:
             .where(func.date(OpenApiAppRegistrationEntity.created_at) >= start_date)
             .group_by(func.date(OpenApiAppRegistrationEntity.created_at))
             .order_by(func.date(OpenApiAppRegistrationEntity.created_at))
-        ).all()
+        ).all())
 
-    def openapi_registration_review_trend(self, start_date: date) -> list:
+    def openapi_registration_review_trend(self, start_date: date) -> list[Any]:
         """近 N 天应用申请审批处理趋势（按 approved_at 日分组，含通过与驳回）。"""
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 func.date(OpenApiAppRegistrationEntity.approved_at).label("date"),
                 func.count(OpenApiAppRegistrationEntity.id).label("count"),
@@ -271,15 +272,15 @@ class DashboardRepository:
             )
             .group_by(func.date(OpenApiAppRegistrationEntity.approved_at))
             .order_by(func.date(OpenApiAppRegistrationEntity.approved_at))
-        ).all()
+        ).all())
 
-    def recent_openapi_registrations(self, limit: int = 6) -> list:
+    def recent_openapi_registrations(self, limit: int = 6) -> list[Any]:
         """最近应用申请记录（按提交时间倒序，关联归属人姓名）。
 
         Returns:
             list: (注册批次, owner_type, 开发者姓名, 管理员姓名) 行列表。
         """
-        return self._session.execute(
+        return list(self._session.execute(
             select(
                 OpenApiAppRegistrationEntity,
                 OpenApiAppEntity.owner_type,
@@ -303,11 +304,11 @@ class DashboardRepository:
             )
             .order_by(OpenApiAppRegistrationEntity.created_at.desc())
             .limit(limit)
-        ).all()
+        ).all())
 
     # ── 存储用量 ──────────────────────────────────────────
 
-    def storage_stats(self) -> tuple[int, int, list]:
+    def storage_stats(self) -> tuple[int, int, list[Any]]:
         """存储用量统计。
 
         Returns:
@@ -329,7 +330,7 @@ class DashboardRepository:
             ).scalar()
             or 0
         )
-        by_folder = self._session.execute(
+        by_folder = list(self._session.execute(
             select(
                 FileEntity.folder,
                 func.count(FileEntity.id).label("count"),
@@ -337,5 +338,5 @@ class DashboardRepository:
             )
             .where(FileEntity.is_deleted == False)  # noqa: E712
             .group_by(FileEntity.folder)
-        ).all()
+        ).all())
         return total_size, total_count, by_folder

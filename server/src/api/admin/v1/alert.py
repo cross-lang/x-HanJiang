@@ -10,6 +10,7 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
     get_alert_service,
@@ -35,7 +36,7 @@ def send_alert(
     body: AlertSendRequest,
     request: Request,
     service: AlertService = Depends(get_alert_service),
-):
+) -> JSONResponse:
     """发送系统告警接口。
 
     向指定接收人发送告警通知，需 alert:send 权限。
@@ -68,7 +69,7 @@ def broadcast_alert(
     body: AlertSendRequest,
     request: Request,
     service: AlertService = Depends(get_alert_service),
-):
+) -> JSONResponse:
     """广播系统告警接口。
     仅管理员可调用，向全体活跃用户发送系统告警通知。
     """

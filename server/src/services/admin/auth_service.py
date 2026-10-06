@@ -15,7 +15,14 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.constants.constants import TOKEN_TTL_SECONDS
-from src.constants.enums import LoginStatus, LoginType, NotificationEvent, NotificationSource, SystemRoleCode, UserStatus
+from src.constants.enums import (
+    LoginStatus,
+    LoginType,
+    NotificationEvent,
+    NotificationSource,
+    SystemRoleCode,
+    UserStatus,
+)
 from src.core.exceptions import AuthenticationException
 from src.core.logger import logger
 from src.core.tokens import (

@@ -26,6 +26,7 @@ from src.core.tokens import (
     create_refresh_token,
     decode_token,
 )
+from src.infras.cache import CacheProvider
 from src.models.entities.developer_entity import DeveloperEntity
 from src.repositories.developer_repository import DeveloperRepository
 from src.schemas.open_portal.auth import (
@@ -219,7 +220,7 @@ class DeveloperAuthService:
             expires_in=TOKEN_TTL_SECONDS,
         )
 
-    def _cache_provider(self):
+    def _cache_provider(self) -> CacheProvider:
         """延迟获取 Redis 缓存提供者。"""
         from src.infras.cache import get_cached_cache_provider
 

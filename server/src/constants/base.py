@@ -14,9 +14,12 @@
 注：类型混入枚举需在 __new__ 中用原生类型构造并设置 _value_，
 因为 EnumMeta 会把整个 (mark, desc) 二元组传给 __new__，
 直接走原生构造会报 "decoding str is not supported" 之类错误。
+mypy 不支持 Enum 泛型化（Enum class cannot be generic），
+故基类 mark/value 声明为 ``int | str``，具体子类覆写收窄返回类型。
 """
 
 from enum import Enum
+from typing import Self, cast
 
 
 class BaseEnum(Enum):
@@ -90,29 +93,49 @@ def _new_native_member(cls: type, native_type: type, mark: object) -> object:
 class StrBaseEnum(str, BaseEnum):
     """字符串型枚举：成员同时是 str，可直接 JSON 序列化、作字典键、与裸字符串比较。"""
 
-    def __new__(cls, mark: str, desc: str) -> "StrBaseEnum":
-        return _new_native_member(cls, str, mark)
+    def __new__(cls, mark: str, desc: str) -> Self:
+        return cast(Self, _new_native_member(cls, str, mark))
+
+    @property
+    def mark(self) -> str:
+        """存储值（str）。"""
+        return cast(str, self._mark)
+
+    @property
+    def value(self) -> str:
+        """同 mark（str）。"""
+        return cast(str, self._mark)
 
 
 class IntBaseEnum(int, BaseEnum):
     """整数型枚举：成员同时是 int，可直接参与数值比较与 JSON 数字序列化。"""
 
-    def __new__(cls, mark: int, desc: str) -> "IntBaseEnum":
-        return _new_native_member(cls, int, mark)
+    def __new__(cls, mark: int, desc: str) -> Self:
+        return cast(Self, _new_native_member(cls, int, mark))
+
+    @property
+    def mark(self) -> int:
+        """存储值（int）。"""
+        return cast(int, self._mark)
 
     @property
     def value(self) -> int:
-        """原生 int 值。"""
-        return int(self._mark)
+        """同 mark（int）。"""
+        return cast(int, self._mark)
 
 
 class FloatBaseEnum(float, BaseEnum):
     """浮点型枚举：成员同时是 float。浮点 mark 不适合精确等值场景。"""
 
-    def __new__(cls, mark: float, desc: str) -> "FloatBaseEnum":
-        return _new_native_member(cls, float, mark)
+    def __new__(cls, mark: float, desc: str) -> Self:
+        return cast(Self, _new_native_member(cls, float, mark))
 
     @property
-    def value(self) -> float:
-        """原生 float 值。"""
-        return float(self._mark)
+    def mark(self) -> float:  # type: ignore[override]
+        """存储值（float）。"""
+        return cast(float, self._mark)
+
+    @property
+    def value(self) -> float:  # type: ignore[override]
+        """同 mark（float）。"""
+        return cast(float, self._mark)

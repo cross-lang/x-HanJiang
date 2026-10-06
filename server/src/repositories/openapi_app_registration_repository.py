@@ -51,7 +51,8 @@ class OpenApiAppRegistrationRepository(BaseRepository[OpenApiAppRegistrationEnti
             select(func.count(func.distinct(OpenApiAppRegistrationEntity.id))).select_from(base.subquery())
         ).scalar_one()
         stmt = base.order_by(OpenApiAppRegistrationEntity.id.desc()).offset(skip).limit(limit)
-        return list(self.session.execute(stmt).all()), total
+        rows = self.session.execute(stmt).all()
+        return [(r[0], r[1]) for r in rows], total
 
     def get_by_id(self, id: int) -> OpenApiAppRegistrationEntity | None:
         """按申请ID查询（含全量历史记录，不做软删过滤）。"""

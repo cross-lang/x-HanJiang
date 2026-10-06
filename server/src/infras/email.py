@@ -72,6 +72,7 @@ class SmtpEmailProvider(EmailProvider):
 
     def _create_smtp_connection(self) -> smtplib.SMTP:
         """创建 SMTP 连接，支持 465 隐式 SSL 和其他端口 STARTTLS。"""
+        smtp: smtplib.SMTP
         if self._smtp_port == 465:
             smtp = smtplib.SMTP_SSL(self._smtp_host, self._smtp_port, timeout=30)
         else:

@@ -1,6 +1,7 @@
 """系统通知（广播通知）实体。"""
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, BigInteger, DateTime, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -35,7 +36,7 @@ class SystemNotificationEntity(Base):
     client_request_id: Mapped[str | None] = mapped_column(
         String(64), nullable=True, unique=True, comment="发布幂等键（同一请求重复提交返回首次结果）"
     )
-    metadata_json: Mapped[dict | None] = mapped_column(
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         nullable=True,
         comment=(

@@ -6,10 +6,10 @@
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.api.open.dependencies import (
-    CurrentApp,
     get_alert_service,
     get_current_app,
     require_app_scope,
@@ -18,6 +18,7 @@ from src.api.open.scope_decorator import app_scope
 from src.api.response import success_response
 from src.constants.scopes import OpenApiScopeCode
 from src.schemas.common import ApiResponse
+from src.schemas.open.app import CurrentApp
 from src.services.admin.alert_service import AlertService
 
 router = APIRouter(tags=["开放API：告警推送"])
@@ -46,7 +47,7 @@ def send_alert(
     request: Request,
     app: CurrentApp = Depends(get_current_app),
     service: AlertService = Depends(get_alert_service),
-):
+) -> JSONResponse:
     """发送系统告警通知（需 `alert:write` scope）。
 
     告警将自动推送到：

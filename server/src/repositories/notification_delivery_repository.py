@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -54,7 +55,7 @@ class NotificationDeliveryRepository(BaseRepository[NotificationDeliveryEntity, 
         Returns:
             tuple[list[NotificationDeliveryEntity], int]: (投递明细列表, 总数)
         """
-        conditions = [self.model_class.system_notification_id == notification_id]
+        conditions: list[Any] = [self.model_class.system_notification_id == notification_id]
         if channel:
             conditions.append(self.model_class.channel == channel)
         if status:
@@ -75,7 +76,8 @@ class NotificationDeliveryRepository(BaseRepository[NotificationDeliveryEntity, 
             .where(self.model_class.system_notification_id == notification_id)
             .group_by(self.model_class.status)
         )
-        return dict(self.session.execute(stmt).all())
+        rows = self.session.execute(stmt).all()
+        return {str(r[0]): int(r[1]) for r in rows}
 
     def search_records(
         self,
@@ -99,7 +101,7 @@ class NotificationDeliveryRepository(BaseRepository[NotificationDeliveryEntity, 
         Returns:
             tuple[list[NotificationDeliveryEntity], int]: (投递明细列表, 总数)
         """
-        conditions = []
+        conditions: list[Any] = []
         if event_type:
             conditions.append(self.model_class.event_type == event_type)
         if channel:

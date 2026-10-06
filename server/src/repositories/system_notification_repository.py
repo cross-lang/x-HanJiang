@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -83,7 +85,7 @@ class SystemNotificationRepository:
         Returns:
             tuple[list[SystemNotificationEntity], int]: 实体列表与总条数
         """
-        conditions = []
+        conditions: list[Any] = []
         if notice_type:
             conditions.append(SystemNotificationEntity.notice_type == notice_type)
         if status:

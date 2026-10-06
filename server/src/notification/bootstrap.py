@@ -90,7 +90,7 @@ def _sync_delivery_state(delivery_id: int, success: bool) -> None:
         logger.error("Failed to sync delivery state after retry: id={} error={}", delivery_id, exc)
 
 
-def setup_notification_system() -> asyncio.Task | None:
+def setup_notification_system() -> asyncio.Task[Any] | None:
     """初始化通知子系统，返回重试 Worker 的 Task（未启动则返回 None）。"""
     if not settings.notification.enabled:
         logger.info("Notification system disabled, skipping")

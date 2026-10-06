@@ -11,7 +11,10 @@ Classes:
     FileRepository: 文件数据访问 SQLAlchemy 实现
 """
 
+from typing import Any
+
 from sqlalchemy import func, select
+from sqlalchemy.sql import Select
 
 from src.core.exceptions import DatabaseException
 from src.models.entities.file_entity import FileEntity
@@ -24,7 +27,7 @@ class FileRepository(BaseRepository[FileEntity, int]):
 
     model_class = FileEntity
 
-    def _base_query(self):
+    def _base_query(self) -> Select[Any]:
         """排除已删除文件。"""
         return select(FileEntity).where(FileEntity.is_deleted == False)  # noqa: E712
 
@@ -37,13 +40,13 @@ class FileRepository(BaseRepository[FileEntity, int]):
         keyword: str | None = None,
         skip: int = 0,
         limit: int = 20,
-    ) -> tuple[list, int]:
+    ) -> tuple[list[Any], int]:
         """分页查询文件列表（关联上传人姓名）。
 
         Returns:
-            tuple[list, int]: (行列表[(FileEntity, UserEntity|None)], 总数)
+            tuple[list[Any], int]: (行列表[(FileEntity, UserEntity|None)], 总数)
         """
-        conditions = [FileEntity.is_deleted == False]  # noqa: E712
+        conditions: list[Any] = [FileEntity.is_deleted == False]  # noqa: E712
         if folder:
             conditions.append(FileEntity.folder == folder)
         if uploaded_by:
@@ -59,14 +62,14 @@ class FileRepository(BaseRepository[FileEntity, int]):
             .offset(skip)
             .limit(limit)
         )
-        rows = self.session.execute(stmt).all()
+        rows = list(self.session.execute(stmt).all())
         return rows, total
 
-    def get_storage_stats(self) -> tuple[int, int, list]:
+    def get_storage_stats(self) -> tuple[int, int, list[Any]]:
         """获取存储用量统计。
 
         Returns:
-            tuple[int, int, list]: (总大小, 总数, 按文件夹行列表[(folder, count, size)])
+            tuple[int, int, list[Any]]: (总大小, 总数, 按文件夹行列表[(folder, count, size)])
         """
         total_size = (
             self.session.execute(
@@ -84,15 +87,17 @@ class FileRepository(BaseRepository[FileEntity, int]):
             ).scalar()
             or 0
         )
-        by_folder = self.session.execute(
-            select(
-                FileEntity.folder,
-                func.count(FileEntity.id),
-                func.coalesce(func.sum(FileEntity.size_bytes), 0),
-            )
-            .where(FileEntity.is_deleted == False)  # noqa: E712
-            .group_by(FileEntity.folder)
-        ).all()
+        by_folder = list(
+            self.session.execute(
+                select(
+                    FileEntity.folder,
+                    func.count(FileEntity.id),
+                    func.coalesce(func.sum(FileEntity.size_bytes), 0),
+                )
+                .where(FileEntity.is_deleted == False)  # noqa: E712
+                .group_by(FileEntity.folder)
+            ).all()
+        )
         return total_size, total_count, by_folder
 
     # ── 写入 ──────────────────────────────────────────────

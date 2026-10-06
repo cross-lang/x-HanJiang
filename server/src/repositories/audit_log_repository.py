@@ -9,8 +9,10 @@ Classes:
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import false, or_, select
+from sqlalchemy.sql import Select
 
 from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.user_entity import UserEntity
@@ -22,7 +24,7 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
 
     model_class = AuditLogEntity
 
-    def _base_query(self):
+    def _base_query(self) -> Select[Any]:
         """默认按创建时间倒序。"""
         return select(AuditLogEntity).order_by(AuditLogEntity.created_at.desc())
 
@@ -55,7 +57,7 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
         limit: int = 100,
     ) -> tuple[list[AuditLogEntity], int]:
         """按条件搜索审计日志（分页）。"""
-        conditions = []
+        conditions: list[Any] = []
         if entity_type:
             conditions.append(AuditLogEntity.entity_type == entity_type)
         if action:
@@ -90,7 +92,7 @@ class AuditLogRepository(BaseRepository[AuditLogEntity, int]):
                     AuditLogEntity.entity_id.contains(kw),
                     AuditLogEntity.ip_address.contains(kw),
                     AuditLogEntity.remarks.contains(kw),
-                    AuditLogEntity.operator_id.in_(matching_ids) if matching_ids else False,
+                    AuditLogEntity.operator_id.in_(matching_ids) if matching_ids else false(),
                 )
             )
         return self._paginate(conditions, skip, limit)

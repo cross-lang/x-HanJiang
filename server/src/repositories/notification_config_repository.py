@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from src.models.entities.notification_config_entity import UserNotificationConfigEntity
@@ -90,7 +91,7 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
             )
             .values(recipient=recipient, enabled=enabled)
         )
-        return int(result.rowcount or 0)
+        return int(cast(CursorResult[Any], result).rowcount or 0)
 
     def build_recipients_map(self, user_id: int, event_type: str) -> dict[str, str]:
         """构建事件下 渠道→接收方 映射（仅 enabled 行，station 渠道不返回）。

@@ -368,11 +368,11 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         owner_name = None
         if e.owner_id is not None:
             if e.owner_type == AppOwnerType.DEVELOPER.value:
-                owner = self._repository.get_owner_developer(e.owner_id)
-                owner_name = owner.name or owner.username if owner else None
+                developer = self._repository.get_owner_developer(e.owner_id)
+                owner_name = developer.name or developer.username if developer else None
             else:
-                owner = self._repository.get_owner_user(e.owner_id)
-                owner_name = owner.name or owner.username if owner else None
+                user = self._repository.get_owner_user(e.owner_id)
+                owner_name = user.name or user.username if user else None
         return OpenApiAppResponse(
             id=e.id,
             app_id=e.app_id,

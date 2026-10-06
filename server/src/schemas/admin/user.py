@@ -11,6 +11,7 @@ Classes:
 
 import re
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from src.constants.enums import UserStatus
@@ -40,7 +41,7 @@ class UserCreateRequest(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=500, description="头像URL")
     role_ids: list[int] = Field(min_length=1, description="角色ID列表（至少 1 个）")
     role_name: str | None = Field(default=None, description="角色名称")
-    roles: list[dict] = Field(default_factory=list, description="用户角色列表")
+    roles: list[dict[str, Any]] = Field(default_factory=list, description="用户角色列表")
     status: UserStatus = Field(default=UserStatus.ENABLED, description="状态")
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
@@ -96,7 +97,7 @@ class UserUpdateRequest(BaseModel):
     gender: str | None = Field(default=None, description="性别（male/female）")
     role_ids: list[int] | None = Field(default=None, description="角色ID列表")
     role_name: str | None = Field(default=None, description="角色名称")
-    roles: list[dict] = Field(default_factory=list, description="用户角色列表")
+    roles: list[dict[str, Any]] = Field(default_factory=list, description="用户角色列表")
     status: UserStatus | None = Field(default=None, description="状态")
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
@@ -173,7 +174,7 @@ class UserResponse(BaseModel):
     name: str = Field(description="姓名")
     phone: str = Field(description="手机号")
     avatar_url: str | None = Field(default=None, description="头像URL")
-    roles: list[dict] = Field(default_factory=list, description="用户角色列表")
+    roles: list[dict[str, Any]] = Field(default_factory=list, description="用户角色列表")
     status: str = Field(description="状态")
     last_login_at: datetime | None = Field(default=None, description="最后登录时间")
     last_login_ip: str | None = Field(default=None, description="最后登录IP")

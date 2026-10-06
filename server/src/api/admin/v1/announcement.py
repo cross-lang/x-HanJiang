@@ -7,6 +7,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
     get_announcement_service,
@@ -57,7 +58,7 @@ def create_announcement(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """创建公告接口。
 
     Args:
@@ -89,7 +90,7 @@ def update_announcement(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """修改公告接口。
 
     Args:
@@ -122,7 +123,7 @@ def delete_announcement(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """删除公告接口。
 
     Args:
@@ -153,7 +154,7 @@ def publish_announcement(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """发布公告接口。
 
     Args:
@@ -184,7 +185,7 @@ def unpublish_announcement(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """下架公告接口。
 
     Args:
@@ -218,7 +219,7 @@ def list_announcements(
     position: str | None = Query(None, description="按展示位置过滤"),
     keyword: str | None = Query(None, description="按标题/正文关键字搜索"),
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """公告列表接口。
 
     Args:
@@ -240,7 +241,7 @@ def list_announcements(
         position=position,
         keyword=keyword,
     )
-    items = [_to_response(i).model_dump() for i in result["items"]]
+    items = [_to_response(i) for i in result["items"]]
     return success_response(
         PaginatedResponse[AnnouncementResponse](
             items=items,
@@ -264,7 +265,7 @@ def available_announcements(
     limit: int = Query(20, ge=1, le=50, description="返回条数"),
     _current_user: CurrentUser = Depends(get_current_user),
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """首页当前可用公告列表接口（供首页板块/横幅展示，所有登录用户可访问）。
 
     Args:
@@ -292,7 +293,7 @@ def get_announcement(
     announcement_id: int,
     request: Request,
     service: AnnouncementService = Depends(get_announcement_service),
-):
+) -> JSONResponse:
     """公告详情接口。
 
     Args:

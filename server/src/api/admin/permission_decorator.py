@@ -10,20 +10,29 @@
 """
 
 from collections.abc import Callable
+from typing import Any, ParamSpec, TypeVar
+
+from fastapi import FastAPI
 
 from src.constants.permissions import PermissionCode
 from src.core.logger import logger
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
-def permission(code: PermissionCode):
+
+def permission(code: PermissionCode) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
     """声明路由所需权限（仅挂载元数据，鉴权仍用 Depends）。
 
     Args:
         code: PermissionCode 枚举成员，携带权限码 / 中文名 / 模块 /
               操作类型 / 描述 / 排序号全部元数据
+
+    Returns:
+        保持原函数签名的装饰器。
     """
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[_P, _R]) -> Callable[_P, _R]:
         func._permission_code = code.mark
         func._permission_name = code.perm_name
         func._permission_module = code.module
@@ -35,30 +44,39 @@ def permission(code: PermissionCode):
     return decorator
 
 
-def collect_permissions_from_app(app) -> list[dict]:
-    """扫描 FastAPI 应用所有路由，收集带 @permission 装饰器的权限元数据。"""
-    permissions = []
+def collect_permissions_from_app(app: FastAPI) -> list[dict[str, Any]]:
+    """扫描 FastAPI 应用所有路由，收集带 @permission 装饰器的权限元数据。
+
+    Args:
+        app: FastAPI 应用实例
+
+    Returns:
+        权限元数据字典列表（perm_code / perm_name / module / operation /
+        description / sort_order），按 perm_code 去重。
+    """
+    permissions: list[dict[str, Any]] = []
     for route in app.routes:
         if hasattr(route, "endpoint"):
             endpoint = route.endpoint
             path = getattr(route, "path", "?")
-            if hasattr(endpoint, "_permission_code"):
-                logger.debug(f"Found permission: {endpoint._permission_code} at {path}")
+            perm_code = getattr(endpoint, "_permission_code", None)
+            if perm_code is not None:
+                logger.debug(f"Found permission: {perm_code} at {path}")
                 permissions.append(
                     {
-                        "perm_code": endpoint._permission_code,
-                        "perm_name": endpoint._permission_name or endpoint._permission_code,
-                        "module": endpoint._permission_module or "",
-                        "operation": endpoint._permission_operation or "",
-                        "description": endpoint._permission_description or "",
-                        "sort_order": endpoint._permission_sort_order,
+                        "perm_code": perm_code,
+                        "perm_name": getattr(endpoint, "_permission_name", None) or perm_code,
+                        "module": getattr(endpoint, "_permission_module", None) or "",
+                        "operation": getattr(endpoint, "_permission_operation", None) or "",
+                        "description": getattr(endpoint, "_permission_description", None) or "",
+                        "sort_order": getattr(endpoint, "_permission_sort_order", 0),
                     }
                 )
             else:
                 logger.debug(f"No permission decorator: {path} -> {endpoint.__name__}")
     # 按 perm_code 去重（多个路由共用同一权限码时只保留一条）
-    seen = set()
-    unique = []
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
     for p in permissions:
         if p["perm_code"] not in seen:
             seen.add(p["perm_code"])
@@ -66,7 +84,7 @@ def collect_permissions_from_app(app) -> list[dict]:
     return unique
 
 
-def sync_permissions_to_db(app) -> tuple[int, int]:
+def sync_permissions_to_db(app: FastAPI) -> tuple[int, int]:
     """启动时将路由上的 @permission 声明对账同步到 permissions 表。
 
     以代码中的 PermissionCode 声明为唯一事实来源：

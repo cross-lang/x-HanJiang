@@ -12,8 +12,10 @@ Classes:
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.sql import Select
 
 from src.constants.enums import LoginStatus
 from src.core.exceptions import DatabaseException
@@ -26,7 +28,7 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
 
     model_class = LoginLogEntity
 
-    def _base_query(self):
+    def _base_query(self) -> Select[Any]:
         """默认按创建时间倒序。"""
         return select(LoginLogEntity).order_by(LoginLogEntity.created_at.desc())
 
@@ -46,7 +48,7 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
         """按条件搜索登录日志（分页）。"""
         from sqlalchemy import or_
 
-        conditions = []
+        conditions: list[Any] = []
         if user_id is not None:
             conditions.append(LoginLogEntity.user_id == user_id)
         if status:

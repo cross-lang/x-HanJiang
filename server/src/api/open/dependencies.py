@@ -32,6 +32,7 @@ from src.core.exceptions import AuthorizationException
 from src.infras.database import get_db_session
 from src.schemas.open.app import CurrentApp
 from src.schemas.open.request_context import OpenApiAuthContext
+from src.services.admin.alert_service import AlertService
 
 if TYPE_CHECKING:
     from src.services.open.gateway_service import OpenGatewayService
@@ -58,11 +59,10 @@ def get_open_gateway_service(
 
 def get_alert_service(
     db_session: Session = Depends(get_db_session),
-):
+) -> AlertService:
     """获取告警服务实例（开放 API 发送告警用）。"""
     from src.infras.notification import get_registry
     from src.notification.dispatcher import NotificationDispatcher
-    from src.services.admin.alert_service import AlertService
 
     dispatcher = NotificationDispatcher(registry=get_registry(), session=db_session)
     return AlertService(dispatcher=dispatcher, session=db_session)

@@ -11,6 +11,8 @@ Classes:
     SystemNotificationConfigRepository: 系统通知配置数据访问 SQLAlchemy 实现
 """
 
+from typing import Any
+
 from sqlalchemy import select
 
 from src.models.entities.system_notification_config_entity import (
@@ -37,7 +39,7 @@ class SystemNotificationConfigRepository(BaseRepository[SystemNotificationConfig
     def upsert(
         self,
         channel: str,
-        config: dict,
+        config: dict[str, Any],
         enabled: bool,
     ) -> SystemNotificationConfigEntity:
         """按渠道更新或创建配置。"""

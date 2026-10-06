@@ -13,16 +13,20 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, Concatenate, ParamSpec, TypeVar, cast
 
 from src.constants.enums import NotificationEvent, NotificationSource
 from src.core.logger import logger
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 
 def _resolve_target(target: Any, result: Any) -> int | None:
     """从返回值解析接收人 user_id。"""
     if callable(target):
-        return target(result)
+        resolved = target(result)
+        return resolved if isinstance(resolved, int) else None
     if isinstance(target, int):
         return target
     if target == "self":
@@ -30,7 +34,8 @@ def _resolve_target(target: Any, result: Any) -> int | None:
     return None
 
 
-def _build_vars(vars_extractor: Callable | None, result: Any) -> dict:
+def _build_vars(vars_extractor: Callable[[Any], dict[str, Any]] | None, result: Any) -> dict[str, Any]:
+    """从返回值提取通知模板变量。"""
     if vars_extractor is None:
         return {}
     try:
@@ -42,19 +47,22 @@ def _build_vars(vars_extractor: Callable | None, result: Any) -> dict:
 def notify(
     event_type: NotificationEvent,
     target: Any = "self",
-    vars_extractor: Callable[[Any], dict] | None = None,
-):
+    vars_extractor: Callable[[Any], dict[str, Any]] | None = None,
+) -> Callable[[Callable[Concatenate[Any, _P], _R]], Callable[Concatenate[Any, _P], _R]]:
     """方法执行成功后自动发通知。
 
     Args:
         event_type: 通知事件枚举
         target: "self"=通知返回值.id 对应用户; int=固定 user_id; callable(result)->int
         vars_extractor: 从返回值提取模板变量
+
+    Returns:
+        保持原方法签名的装饰器。
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[Concatenate[Any, _P], _R]) -> Callable[Concatenate[Any, _P], _R]:
         @wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: Any, *args: _P.args, **kwargs: _P.kwargs) -> _R:
             result = func(self, *args, **kwargs)
             # 异步发通知，不阻塞主流程
             try:
@@ -75,6 +83,6 @@ def notify(
                 logger.debug("notify decorator skipped: {}", exc)
             return result
 
-        return wrapper
+        return cast(Callable[Concatenate[Any, _P], _R], wrapper)
 
     return decorator

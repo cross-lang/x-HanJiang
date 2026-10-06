@@ -10,6 +10,7 @@ Endpoints:
 """
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
     get_auth_service,
@@ -36,7 +37,7 @@ def login(
     body: LoginRequest,
     request: Request,
     service: AuthService = Depends(get_auth_service),
-):
+) -> JSONResponse:
     """登录接口。
     登录成功/失败均会写入 login_logs 表。
     """
@@ -58,7 +59,7 @@ def refresh(
     body: RefreshTokenRequest,
     request: Request,
     service: AuthService = Depends(get_auth_service),
-):
+) -> JSONResponse:
     """刷新令牌接口。"""
     result = service.refresh(body.refresh_token)
     return success_response(result.model_dump(), request)
@@ -73,7 +74,7 @@ def logout(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: AuthService = Depends(get_auth_service),
-):
+) -> JSONResponse:
     """退出登录接口。
     清除 Redis 中的 login:{user_id} 登录态，已签发的令牌立即失效。
     """

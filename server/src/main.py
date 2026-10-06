@@ -19,6 +19,7 @@ Usage:
 """
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
 import uvicorn
@@ -45,7 +46,7 @@ from src.notification.bootstrap import setup_notification_system
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期管理。"""
     # 初始化日志配置
     setup_logging()
@@ -115,19 +116,19 @@ def create_app() -> FastAPI:
     # FastAPI 中间件采用"洋葱模型"，请求从外层进入，响应从内层出来：
     #
     #   ┌─────────────────────────────────────────────────────────┐
-    #   │  CORS (最外层)                                          │
-    #   │  ┌─────────────────────────────────────────────────┐   │
-    #   │  │  RequestID                                      │   │
-    #   │  │  ┌─────────────────────────────────────────┐   │   │
-    #   │  │  │  RequestLogging                         │   │   │
-    #   │  │  │  ┌─────────────────────────────────┐   │   │   │
-    #   │  │  │  │  ExceptionHandling (最内层)     │   │   │   │
-    #   │  │  │  │  ┌─────────────────────────┐   │   │   │   │
-    #   │  │  │  │  │     路由处理函数         │   │   │   │   │
-    #   │  │  │  │  └─────────────────────────┘   │   │   │   │
-    #   │  │  │  └─────────────────────────────────┘   │   │   │
-    #   │  │  └─────────────────────────────────────────┘   │   │
-    #   │  └─────────────────────────────────────────────────┘   │
+    #   │  CORS (最外层)                                           │
+    #   │  ┌─────────────────────────────────────────────────┐    │
+    #   │  │  RequestID                                      │    │
+    #   │  │  ┌─────────────────────────────────────────┐    │    │
+    #   │  │  │  RequestLogging                         │    │    │
+    #   │  │  │  ┌─────────────────────────────────┐    │    │    │
+    #   │  │  │  │  ExceptionHandling (最内层)      │    │    │    │
+    #   │  │  │  │  ┌─────────────────────────┐    │    │    │    │
+    #   │  │  │  │  │     路由处理函数          │    │    │    │    │
+    #   │  │  │  │  └─────────────────────────┘    │    │    │    │
+    #   │  │  │  └─────────────────────────────────┘    │    │    │
+    #   │  │  └─────────────────────────────────────────┘    │    │
+    #   │  └─────────────────────────────────────────────────┘    │
     #   └─────────────────────────────────────────────────────────┘
     #
     #   请求进入顺序（外层先执行）：CORS → RequestID → RequestLogging → ExceptionHandling → 路由
@@ -161,7 +162,7 @@ def create_app() -> FastAPI:
     # 路由注册
     # 1. 管理系统路由（面向用户，会话 JWT + Redis 登录态）
     app.include_router(global_admin_router)
-    # 2. 开放平台门户路由（面向开发者门户网页端，会话 JWT + Redis 登录态）
+    # 2. 开放平台门户路由（面向开发者门户，会话 JWT + Redis 登录态）
     app.include_router(global_open_portal_router)
     # 3. 开放接口路由（面向外部应用，AppId/AppKey 鉴权）
     app.include_router(global_open_router)

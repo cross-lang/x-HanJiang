@@ -17,7 +17,7 @@ Classes:
 from __future__ import annotations
 
 from abc import ABC
-from typing import ClassVar, Generic, TypeVar
+from typing import Any, ClassVar, Generic, NoReturn, TypeVar
 
 from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
@@ -103,8 +103,11 @@ class BaseRepository(ABC, Generic[T, ID]):
         existing = self.get_by_id(id)
         if existing is None:
             return None
-        columns = {c.key for c in inspect(self.model_class).columns} - {"id", "created_at"}
-        for key in columns:
+        column_keys: set[str] = set()
+        for c in inspect(self.model_class).columns:  # type: ignore[var-annotated]
+            column_keys.add(c.key)
+        column_keys -= {"id", "created_at"}
+        for key in column_keys:
             value = getattr(entity, key, None)
             if value is not None:
                 setattr(existing, key, value)
@@ -135,11 +138,11 @@ class BaseRepository(ABC, Generic[T, ID]):
 
     # ── 分页辅助 ──────────────────────────────────────────
 
-    def _paginate(self, conditions: list, skip: int = 0, limit: int = 100) -> tuple[list[T], int]:
+    def _paginate(self, conditions: list[Any], skip: int = 0, limit: int = 100) -> tuple[list[T], int]:
         """统一分页查询。
 
         Args:
-            conditions: SQLAlchemy 过滤条件列表
+            conditions: SQLAlchemy 过滤条件列表（ColumnElement[bool] 或裸布尔）
             skip: 偏移量
             limit: 每页数量
 
@@ -158,14 +161,14 @@ class BaseRepository(ABC, Generic[T, ID]):
 
     # ── 模板方法（子类可覆盖）──────────────────────────────
 
-    def _base_query(self) -> Select:
+    def _base_query(self) -> Select[Any]:
         """基础查询。
         子类可覆盖以添加默认过滤条件（如 deleted_at IS NULL）
         或默认排序（如 created_at DESC）。
         """
         return select(self.model_class)
 
-    def _handle_integrity_error(self, error: IntegrityError, entity: T) -> None:
+    def _handle_integrity_error(self, error: IntegrityError, entity: T) -> NoReturn:
         """唯一约束冲突处理。
         子类可覆盖以提供更友好的错误信息。
         默认抛出通用 ConflictException。

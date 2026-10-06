@@ -8,9 +8,9 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from src.api.admin.dependencies import (
-    CurrentUser,
     get_current_user,
     get_station_service,
     require_user_permission,
@@ -18,6 +18,7 @@ from src.api.admin.dependencies import (
 from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
+from src.schemas.admin.auth import CurrentUser
 from src.services.admin.station_service import StationMessageService
 from src.utils.csv import build_csv_stream_response
 
@@ -34,7 +35,7 @@ def unread_count(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: StationMessageService = Depends(get_station_service),
-):
+) -> JSONResponse:
     count = service.unread_count(current_user.id)
     return success_response({"count": count}, request)
 
@@ -55,7 +56,7 @@ def my_messages(
     keyword: str | None = Query(default=None, description="关键词（模糊匹配标题/正文）"),
     current_user: CurrentUser = Depends(get_current_user),
     service: StationMessageService = Depends(get_station_service),
-):
+) -> JSONResponse:
     data = service.list_messages(
         current_user.id,
         page,
@@ -80,7 +81,7 @@ def recent_messages(
     limit: int = Query(default=10, ge=1, le=50, description="最近条数"),
     current_user: CurrentUser = Depends(get_current_user),
     service: StationMessageService = Depends(get_station_service),
-):
+) -> JSONResponse:
     data = service.list_recent(current_user.id, limit)
     return success_response(data, request)
 
@@ -99,7 +100,7 @@ def export_messages(
     keyword: str | None = Query(default=None, description="关键词过滤"),
     current_user: CurrentUser = Depends(get_current_user),
     service: StationMessageService = Depends(get_station_service),
-):
+) -> StreamingResponse:
     rows = service.export_rows(
         current_user.id,
         source=source,
@@ -138,7 +139,7 @@ def message_detail(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: StationMessageService = Depends(get_station_service),
-):
+) -> JSONResponse:
     detail = service.get_message_detail(current_user.id, msg_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="站内信不存在")
@@ -156,7 +157,7 @@ def mark_read(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: StationMessageService = Depends(get_station_service),
-):
+) -> JSONResponse:
     service.mark_read(current_user.id, msg_id)
     return success_response({"message": "已标记已读"}, request)
 
@@ -171,6 +172,6 @@ def mark_all_read(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: StationMessageService = Depends(get_station_service),
-):
+) -> JSONResponse:
     service.mark_all_read(current_user.id)
     return success_response({"message": "全部已读"}, request)

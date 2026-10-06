@@ -17,16 +17,19 @@ Usage:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 
 from sqlalchemy import Engine, create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from src.core.config import settings
 from src.core.logger import logger
+from src.utils.helpers import mask_url_credentials
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """ORM 声明式基类（SQLAlchemy 2.0 风格，mypy 可识别）。"""
 
 
 # ============================================================
@@ -43,11 +46,12 @@ class DatabaseProvider(ABC):
         """获取数据库引擎。"""
 
     @abstractmethod
-    def get_session_factory(self) -> sessionmaker:
+    def get_session_factory(self) -> sessionmaker[Session]:
         """获取会话工厂。"""
 
     @abstractmethod
-    def session(self) -> Generator[Session, None, None]:
+    @contextmanager
+    def session(self) -> Iterator[Session]:
         """获取数据库会话的上下文管理器。"""
 
     @abstractmethod
@@ -95,16 +99,16 @@ class MySqlProvider(DatabaseProvider):
             autoflush=False,
             expire_on_commit=False,
         )
-        logger.info(f"MySqlProvider initialized: {database_url}")
+        logger.info(f"MySqlProvider initialized: {mask_url_credentials(database_url)}")
 
     def get_engine(self) -> Engine:
         return self._engine
 
-    def get_session_factory(self) -> sessionmaker:
+    def get_session_factory(self) -> sessionmaker[Session]:
         return self._session_factory
 
     @contextmanager
-    def session(self) -> Generator[Session, None, None]:
+    def session(self) -> Iterator[Session]:
         """获取数据库会话的上下文管理器。"""
         session: Session = self._session_factory()
         try:
@@ -178,7 +182,7 @@ def drop_db() -> None:
     logger.warning("All MySQL tables dropped")
 
 
-def get_db_session():
+def get_db_session() -> Generator[Session, None, None]:
     """FastAPI 依赖：每个请求一个数据库会话，请求结束自动 commit/rollback/close。"""
     session = get_cached_database_provider().get_session_factory()()
     try:

@@ -4,7 +4,8 @@
 不直接操作数据库会话、不编写 SQL。
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from src.constants.enums import AppApprovalStatus, AppRegistrationType, NotificationChannel, NotificationStatus
 from src.repositories.dashboard_repository import DashboardRepository
@@ -24,7 +25,7 @@ class DashboardService:
     def __init__(self, repository: DashboardRepository) -> None:
         self._repository = repository
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """获取仪表盘全部统计数据。"""
         today = datetime.now(UTC).date()
         week_ago = today - timedelta(days=6)
@@ -139,7 +140,7 @@ class DashboardService:
             "openapi": openapi,
         }
 
-    def _build_openapi_stats(self, today: datetime.date, week_ago: datetime.date, all_dates: list[str]) -> dict:
+    def _build_openapi_stats(self, today: date, week_ago: date, all_dates: list[str]) -> dict[str, Any]:
         """组装开放平台统计板块（开放应用、开发者、申请与审批）。"""
         # 应用状态分布与总数
         app_status_rows = self._repository.openapi_app_status_distribution()
@@ -196,7 +197,7 @@ class DashboardService:
             "recent_registrations": recent_registrations,
         }
 
-    def get_my_activity(self, user_id: int) -> dict:
+    def get_my_activity(self, user_id: int) -> dict[str, Any]:
         """获取当前用户的最近登录日志和操作日志（首页用）。"""
         my_logins = self._repository.my_logins(user_id, 10)
         my_logins_list = [

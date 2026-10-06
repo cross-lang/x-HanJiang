@@ -2,6 +2,7 @@
 """全局搜索接口 — 跨实体关键字搜索（用户/角色/权限/开放平台应用/文件/通知/公告）。"""
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
     get_current_user,
@@ -44,7 +45,7 @@ def search(
     current_user: CurrentUser = Depends(get_current_user),
     permission_service: PermissionService = Depends(get_permission_service),
     service: SearchService = Depends(get_search_service),
-):
+) -> JSONResponse:
     kw = (keyword or "").strip()
     if not kw:
         return success_response({}, request)

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import builtins
 from datetime import datetime
 from typing import Any
 
@@ -240,12 +241,11 @@ class AnnouncementService:
         """
         return self._get_entity(announcement_id)
 
-    def list_available(self, position: str | None = None, limit: int = 20) -> list[AnnouncementEntity]:
+    def list_available(self, position: str | None = None, limit: int = 20) -> builtins.list[AnnouncementEntity]:
         """查询首页生效公告（已发布且在有效期内）。
 
         Args:
-            position: 展示位置过滤（可选）
-            limit: 返回条数上限
+            position: 展示位置过滤（可选）            limit: 返回条数上限
 
         Returns:
             list[AnnouncementEntity]: 生效公告列表
