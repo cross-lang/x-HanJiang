@@ -15,7 +15,9 @@ from __future__ import annotations
 import csv
 import io
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi.responses import StreamingResponse
 
@@ -33,7 +35,8 @@ def build_csv_stream_response(
         fieldnames: 列顺序与取值键（CSV 列名，一般使用英文字段名）
         headers_cn: 字段名 → 中文表头映射，作为首行输出
         rows: 数据行（每行为 dict，缺失字段自动补空串）
-        filename: Content-Disposition 下载文件名，如 ``audit_logs_2026_09_30.csv``
+        filename: Content-Disposition 下载文件名，如 ``用户_20261006123000.csv``；
+            支持中文名（自动按 RFC 5987 编码，兼容现代浏览器）
 
     Returns:
         StreamingResponse: CSV 下载响应（text/csv，UTF-8-BOM 编码）
@@ -44,10 +47,16 @@ def build_csv_stream_response(
     for row in rows:
         writer.writerow({k: row.get(k, "") for k in fieldnames})
     content = buf.getvalue().encode("utf-8-sig")
+    encoded_filename = quote(filename, safe="")
     return StreamingResponse(
         iter([content]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"download{Path(filename).suffix}\"; "
+                f"filename*=UTF-8''{encoded_filename}"
+            )
+        },
     )
 
 

@@ -92,6 +92,9 @@ class MySqlProvider(DatabaseProvider):
             pool_pre_ping=True,
             pool_recycle=pool_recycle,
             echo=echo,
+            # 统一存储北京时间（UTC+8）：MySQL 系统时区为 UTC，
+            # 不设置时区时 CURRENT_TIMESTAMP 默认值会落 UTC，比本地早 8 小时。
+            connect_args={"init_command": "SET time_zone = '+08:00'"},
         )
         self._session_factory = sessionmaker(
             bind=self._engine,

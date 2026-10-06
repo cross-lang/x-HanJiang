@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, cast
 
 from src.constants.enums import (
@@ -144,7 +144,7 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
         if operator and operator.get("operator_id") is not None:
             reg.approved_by = operator["operator_id"]
         reg.approval_note = (note or "").strip() or None
-        reg.approved_at = datetime.now(UTC)
+        reg.approved_at = datetime.now()
         # 开发者自助应用：审批结果写入开发者站内信（随本事务一并提交）
         if app.owner_type == AppOwnerType.DEVELOPER.value and app.owner_id is not None:
             self._notify_developer(app, reg, approved)

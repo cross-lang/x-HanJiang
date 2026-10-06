@@ -14,7 +14,7 @@ Classes:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from src.constants.constants import TOKEN_TTL_SECONDS
 from src.constants.enums import DeveloperStatus
@@ -209,7 +209,7 @@ class DeveloperAuthService:
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态写入失败: {e}")
         try:
-            self._repository.update_last_login(dev.id, datetime.now(UTC).replace(tzinfo=None))
+            self._repository.update_last_login(dev.id, datetime.now())
             self._repository.commit()
         except Exception:  # noqa: BLE001
             self._repository.rollback()

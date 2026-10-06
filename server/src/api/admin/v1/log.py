@@ -160,12 +160,12 @@ def export_audit_logs(
         data["operator_id"] = row.operator_id or ""
         data["operator_name"] = username_map.get(row.operator_id, {}).get("name", "") if row.operator_id else ""
         csv_rows.append(data)
-    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     return build_csv_stream_response(
         fieldnames=fieldnames,
         headers_cn=headers_cn,
         rows=csv_rows,
-        filename=f"audit_logs_{timestamp}.csv",
+        filename=f"审计日志-{timestamp}.csv",
     )
 
 
@@ -290,12 +290,12 @@ def export_login_logs(
                 "created_at": str(row.created_at),
             }
         )
-    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     return build_csv_stream_response(
         fieldnames=fieldnames,
         headers_cn=headers_cn,
         rows=csv_rows,
-        filename=f"login_logs_{timestamp}.csv",
+        filename=f"登录日志-{timestamp}.csv",
     )
 
 

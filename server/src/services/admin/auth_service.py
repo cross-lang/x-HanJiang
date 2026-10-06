@@ -11,7 +11,7 @@ Classes:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from src.constants.constants import TOKEN_TTL_SECONDS
@@ -249,7 +249,7 @@ class AuthService:
                     variables={
                         "username": user.username,
                         "fail_count": str(fail_count),
-                        "attempt_time": datetime.now(UTC).strftime("%Y-%m-%d %H:%M"),
+                        "attempt_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "ip_address": ip_address or "未知",
                     },
                     source=NotificationSource.MANUAL.value,
@@ -271,7 +271,7 @@ class AuthService:
                 login_type=login_type,
                 status=status,
                 ip_address=ip_address,
-                created_at=datetime.now(UTC).replace(tzinfo=None),
+                created_at=datetime.now(),
             )
             self._login_log_repository.create(log)
             self._login_log_repository.commit()
@@ -299,7 +299,7 @@ class AuthService:
         try:
             self._user_repository.update_last_login(
                 user_id=user.id,
-                last_login_at=datetime.now(UTC).replace(tzinfo=None),
+                last_login_at=datetime.now(),
                 ip_address=ip_address,
             )
             self._user_repository.commit()

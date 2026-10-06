@@ -9,7 +9,7 @@ Classes:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from src.constants.constants import SUPERADMIN_USERNAME
@@ -204,7 +204,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             self._dispatch_notification(
                 updated.id,
                 NotificationEvent.USER_PASSWORD_CHANGED,
-                {"username": updated.username, "changed_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M")},
+                {"username": updated.username, "changed_at": datetime.now().strftime("%Y-%m-%d %H:%M")},
             )
         else:
             # ── 通知：资料变更 ──
@@ -275,7 +275,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         self._dispatch_notification(
             id,
             NotificationEvent.USER_PASSWORD_CHANGED,
-            {"username": existing.username, "changed_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M")},
+            {"username": existing.username, "changed_at": datetime.now().strftime("%Y-%m-%d %H:%M")},
         )
         return True
 

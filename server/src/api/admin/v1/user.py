@@ -14,6 +14,8 @@ Endpoints:
     POST   /users/import:   批量导入用户
 """
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -136,11 +138,12 @@ def export_users(
         data["gender"] = Gender.get_desc_by_mark(data["gender"]) if data.get("gender") else ""
         data["status"] = UserStatus.get_desc_by_mark(data["status"], default=data.get("status") or "")
         csv_rows.append(data)
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     return build_csv_stream_response(
         fieldnames=fieldnames,
         headers_cn=headers_cn,
         rows=csv_rows,
-        filename="users_export.csv",
+        filename=f"用户-{timestamp}.csv",
     )
 
 

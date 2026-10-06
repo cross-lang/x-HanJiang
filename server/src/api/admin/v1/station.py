@@ -119,12 +119,12 @@ def export_messages(
         "created_at": "接收时间",
         "read_at": "已读时间",
     }
-    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     return build_csv_stream_response(
         fieldnames=fieldnames,
         headers_cn=headers_cn,
         rows=rows,
-        filename=f"station_messages_{timestamp}.csv",
+        filename=f"站内信-{timestamp}.csv",
     )
 
 

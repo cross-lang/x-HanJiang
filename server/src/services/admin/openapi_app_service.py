@@ -16,7 +16,7 @@ src/services/open/gateway_service.py（开放接口域）；
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from src.constants.enums import (
@@ -223,7 +223,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             if pending is not None:
                 pending.status = AppApprovalStatus.REJECTED.value
                 pending.approval_note = "应用被管理员禁用，其待审批的申请已一并驳回。"
-                pending.approved_at = datetime.now(UTC)
+                pending.approved_at = datetime.now()
                 approval_rejected = True
         self._notify_owner_action(
             e,

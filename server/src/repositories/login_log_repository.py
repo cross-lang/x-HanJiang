@@ -76,9 +76,9 @@ class LoginLogRepository(BaseRepository[LoginLogEntity, int]):
         minutes: int = 30,
     ) -> int:
         """统计指定用户最近 N 分钟内的连续登录失败次数。"""
-        from datetime import UTC, timedelta
+        from datetime import timedelta
 
-        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=minutes)
+        cutoff = datetime.now() - timedelta(minutes=minutes)
         stmt = (
             select(func.count())
             .select_from(LoginLogEntity)

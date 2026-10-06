@@ -1,32 +1,30 @@
 <template>
   <div>
     <el-card>
-      <div class="hj-toolbar">
-        <div class="hj-flex hj-gap-8">
-          <el-select v-model="filter.source" placeholder="来源" clearable style="width: 150px" @change="fetchList">
-            <el-option v-for="opt in SOURCE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="~"
-            start-placeholder="接收起始日期"
-            end-placeholder="接收截止日期"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 300px"
-            @change="fetchList"
-          />
-          <el-input
-            v-model="filter.keyword"
-            placeholder="搜索标题/正文"
-            clearable
-            style="width: 200px"
-            @keyup.enter="fetchList"
-            @clear="fetchList"
-          />
-          <el-button type="primary" icon="Search" @click="fetchList">搜索</el-button>
-        </div>
-        <el-button type="primary" :icon="Download" @click="handleExport">导出 CSV</el-button>
+      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px">
+        <el-select v-model="filter.source" placeholder="来源" clearable style="width: 120px" @change="fetchList">
+          <el-option v-for="opt in SOURCE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="~"
+          start-placeholder="接收起始日期"
+          end-placeholder="接收截止日期"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          style="width: 260px"
+          @change="fetchList"
+        />
+        <el-input
+          v-model="filter.keyword"
+          placeholder="搜索标题/正文"
+          clearable
+          style="width: 160px"
+          @keyup.enter="fetchList"
+          @clear="fetchList"
+        />
+        <el-button type="primary" icon="Search" @click="fetchList">搜索</el-button>
+        <el-button :icon="Download" @click="handleExport">导出CSV</el-button>
       </div>
 
       <el-table :data="items" v-loading="loading" border>

@@ -78,6 +78,9 @@
           </template>
           <el-table :data="myLogins" size="small" empty-text="暂无记录">
             <el-table-column prop="ip_address" label="IP" width="120" />
+            <el-table-column label="登录方式" width="100">
+              <template #default="{ row }">{{ row.login_type_label || row.login_type }}</template>
+            </el-table-column>
             <el-table-column prop="status" label="状态" width="70">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">
@@ -102,13 +105,13 @@
             </div>
           </template>
           <el-table :data="myAudits" size="small" empty-text="暂无记录">
-            <el-table-column label="实体" width="140">
+            <el-table-column label="实体" width="260">
               <template #default="{ row }">{{ formatAuditEntity(row.entity_type) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="120">
+            <el-table-column label="操作" width="150">
               <template #default="{ row }">{{ formatAuditAction(row.action) }}</template>
             </el-table-column>
-            <el-table-column prop="ip_address" label="IP" width="120" />
+            <el-table-column prop="ip_address" label="IP" width="110" />
             <el-table-column prop="created_at" label="时间">
               <template #default="{ row }">{{ formatMonthDayTime(row.created_at) }}</template>
             </el-table-column>

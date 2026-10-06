@@ -173,7 +173,7 @@ class NotificationDispatcher:
                     success = provider.send(message)
                     if success:
                         delivery.status = NotificationStatus.SUCCESS.value
-                        delivery.receive_at = datetime.utcnow()
+                        delivery.receive_at = datetime.now()
                     else:
                         delivery.status = NotificationStatus.FAILED.value
                         delivery.error_message = "Provider returned False"

@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, TypedDict
 
 from sqlalchemy import select
@@ -308,7 +308,9 @@ class DeveloperOpenApiAppService:
         if not entity.app_key_encrypted:
             raise ConflictException(message="应用密钥数据异常，请重置密钥")
         plain = security.decrypt_text(entity.app_key_encrypted)
-        entity.app_key_viewed_at = datetime.now(UTC)
+        if plain is None:
+            raise ConflictException(message="应用密钥数据异常，请重置密钥")
+        entity.app_key_viewed_at = datetime.now()
         self._session.commit()
         logger.info("developer %s viewed app key once app_id=%s", developer_id, app_id)
         return {"app_id": entity.app_id, "app_key": plain}
@@ -316,12 +318,12 @@ class DeveloperOpenApiAppService:
     def delete_app(self, app_id: int, developer_id: int) -> None:
         """软删除应用，并将该应用待审批的申请置为已驳回（保留历史批次）。"""
         entity = self._require_owned(app_id, developer_id)
-        entity.deleted_at = datetime.now(UTC)
+        entity.deleted_at = datetime.now()
         pending = self._registration_repo.find_pending_by_app(entity.id)
         if pending is not None:
             pending.status = AppApprovalStatus.REJECTED.value
             pending.approval_note = "应用已被开发者删除，申请作废"
-            pending.approved_at = datetime.now(UTC)
+            pending.approved_at = datetime.now()
         self._session.commit()
         logger.info("developer %s deleted app_id=%s", developer_id, app_id)
 

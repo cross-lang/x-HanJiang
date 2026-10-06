@@ -4,10 +4,16 @@
 不直接操作数据库会话、不编写 SQL。
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
-from src.constants.enums import AppApprovalStatus, AppRegistrationType, NotificationChannel, NotificationStatus
+from src.constants.enums import (
+    AppApprovalStatus,
+    AppRegistrationType,
+    LoginType,
+    NotificationChannel,
+    NotificationStatus,
+)
 from src.repositories.dashboard_repository import DashboardRepository
 
 # 通知渠道标识 → 中文名称映射（以 NotificationChannel 枚举为唯一权威来源）
@@ -27,7 +33,7 @@ class DashboardService:
 
     def get_stats(self) -> dict[str, Any]:
         """获取仪表盘全部统计数据。"""
-        today = datetime.now(UTC).date()
+        today = datetime.now().date()
         week_ago = today - timedelta(days=6)
         month_ago = today - timedelta(days=29)
         # 关键指标
@@ -204,6 +210,8 @@ class DashboardService:
             {
                 "id": r.id,
                 "ip_address": r.ip_address,
+                "login_type": r.login_type,
+                "login_type_label": LoginType.get_desc_by_mark(r.login_type, r.login_type),
                 "status": r.status,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }

@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from src.constants.enums import (
@@ -180,7 +180,7 @@ class DeveloperService(BaseService[DeveloperResponse, int, DeveloperRepository])
             owner_type=AppOwnerType.DEVELOPER.value,
             owner_id=developer_id,
         )
-        e.deleted_at = datetime.now(UTC)
+        e.deleted_at = datetime.now()
         self._repository.flush()
         self._commit()
         return True
