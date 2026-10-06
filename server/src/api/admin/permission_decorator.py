@@ -33,12 +33,12 @@ def permission(code: PermissionCode) -> Callable[[Callable[_P, _R]], Callable[_P
     """
 
     def decorator(func: Callable[_P, _R]) -> Callable[_P, _R]:
-        func._permission_code = code.mark
-        func._permission_name = code.perm_name
-        func._permission_module = code.module
-        func._permission_operation = code.operation
-        func._permission_description = code.description
-        func._permission_sort_order = code.sort_order
+        setattr(func, "_permission_code", code.mark)
+        setattr(func, "_permission_name", code.perm_name)
+        setattr(func, "_permission_module", code.module)
+        setattr(func, "_permission_operation", code.operation)
+        setattr(func, "_permission_description", code.description)
+        setattr(func, "_permission_sort_order", code.sort_order)
         return func
 
     return decorator

@@ -34,12 +34,12 @@ def app_scope(code: OpenApiScopeCode) -> Callable[[Callable[_P, _R]], Callable[_
     """
 
     def decorator(func: Callable[_P, _R]) -> Callable[_P, _R]:
-        func._scope_code = code.mark
-        func._scope_name = code.scope_name
-        func._scope_module = code.module
-        func._scope_operation = code.operation
-        func._scope_description = code.description
-        func._scope_sort_order = code.sort_order
+        setattr(func, "_scope_code", code.mark)
+        setattr(func, "_scope_name", code.scope_name)
+        setattr(func, "_scope_module", code.module)
+        setattr(func, "_scope_operation", code.operation)
+        setattr(func, "_scope_description", code.description)
+        setattr(func, "_scope_sort_order", code.sort_order)
         return func
 
     return decorator
