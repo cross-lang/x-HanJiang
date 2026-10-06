@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""仪表盘统计接口。"""
+"""仪表盘统计接口（仪表盘 = 多个面板 Panel 的集合）。
+
+仪表盘的权限码为 dashboard:view；首页（登录后落点）相关接口在 home.py，权限码为 home:view。
+"""
 
 from fastapi import APIRouter, Depends, Request
 
@@ -30,20 +33,4 @@ def get_stats(
 ):
     """获取仪表盘关键指标和趋势数据。"""
     data = service.get_stats()
-    return success_response(data, request)
-
-
-@router.get(
-    "/my-activity",
-    summary="我的最近活动",
-    dependencies=[Depends(require_user_permission(PermissionCode.DASHBOARD_VIEW.mark))],
-)
-@permission(PermissionCode.DASHBOARD_VIEW)
-def get_my_activity(
-    request: Request,
-    current_user: CurrentUser = Depends(get_current_user),
-    service: DashboardService = Depends(get_dashboard_service),
-):
-    """获取当前用户的最近登录日志和操作日志（首页用）。"""
-    data = service.get_my_activity(current_user.id)
     return success_response(data, request)

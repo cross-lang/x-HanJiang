@@ -13,17 +13,17 @@ const router = createRouter({
     {
       path: '/',
       component: () => import('@/views/layout/Layout.vue'),
-      redirect: '/dashboard',
+      redirect: '/home',
       children: [
+        {
+          path: 'home',
+          name: 'Home',
+          component: () => import('@/views/dashboard/Dashboard.vue'),
+          meta: { perm: 'home:view' },
+        },
         {
           path: 'dashboard',
           name: 'Dashboard',
-          component: () => import('@/views/dashboard/Dashboard.vue'),
-          meta: { perm: 'dashboard:view' },
-        },
-        {
-          path: 'panel',
-          name: 'DashboardPanel',
           component: () => import('@/views/dashboard/DashboardPanel.vue'),
           meta: { perm: 'dashboard:view' },
         },

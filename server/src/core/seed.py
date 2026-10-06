@@ -42,8 +42,8 @@ from src.utils.security import hash_password
 # parent 为 0 表示根菜单
 _SEED_MENUS = [
     # 根菜单
-    (0, "首页", "/dashboard", "Odometer", PermissionCode.DASHBOARD_VIEW.mark, 1, "menu"),
-    (0, "仪表盘", "/panel", "DataAnalysis", PermissionCode.DASHBOARD_VIEW.mark, 2, "menu"),
+    (0, "首页", "/home", "Odometer", PermissionCode.HOME_VIEW.mark, 1, "menu"),
+    (0, "仪表盘", "/dashboard", "DataAnalysis", PermissionCode.DASHBOARD_VIEW.mark, 2, "menu"),
     (0, "系统管理", "/system", "Setting", None, 3, "directory"),
     # 系统管理子菜单
     ("系统管理", "用户管理", "/users", "User", PermissionCode.USER_VIEW.mark, 1, "menu"),
@@ -136,7 +136,7 @@ def init_seed_data() -> None:
             logger.info(f"Seed role created: role_code={SystemRoleCode.USER.mark}")
         # 3.7 普通用户角色 → 绑定个人基础功能权限（幂等）
         user_basic_codes = [
-            PermissionCode.DASHBOARD_VIEW.mark,
+            PermissionCode.HOME_VIEW.mark,
             PermissionCode.PROFILE_VIEW.mark,
             PermissionCode.PROFILE_EDIT.mark,
             PermissionCode.PROFILE_PASSWORD.mark,

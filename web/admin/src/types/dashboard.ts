@@ -1,6 +1,4 @@
-/** 仪表盘相关类型（与 server/src/services/dashboard_service.py 返回结构对齐） */
-
-export interface NameValueItem {
+/** 仪表盘相关类型（与 server/src/services/dashboard_service.py 返回结构对齐） */ export interface NameValueItem {
   name: string
   value: number
 }
@@ -80,11 +78,6 @@ export interface DashboardStats {
   recent_logins: LoginLogBrief[]
   recent_audits: AuditLogBrief[]
   openapi: OpenapiStats
-}
-
-export interface MyActivity {
-  recent_logins: { id: number; ip_address: string | null; status: string; created_at: string | null }[]
-  recent_audits: AuditLogBrief[]
 }
 
 /** 系统监控：通知渠道健康度 + 服务器资源占用 */

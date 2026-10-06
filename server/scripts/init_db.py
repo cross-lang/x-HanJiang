@@ -2,7 +2,8 @@
 """
 数据库初始化脚本
 
-本脚本用于初始化数据库，创建所有数据表。
+本脚本用于初始化数据库，创建所有数据表并写入内置种子数据
+（超级管理员用户、系统内置角色与权限）。
 在生产环境中，建议使用数据库迁移工具（如 Alembic）管理表结构变更。
 
 Usage:
@@ -18,8 +19,8 @@ sys.path.insert(0, str(project_root))
 
 from src.core.config import settings  # noqa: E402
 from src.core.logger import logger, setup_logging  # noqa: E402
+from src.core.seed import init_seed_data  # noqa: E402
 from src.infras.database import Base, init_db  # noqa: E402
-from src.models.entities.user_entity import UserEntity  # noqa: E402,F401  确保模型被注册
 
 
 def _mask_database_url(url: str) -> str:
@@ -44,6 +45,7 @@ def main() -> None:
 
     try:
         init_db()
+        init_seed_data()
 
         tables = Base.metadata.tables.keys()
 

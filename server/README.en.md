@@ -658,12 +658,12 @@ Once the backend is running:
 | POST | `/api/admin/v1/station/messages/{msg_id}/read` | Mark one message read |
 | POST | `/api/admin/v1/station/messages/read-all` | Mark all read |
 
-**Dashboard:**
+**Home / Dashboard:**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/admin/v1/dashboard/stats` | Dashboard stats (cards, trends, recent records) |
-| GET | `/api/admin/v1/dashboard/my-activity` | My recent activity (login + operation logs) |
+| GET | `/api/admin/v1/home/my-activity` | Home: my recent activity (login + operation logs), perm `home:view` |
+| GET | `/api/admin/v1/dashboard/stats` | Dashboard stats (cards, trends, recent records), perm `dashboard:view` |
 
 **Open Platform App Management:**
 

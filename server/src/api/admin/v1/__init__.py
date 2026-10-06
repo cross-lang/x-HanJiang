@@ -14,6 +14,7 @@ from src.api.admin.v1 import (
     developer,
     file,
     health,
+    home,
     log,
     openapi_app,
     openapi_app_registration,
@@ -69,6 +70,9 @@ v1_router.include_router(system_monitor.router)
 
 # 注册告警管理路由
 v1_router.include_router(alert.router)
+
+# 注册首页管理路由
+v1_router.include_router(home.router)
 
 # 注册仪表盘管理路由
 v1_router.include_router(dashboard.router)

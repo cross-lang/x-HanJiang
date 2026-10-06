@@ -1,7 +1,7 @@
 <template>
   <el-main class="main-area">
     <div v-if="!isHome" class="page-head">
-      <el-button text @click="$router.push('/dashboard')">
+      <el-button text @click="$router.push('/home')">
         <el-icon class="back-icon"><Back /></el-icon>返回首页
       </el-button>
       <el-divider direction="vertical" />
@@ -44,8 +44,8 @@ const userStore = useUserStore()
 
 const currentYear = new Date().getFullYear()
 
-// 当前是否为首页（/dashboard 或根路径 /）
-const isHome = computed(() => route.path === '/dashboard' || route.path === '/')
+// 当前是否为首页（/home 或根路径 /）
+const isHome = computed(() => route.path === '/home' || route.path === '/')
 
 const pageTitle = computed(() => {
   // 从菜单树里找当前路由对应的标题

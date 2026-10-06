@@ -36,6 +36,7 @@ class PermissionModule(StrBaseEnum):
     OPENAPI_APP = ("openapi_app", "开放平台应用")
     OPENAPI_SCOPE = ("openapi_scope", "开放平台权限")
     OPENAPI_DEV = ("openapi_dev", "开放平台用户")
+    HOME = ("home", "首页")
     DASHBOARD = ("dashboard", "仪表盘")
     SWAGGER = ("swagger", "接口文档")
     PROFILE = ("profile", "个人中心")
@@ -193,6 +194,9 @@ class PermissionCode(BaseEnum):
         "查看开放平台开发者用户列表与旗下应用",
         68,
     )
+
+    # ── 首页域 ────────────────────────────────────────────
+    HOME_VIEW = ("home:view", "查看首页", PermissionModule.HOME.mark, PermissionAction.VIEW.mark, "登录后访问首页（我的最近活动）", 69)
 
     # ── 仪表盘域 ────────────────────────────────────────
     DASHBOARD_VIEW = ("dashboard:view", "查看仪表盘", PermissionModule.DASHBOARD.mark, PermissionAction.VIEW.mark, "获取仪表盘关键指标", 70)

@@ -658,12 +658,12 @@ graph LR
 | POST | `/api/admin/v1/station/messages/{msg_id}/read` | 标记单条已读 |
 | POST | `/api/admin/v1/station/messages/read-all` | 全部已读 |
 
-**仪表盘：**
+**首页 / 仪表盘：**
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/admin/v1/dashboard/stats` | 仪表盘统计（指标卡片、趋势图表、最近记录） |
-| GET | `/api/admin/v1/dashboard/my-activity` | 我的最近活动（登录日志 + 操作日志） |
+| GET | `/api/admin/v1/home/my-activity` | 首页：我的最近活动（登录日志 + 操作日志），权限 `home:view` |
+| GET | `/api/admin/v1/dashboard/stats` | 仪表盘统计（指标卡片、趋势图表、最近记录），权限 `dashboard:view` |
 
 **开放平台应用管理：**
 

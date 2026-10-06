@@ -64,8 +64,8 @@
       </el-col>
     </el-row>
 
-    <!-- 我的最近动态（仅 dashboard:view 权限可见） -->
-    <el-row v-if="canViewDashboard" :gutter="20" class="hj-mt-20">
+    <!-- 我的最近动态（仅 home:view 权限可见） -->
+    <el-row v-if="canViewHome" :gutter="20" class="hj-mt-20">
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header>
@@ -138,10 +138,10 @@ import { useUserStore } from '@/stores/user'
 import { renderAnnouncement } from '@/utils/announcement'
 import { formatDateTimeShort, formatMonthDayTime } from '@/utils/format'
 import { formatAuditEntity, formatAuditAction } from '@/utils/audit-labels'
-import { getMyActivity } from '@/api/dashboard'
+import { getMyActivity } from '@/api/home'
 import { listAvailableAnnouncements } from '@/api/announcement'
 import type { AnnouncementItem } from '@/types/announcement'
-import type { MyActivity } from '@/types/dashboard'
+import type { MyActivity } from '@/types/home'
 
 const userStore = useUserStore()
 const today = new Date().toLocaleDateString('zh-CN', {
@@ -173,8 +173,8 @@ const allQuickLinks = [
 ]
 
 const permissions = userStore.userInfo?.permissions || []
-// 仪表盘页面权限：无 dashboard:view 时不请求"我的最近活动"，避免 403
-const canViewDashboard = userStore.hasPerm('dashboard:view')
+// 首页页面权限：无 home:view 时不请求"我的最近活动"，避免 403
+const canViewHome = userStore.hasPerm('home:view')
 const quickLinks = allQuickLinks.filter(l => !l.perm || permissions.includes('*') || permissions.includes(l.perm))
 const myLogins = ref<MyActivity['recent_logins']>([])
 const myAudits = ref<MyActivity['recent_audits']>([])
@@ -201,7 +201,7 @@ function openAnnouncement(item: AnnouncementItem) {
 }
 
 onMounted(async () => {
-  if (canViewDashboard) {
+  if (canViewHome) {
     try {
       const res = await getMyActivity()
       myLogins.value = res.data.recent_logins

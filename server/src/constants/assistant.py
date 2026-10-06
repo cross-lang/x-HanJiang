@@ -72,11 +72,11 @@ ASSISTANT_MESSAGE_LIST_LIMIT: int = 100
 #: 后续可替换为从菜单表（menu）动态生成，此处为 P0 静态清单。
 ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (
     {
-        "page": "dashboard",
-        "path": "/dashboard",
+        "page": "home",
+        "path": "/home",
         "title": "首页",
         "description": "系统概览与核心指标看板",
-        "permission": "",
+        "permission": PermissionCode.HOME_VIEW.mark,
     },
     {
         "page": "users",
