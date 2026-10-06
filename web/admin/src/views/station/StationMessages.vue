@@ -4,7 +4,7 @@
       <div class="hj-toolbar">
         <div class="hj-flex hj-gap-8">
           <el-select v-model="filter.source" placeholder="来源" clearable style="width: 150px" @change="fetchList">
-            <el-option v-for="(label, value) in SOURCE_LABELS" :key="value" :label="label" :value="value" />
+            <el-option v-for="opt in SOURCE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
           <el-date-picker
             v-model="dateRange"
@@ -36,13 +36,13 @@
         <el-table-column label="来源" width="120">
           <template #default="{ row }">
             <el-tag :type="sourceTag(row.source as string)" effect="plain">
-              {{ SOURCE_LABELS[row.source as string] || row.source || '-' }}
+              {{ row.source_label || row.source || '-' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="事件类型" width="180" show-overflow-tooltip>
           <template #default="{ row }">
-            {{ EVENT_LABELS[row.event_type as string] || row.event_type || '-' }}
+            {{ row.event_type_label || row.event_type || '-' }}
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90">
@@ -73,11 +73,11 @@
           <el-descriptions-item label="标题">{{ detail.title }}</el-descriptions-item>
           <el-descriptions-item label="来源">
             <el-tag :type="sourceTag(detail.source as string)" effect="plain">
-              {{ SOURCE_LABELS[detail.source as string] || detail.source || '-' }}
+              {{ detail.source_label || detail.source || '-' }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="事件类型">
-            {{ EVENT_LABELS[detail.event_type as string] || detail.event_type || '-' }}
+            {{ detail.event_type_label || detail.event_type || '-' }}
           </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="detail.is_read ? 'info' : 'success'">{{ detail.is_read ? '已读' : '未读' }}</el-tag>
@@ -100,38 +100,15 @@ import { listStationMessages, getStationMessage, exportStationMessagesCsv } from
 import type { StationMessage } from '@/api/notification'
 import { downloadResponseBlob } from '@/utils/download'
 
-/** 来源 → 中文名映射（与后端 NotificationSource 枚举对齐） */
-const SOURCE_LABELS: Record<string, string> = {
-  system_notice: '系统通知',
-  station: '站内信',
-  alert: '系统告警',
-  openapi_app: '开放平台',
-}
-
-/** 已知事件类型 → 中文名映射（未知类型展示原始标识） */
-const EVENT_LABELS: Record<string, string> = {
-  'system.notice': '系统通知',
-  'system.alert': '系统告警',
-  'station.message': '站内消息',
-  'openapi_app.created': '开放应用创建',
-  'openapi_app.updated': '开放应用更新',
-  'openapi_app.deleted': '开放应用删除',
-  'openapi_app.key_reset': '开放应用密钥重置',
-  'user.created': '新用户创建',
-  'user.deleted': '用户已删除',
-  'user.password_changed': '密码修改',
-  'user.profile_updated': '资料变更',
-  'user.status_changed': '账号状态变更',
-  'role.assigned': '角色变更',
-  'role.deleted': '角色已删除',
-  'permission.granted': '权限授予',
-  'permission.revoked': '权限回收',
-  'file.uploaded': '文件上传',
-  'file.deleted': '文件删除',
-  'file.downloaded': '文件下载',
-  'login.new_device': '新设备登录',
-  openapi_app_registration: '开放应用审批',
-}
+// 来源/事件类型中文名由后端枚举映射后随接口返回（event_type_label/source_label），
+// 前端不再维护消息级映射；未知标识回退展示原始值。
+// 以下仅保留"来源筛选下拉"的固定选项（值与后端 NotificationSource 枚举 + station 直发对齐）。
+const SOURCE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'system_notice', label: '系统通知' },
+  { value: 'station', label: '站内信' },
+  { value: 'alert', label: '系统告警' },
+  { value: 'openapi_app', label: '开放应用审批' },
+]
 
 function sourceTag(source: string): 'primary' | 'success' | 'warning' | 'info' {
   switch (source) {

@@ -7,41 +7,34 @@ from src.constants.enums import NotificationEvent, NotificationSource
 from src.models.entities.station_message_entity import StationMessageEntity
 from src.repositories.station_message_repository import StationMessageRepository
 
-# 来源 → 中文名（与前端站内信页面 SOURCE_LABELS 保持一致）
-# station 直发不入 NotificationSource 枚举（见枚举 docstring），用字面量
-_SOURCE_LABELS: dict[str, str] = {
-    NotificationSource.SYSTEM_NOTICE.value: "系统通知",
-    "station": "站内信",
-    NotificationSource.MANUAL.value: "手动触发",
-    NotificationSource.ALERT.value: "系统告警",
-    NotificationSource.OPENAPI_APP.value: "开放平台",
-}
 
-# 事件类型 → 中文名（与前端站内信页面 EVENT_LABELS 保持一致）
-# 覆盖 NotificationEvent 枚举 label（含未入枚举的站内信直发事件，如应用审批）
-_EVENT_TYPE_LABELS: dict[str, str] = {
-    "system.notice": "系统通知",
-    "system.alert": "系统告警",
-    "station.message": "站内消息",
-    "openapi_app.created": "开放应用创建",
-    "openapi_app.updated": "开放应用更新",
-    "openapi_app.deleted": "开放应用删除",
-    "openapi_app.key_reset": "开放应用密钥重置",
-    "openapi_app_registration": "开放应用审批",
-    "user.created": "新用户创建",
-    "user.deleted": "用户已删除",
-    "user.password_changed": "密码修改",
-    "user.profile_updated": "资料变更",
-    "user.status_changed": "账号状态变更",
-    "role.assigned": "角色变更",
-    "role.deleted": "角色已删除",
-    "permission.granted": "权限授予",
-    "permission.revoked": "权限回收",
-    "file.uploaded": "文件上传",
-    "file.deleted": "文件删除",
-    "file.downloaded": "文件下载",
-    "login.new_device": "新设备登录",
-}
+def _source_label(source: str) -> str:
+    """返回来源中文名。
+
+    单一事实源为 NotificationSource 枚举（get_desc_by_mark 反查，未命中回退原始值）；
+    station 站内信直发不入该枚举（见枚举 docstring），单独特判映射。
+
+    Args:
+        source: 来源标识（system_notice/station/alert/openapi_app）
+
+    Returns:
+        str: 来源中文名
+    """
+    if source == "station":
+        return "站内信"
+    return NotificationSource.get_desc_by_mark(source)
+
+
+def _build_event_type_labels() -> dict[str, str]:
+    """构建事件类型标识 → 中文名查表（供批量导出等热点场景使用）。
+
+    事件中文名单一事实源为 NotificationEvent 枚举；导出最多 10 万行，
+    逐行 get_desc_by_mark 线性反查开销可观，故在批量场景预构建一次 O(1) 查表。
+
+    Returns:
+        dict[str, str]: 事件标识 → 中文名映射
+    """
+    return {event.mark: event.desc for event in NotificationEvent}
 
 
 class StationMessageService:
@@ -112,7 +105,9 @@ class StationMessageService:
                 "title": r.subject,
                 "content": r.content,
                 "event_type": r.event_type,
+                "event_type_label": NotificationEvent.get_desc_by_mark(r.event_type),
                 "source": r.source,
+                "source_label": _source_label(r.source),
                 "is_read": r.is_read,
                 "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",
             }
@@ -141,7 +136,9 @@ class StationMessageService:
                 "title": r.subject,
                 "content": r.content,
                 "event_type": r.event_type,
+                "event_type_label": NotificationEvent.get_desc_by_mark(r.event_type),
                 "source": r.source,
+                "source_label": _source_label(r.source),
                 "is_read": r.is_read,
                 "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",
             }
@@ -167,7 +164,9 @@ class StationMessageService:
             "title": msg.subject,
             "content": msg.content,
             "event_type": msg.event_type,
+            "event_type_label": NotificationEvent.get_desc_by_mark(msg.event_type),
             "source": msg.source,
+            "source_label": _source_label(msg.source),
             "is_read": msg.is_read,
             "created_at": msg.created_at.strftime("%Y-%m-%d %H:%M:%S") if msg.created_at else "",
             "read_at": msg.read_at.strftime("%Y-%m-%d %H:%M:%S") if msg.read_at else "",
@@ -203,13 +202,15 @@ class StationMessageService:
             end_date=end_date,
             keyword=keyword,
         )
+        # 批量导出场景：预构建一次事件类型查表，避免逐行线性反查枚举
+        event_type_labels: dict[str, str] = _build_event_type_labels()
         return [
             {
                 "id": r.id,
                 "title": r.subject,
                 "content": r.content,
-                "event_type": _EVENT_TYPE_LABELS.get(r.event_type, r.event_type),
-                "source": _SOURCE_LABELS.get(r.source, r.source),
+                "event_type": event_type_labels.get(r.event_type, r.event_type),
+                "source": _source_label(r.source),
                 "status": "已读" if r.is_read else "未读",
                 "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else "",
                 "read_at": r.read_at.strftime("%Y-%m-%d %H:%M:%S") if r.read_at else "",

@@ -196,6 +196,7 @@ class NotificationEvent(StrBaseEnum):
     OPENAPI_APP_UPDATED = "openapi_app.updated", "开放应用已更新"
     OPENAPI_APP_DELETED = "openapi_app.deleted", "开放应用已删除"
     OPENAPI_APP_KEY_RESET = "openapi_app.key_reset", "AppKey已重置"
+    OPENAPI_APP_REGISTRATION = "openapi_app_registration", "开放应用审批"
     # ── 角色权限域 ──────────────────────────────
     ROLE_ASSIGNED = "role.assigned", "角色变更"
     ROLE_DELETED = "role.deleted", "角色已删除"

@@ -116,8 +116,12 @@ export interface StationMessage {
   content: string
   /** 事件类型（如 openapi_app_registration：开放应用申请待审批） */
   event_type: string
+  /** 事件类型中文名（后端由 NotificationEvent 枚举映射） */
+  event_type_label?: string
   /** 消息来源（system_notice/station/alert/openapi_app，前端跳转依据） */
   source?: string
+  /** 来源中文名（后端由 NotificationSource 枚举映射） */
+  source_label?: string
   is_read: boolean
   created_at: string
   /** 已读时间（详情接口返回） */
