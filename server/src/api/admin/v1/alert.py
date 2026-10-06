@@ -11,11 +11,11 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, Request
 
-from src.api.admin.permission_decorator import permission
 from src.api.admin.dependencies import (
     get_alert_service,
     require_user_permission,
 )
+from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.admin.alert import AlertSendRequest

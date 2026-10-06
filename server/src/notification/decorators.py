@@ -15,7 +15,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from src.constants.enums import NotificationEvent
+from src.constants.enums import NotificationEvent, NotificationSource
 from src.core.logger import logger
 
 
@@ -69,6 +69,7 @@ def notify(
                     user_id=uid,
                     event_type=event_type,
                     variables=vars_,
+                    source=NotificationSource.MANUAL.value,
                 )
             except Exception as exc:
                 logger.debug("notify decorator skipped: {}", exc)

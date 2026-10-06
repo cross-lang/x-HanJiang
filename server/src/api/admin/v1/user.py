@@ -16,13 +16,13 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 
-from src.api.admin.permission_decorator import permission
 from src.api.admin.dependencies import (
     get_current_user,
     get_user_operator_context,
     get_user_service,
     require_user_permission,
 )
+from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.enums import Gender, UserStatus
 from src.constants.permissions import PermissionCode

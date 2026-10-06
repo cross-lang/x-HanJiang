@@ -16,6 +16,7 @@ from src.api.admin.v1 import (
     health,
     log,
     notification,
+    notification_config,
     openapi_app,
     openapi_app_registration,
     permission,
@@ -23,6 +24,7 @@ from src.api.admin.v1 import (
     role,
     search,
     station,
+    system_monitor,
     user,
 )
 from src.constants import API_VERSION_V1_PREFIX
@@ -57,9 +59,14 @@ v1_router.include_router(file.router)
 # 注册公告管理路由
 v1_router.include_router(announcement.router)
 
-# 注册通知管理路由（系统通知发布/撤回/列表 + 用户侧通知记录 + 系统通知渠道配置）
+# 注册通知管理路由（系统通知发布/撤回/列表 + 用户侧通知记录）
 v1_router.include_router(notification.router)
-v1_router.include_router(notification.admin_router)
+
+# 注册系统通知渠道配置管理路由（渠道配置 / 连通性测试 / 监控状态）
+v1_router.include_router(notification_config.router)
+
+# 注册系统监控路由（CPU/内存/磁盘/网络指标，供仪表盘监控卡片）
+v1_router.include_router(system_monitor.router)
 
 # 注册告警管理路由
 v1_router.include_router(alert.router)

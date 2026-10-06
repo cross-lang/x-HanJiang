@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.constants.constants import TOKEN_TTL_SECONDS
-from src.constants.enums import LoginStatus, LoginType, NotificationEvent, SystemRoleCode, UserStatus
+from src.constants.enums import LoginStatus, LoginType, NotificationEvent, NotificationSource, SystemRoleCode, UserStatus
 from src.core.exceptions import AuthenticationException
 from src.core.logger import logger
 from src.core.tokens import (
@@ -100,6 +100,7 @@ class AuthService:
                     user_id=user_id,
                     event_type=NotificationEvent.LOGIN_NEW_DEVICE,
                     variables={"ip": ip, "time": ""},
+                    source=NotificationSource.MANUAL.value,
                 )
         except Exception:  # noqa: BLE001
             logger.warning("新设备登录通知发送失败 user_id=%s", user_id)
@@ -244,6 +245,7 @@ class AuthService:
                         "attempt_time": datetime.now(UTC).strftime("%Y-%m-%d %H:%M"),
                         "ip_address": ip_address or "未知",
                     },
+                    source=NotificationSource.MANUAL.value,
                 )
         except Exception as e:
             logger.warning(f"登录失败告警发送失败: user={user.id} error={e}")

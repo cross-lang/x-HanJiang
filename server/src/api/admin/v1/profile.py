@@ -12,18 +12,18 @@ Endpoints:
     PUT    /profile/me:                        修改个人信息
     POST   /profile/change-password:            修改密码
     GET    /profile/menus:                     获取当前用户菜单树
-    GET    /profile/notification-preferences:  获取我的通知偏好
+    GET    /profile/notification-preferences:  获取我的通知偏好（事件×渠道开关）
     PUT    /profile/notification-preferences:  更新我的通知偏好
-    GET    /profile/notification-recipients:   获取我的通知接收人列表
-    POST   /profile/notification-recipients:   添加通知接收人
-    PUT    /profile/notification-recipients:   更新通知接收人（channel+recipient 定位）
-    DELETE /profile/notification-recipients:   删除通知接收人（channel+recipient 定位）
+    GET    /profile/notification-recipients:  获取我的渠道接收方（每个渠道一个 recipient）
+    POST   /profile/notification-recipients:  保存渠道接收方（upsert）
+    PUT    /profile/notification-recipients:  更新渠道接收方（upsert）
+    DELETE /profile/notification-recipients:  清空渠道接收方并禁用该渠道
     POST   /profile/send-verify-code:          发送验证码
     POST   /profile/update-phone:              修改手机号
     POST   /profile/update-email:              修改邮箱
 """
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 
 from src.api.admin.dependencies import (
@@ -157,7 +157,7 @@ def update_my_preferences(
 
 @router.get(
     "/notification-recipients",
-    summary="获取我的通知接收人列表",
+    summary="获取我的渠道接收方",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_VIEW.mark))],
 )
 @permission(PermissionCode.PROFILE_VIEW)
@@ -166,13 +166,13 @@ def get_my_recipients(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """获取当前用户的通知接收人列表。"""
+    """获取当前用户各渠道的接收方（按渠道聚合，每个渠道一个 recipient）。"""
     return success_response(profile_service.get_recipients(current_user.id), request)
 
 
 @router.post(
     "/notification-recipients",
-    summary="添加通知接收人",
+    summary="保存渠道接收方",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
 @permission(PermissionCode.PROFILE_EDIT)
@@ -182,14 +182,14 @@ def add_recipient(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """添加当前用户的通知接收人（同渠道同接收人重复添加时幂等更新）。"""
+    """保存当前用户某渠道的接收方（单值，upsert；同步刷新该渠道下所有事件行）。"""
     profile_service.add_recipient(current_user.id, body)
     return success_response({"updated": True}, request, code=201)
 
 
 @router.put(
     "/notification-recipients",
-    summary="更新通知接收人",
+    summary="更新渠道接收方",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
 @permission(PermissionCode.PROFILE_EDIT)
@@ -199,14 +199,14 @@ def update_recipient(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """更新当前用户的通知接收人（channel+recipient 定位，label/enabled 可更新）。"""
+    """更新当前用户某渠道的接收方（单值，upsert；同步刷新该渠道下所有事件行）。"""
     profile_service.update_recipient(current_user.id, body)
     return success_response({"updated": True}, request)
 
 
 @router.delete(
     "/notification-recipients",
-    summary="删除通知接收人",
+    summary="清空渠道接收方",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
 @permission(PermissionCode.PROFILE_EDIT)
@@ -217,9 +217,26 @@ def delete_recipient(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """删除当前用户的通知接收人（channel+recipient 定位）。"""
+    """清空当前用户某渠道的接收方并禁用该渠道（recipient 参数保留兼容，后端按 channel 清空）。"""
     profile_service.delete_recipient(current_user.id, channel, recipient)
     return success_response({"deleted": True}, request)
+
+
+@router.post(
+    "/notification-recipients/test",
+    summary="测试我的 Webhook",
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
+)
+@permission(PermissionCode.PROFILE_EDIT)
+def test_my_recipient(
+    channel: str = Query(..., description="渠道标识（dingtalk / feishu）"),
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    profile_service: ProfileService = Depends(get_profile_service),
+) -> JSONResponse:
+    """用当前用户自己配置的钉钉/飞书 Webhook 发一条测试消息，验证连通性。"""
+    result = profile_service.test_recipient(current_user.id, channel)
+    return success_response(result, request)
 
 
 # ── 安全设置：邮箱二次认证 ──────────────────────────────────

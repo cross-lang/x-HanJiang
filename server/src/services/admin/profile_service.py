@@ -37,11 +37,9 @@ from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.cache import CacheProvider, get_cached_cache_provider
 from src.models.entities.notification_config_entity import UserNotificationConfigEntity
-from src.models.entities.notification_preference_entity import UserNotificationPreferenceEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.menu_repository import MenuRepository
 from src.repositories.notification_config_repository import UserNotificationConfigRepository
-from src.repositories.notification_preference_repository import NotificationPreferenceRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.admin.auth import CurrentUser
 from src.schemas.admin.profile import (
@@ -64,7 +62,6 @@ class ProfileService:
         self,
         user_repository: UserRepository,
         menu_repository: MenuRepository,
-        preference_repository: NotificationPreferenceRepository,
         config_repository: UserNotificationConfigRepository,
         dispatcher: NotificationDispatcher | None = None,
         station_service: StationMessageService | None = None,
@@ -75,15 +72,13 @@ class ProfileService:
         Args:
             user_repository: 用户数据访问仓库
             menu_repository: 菜单数据访问仓库
-            preference_repository: 通知偏好数据访问仓库
-            config_repository: 用户通知渠道配置仓库（接收人 JSON 数组读写）
+            config_repository: 用户通知配置仓库（事件×渠道开关 + 渠道级 recipient）
             dispatcher: 通知调度器（可选，未注入时邮件通知静默跳过）
             station_service: 站内信服务（可选，未注入时站内信静默跳过）
             cache: 缓存客户端（可选，未注入时使用全局缓存提供者）
         """
         self._user_repository = user_repository
         self._menu_repository = menu_repository
-        self._preference_repository = preference_repository
         self._config_repository = config_repository
         self._dispatcher = dispatcher
         self._station_service = station_service
@@ -247,117 +242,125 @@ class ProfileService:
             result.append(node)
         return result
 
-    # ── 通知偏好 ───────────────────────────────────────────
+    # ── 通知偏好（事件 × 渠道）──────────────────────────────
 
     def get_notification_preferences(self, user_id: int) -> dict[str, Any]:
-        """获取当前用户的完整通知偏好（含全部事件×渠道及默认值）。
+        """获取当前用户的完整通知偏好（事件 × 渠道开关，从 user_notification_configs 读取）。
 
         Args:
             user_id: 当前用户 ID
 
         Returns:
-            dict[str, Any]: {"events": [{event, name, channels: [{code, name, enabled}]}]}
+            dict[str, Any]: {"events": [{event, name, channels: [{code, name, enabled, recipient}]}]}
         """
-        rows = self._preference_repository.list_by_user(user_id)
-        prefs: dict[str, dict[str, bool]] = {}
+        rows = self._config_repository.list_by_user_id(user_id)
+        # 按 event 聚合已配置行
+        configured: dict[str, dict[str, tuple[bool, str]]] = {}
         for row in rows:
-            prefs.setdefault(row.event_type, {})[row.channel] = row.enabled
+            configured.setdefault(row.event_type, {})[row.channel] = (bool(row.enabled), row.recipient or "")
         events = []
         for event in NotificationEvent:
-            channels = [
-                {
-                    "code": channel.mark,
-                    "name": channel.desc,
-                    # 默认站内信开
-                    "enabled": prefs.get(event.mark, {}).get(channel.mark, channel.mark == DEFAULT_ENABLED_CHANNEL),
-                }
-                for channel in NotificationChannel
-            ]
+            channels = []
+            for channel in NotificationChannel:
+                cfg = configured.get(event.mark, {}).get(channel.mark)
+                # 默认站内信开，其他渠道关；未配置行不展示 recipient
+                default_enabled = channel.mark == DEFAULT_ENABLED_CHANNEL
+                channels.append(
+                    {
+                        "code": channel.mark,
+                        "name": channel.desc,
+                        "enabled": cfg[0] if cfg else default_enabled,
+                        "recipient": cfg[1] if cfg else "",
+                    }
+                )
             events.append({"event": event.mark, "name": event.desc, "channels": channels})
         return {"events": events}
 
-    def update_notification_preferences(self, user_id: int, prefs: dict[str, dict[str, bool]]) -> None:
-        """按 用户 + 事件 + 渠道 唯一键 upsert 通知偏好。
+    def update_notification_preferences(
+        self, user_id: int, prefs: dict[str, dict[str, bool]]
+    ) -> None:
+        """按 (user, event, channel) 唯一键 upsert 通知开关。
+
+        recipient 与事件无关：若该用户在某渠道下已有 recipient（如已配置 webhook），
+        新写入的 event×channel 行继承该 recipient；station 渠道 recipient 恒为空串。
 
         Args:
             user_id: 当前用户 ID
             prefs: {event_type: {channel: enabled}} 偏好结构
         """
+        # 缓存每个 channel 当前的 recipient，避免逐行查库
+        existing_by_channel: dict[str, str] = {}
+        for ch in NotificationChannel:
+            rows = self._config_repository.list_by_user_and_channel(user_id, ch.mark)
+            for r in rows:
+                if r.recipient:
+                    existing_by_channel[ch.mark] = r.recipient
+                    break
+
         for event_type, channels in prefs.items():
             for channel, enabled in channels.items():
-                row = self._preference_repository.get_by_user_event_channel(
+                row = self._config_repository.get_by_user_event_channel(
                     user_id=user_id, event_type=event_type, channel=channel
                 )
                 if row:
-                    row.enabled = enabled
+                    row.enabled = bool(enabled)
                 else:
-                    self._preference_repository.create(
-                        UserNotificationPreferenceEntity(
+                    recipient = "" if channel == "station" else existing_by_channel.get(channel, "")
+                    self._config_repository.create(
+                        UserNotificationConfigEntity(
                             user_id=user_id,
                             event_type=event_type,
                             channel=channel,
-                            enabled=enabled,
+                            recipient=recipient,
+                            enabled=bool(enabled),
                         )
                     )
-        self._preference_repository.commit()
+        self._config_repository.commit()
 
-    # ── 通知接收人 ─────────────────────────────────────────
+    # ── 通知接收人（渠道级 recipient，与事件无关）────────────
 
     def get_recipients(self, user_id: int) -> dict[str, Any]:
-        """获取当前用户的通知接收人列表（按渠道聚合的 JSON 数组展开）。
+        """获取当前用户各渠道的接收方（按渠道聚合，每个渠道取一份 recipient）。
 
         Args:
             user_id: 当前用户 ID
 
         Returns:
-            dict[str, Any]: {"items": [{channel, recipient, label, enabled}]}
+            dict[str, Any]: {"items": [{channel, recipient, enabled}]}
         """
-        configs = self._config_repository.list_by_user_id(user_id)
-        items: list[dict[str, Any]] = []
-        for cfg in configs:
-            for item in UserNotificationConfigRepository.parse_recipient_items(cfg.recipient):
-                items.append(
-                    {
-                        "channel": cfg.channel,
-                        "recipient": item["recipient"],
-                        "label": item.get("label", ""),
-                        "enabled": bool(item.get("enabled", True)),
-                    }
-                )
+        rows = self._config_repository.list_by_user_id(user_id)
+        # 按 channel 聚合：取该 channel 下任一非空 recipient
+        channel_recipient: dict[str, str] = {}
+        channel_enabled: dict[str, bool] = {}
+        for row in rows:
+            if row.channel == "station":
+                continue
+            if row.recipient and row.channel not in channel_recipient:
+                channel_recipient[row.channel] = row.recipient
+            channel_enabled.setdefault(row.channel, bool(row.enabled))
+        items = [
+            {
+                "channel": channel,
+                "recipient": recipient,
+                "enabled": channel_enabled.get(channel, False),
+            }
+            for channel, recipient in channel_recipient.items()
+        ]
         return {"items": items}
 
     def add_recipient(self, user_id: int, request: NotificationRecipientCreateRequest) -> None:
-        """新增当前用户的通知接收人（追加到渠道 JSON 数组，同渠道同接收人幂等 upsert）。
+        """新增/更新当前用户某渠道的接收方（单值，同步刷新该渠道下所有事件行）。
 
         Args:
             user_id: 当前用户 ID
-            request: 新增接收人入参（channel/recipient/label/enabled）
+            request: 接收人入参（channel/recipient/enabled）
         """
-        cfg = self._config_repository.get_by_user_and_channel(user_id, request.channel)
-        items = UserNotificationConfigRepository.parse_recipient_items(cfg.recipient) if cfg else []
-        item = next((it for it in items if it["recipient"] == request.recipient), None)
-        if item is not None:
-            item["label"] = request.label
-            item["enabled"] = 1 if request.enabled else 0
-        else:
-            items.append(
-                {
-                    "recipient": request.recipient,
-                    "label": request.label,
-                    "enabled": 1 if request.enabled else 0,
-                }
-            )
-        if cfg is not None:
-            cfg.recipient = items
-        else:
-            self._config_repository.create(
-                UserNotificationConfigEntity(
-                    user_id=user_id,
-                    channel=request.channel,
-                    recipient=items,
-                    enabled=True,
-                )
-            )
+        self._config_repository.upsert_channel_recipient(
+            user_id=user_id,
+            channel=request.channel,
+            recipient=request.recipient,
+            enabled=request.enabled,
+        )
         self._config_repository.commit()
 
     def update_recipient(
@@ -365,52 +368,85 @@ class ProfileService:
         user_id: int,
         request: NotificationRecipientUpdateRequest,
     ) -> None:
-        """更新当前用户的通知接收人（channel+recipient 定位，仅更新传入字段）。
+        """更新当前用户某渠道的接收方（同 add_recipient，upsert 语义）。
 
         Args:
             user_id: 当前用户 ID
-            request: 更新接收人入参（含定位键与可选更新字段）
-
-        Raises:
-            NotFoundException: 渠道配置或接收人不存在时抛出
+            request: 更新入参（channel/recipient/enabled）
         """
-        cfg = self._config_repository.get_by_user_and_channel(user_id, request.channel)
-        items = UserNotificationConfigRepository.parse_recipient_items(cfg.recipient) if cfg else []
-        target = next((it for it in items if it["recipient"] == request.recipient), None)
-        if cfg is None or target is None:
-            raise NotFoundException(message="接收人不存在")
-        patch = request.model_dump(exclude_unset=True)
-        for key, value in patch.items():
-            if key in ("channel", "recipient"):
-                continue
-            target[key] = 1 if value else 0 if key == "enabled" else value
-        cfg.recipient = items
+        recipient = request.recipient
+        enabled = request.enabled if request.enabled is not None else True
+        self._config_repository.upsert_channel_recipient(
+            user_id=user_id,
+            channel=request.channel,
+            recipient=recipient or "",
+            enabled=bool(enabled),
+        )
         self._config_repository.commit()
 
     def delete_recipient(self, user_id: int, channel: str, recipient: str) -> None:
-        """删除当前用户的通知接收人（按 channel+recipient 定位）。
-
-        渠道下接收人全部删除后，移除整行渠道配置。
+        """清空当前用户某渠道的接收方（所有事件行 recipient 置空并禁用该渠道）。
 
         Args:
             user_id: 当前用户 ID
             channel: 通知渠道
-            recipient: 接收人地址
+            recipient: 接收人地址（保留参数兼容旧调用，单值场景下不校验）
+        """
+        self._config_repository.upsert_channel_recipient(
+            user_id=user_id,
+            channel=channel,
+            recipient="",
+            enabled=False,
+        )
+        self._config_repository.commit()
+
+    def test_recipient(self, user_id: int, channel: str) -> dict[str, Any]:
+        """用当前用户在指定渠道配置的接收方发一条测试消息。
+
+        仅支持 dingtalk / feishu（webhook 群机器人）。从 user_notification_configs
+        读该用户在该 channel 下的 recipient，临时构造 provider 发测试消息，
+        不经过系统级 registry（系统 registry 用的是管理员配置的 webhook）。
+
+        Args:
+            user_id: 当前用户 ID
+            channel: 渠道标识（dingtalk / feishu）
+
+        Returns:
+            {"success": bool, "error": str | None}
 
         Raises:
-            NotFoundException: 渠道配置或接收人不存在时抛出
+            NotFoundException: 用户未配置该渠道接收方时抛出
         """
-        cfg = self._config_repository.get_by_user_and_channel(user_id, channel)
-        items = UserNotificationConfigRepository.parse_recipient_items(cfg.recipient) if cfg else []
-        if cfg is None or not any(it["recipient"] == recipient for it in items):
-            raise NotFoundException(message="接收人不存在")
-        items = [it for it in items if it["recipient"] != recipient]
-        if items:
-            cfg.recipient = items
-            self._config_repository.commit()
+        if channel not in ("dingtalk", "feishu"):
+            raise NotFoundException(message="仅支持测试钉钉/飞书 Webhook")
+        rows = self._config_repository.list_by_user_and_channel(user_id, channel)
+        recipient = next((r.recipient for r in rows if r.recipient), "")
+        if not recipient:
+            raise NotFoundException(message=f"尚未配置{channel} Webhook，请先填写并保存")
+
+        from src.infras.notification import (
+            DingTalkNotificationProvider,
+            FeishuNotificationProvider,
+            NotificationMessage,
+        )
+
+        if channel == "dingtalk":
+            provider = DingTalkNotificationProvider(webhook_url=recipient)
         else:
-            self._config_repository.delete(cfg.id)
-            self._config_repository.commit()
+            provider = FeishuNotificationProvider(webhook_url=recipient)
+
+        try:
+            ok = provider.send(
+                NotificationMessage(
+                    recipient=recipient,
+                    subject="Webhook 连通性测试",
+                    content="这是一条来自汉江管理系统的 Webhook 连通性测试消息。",
+                )
+            )
+            return {"success": ok, "error": None if ok else "发送失败，请检查 Webhook 地址"}
+        except Exception as exc:  # noqa: BLE001 - 测试失败统一收敛
+            logger.warning("User webhook test failed user=%s channel=%s: %s", user_id, channel, exc)
+            return {"success": False, "error": "发送失败，请检查 Webhook 地址"}
 
     # ── 安全设置：邮箱二次认证 ─────────────────────────────
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from src.constants.enums import AuditAction, NotificationEvent, SystemRoleCode
+from src.constants.enums import AuditAction, NotificationEvent, NotificationSource, SystemRoleCode
 from src.constants.permissions import PermissionAction, PermissionModule
 from src.core.exceptions import NotFoundException
 from src.core.logger import logger
@@ -224,6 +224,7 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
                             "permission_name": perm.perm_name,
                             "permission_code": perm.perm_code,
                         },
+                        source=NotificationSource.MANUAL.value,
                     )
                 except Exception as e:
                     logger.warning(f"权限变更通知发送失败: user={user.id} perm={perm.perm_code} error={e}")

@@ -7,11 +7,11 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.models.entities.system_notice_delivery_entity import SystemNoticeDeliveryEntity
+from src.models.entities.notification_delivery_entity import NotificationDeliveryEntity
 from src.repositories.base_repository import BaseRepository
 
 
-class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, int]):
+class NotificationDeliveryRepository(BaseRepository[NotificationDeliveryEntity, int]):
     """系统通知投递明细 Repository。
 
     负责投递明细的写入、分页查询、状态统计与失败重试队列读取。
@@ -19,12 +19,12 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
     时由调度任务取出重发，成功后回写状态。
     """
 
-    model_class = SystemNoticeDeliveryEntity
+    model_class = NotificationDeliveryEntity
 
     def __init__(self, session: Session | None = None) -> None:
         super().__init__(session)
 
-    def create_batch(self, deliveries: list[SystemNoticeDeliveryEntity]) -> None:
+    def create_batch(self, deliveries: list[NotificationDeliveryEntity]) -> None:
         """批量写入投递明细（单事务一次提交）。
 
         Args:
@@ -41,7 +41,7 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
         status: str | None = None,
         skip: int = 0,
         limit: int = 20,
-    ) -> tuple[list[SystemNoticeDeliveryEntity], int]:
+    ) -> tuple[list[NotificationDeliveryEntity], int]:
         """按系统通知分页查询投递明细（按创建时间倒序，可按渠道/状态过滤）。
 
         Args:
@@ -52,7 +52,7 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
             limit: 每页数量
 
         Returns:
-            tuple[list[SystemNoticeDeliveryEntity], int]: (投递明细列表, 总数)
+            tuple[list[NotificationDeliveryEntity], int]: (投递明细列表, 总数)
         """
         conditions = [self.model_class.system_notification_id == notification_id]
         if channel:
@@ -85,7 +85,7 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
         source: str | None = None,
         skip: int = 0,
         limit: int = 20,
-    ) -> tuple[list[SystemNoticeDeliveryEntity], int]:
+    ) -> tuple[list[NotificationDeliveryEntity], int]:
         """按事件类型/渠道/状态/来源分页查询投递明细（按时间倒序）。
 
         Args:
@@ -97,7 +97,7 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
             limit: 每页数量
 
         Returns:
-            tuple[list[SystemNoticeDeliveryEntity], int]: (投递明细列表, 总数)
+            tuple[list[NotificationDeliveryEntity], int]: (投递明细列表, 总数)
         """
         conditions = []
         if event_type:
@@ -110,14 +110,14 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
             conditions.append(self.model_class.source == source)
         return self._paginate(conditions=conditions, skip=skip, limit=limit)
 
-    def get_pending_retry(self, limit: int = 50) -> list[SystemNoticeDeliveryEntity]:
+    def get_pending_retry(self, limit: int = 50) -> list[NotificationDeliveryEntity]:
         """查询待重试的失败投递明细。
 
         Args:
             limit: 最大返回条数
 
         Returns:
-            list[SystemNoticeDeliveryEntity]: 待重试投递明细列表
+            list[NotificationDeliveryEntity]: 待重试投递明细列表
         """
         stmt = (
             self._base_query()
@@ -141,7 +141,7 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
         stmt = select(func.count()).where(self.model_class.status == status)
         return self.session.execute(stmt).scalar() or 0
 
-    def mark_retry_failed(self, delivery: SystemNoticeDeliveryEntity, error_message: str) -> None:
+    def mark_retry_failed(self, delivery: NotificationDeliveryEntity, error_message: str) -> None:
         """重试失败：重试次数 +1 并记录错误信息。
 
         Args:
@@ -153,7 +153,7 @@ class SystemNoticeDeliveryRepository(BaseRepository[SystemNoticeDeliveryEntity, 
         delivery.updated_at = datetime.now()
         self.session.flush()
 
-    def mark_sent(self, delivery: SystemNoticeDeliveryEntity) -> None:
+    def mark_sent(self, delivery: NotificationDeliveryEntity) -> None:
         """标记投递成功（送达时间）。
 
         Args:

@@ -86,3 +86,10 @@ export function removeNotificationRecipient(channel: string, recipient: string) 
     params: { channel, recipient },
   })
 }
+
+/** 测试我的钉钉/飞书 Webhook 连通性 */
+export function testMyRecipient(channel: string) {
+  return request.post<{ success: boolean; error: string | null }>('/profile/notification-recipients/test', null, {
+    params: { channel },
+  })
+}

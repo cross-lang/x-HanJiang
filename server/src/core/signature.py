@@ -19,7 +19,6 @@ from datetime import UTC, datetime
 
 from src.constants.constants import (
     OPENAPI_ALGORITHM,
-    OPENAPI_CONTENT_TYPE,
     OPENAPI_SIGNATURE_WINDOW_SECONDS,
 )
 from src.utils import security

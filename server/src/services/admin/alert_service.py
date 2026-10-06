@@ -16,14 +16,14 @@ from sqlalchemy.orm import Session
 from src.constants.constants import MAX_BROADCAST_USER_LIMIT
 from src.constants.enums import (
     DEFAULT_ROUTES,
-    NotificationSource,
     NotificationChannel,
     NotificationEvent,
+    NotificationSource,
     SystemRoleCode,
     UserStatus,
 )
 from src.core.logger import logger
-from src.models.entities.system_notice_delivery_entity import SystemNoticeDeliveryEntity
+from src.models.entities.notification_delivery_entity import NotificationDeliveryEntity
 from src.notification.dispatcher import NotificationDispatcher
 from src.repositories.role_repository import RoleRepository
 from src.repositories.system_notification_config_repository import SystemNotificationConfigRepository
@@ -123,7 +123,7 @@ class AlertService:
         message: str,
         recipients: dict[str, str],
         metadata: dict[str, Any] | None = None,
-    ) -> list[SystemNoticeDeliveryEntity]:
+    ) -> list[NotificationDeliveryEntity]:
         """发送系统告警到指定接收人，并默认附加推送目标。
 
         默认推送（在调用方指定接收人之外追加）：
@@ -139,7 +139,7 @@ class AlertService:
             metadata: 扩展元数据
 
         Returns:
-            list[SystemNoticeDeliveryEntity]: 投递明细列表
+            list[NotificationDeliveryEntity]: 投递明细列表
         """
         # 1. 规范化调用方指定接收人（值统一为列表）
         merged: dict[str, list[str]] = {

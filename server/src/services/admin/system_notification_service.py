@@ -10,7 +10,7 @@
     - 重新发布：已撤回的通知可按首次发布的受众快照重新广播；
     - 投递明细：按通知查询各渠道/状态的投递情况与统计。
 数据访问仅经 SystemNotificationRepository / UserRepository / RoleRepository /
-StationMessageService / SystemNoticeDeliveryRepository。
+StationMessageService / NotificationDeliveryRepository。
 """
 
 from __future__ import annotations
@@ -23,9 +23,7 @@ from src.constants.enums import (
     NotificationErrorCode,
     NotificationEvent,
     NotificationSource,
-    NotificationStatus,
     NotificationTargetType,
-    NotificationChannel,
     SystemNotificationStatus,
     SystemNotificationType,
     UserStatus,
@@ -33,16 +31,15 @@ from src.constants.enums import (
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
-from src.models.entities.system_notice_delivery_entity import SystemNoticeDeliveryEntity
 from src.models.entities.system_notification_entity import SystemNotificationEntity
 from src.models.entities.user_entity import UserEntity
 from src.notification.dispatcher import NotificationDispatcher
+from src.repositories.notification_delivery_repository import NotificationDeliveryRepository
 from src.repositories.role_repository import RoleRepository
-from src.repositories.system_notice_delivery_repository import SystemNoticeDeliveryRepository
 from src.repositories.system_notification_repository import SystemNotificationRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.admin.notification import (
-    SystemNoticeDeliveryListResponse,
+    NotificationDeliveryListResponse,
     SystemNotificationResponse,
 )
 from src.schemas.common import PaginatedResponse
@@ -61,7 +58,7 @@ class SystemNotificationService:
         role_repository: RoleRepository,
         station_service: StationMessageService,
         dispatcher: NotificationDispatcher,
-        delivery_repository: SystemNoticeDeliveryRepository,
+        delivery_repository: NotificationDeliveryRepository,
     ) -> None:
         self._notice_repository = notice_repository
         self._user_repository = user_repository
@@ -174,13 +171,6 @@ class SystemNotificationService:
             source=NotificationSource.SYSTEM_NOTICE.value,
             event_type=NotificationEvent.SYSTEM_NOTICE.mark,
             operator_id=operator.get("operator_id") if operator else None,
-        )
-        self._record_deliveries(
-            notification_id=entity.id,
-            user_ids=user_ids,
-            channel=NotificationChannel.STATION.mark,
-            status=NotificationStatus.SUCCESS.value,
-            receive_at=now,
         )
 
         # 若指定了 push_channels 时按目标受众额外强推
@@ -306,13 +296,6 @@ class SystemNotificationService:
             event_type=NotificationEvent.SYSTEM_NOTICE.mark,
             operator_id=operator.get("operator_id") if operator else None,
         )
-        self._record_deliveries(
-            notification_id=entity.id,
-            user_ids=user_ids,
-            channel="station",
-            status=NotificationStatus.SUCCESS.value,
-            receive_at=now,
-        )
 
         sent_count = 0
         if push_channels:
@@ -413,7 +396,7 @@ class SystemNotificationService:
         status: str | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> SystemNoticeDeliveryListResponse:
+    ) -> NotificationDeliveryListResponse:
         """查询系统通知投递明细（分页 + 状态统计）。
 
         Args:
@@ -424,7 +407,7 @@ class SystemNotificationService:
             page_size: 每页数量
 
         Returns:
-            SystemNoticeDeliveryListResponse: 投递明细分页与状态统计
+            NotificationDeliveryListResponse: 投递明细分页与状态统计
 
         Raises:
             NotFoundException: 系统通知不存在时抛出
@@ -443,7 +426,7 @@ class SystemNotificationService:
             limit=page_size,
         )
         stats = self._delivery_repository.count_by_notification_status(notice_id)
-        return SystemNoticeDeliveryListResponse(
+        return NotificationDeliveryListResponse(
             items=items,
             total=total,
             page=page,
@@ -576,39 +559,6 @@ class SystemNotificationService:
         if reason:
             content += f" 维护原因：{reason}"
         return content
-
-    def _record_deliveries(
-        self,
-        notification_id: int,
-        user_ids: list[int],
-        channel: str,
-        status: str,
-        receive_at: datetime,
-    ) -> None:
-        """批量记录站内信渠道的投递明细（单事务一次提交）。
-
-        Args:
-            notification_id: 系统通知 ID
-            user_ids: 目标用户 ID 列表
-            channel: 发送渠道
-            status: 投递状态
-            receive_at: 送达时间
-        """
-        deliveries = [
-            SystemNoticeDeliveryEntity(
-                system_notification_id=notification_id,
-                source=NotificationSource.SYSTEM_NOTICE.value,
-                event_type=NotificationEvent.SYSTEM_NOTICE.mark,
-                user_id=user_id,
-                channel=channel,
-                recipient=f"user:{user_id}",
-                status=status,
-                receive_at=receive_at,
-            )
-            for user_id in user_ids
-        ]
-        self._delivery_repository.create_batch(deliveries)
-        self._delivery_repository.commit()
 
     def _audit(
         self,

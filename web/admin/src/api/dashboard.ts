@@ -11,7 +11,7 @@ export function getMyActivity() {
   return request.get<MyActivity>('/dashboard/my-activity')
 }
 
-/** 系统监控：通知渠道健康度 */
+/** 系统监控：CPU/内存/磁盘/网络指标 */
 export function getNotificationMonitor() {
-  return request.get<NotificationMonitor>('/admin/notification-configs/monitor/system')
+  return request.get<NotificationMonitor>('/admin/system-monitor/system')
 }

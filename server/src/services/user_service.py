@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from src.constants.constants import SUPERADMIN_USERNAME
-from src.constants.enums import NotificationEvent, UserStatus
+from src.constants.enums import NotificationEvent, NotificationSource, UserStatus
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import AuthorizationException, ConflictException, NotFoundException
 from src.core.logger import logger
@@ -343,6 +343,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                 user_id=user_id,
                 event_type=event_type,
                 variables=variables,
+                source=NotificationSource.MANUAL.value,
             )
         except Exception as e:
             logger.warning(f"通知发送失败（不影响业务）: event={event_type.value} user={user_id} error={e}")

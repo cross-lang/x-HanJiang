@@ -21,7 +21,6 @@ from src.api.open_portal.dependencies import (
 from src.api.response import success_response
 from src.schemas.common import PaginatedResponse
 from src.schemas.open_portal.app import (
-    OpenAppApprovalResponse,
     OpenAppCreateRequest,
     OpenAppResponse,
     OpenAppScopeApplyRequest,

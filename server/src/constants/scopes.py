@@ -25,6 +25,7 @@ class OpenApiScopeModule(StrBaseEnum):
     USER = ("user", "用户管理")
     ROLE = ("role", "角色管理")
     FILE = ("file", "文件管理")
+    ALERT = ("alert", "告警推送")
 
 
 class OpenApiScopeAction(StrBaseEnum):
@@ -99,6 +100,16 @@ class OpenApiScopeCode(BaseEnum):
     # ── 文件域 ────────────────────────────────────────────
     FILE_READ = ("file:read", "读取文件数据", OpenApiScopeModule.FILE.mark, OpenApiScopeAction.READ.mark, "查询文件列表与下载文件", 5)
     FILE_WRITE = ("file:write", "写入文件数据", OpenApiScopeModule.FILE.mark, OpenApiScopeAction.WRITE.mark, "上传或删除文件", 6)
+
+    # ── 告警域 ────────────────────────────────────────────
+    ALERT_WRITE = (
+        "alert:write",
+        "发送告警",
+        OpenApiScopeModule.ALERT.mark,
+        OpenApiScopeAction.WRITE.mark,
+        "触发系统告警通知（邮件/短信/钉钉/飞书推送给超管）",
+        7,
+    )
 
 
 #: scope 目录（成员定义顺序），供种子初始化等批量场景遍历

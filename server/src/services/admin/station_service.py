@@ -11,7 +11,7 @@ from src.repositories.station_message_repository import StationMessageRepository
 # 来源 → 中文名（与前端站内信页面 SOURCE_LABELS 保持一致）
 _SOURCE_LABELS: dict[str, str] = {
     NotificationSource.SYSTEM_NOTICE.value: "系统通知",
-    NotificationSource.STATION.value: "站内信",
+    NotificationSource.MANUAL.value: "手动触发",
     NotificationSource.ALERT.value: "系统告警",
     NotificationSource.OPENAPI_APP.value: "开放平台",
 }
@@ -48,7 +48,7 @@ class StationMessageService:
 
     负责用户站内信收件箱的读（未读数/列表）、写（单发/广播）、
     已读状态维护。站内信本体独立存放于 station_messages 表，
-    与系统通知投递明细（system_notice_delivery）解耦。
+    与系统通知投递明细（notifications_delivery）解耦。
     """
 
     def __init__(self, repository: StationMessageRepository) -> None:

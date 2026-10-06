@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
-from src.constants.enums import NotificationEvent
+from src.constants.enums import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
@@ -247,6 +247,7 @@ class FileStorageService:
                     user_id=uploaded_by,
                     event_type=NotificationEvent.FILE_DELETED,
                     variables={"filename": filename, "operator": operator.get("operator_name") if operator else ""},
+                    source=NotificationSource.MANUAL.value,
                 )
             except Exception:  # noqa: BLE001
                 logger.warning("文件删除通知发送失败 file_id=%s", file_id)

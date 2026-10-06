@@ -23,7 +23,7 @@ from src.models.entities.audit_entity import AuditLogEntity
 from src.models.entities.developer_entity import DeveloperEntity
 from src.models.entities.file_entity import FileEntity
 from src.models.entities.log_entity import LoginLogEntity
-from src.models.entities.system_notice_delivery_entity import SystemNoticeDeliveryEntity
+from src.models.entities.notification_delivery_entity import NotificationDeliveryEntity
 from src.models.entities.user_entity import RoleEntity, UserEntity, UserRoleEntity
 
 
@@ -128,14 +128,14 @@ class DashboardRepository:
         """近 N 天通知投递状态趋势（按日+状态分组）。"""
         return self._session.execute(
             select(
-                func.date(SystemNoticeDeliveryEntity.created_at).label("date"),
-                SystemNoticeDeliveryEntity.status,
-                func.count(SystemNoticeDeliveryEntity.id).label("count"),
+                func.date(NotificationDeliveryEntity.created_at).label("date"),
+                NotificationDeliveryEntity.status,
+                func.count(NotificationDeliveryEntity.id).label("count"),
             )
-            .where(func.date(SystemNoticeDeliveryEntity.created_at) >= start_date)
+            .where(func.date(NotificationDeliveryEntity.created_at) >= start_date)
             .group_by(
-                func.date(SystemNoticeDeliveryEntity.created_at),
-                SystemNoticeDeliveryEntity.status,
+                func.date(NotificationDeliveryEntity.created_at),
+                NotificationDeliveryEntity.status,
             )
         ).all()
 
@@ -162,9 +162,9 @@ class DashboardRepository:
         """通知投递渠道分布。"""
         return self._session.execute(
             select(
-                SystemNoticeDeliveryEntity.channel,
-                func.count(SystemNoticeDeliveryEntity.id).label("count"),
-            ).group_by(SystemNoticeDeliveryEntity.channel)
+                NotificationDeliveryEntity.channel,
+                func.count(NotificationDeliveryEntity.id).label("count"),
+            ).group_by(NotificationDeliveryEntity.channel)
         ).all()
 
     # ── 最近记录 ──────────────────────────────────────────

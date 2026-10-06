@@ -13,7 +13,7 @@ class SystemNotificationEntity(Base):
 
     记录管理员面向全体用户发布的广播通知（普通通知 / 系统维护），
     支持发布后撤回，用于通知管理页面的发布记录、撤回与查看。
-    投递明细（谁、什么渠道、何时送达）独立存放于 system_notice_delivery 表。
+    投递明细（谁、什么渠道、何时送达）独立存放于 notifications_delivery 表。
 
     维护参数（maintenance_time/duration_hours/reason）、强推渠道、受众快照、
     强推成功数等可变扩展信息统一存放于 metadata_json JSON 列。

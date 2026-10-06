@@ -70,11 +70,11 @@ def _sync_delivery_state(delivery_id: int, success: bool) -> None:
     """
     try:
         from src.infras.database import get_cached_database_provider
-        from src.repositories.system_notice_delivery_repository import SystemNoticeDeliveryRepository
+        from src.repositories.notification_delivery_repository import NotificationDeliveryRepository
 
         session = get_cached_database_provider().get_session_factory()()
         try:
-            repo = SystemNoticeDeliveryRepository(session=session)
+            repo = NotificationDeliveryRepository(session=session)
             delivery = repo.get_by_id(delivery_id)
             if delivery is None:
                 logger.warning("Retry delivery not found: id={}", delivery_id)

@@ -312,19 +312,20 @@ class NotificationStatus(StrBaseEnum):
 
 
 class NotificationSource(StrBaseEnum):
-    """通知投递来源（system_notice_delivery.source / station_messages.source）。
+    """通知投递来源（notifications_delivery.source / station_messages.source）。
 
     用于区分同一条投递/消息由哪个业务域产生：
     - system_notice: 系统通知广播（通知管理发布）
-    - station: 站内信直发（如改密等业务站内信）
     - alert: 系统告警
     - openapi_app: 开放应用审批通知
+    - manual: 手动触发（业务代码直接调用 dispatcher）
+    station 站内信直发走独立 station_messages 表，不在本枚举里。
     """
 
     SYSTEM_NOTICE = "system_notice", "系统通知"
-    STATION = "station", "站内信直发"
     ALERT = "alert", "系统告警"
     OPENAPI_APP = "openapi_app", "开放应用审批"
+    MANUAL = "manual", "手动触发"
 
 
 class SystemNotificationType(StrBaseEnum):

@@ -7,7 +7,7 @@
     3. 渲染模板
     4. 调用 Provider 发送
     5. 失败写 Redis 重试队列
-    6. 全程写投递明细（system_notice_delivery）与站内信（station_messages）
+    6. 全程写投递明细（notifications_delivery）与站内信（station_messages）
 
 Usage:
 
@@ -39,9 +39,9 @@ from sqlalchemy.orm import Session
 
 from src.constants.enums import (
     DEFAULT_ROUTES,
-    NotificationSource,
     NotificationChannel,
     NotificationEvent,
+    NotificationSource,
     NotificationStatus,
 )
 from src.core.logger import logger
@@ -49,13 +49,13 @@ from src.infras.notification import (
     NotificationMessage,
     NotificationProviderRegistry,
 )
+from src.models.entities.notification_delivery_entity import NotificationDeliveryEntity
 from src.models.entities.station_message_entity import StationMessageEntity
-from src.models.entities.system_notice_delivery_entity import SystemNoticeDeliveryEntity
 from src.notification.template import render_template
 from src.repositories.notification_config_repository import (
     UserNotificationConfigRepository,
 )
-from src.repositories.system_notice_delivery_repository import SystemNoticeDeliveryRepository
+from src.repositories.notification_delivery_repository import NotificationDeliveryRepository
 
 _STATION_RECIPIENT_RE = re.compile(r"^user:(\d+)$")
 
@@ -64,7 +64,7 @@ class NotificationDispatcher:
     """通知调度器。
 
     面向抽象渠道 Provider 发送，并将每次投递的实际情况写入
-    system_notice_delivery（外部渠道）/ station_messages（站内信）。
+    notifications_delivery（外部渠道）/ station_messages（站内信）。
     """
 
     def __init__(
@@ -80,7 +80,7 @@ class NotificationDispatcher:
         """
         self._registry = registry
         self._session = session
-        self._repository = SystemNoticeDeliveryRepository(session=session) if session else None
+        self._repository = NotificationDeliveryRepository(session=session) if session else None
 
     def dispatch(
         self,
@@ -91,9 +91,9 @@ class NotificationDispatcher:
         metadata: dict[str, Any] | None = None,
         pre_rendered: tuple[str, str] | None = None,
         *,
-        source: str = NotificationSource.SYSTEM_NOTICE.value,
+        source: str = NotificationSource.MANUAL.value,
         system_notification_id: int | None = None,
-    ) -> list[SystemNoticeDeliveryEntity]:
+    ) -> list[NotificationDeliveryEntity]:
         """发送通知并记录投递明细。
 
         同一渠道支持多个接收人（值可为单个字符串或字符串列表），
@@ -112,16 +112,16 @@ class NotificationDispatcher:
             system_notification_id: 关联系统通知 ID（系统通知广播时传入）
 
         Returns:
-            list[SystemNoticeDeliveryEntity]: 投递明细列表
+            list[NotificationDeliveryEntity]: 投递明细列表
         """
         variables = variables or {}
         # 统一转为枚举，兼容字符串和枚举入参
         event_enum = event_type if isinstance(event_type, NotificationEvent) else NotificationEvent(str(event_type))
         event_type_str = event_enum.value
         target_channels = channels or DEFAULT_ROUTES.get(event_enum, [NotificationChannel.EMAIL])
-        deliveries: list[SystemNoticeDeliveryEntity] = []
-        inbox_items: list[tuple[SystemNoticeDeliveryEntity, str, str]] = []
-        retry_items: list[tuple[SystemNoticeDeliveryEntity, str, str]] = []
+        deliveries: list[NotificationDeliveryEntity] = []
+        inbox_items: list[tuple[NotificationDeliveryEntity, str, str]] = []
+        retry_items: list[tuple[NotificationDeliveryEntity, str, str]] = []
         for channel in target_channels:
             channel_str = channel.value if isinstance(channel, NotificationChannel) else str(channel)
             recipient_spec = recipients.get(channel_str)
@@ -144,7 +144,7 @@ class NotificationDispatcher:
             for recipient in recipient_list:
                 if not recipient:
                     continue
-                delivery = SystemNoticeDeliveryEntity(
+                delivery = NotificationDeliveryEntity(
                     system_notification_id=system_notification_id,
                     source=source,
                     event_type=event_type_str,
@@ -201,9 +201,9 @@ class NotificationDispatcher:
         metadata: dict[str, Any] | None = None,
         pre_rendered: tuple[str, str] | None = None,
         *,
-        source: str = NotificationSource.SYSTEM_NOTICE.value,
+        source: str = NotificationSource.MANUAL.value,
         system_notification_id: int | None = None,
-    ) -> list[SystemNoticeDeliveryEntity]:
+    ) -> list[NotificationDeliveryEntity]:
         """根据用户通知配置自动发送通知。
 
         从 user_notification_configs 表查询用户已启用的渠道配置，
@@ -220,12 +220,12 @@ class NotificationDispatcher:
             system_notification_id: 关联系统通知 ID
 
         Returns:
-            list[SystemNoticeDeliveryEntity]: 投递明细列表
+            list[NotificationDeliveryEntity]: 投递明细列表
         """
         config_repo = UserNotificationConfigRepository(session=self._session)
-        recipients = config_repo.build_recipients_map(user_id)
+        event_type_str = event_type.value if isinstance(event_type, NotificationEvent) else str(event_type)
+        recipients = config_repo.build_recipients_map(user_id, event_type_str)
         if not recipients:
-            event_type_str = event_type.value if isinstance(event_type, NotificationEvent) else str(event_type)
             logger.warning(
                 "No notification config found for user_id={}, event={}",
                 user_id,
@@ -252,9 +252,9 @@ class NotificationDispatcher:
         channels: list[str | NotificationChannel] | None = None,
         metadata: dict[str, Any] | None = None,
         *,
-        source: str = NotificationSource.SYSTEM_NOTICE.value,
+        source: str = NotificationSource.MANUAL.value,
         system_notification_id: int | None = None,
-    ) -> list[SystemNoticeDeliveryEntity]:
+    ) -> list[NotificationDeliveryEntity]:
         """用已渲染好的主题与正文发送通知（跳过模板渲染）。
 
         适用于正文由调用方直接给出的场景（如系统通知广播/告警），
@@ -271,7 +271,7 @@ class NotificationDispatcher:
             system_notification_id: 关联系统通知 ID
 
         Returns:
-            list[SystemNoticeDeliveryEntity]: 投递明细列表
+            list[NotificationDeliveryEntity]: 投递明细列表
         """
         return self.dispatch(
             event_type=event_type,
@@ -284,7 +284,7 @@ class NotificationDispatcher:
             system_notification_id=system_notification_id,
         )
 
-    def _persist_deliveries(self, deliveries: list[SystemNoticeDeliveryEntity]) -> None:
+    def _persist_deliveries(self, deliveries: list[NotificationDeliveryEntity]) -> None:
         """持久化投递明细到数据库。"""
         try:
             for delivery in deliveries:
@@ -297,7 +297,7 @@ class NotificationDispatcher:
     def _write_station_inboxes(
         self,
         source: str,
-        inbox_items: list[tuple[SystemNoticeDeliveryEntity, str, str]],
+        inbox_items: list[tuple[NotificationDeliveryEntity, str, str]],
     ) -> None:
         """将站内信渠道的投递同步写入 station_messages 收件箱。
 
@@ -328,7 +328,7 @@ class NotificationDispatcher:
                 self._session.rollback()
                 logger.error("Failed to persist station inbox messages: {}", exc)
 
-    def _enqueue_retry(self, retry_items: list[tuple[SystemNoticeDeliveryEntity, str, str]]) -> None:
+    def _enqueue_retry(self, retry_items: list[tuple[NotificationDeliveryEntity, str, str]]) -> None:
         """将失败投递写入 Redis 重试队列（ZSET，score 为下次重试时间戳）。
 
         载荷携带投递 ID 与渲染后正文，重试成功后直接回写状态，

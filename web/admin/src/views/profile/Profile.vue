@@ -143,6 +143,7 @@
                 </el-form-item>
                 <el-form-item>
                   <el-button type="primary" round @click="saveWebhook('dingtalk')">保存</el-button>
+                  <el-button v-if="bindingState.dingtalk" round @click="testWebhook('dingtalk')">测试</el-button>
                   <el-button v-if="bindingState.dingtalk" round @click="unbindWebhook('dingtalk')">解除绑定</el-button>
                 </el-form-item>
               </el-form>
@@ -169,6 +170,7 @@
                 </el-form-item>
                 <el-form-item>
                   <el-button type="primary" round @click="saveWebhook('feishu')">保存</el-button>
+                  <el-button v-if="bindingState.feishu" round @click="testWebhook('feishu')">测试</el-button>
                   <el-button v-if="bindingState.feishu" round @click="unbindWebhook('feishu')">解除绑定</el-button>
                 </el-form-item>
               </el-form>
@@ -296,6 +298,7 @@ import {
   addNotificationRecipient,
   updateNotificationRecipient,
   removeNotificationRecipient,
+  testMyRecipient,
   type PreferenceEvent,
 } from '@/api/profile'
 import type { UserRoleBrief, ProfilePermission } from '@/types/auth'
@@ -504,6 +507,21 @@ async function unbindWebhook(channel: 'dingtalk' | 'feishu') {
     bindingForms.value[channel] = ''
     bindingEnabled.value[channel] = true
     ElMessage.success('已解除绑定')
+  } catch {
+    /* 错误已处理 */
+  }
+}
+
+/** 测试我的 Webhook 连通性 */
+async function testWebhook(channel: 'dingtalk' | 'feishu') {
+  if (!bindingState.value[channel]) return
+  try {
+    const { success, error } = await testMyRecipient(channel)
+    if (success) {
+      ElMessage.success('测试消息已发送，请查收')
+    } else {
+      ElMessage.error(error || '发送失败')
+    }
   } catch {
     /* 错误已处理 */
   }

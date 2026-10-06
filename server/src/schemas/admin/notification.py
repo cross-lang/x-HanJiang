@@ -138,7 +138,7 @@ class ChannelTestResponse(BaseModel):
     error: str | None = Field(default=None, description="失败提示（统一文案，不暴露底层细节）")
 
 
-class SystemNoticeDeliveryItemResponse(BaseModel):
+class NotificationDeliveryItemResponse(BaseModel):
     """系统通知投递明细项。"""
 
     model_config = ConfigDict(from_attributes=True)
@@ -154,10 +154,10 @@ class SystemNoticeDeliveryItemResponse(BaseModel):
     created_at: datetime | None = Field(default=None, description="创建时间")
 
 
-class SystemNoticeDeliveryListResponse(BaseModel):
+class NotificationDeliveryListResponse(BaseModel):
     """系统通知投递明细分页响应（含状态统计）。"""
 
-    items: list[SystemNoticeDeliveryItemResponse] = Field(default_factory=list, description="投递明细列表")
+    items: list[NotificationDeliveryItemResponse] = Field(default_factory=list, description="投递明细列表")
     total: int = Field(default=0, description="总条数")
     page: int = Field(default=1, description="页码")
     page_size: int = Field(default=20, description="每页数量")

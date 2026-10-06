@@ -21,6 +21,7 @@ from fastapi import Depends, Request
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 
+# 开放能力封装的管理系统服务（复用 admin 域工厂，保持开放接口调用方单一 import 源）
 from src.constants.constants import (
     OPENAPI_HEADER_APP_ID,
     OPENAPI_HEADER_APP_KEY,
@@ -28,12 +29,9 @@ from src.constants.constants import (
     OPENAPI_HEADER_DATE,
 )
 from src.core.exceptions import AuthorizationException
+from src.infras.database import get_db_session
 from src.schemas.open.app import CurrentApp
 from src.schemas.open.request_context import OpenApiAuthContext
-from src.infras.database import get_db_session
-
-# 开放能力封装的管理系统服务（复用 admin 域工厂，保持开放接口调用方单一 import 源）
-from src.api.admin.dependencies import get_file_service, get_role_service, get_user_service
 
 if TYPE_CHECKING:
     from src.services.open.gateway_service import OpenGatewayService
@@ -56,6 +54,18 @@ def get_open_gateway_service(
     from src.services.open.gateway_service import OpenGatewayService
 
     return OpenGatewayService(repo=OpenApiAppRepository(session=db_session))
+
+
+def get_alert_service(
+    db_session: Session = Depends(get_db_session),
+):
+    """获取告警服务实例（开放 API 发送告警用）。"""
+    from src.infras.notification import get_registry
+    from src.notification.dispatcher import NotificationDispatcher
+    from src.services.admin.alert_service import AlertService
+
+    dispatcher = NotificationDispatcher(registry=get_registry(), session=db_session)
+    return AlertService(dispatcher=dispatcher, session=db_session)
 
 
 def get_app_operator_context(app: CurrentApp) -> dict[str, object]:

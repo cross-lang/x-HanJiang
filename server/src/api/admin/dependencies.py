@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from src.repositories.login_log_repository import LoginLogRepository
     from src.repositories.menu_repository import MenuRepository
     from src.repositories.notification_config_repository import UserNotificationConfigRepository
-    from src.repositories.notification_preference_repository import NotificationPreferenceRepository
     from src.repositories.permission_repository import PermissionRepository
     from src.repositories.role_permission_repository import RolePermissionRepository
     from src.repositories.role_repository import RoleRepository
@@ -57,6 +56,7 @@ if TYPE_CHECKING:
     from src.services.admin.profile_service import ProfileService
     from src.services.admin.search_service import SearchService
     from src.services.admin.station_service import StationMessageService
+    from src.services.admin.system_monitor_service import SystemMonitorService
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
     from src.services.admin.system_notification_service import SystemNotificationService
     from src.services.file_service import FileStorageService
@@ -137,9 +137,9 @@ def get_system_notification_service(
     dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> SystemNotificationService:
     """获取系统通知（广播）业务服务实例。"""
+    from src.repositories.notification_delivery_repository import NotificationDeliveryRepository
     from src.repositories.role_repository import RoleRepository
     from src.repositories.station_message_repository import StationMessageRepository
-    from src.repositories.system_notice_delivery_repository import SystemNoticeDeliveryRepository
     from src.repositories.system_notification_repository import SystemNotificationRepository
     from src.repositories.user_repository import UserRepository
     from src.services.admin.station_service import StationMessageService
@@ -151,7 +151,7 @@ def get_system_notification_service(
         role_repository=RoleRepository(session=db_session),
         station_service=StationMessageService(repository=StationMessageRepository(session=db_session)),
         dispatcher=dispatcher,
-        delivery_repository=SystemNoticeDeliveryRepository(session=db_session),
+        delivery_repository=NotificationDeliveryRepository(session=db_session),
     )
 
 
@@ -200,6 +200,13 @@ def get_system_notification_config_service(
     from src.services.admin.system_notification_config_service import SystemNotificationConfigService
 
     return SystemNotificationConfigService(repository=SystemNotificationConfigRepository(session=db_session))
+
+
+def get_system_monitor_service() -> SystemMonitorService:
+    """获取系统运行监控服务（无状态，不依赖 DB 会话）。"""
+    from src.services.admin.system_monitor_service import SystemMonitorService
+
+    return SystemMonitorService()
 
 
 def get_permission_repository(
@@ -446,15 +453,6 @@ def get_menu_repository(
     return MenuRepository(session=db_session)
 
 
-def get_notification_preference_repository(
-    db_session: Session = Depends(get_db_session),
-) -> NotificationPreferenceRepository:
-    """获取通知偏好仓库实例。"""
-    from src.repositories.notification_preference_repository import NotificationPreferenceRepository
-
-    return NotificationPreferenceRepository(session=db_session)
-
-
 def get_user_notification_config_repository(
     db_session: Session = Depends(get_db_session),
 ) -> UserNotificationConfigRepository:
@@ -467,7 +465,6 @@ def get_user_notification_config_repository(
 def get_profile_service(
     user_repository: UserRepository = Depends(get_user_repository),
     menu_repository: MenuRepository = Depends(get_menu_repository),
-    preference_repository: NotificationPreferenceRepository = Depends(get_notification_preference_repository),
     config_repository: UserNotificationConfigRepository = Depends(get_user_notification_config_repository),
     dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
     station_service: StationMessageService = Depends(get_station_service),
@@ -478,7 +475,6 @@ def get_profile_service(
     return ProfileService(
         user_repository=user_repository,
         menu_repository=menu_repository,
-        preference_repository=preference_repository,
         config_repository=config_repository,
         dispatcher=dispatcher,
         station_service=station_service,

@@ -11,7 +11,7 @@ from src.infras.database import Base
 class StationMessageEntity(Base):
     """管理系统用户站内信表（独立收件箱）。
     与系统通知投递明细解耦：本站只承载"用户收到了什么消息 + 是否已读"，
-    投递实际情况由 system_notice_delivery 记录；来源字段支撑前端跳转（如审批消息跳审批页）。
+    投递实际情况由 notifications_delivery 记录；来源字段支撑前端跳转（如审批消息跳审批页）。
     """
 
     __tablename__ = "station_messages"
