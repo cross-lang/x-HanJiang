@@ -11,7 +11,7 @@ scope 的全部元数据均来自 src.constants.scopes.OpenApiScopeCode 统一�
 """
 
 from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar, cast
 
 from fastapi import FastAPI
 
@@ -34,12 +34,13 @@ def app_scope(code: OpenApiScopeCode) -> Callable[[Callable[_P, _R]], Callable[_
     """
 
     def decorator(func: Callable[_P, _R]) -> Callable[_P, _R]:
-        setattr(func, "_scope_code", code.mark)
-        setattr(func, "_scope_name", code.scope_name)
-        setattr(func, "_scope_module", code.module)
-        setattr(func, "_scope_operation", code.operation)
-        setattr(func, "_scope_description", code.description)
-        setattr(func, "_scope_sort_order", code.sort_order)
+        target = cast(Any, func)
+        target._scope_code = code.mark
+        target._scope_name = code.scope_name
+        target._scope_module = code.module
+        target._scope_operation = code.operation
+        target._scope_description = code.description
+        target._scope_sort_order = code.sort_order
         return func
 
     return decorator

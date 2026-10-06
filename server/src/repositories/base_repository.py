@@ -17,7 +17,7 @@ Classes:
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, ClassVar, Generic, NoReturn, Type, TypeVar
+from typing import Any, ClassVar, Generic, NoReturn, TypeVar, cast
 
 from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
@@ -41,7 +41,7 @@ class BaseRepository(ABC, Generic[T, ID]):
         _handle_integrity_error(): 自定义唯一约束异常处理
     """
 
-    model_class: ClassVar[Type[T]]
+    model_class: ClassVar[type[T]]
 
     def __init__(self, session: Session | None = None) -> None:
         """初始化 Repository。
@@ -55,7 +55,7 @@ class BaseRepository(ABC, Generic[T, ID]):
 
     def get_by_id(self, id: ID) -> T | None:
         """根据主键查询实体。"""
-        stmt = self._base_query().where(self.model_class.id == id)
+        stmt = self._base_query().where(cast(Any, self.model_class).id == id)
         return self.session.execute(stmt).scalars().first()
 
     def get_all(self, skip: int = 0, limit: int = 100) -> list[T]:
@@ -104,7 +104,10 @@ class BaseRepository(ABC, Generic[T, ID]):
         if existing is None:
             return None
         column_keys: set[str] = set()
-        for c in inspect(self.model_class).columns:  # type: ignore[var-annotated]
+        mapper = inspect(self.model_class)
+        if mapper is None:
+            return None
+        for c in mapper.columns:
             column_keys.add(c.key)
         column_keys -= {"id", "created_at"}
         for key in column_keys:
