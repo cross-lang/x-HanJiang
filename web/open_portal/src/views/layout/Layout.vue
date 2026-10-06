@@ -22,7 +22,7 @@
             </svg>
           </a>
         </div>
-        © {{ year }} 汉江开放平台 HanJiang Open Platform. All Rights Reserved.
+        © {{ year }} 汉江开放平台. All Rights Reserved.
       </footer>
     </el-container>
   </el-container>

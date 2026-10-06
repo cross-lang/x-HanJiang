@@ -7,6 +7,7 @@
           <img src="/logo-icon.png" class="login-logo" alt="汉江管理系统" />
           <h1 class="brand-name">汉江管理系统</h1>
           <p class="brand-sub">HanJiang Admin Platform</p>
+          <p class="brand-desc">统一管理后台，掌控全局运营</p>
         </div>
 
         <!-- 右侧登录表单 -->
@@ -227,11 +228,17 @@ async function handleLogin() {
   border-right: 1px solid #f0f0f0;
 }
 .login-logo {
-  width: 100px;
-  height: 100px;
-  border-radius: 20px;
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  position: relative;
+  z-index: 1;
 }
 .brand-name {
   font-size: 28px;
@@ -242,6 +249,11 @@ async function handleLogin() {
 .brand-sub {
   margin-top: 8px;
   font-size: 14px;
+  color: #909399;
+}
+.brand-desc {
+  margin-top: 22px;
+  font-size: 13px;
   color: #909399;
 }
 .login-right {

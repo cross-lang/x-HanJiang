@@ -419,7 +419,7 @@ watch(visible, v => {
   margin-bottom: 2px;
 }
 .ai-conv-label {
-  padding: 6px 8px 3px;
+  padding: 6px 8px 10px;
   font-size: 12px;
   color: #6f6f7a;
   letter-spacing: 0.5px;

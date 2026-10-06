@@ -4,8 +4,8 @@
       <div class="reset-inner">
         <!-- 左侧品牌区 -->
         <div class="reset-left">
-          <img src="/logo-icon.png" class="reset-logo" alt="汉江（HanJiang）开放平台" />
-          <h1 class="brand-name">汉江（HanJiang）开放平台</h1>
+          <img src="/logo-icon.png" class="reset-logo" alt="汉江开放平台" />
+          <h1 class="brand-name">汉江开放平台</h1>
           <p class="brand-sub">HanJiang Open Platform</p>
           <p class="brand-desc">设置新密码，重新开启你的开发之旅</p>
         </div>

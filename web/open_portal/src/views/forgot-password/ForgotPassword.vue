@@ -4,8 +4,8 @@
       <div class="forgot-inner">
         <!-- 左侧品牌区 -->
         <div class="forgot-left">
-          <img src="/logo-icon.png" class="forgot-logo" alt="汉江（HanJiang）开放平台" />
-          <h1 class="brand-name">汉江（HanJiang）开放平台</h1>
+          <img src="/logo-icon.png" class="forgot-logo" alt="汉江开放平台" />
+          <h1 class="brand-name">汉江开放平台</h1>
           <p class="brand-sub">HanJiang Open Platform</p>
           <p class="brand-desc">忘记密码？通过注册邮箱完成身份验证</p>
         </div>

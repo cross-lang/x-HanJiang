@@ -4,14 +4,14 @@
       <template v-if="type === 'success'"> 请妥善保存 App Key，关闭后将无法再次查看！ </template>
       <template v-else> 旧 App Key 已失效，请立即通知调用方更新！新 Key 关闭后无法再次查看。 </template>
     </el-alert>
-    <p class="hj-flex-center hj-gap-8">
+    <div class="secret-row">
       <strong>App ID：</strong><span>{{ secret.app_id }}</span>
       <el-button size="small" @click="copyText(secret.app_id)">复制</el-button>
-    </p>
-    <p class="hj-flex-center hj-gap-8">
+    </div>
+    <div class="secret-row">
       <strong>App Key：</strong><span>{{ secret.app_key }}</span>
       <el-button size="small" @click="copyText(secret.app_key)">复制</el-button>
-    </p>
+    </div>
     <template #footer>
       <el-button type="primary" @click="dialogVisible = false">我已保存</el-button>
     </template>
@@ -47,3 +47,34 @@ function copyText(text: string) {
   navigator.clipboard.writeText(text).then(() => ElMessage.success('已复制'))
 }
 </script>
+
+<style scoped>
+.secret-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.secret-row strong {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.secret-row span {
+  /* App ID / App Key 单行展示：不换行，超长时可横向滚动查看完整内容 */
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 12.5px;
+  color: var(--hj-text-title);
+  scrollbar-width: thin;
+}
+.secret-row span::-webkit-scrollbar {
+  height: 4px;
+}
+.secret-row span::-webkit-scrollbar-thumb {
+  background: var(--hj-border-light);
+  border-radius: 2px;
+}
+</style>
