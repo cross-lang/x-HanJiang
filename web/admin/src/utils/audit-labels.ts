@@ -23,6 +23,7 @@ export const AUDIT_ENTITY_LABELS: Readonly<Record<string, string>> = {
   openapi_app_registration: '应用申请',
   openapi_scope: '开放权限',
   dashboard: '仪表盘',
+  developer: '开发者',
   swagger: '接口文档',
   profile: '个人中心',
   station: '站内信',

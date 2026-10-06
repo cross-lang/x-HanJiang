@@ -105,10 +105,10 @@
             </div>
           </template>
           <el-table :data="myAudits" size="small" empty-text="暂无记录">
-            <el-table-column label="实体" width="260">
+            <el-table-column label="实体" width="210">
               <template #default="{ row }">{{ formatAuditEntity(row.entity_type) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="150">
+            <el-table-column label="操作" width="190" show-overflow-tooltip>
               <template #default="{ row }">{{ formatAuditAction(row.action) }}</template>
             </el-table-column>
             <el-table-column prop="ip_address" label="IP" width="110" />

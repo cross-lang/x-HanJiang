@@ -123,7 +123,10 @@ class NavigateTool(BaseTool):
                 event_type=AssistantEventType.DENIED,
             )
         return ToolResult(
-            content=f"NAVIGATE:{page}",
+            content=(
+                f"跳转成功：已引导用户进入「{entry['title']}」页面。"
+                "请用一句简洁的话向用户确认已跳转到该页面，不要虚构或介绍该页面之外的信息。"
+            ),
             event_type=AssistantEventType.NAVIGATE,
             event_data={"path": entry["path"]},
         )

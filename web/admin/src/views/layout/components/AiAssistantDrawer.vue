@@ -249,9 +249,8 @@ const {
 // 聊天核心：SSE 流式对话、历史加载、自动滚底、反馈
 const chat = useChatSse({
   onNavigate: path => {
-    // 跳转指令：执行路由跳转并关闭抽屉（剩余流式文本不再展示）
+    // 跳转指令：执行路由跳转，保持抽屉打开以便继续对话
     router.push(path)
-    visible.value = false
   },
   onConversationsChange: () => void conversations.refreshConversations(),
 })
@@ -685,6 +684,9 @@ watch(visible, v => {
   background: rgba(144, 147, 153, 0.45);
 }
 .ai-conv-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   transition: background 0.2s ease;
 }
 .ai-conv-row:hover {

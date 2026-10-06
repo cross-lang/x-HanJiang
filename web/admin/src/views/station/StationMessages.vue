@@ -1,25 +1,38 @@
 <template>
   <div>
     <el-card>
-      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px">
-        <el-select v-model="filter.source" placeholder="来源" clearable style="width: 120px" @change="fetchList">
+      <div style="margin-bottom: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px">
+        <el-select
+          v-model="filter.source"
+          placeholder="来源"
+          clearable
+          style="width: 120px; flex: none"
+          @change="fetchList"
+        >
           <el-option v-for="opt in SOURCE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
         <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          range-separator="~"
-          start-placeholder="接收起始日期"
-          end-placeholder="接收截止日期"
-          value-format="YYYY-MM-DD HH:mm:ss"
-          style="width: 260px"
+          v-model="startDate"
+          type="date"
+          placeholder="接收起始日期"
+          value-format="YYYY-MM-DD"
+          style="width: 125px; flex: none"
+          @change="fetchList"
+        />
+        <span class="date-sep">~</span>
+        <el-date-picker
+          v-model="endDate"
+          type="date"
+          placeholder="接收截止日期"
+          value-format="YYYY-MM-DD"
+          style="width: 125px; flex: none"
           @change="fetchList"
         />
         <el-input
           v-model="filter.keyword"
           placeholder="搜索标题/正文"
           clearable
-          style="width: 160px"
+          style="width: 160px; flex: none"
           @keyup.enter="fetchList"
           @clear="fetchList"
         />
@@ -127,7 +140,8 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const filter = ref<{ source: string; keyword: string }>({ source: '', keyword: '' })
-const dateRange = ref<[string, string] | null>(null)
+const startDate = ref('')
+const endDate = ref('')
 
 const detailVisible = ref(false)
 const detail = ref<StationMessage | null>(null)
@@ -139,8 +153,8 @@ async function fetchList() {
       page: page.value,
       page_size: pageSize.value,
       source: filter.value.source || undefined,
-      start_date: dateRange.value?.[0] || undefined,
-      end_date: dateRange.value?.[1] || undefined,
+      start_date: startDate.value || undefined,
+      end_date: endDate.value || undefined,
       keyword: filter.value.keyword || undefined,
     })
     items.value = res.data.items
@@ -160,8 +174,8 @@ async function handleExport() {
   try {
     const resp = await exportStationMessagesCsv({
       source: filter.value.source || undefined,
-      start_date: dateRange.value?.[0] || undefined,
-      end_date: dateRange.value?.[1] || undefined,
+      start_date: startDate.value || undefined,
+      end_date: endDate.value || undefined,
       keyword: filter.value.keyword || undefined,
     })
     if (!resp.ok) {
@@ -184,5 +198,9 @@ onMounted(fetchList)
   word-break: break-all;
   line-height: 1.7;
   color: var(--el-text-color-primary);
+}
+.date-sep {
+  color: var(--el-text-color-placeholder);
+  padding: 0 2px;
 }
 </style>
