@@ -48,12 +48,12 @@ const router = createRouter({
           component: () => import('@/views/docs/SwaggerDoc.vue'),
         },
         {
-          path: 'audit',
+          path: 'logs/audit',
           name: 'Audit',
           component: () => import('@/views/audit/AuditLog.vue'),
         },
         {
-          path: 'audit/login',
+          path: 'logs/login',
           name: 'LoginLog',
           component: () => import('@/views/audit/AuditLog.vue'),
           props: { logType: 'login' },

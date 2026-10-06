@@ -592,12 +592,12 @@ graph LR
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/admin/v1/audit/logs` | 业务审计日志列表 |
-| GET | `/api/admin/v1/audit/logs/export` | 导出审计日志（CSV） |
-| GET | `/api/admin/v1/audit/logs/{id}` | 审计日志详情 |
-| GET | `/api/admin/v1/audit/login-logs` | 登录日志列表 |
-| GET | `/api/admin/v1/audit/login-logs/export` | 导出登录日志（CSV） |
-| GET | `/api/admin/v1/audit/login-logs/{id}` | 登录日志详情 |
+| GET | `/api/admin/v1/logs/audit` | 业务审计日志列表 |
+| GET | `/api/admin/v1/logs/audit/export` | 导出审计日志（CSV） |
+| GET | `/api/admin/v1/logs/audit/{id}` | 审计日志详情 |
+| GET | `/api/admin/v1/logs/login` | 登录日志列表 |
+| GET | `/api/admin/v1/logs/login/export` | 导出登录日志（CSV） |
+| GET | `/api/admin/v1/logs/login/{id}` | 登录日志详情 |
 
 **文件管理：**
 

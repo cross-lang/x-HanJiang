@@ -62,7 +62,8 @@ v1_router.include_router(announcement.router)
 
 # 注册通知管理路由（系统通知发布/撤回/列表 + 用户侧通知记录）
 v1_router.include_router(system_notification.router)
-# 注册系统通知渠道配置管理路由（渠道配置 / 连通性测试）
+
+# 注册系统通知渠道配置管理路由
 v1_router.include_router(system_notification_config.router)
 
 # 注册系统监控路由（CPU/内存/磁盘/网络指标，供仪表盘监控卡片）

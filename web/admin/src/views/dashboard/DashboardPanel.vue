@@ -548,7 +548,7 @@ function formatTime(t: string | null | undefined): string {
 }
 
 function goAudit(type: 'login' | 'audit') {
-  router.push(type === 'login' ? '/audit/login' : '/audit')
+  router.push(type === 'login' ? '/logs/login' : '/logs/audit')
 }
 
 /** 跳转应用审批页查看全部申请 */

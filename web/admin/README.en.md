@@ -114,14 +114,14 @@ admin/
 | --------------------- | ---------------- | ------------------------------------------------------------------------------------ |
 | `/login`              | Login            | Username / password login                                                            |
 | `/`                   | Layout           | Sidebar + top bar (global search, notification bell, AI assistant entry)             |
-| `/dashboard`          | Home             | Welcome message + quick entries                                                      |
-| `/panel`              | Dashboard        | Stat cards + ECharts charts + recent records                                         |
+| `/home`                | Home             | Welcome message + quick entries                                                      |
+| `/dashboard`           | Dashboard        | Stat cards + ECharts charts + recent records                                         |
 | `/users`              | User Management  | User list + multi-role + edit / disable / reset password + import / export           |
 | `/roles`              | Role Management  | Role list + grouped permission checkboxes + edit / delete / enable-disable           |
 | `/permissions`        | Permission Mgmt  | Permission list (backend auto-registered) + metadata                                 |
 | `/apis/swagger`       | Swagger Docs     | Embedded Swagger UI for online API debugging                                         |
-| `/audit`              | Audit Logs       | Business operation logs (with export)                                                |
-| `/audit/login`        | Login Logs       | Login logs (with export)                                                             |
+| `/logs/audit`         | Audit Logs       | Business operation logs (with export)                                                |
+| `/logs/login`         | Login Logs       | Login logs (with export)                                                             |
 | `/apps`               | Open Apps        | App CRUD + approval flow (mine / pending my approval) + scope grant + key rotation   |
 | `/app-scopes`         | App Scopes       | Open platform scope list                                                             |
 | `/open-developers`    | Developers       | Developer list (incl. certification status) + owned apps (`openapi_dev:view`)        |

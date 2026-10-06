@@ -592,12 +592,12 @@ Once the backend is running:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/admin/v1/audit/logs` | Business audit log list |
-| GET | `/api/admin/v1/audit/logs/export` | Export audit logs (CSV) |
-| GET | `/api/admin/v1/audit/logs/{id}` | Audit log detail |
-| GET | `/api/admin/v1/audit/login-logs` | Login log list |
-| GET | `/api/admin/v1/audit/login-logs/export` | Export login logs (CSV) |
-| GET | `/api/admin/v1/audit/login-logs/{id}` | Login log detail |
+| GET | `/api/admin/v1/logs/audit` | Business audit log list |
+| GET | `/api/admin/v1/logs/audit/export` | Export audit logs (CSV) |
+| GET | `/api/admin/v1/logs/audit/{id}` | Audit log detail |
+| GET | `/api/admin/v1/logs/login` | Login log list |
+| GET | `/api/admin/v1/logs/login/export` | Export login logs (CSV) |
+| GET | `/api/admin/v1/logs/login/{id}` | Login log detail |
 
 **Files:**
 

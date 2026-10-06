@@ -160,7 +160,7 @@ faq:
       2. 列表展示操作人（用户名（姓名））、实体类型、操作、备注、IP 与时间；
       3. 支持按操作人/IP/备注关键字搜索，也可点击「导出CSV」下载；
       4. 点击行内「详情」可查看变更前后的完整数据。
-    entry_path: /audit
+    entry_path: /logs/audit
 
   - id: view_login_log
     keywords:
@@ -176,7 +176,7 @@ faq:
       2. 列表展示用户名、姓名、登录方式、状态（成功/失败）、IP 与时间；
       3. 支持按 IP/状态/登录方式关键字搜索，也可点击「导出CSV」下载；
       4. 点击行内「详情」可查看单条登录记录的完整信息。
-    entry_path: /audit/login
+    entry_path: /logs/login
 
   - id: manage_open_apps
     keywords:
@@ -272,7 +272,7 @@ faq:
     answer: |
       汉江管理系统提供：用户管理（增删改查与密码重置）、角色与权限管理、审计日志与登录日志（可导出）、开放平台（应用管理、应用审批、开发者管理）、文件管理、个人中心等能力。
       你可以直接问我具体操作，或告诉我目标页面，我来帮你跳转。
-    entry_path: /dashboard
+    entry_path: /home
 
   - id: dashboard_overview
     keywords:
@@ -284,4 +284,4 @@ faq:
     question: 首页展示了什么？
     answer: |
       「首页」展示系统概览与核心指标看板，并列出常用功能入口卡片（用户管理、角色管理等），是进入各功能的起点。
-    entry_path: /dashboard
+    entry_path: /home

@@ -52,8 +52,8 @@ _SEED_MENUS = [
     ("系统管理", "文件管理", "/files", "Folder", PermissionCode.FILE_VIEW.mark, 4, "menu"),
     ("系统管理", "通知管理", "/system-notification", "Bell", PermissionCode.NOTIFICATION_CONFIG.mark, 5, "menu"),
     ("系统管理", "公告管理", "/announcements", "Tickets", PermissionCode.ANNOUNCEMENT_VIEW.mark, 6, "menu"),
-    ("系统管理", "审计日志", "/audit", "Document", PermissionCode.AUDIT_LOG_VIEW.mark, 7, "menu"),
-    ("系统管理", "登录日志", "/audit/login", "User", PermissionCode.LOGIN_LOG_VIEW.mark, 8, "menu"),
+    ("系统管理", "审计日志", "/logs/audit", "Document", PermissionCode.AUDIT_LOG_VIEW.mark, 7, "menu"),
+    ("系统管理", "登录日志", "/logs/login", "User", PermissionCode.LOGIN_LOG_VIEW.mark, 8, "menu"),
     ("系统管理", "站内信", "/station-messages", "Message", PermissionCode.STATION_VIEW.mark, 9, "menu"),
     # 接口管理
     (0, "接口管理", "/apis", "Link", None, 4, "directory"),

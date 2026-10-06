@@ -71,7 +71,7 @@
           <template #header>
             <div class="hj-flex-between">
               <span>我的最近登录</span>
-              <el-button text type="primary" size="small" @click="$router.push('/audit/login?mine=true')"
+              <el-button text type="primary" size="small" @click="$router.push('/logs/login?mine=true')"
                 >查看全部</el-button
               >
             </div>
@@ -96,7 +96,9 @@
           <template #header>
             <div class="hj-flex-between">
               <span>我的最近操作</span>
-              <el-button text type="primary" size="small" @click="$router.push('/audit?mine=true')">查看全部</el-button>
+              <el-button text type="primary" size="small" @click="$router.push('/logs/audit?mine=true')"
+                >查看全部</el-button
+              >
             </div>
           </template>
           <el-table :data="myAudits" size="small" empty-text="暂无记录">
