@@ -59,6 +59,9 @@ const initial = computed(() => (developerStore.profile?.name || 'D').charAt(0))
   padding: 0 20px;
   background: var(--hj-bg-card);
   border-bottom: 1px solid var(--hj-border-lighter);
+  /* 顶栏禁止文本选中：防止拖选昵称/邮箱产生黑色选区（对齐管理系统实现） */
+  user-select: none;
+  -webkit-user-select: none;
 }
 .page-title {
   font-size: 16px;
@@ -79,6 +82,16 @@ const initial = computed(() => (developerStore.profile?.name || 'D').charAt(0))
   padding: 4px 10px;
   border-radius: 8px;
   transition: background 0.15s ease;
+  /* 去除浏览器焦点环/轮廓：防止点击或悬停后出现黑色圆角矩形边框（对齐管理系统） */
+  outline: none;
+}
+.user-entry:focus,
+.user-entry:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.user-entry * {
+  outline: none;
 }
 .user-entry:hover {
   background: var(--hj-bg-hover);

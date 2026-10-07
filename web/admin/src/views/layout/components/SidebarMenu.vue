@@ -91,4 +91,21 @@ const menus = computed(() => userStore.menus)
 .app-name {
   line-height: 1;
 }
+/* 菜单项：与开放平台侧边栏对齐（13.5px 字号 + 44px 紧凑行高） */
+.side-menu :deep(.el-menu-item),
+.side-menu :deep(.el-sub-menu__title) {
+  height: 44px;
+  line-height: 44px;
+  margin: 2px 8px;
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+.side-menu :deep(.el-menu-item:hover),
+.side-menu :deep(.el-sub-menu__title:hover) {
+  color: #409eff;
+}
+.side-menu :deep(.el-menu-item.is-active) {
+  color: #409eff;
+  font-weight: 600;
+}
 </style>

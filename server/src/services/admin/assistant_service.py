@@ -359,7 +359,24 @@ class AssistantService:
                         }
                         if tool_result.event_type is AssistantEventType.NAVIGATE:
                             self._audit_navigate(user, conversation.id, tool_result.event_data or {})
-                continue
+                # 工具执行完直接流式输出最终回复（不再非式再问一轮，避免 navigate 后长时间等待）
+                answer_chunks: list[str] = []
+                for chunk in llm_provider.chat_stream(
+                    messages=cast(ChatMessage, messages),
+                    temperature=llm_cfg.temperature,
+                    max_tokens=llm_cfg.max_tokens,
+                ):
+                    answer_chunks.append(chunk)
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
+                content = "".join(answer_chunks).strip()
+                if not content:
+                    content = ASSISTANT_EMPTY_REPLY_MESSAGE
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": content}
+                saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
+                self._maybe_roll_summary(conversation)
+                self._maybe_rename(conversation, query, content)
+                yield self._done_event(conversation.id, saved.id)
+                return
             # 兜底：推理模型偶发把工具调用写成正文文本（JSON / XML），
             # 识别并转成真实动作，避免把内部 JSON 原样透传给用户
             text_call = self._extract_text_tool_call(result.content)

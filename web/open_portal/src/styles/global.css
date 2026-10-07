@@ -197,6 +197,31 @@ textarea {
   box-shadow: 0 12px 40px rgba(31, 45, 61, 0.16);
 }
 
+/* 下拉菜单 / 弹出层：强制浅色主题白底，防止样式变量缺失或加载时序
+   导致 hover 弹出的菜单以黑色背景渲染（用户报告右上角出现大黑框） */
+.el-popper.is-light {
+  --el-bg-color-overlay: #ffffff;
+  --el-border-color-light: var(--hj-border-light);
+  background-color: #ffffff;
+}
+.el-dropdown__popper,
+.el-dropdown__popper .el-dropdown-menu {
+  background-color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.1) !important;
+  border: 1px solid var(--hj-border-lighter);
+  border-radius: 8px;
+  padding: 4px;
+}
+.el-dropdown__popper .el-dropdown-menu__item {
+  color: var(--hj-text-body);
+  border-radius: 6px;
+}
+.el-dropdown__popper .el-dropdown-menu__item:not(.is-disabled):hover,
+.el-dropdown__popper .el-dropdown-menu__item:not(.is-disabled):focus {
+  background-color: var(--hj-primary-bg);
+  color: var(--hj-primary);
+}
+
 /* 菜单：激活项文字/背景统一品牌色（由菜单自身样式接管，此处兜底） */
 .el-menu {
   border-right: none;

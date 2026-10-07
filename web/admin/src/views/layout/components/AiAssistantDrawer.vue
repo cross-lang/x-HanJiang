@@ -555,6 +555,8 @@ watch(visible, async v => {
   border-radius: 8px;
   white-space: pre-wrap;
   word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .ai-bubble-user {
   background: linear-gradient(135deg, #5b7cfa, #5a6cf0);
