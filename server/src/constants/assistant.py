@@ -81,6 +81,13 @@ ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (
         "permission": PermissionCode.HOME_VIEW.mark,
     },
     {
+        "page": "dashboard",
+        "path": "/dashboard",
+        "title": "仪表盘",
+        "description": "系统运行看板：关键业务指标、待审批申请、CPU/内存/磁盘指标与最近登录/操作动态",
+        "permission": PermissionCode.DASHBOARD_VIEW.mark,
+    },
+    {
         "page": "users",
         "path": "/users",
         "title": "用户管理",
@@ -130,11 +137,32 @@ ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (
         "permission": PermissionCode.OPENAPI_APP_APPROVE.mark,
     },
     {
+        "page": "app-scopes",
+        "path": "/app-scopes",
+        "title": "开放平台 Scope",
+        "description": "开放平台接口授权范围（scope）清单：编码、名称、模块与说明（只读）",
+        "permission": PermissionCode.OPENAPI_SCOPE_VIEW.mark,
+    },
+    {
         "page": "developers",
         "path": "/open-developers",
         "title": "开发者管理",
         "description": "开放平台开发者列表查询，可查看开发者旗下应用",
         "permission": PermissionCode.OPENAPI_DEV_VIEW.mark,
+    },
+    {
+        "page": "system-notification",
+        "path": "/system-notification",
+        "title": "系统通知",
+        "description": "系统通知发布/撤回/重新发布：支持普通通知与系统维护公告，推送站内信并可强推邮件/钉钉/飞书",
+        "permission": PermissionCode.NOTIFICATION_VIEW.mark,
+    },
+    {
+        "page": "announcements",
+        "path": "/announcements",
+        "title": "公告管理",
+        "description": "系统公告的新建/编辑/发布/下架，已发布公告展示在首页",
+        "permission": PermissionCode.ANNOUNCEMENT_VIEW.mark,
     },
     {
         "page": "files",
@@ -149,6 +177,13 @@ ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (
         "title": "站内信",
         "description": "我的站内信：历史消息列表、按来源/接收日期/关键词过滤、查看详情、导出CSV",
         "permission": PermissionCode.STATION_VIEW.mark,
+    },
+    {
+        "page": "swagger-docs",
+        "path": "/apis/swagger",
+        "title": "接口文档",
+        "description": "后端 OpenAPI 接口文档（Swagger UI）在线查看与调试",
+        "permission": "",
     },
     {
         "page": "profile",

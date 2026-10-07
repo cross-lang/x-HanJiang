@@ -96,35 +96,35 @@
             <p class="ai-welcome-desc">不熟悉系统怎么操作？直接问我，我可以教你并帮你跳转到对应页面：</p>
             <div class="ai-welcome-qs">
               <div class="ai-quick-q" @click="askQuickQuestion('怎么添加用户？')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 怎么添加用户？
               </div>
               <div class="ai-quick-q" @click="askQuickQuestion('帮我跳到权限管理')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 帮我跳到权限管理
               </div>
               <div class="ai-quick-q" @click="askQuickQuestion('用户列表在哪里？')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 用户列表在哪里？
               </div>
               <div class="ai-quick-q" @click="askQuickQuestion('怎么修改我的个人资料？')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 怎么修改我的个人资料？
               </div>
               <div class="ai-quick-q" @click="askQuickQuestion('怎么管理开放平台应用？')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 怎么管理开放平台应用？
               </div>
               <div class="ai-quick-q" @click="askQuickQuestion('怎么处理应用审批？')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 怎么处理应用审批？
               </div>
               <div class="ai-quick-q" @click="askQuickQuestion('怎么查看审计日志？')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 怎么查看审计日志？
               </div>
               <div class="ai-quick-q" @click="askQuickQuestion('怎么查看登录日志？')">
-                <el-icon size="14" class="ai-q-arrow"><Right /></el-icon>
+                <el-icon size="12" class="ai-q-arrow"><Right /></el-icon>
                 怎么查看登录日志？
               </div>
             </div>
@@ -544,8 +544,8 @@ watch(visible, async v => {
 }
 .ai-welcome-qs {
   text-align: left;
-  font-size: 14px;
-  line-height: 1.9;
+  font-size: 12px;
+  line-height: 1.8;
   color: #5a6cf0;
   background: #eef1fc;
   border-radius: 8px;
