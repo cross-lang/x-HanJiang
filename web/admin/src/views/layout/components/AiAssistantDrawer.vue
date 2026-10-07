@@ -167,15 +167,25 @@
             </div>
           </div>
         </div>
-        <!-- 输入区：底部留白，避免贴边下沉 -->
+        <!-- 输入区：卡片式多行输入 + 底部工具栏（Enter 发送 / Shift+Enter 换行） -->
         <div class="ai-input-area">
-          <el-input
-            v-model="aiInput"
-            placeholder="输入你的问题..."
-            :disabled="aiLoading"
-            @keyup.enter="sendAiMessage"
-          />
-          <el-button type="primary" :loading="aiLoading" :disabled="aiLoading" @click="sendAiMessage">发送</el-button>
+          <div class="ai-input-card">
+            <textarea
+              v-model="aiInput"
+              class="ai-input-textarea"
+              rows="2"
+              placeholder="帮你解答系统操作问题、指引功能用法，并可跳转到对应页面。"
+              :disabled="aiLoading"
+              @keydown.enter.exact.prevent="onEnterSend"
+            ></textarea>
+            <div class="ai-input-toolbar">
+              <span class="ai-input-hint">Enter 发送 / Shift + Enter 换行</span>
+              <button type="button" class="ai-send-btn" :disabled="aiLoading || !aiInput.trim()" @click="sendAiMessage">
+                <el-icon v-if="!aiLoading" size="16"><Top /></el-icon>
+                <el-icon v-else size="16" class="is-loading"><Loading /></el-icon>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -185,6 +195,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { Loading, Top } from '@element-plus/icons-vue'
 import xiaoJiangLogo from '@/assets/xiaojiang-logo.png'
 import { useDragResize } from '@/composables/useDragResize'
 import { useChatSse } from '@/composables/useChatSse'
@@ -241,6 +252,12 @@ const {
   sendAiMessage,
   submitAiFeedback,
 } = chat
+
+/** Enter 发送（IME 组合中的 Enter 为选词确认，不触发发送） */
+function onEnterSend(event: KeyboardEvent) {
+  if (event.isComposing || event.keyCode === 229) return
+  void sendAiMessage()
+}
 const {
   aiConversations,
   aiConvHoverId,
@@ -339,13 +356,14 @@ watch(visible, async v => {
   flex-shrink: 0;
   margin-bottom: 12px;
 }
+/* 会话面板头部：底部 padding 让「新建会话」按钮与分隔线保持呼吸空间 */
 .ai-conv-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 4px 10px;
+  margin-bottom: 14px;
+  padding: 0 2px 10px;
   border-bottom: 1px solid rgba(144, 147, 153, 0.15);
-  margin-bottom: 6px;
   cursor: pointer;
   border-radius: 6px;
   transition: background 0.15s;
@@ -353,26 +371,11 @@ watch(visible, async v => {
 .ai-conv-head-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .ai-conv-panel {
   padding: 16px 12px 12px;
-  background: linear-gradient(180deg, #fafbff 0%, #f5f6fa 100%);
   border-radius: 12px;
-  border: 1px solid #e8eaf0;
-}
-.ai-conv-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  padding: 0 2px;
-  cursor: pointer;
-}
-.ai-conv-head-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .ai-conv-head-text {
   font-size: 14px;
@@ -635,11 +638,78 @@ watch(visible, async v => {
   }
 }
 
-/* ===== 输入区 ===== */
+/* ===== 输入区（卡片式：多行输入在上、工具栏在下） ===== */
 .ai-input-area {
+  padding: 0 14px 16px;
+}
+.ai-input-card {
+  border: 1px solid #e4e7ed;
+  border-radius: 12px;
+  background: #f7f8fa;
+  padding: 8px 10px 6px;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.ai-input-card:focus-within {
+  border-color: #5a6cf0;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(90, 108, 240, 0.12);
+}
+.ai-input-textarea {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  max-height: 120px;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1f2329;
+}
+.ai-input-textarea::placeholder {
+  color: #a8abb2;
+}
+.ai-input-textarea:disabled {
+  cursor: not-allowed;
+}
+.ai-input-toolbar {
   display: flex;
-  gap: 8px;
-  padding: 0 0 18px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+.ai-input-hint {
+  font-size: 11px;
+  color: #c0c4cc;
+  user-select: none;
+}
+.ai-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: #5a6cf0;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+.ai-send-btn:hover:not(:disabled) {
+  background: #4859e0;
+}
+.ai-send-btn:disabled {
+  background: #c6cbf5;
+  cursor: not-allowed;
 }
 </style>
 
