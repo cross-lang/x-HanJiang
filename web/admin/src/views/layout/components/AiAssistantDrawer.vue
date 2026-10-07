@@ -66,18 +66,12 @@
                 <!-- 会话行：左侧当前会话高亮条 + 名称时间 + 置顶/删除 -->
                 <div
                   class="ai-conv-row"
-                  :style="item.id === aiConversationId ? 'background: rgba(144, 147, 153, 0.10)' : ''"
+                  :class="{ active: item.id === aiConversationId }"
                   @mouseenter="aiConvHoverId = item.id"
                   @mouseleave="aiConvHoverId = null"
                   @click="switchConversation(item.id)"
                 >
-                  <div
-                    :style="
-                      item.id === aiConversationId
-                        ? 'width: 3px; height: 20px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #6366f1); flex-shrink: 0'
-                        : 'width: 3px; height: 20px; flex-shrink: 0'
-                    "
-                  ></div>
+                  <div class="ai-conv-bar" :class="{ active: item.id === aiConversationId }"></div>
                   <div class="ai-conv-main">
                     <div class="ai-conv-name">{{ convTitle(item) }}</div>
                     <div class="ai-conv-time">{{ convTime(item) }}</div>
@@ -421,7 +415,36 @@ watch(visible, async v => {
   color: #8f8f99;
 }
 .ai-conv-item {
-  margin-bottom: 2px;
+  margin-bottom: 8px;
+}
+.ai-conv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  background: #fff;
+  border: 1px solid #eef0f5;
+}
+.ai-conv-row:hover {
+  background: #f5f6fa;
+}
+.ai-conv-row.active {
+  background: #f0f4ff;
+  border-color: #c7d2fe;
+}
+.ai-conv-bar {
+  width: 3px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.ai-conv-bar.active {
+  background: linear-gradient(180deg, #8b5cf6, #6366f1);
 }
 .ai-conv-label {
   padding: 6px 8px 10px;
