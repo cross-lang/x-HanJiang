@@ -25,6 +25,8 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        // 开发环境模拟 Nginx 写入真实客户端 IP（后端 get_client_ip 只认 X-Real-IP）
+        headers: { 'X-Real-IP': '127.0.0.1' },
       },
       '/docs': {
         target: 'http://127.0.0.1:8000',

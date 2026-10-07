@@ -17,7 +17,11 @@ from collections.abc import Iterator
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from src.api.admin.dependencies import get_assistant_service, get_current_user
+from src.api.admin.dependencies import (
+    get_assistant_service,
+    get_current_user,
+    get_user_operator_context,
+)
 from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.assistant import AssistantEventType
@@ -82,6 +86,7 @@ def _to_message_response(entity: AssistantMessageEntity) -> MessageResponse:
 @permission(PermissionCode.ASSISTANT_CHAT)
 def chat(
     body: ChatRequest,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     service: AssistantService = Depends(get_assistant_service),
 ) -> StreamingResponse:
@@ -89,12 +94,15 @@ def chat(
 
     Args:
         body: 对话请求体
+        request: 当前请求对象（构造操作人上下文，含 navigate 审计所需客户端 IP）
         current_user: 当前登录用户
         service: AI 助手编排服务
 
     Returns:
         StreamingResponse: SSE 流式响应
     """
+    # 统一走操作人上下文工厂（纯数据字典，不含 Request 对象，可安全透传至 service 层）
+    operator = get_user_operator_context(current_user, request)
 
     def generate() -> Iterator[str]:
         """事件流生成器：服务事件直通，通道兜底仅处理不可预期异常。
@@ -104,7 +112,12 @@ def chat(
         防止不可预期异常导致流中断无响应。
         """
         try:
-            for event in service.chat_stream(current_user, body.conversation_id, body.message):
+            for event in service.chat_stream(
+                current_user,
+                body.conversation_id,
+                body.message,
+                operator=operator,
+            ):
                 yield build_sse_event(event)
         except Exception as exc:  # noqa: BLE001 - SSE 通道最后防线，仅兜底不可预期异常
             logger.error(f"AI 助手 SSE 通道异常: {exc}")

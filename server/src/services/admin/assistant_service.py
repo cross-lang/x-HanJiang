@@ -258,6 +258,7 @@ class AssistantService:
         user: CurrentUser,
         conversation_id: int | None,
         message: str,
+        operator: dict[str, object] | None = None,
     ) -> Iterator[dict[str, object]]:
         """执行一轮对话，逐事件产出 SSE 数据。
 
@@ -276,6 +277,8 @@ class AssistantService:
             user: 当前用户
             conversation_id: 会话ID（为空则创建新会话）
             message: 用户输入
+            operator: 操作人上下文（operator_id / operator_name / ip_address，
+                由 api 层 get_user_operator_context 构造，navigate 审计落库用）
 
         Yields:
             dict[str, object]: SSE 事件字典
@@ -288,7 +291,7 @@ class AssistantService:
         try:
             conversation = self._get_or_create_conversation(user.id, conversation_id)
             self._save_message(conversation.id, AssistantMessageRole.USER.value, message)
-            yield from self._run_agent(conversation, user, message)
+            yield from self._run_agent(conversation, user, message, operator)
         except NotFoundException as exc:
             # 会话不存在或归属不符：不落库，直接提示并结束
             yield {"type": AssistantEventType.ERROR.mark, "message": str(exc)}
@@ -315,6 +318,7 @@ class AssistantService:
         conversation: AssistantConversationEntity,
         user: CurrentUser,
         query: str,
+        operator: dict[str, object] | None = None,
     ) -> Iterator[dict[str, object]]:
         """agent 循环：function calling 原生循环（ReAct 风格）。
 
@@ -325,6 +329,7 @@ class AssistantService:
             conversation: 会话实体
             user: 当前用户
             query: 本轮用户输入
+            operator: 操作人上下文（navigate 审计落库用）
 
         Yields:
             dict[str, object]: SSE 事件字典
@@ -358,7 +363,9 @@ class AssistantService:
                             **(tool_result.event_data or {}),
                         }
                         if tool_result.event_type is AssistantEventType.NAVIGATE:
-                            self._audit_navigate(user, conversation.id, tool_result.event_data or {})
+                            self._audit_navigate(
+                                user, conversation.id, tool_result.event_data or {}, operator
+                            )
                 # 工具执行完直接流式输出最终回复（不再非式再问一轮，避免 navigate 后长时间等待）
                 answer_chunks: list[str] = []
                 for chunk in llm_provider.chat_stream(
@@ -396,7 +403,9 @@ class AssistantService:
                         **(text_result.event_data or {}),
                     }
                     if text_result.event_type is AssistantEventType.NAVIGATE:
-                        self._audit_navigate(user, conversation.id, text_result.event_data or {})
+                        self._audit_navigate(
+                            user, conversation.id, text_result.event_data or {}, operator
+                        )
                 reply = self._build_navigate_reply(query, text_result.event_data or {})
                 yield {"type": AssistantEventType.TOKEN.mark, "content": reply}
                 saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, reply)
@@ -813,6 +822,7 @@ class AssistantService:
         user: CurrentUser,
         conversation_id: int,
         event_data: dict[str, object],
+        operator: dict[str, object] | None = None,
     ) -> None:
         """记录 AI 助手跳转审计日志。
 
@@ -820,6 +830,7 @@ class AssistantService:
             user: 当前用户
             conversation_id: 会话ID
             event_data: navigate 事件数据（含 path）
+            operator: 操作人上下文（含 ip_address，由 api 层工厂构造后透传）
         """
         try:
             from src.services.admin.audit_service import AuditService
@@ -829,6 +840,7 @@ class AssistantService:
                 entity_id=conversation_id,
                 action="navigate",
                 operator_id=user.id,
+                ip_address=(operator or {}).get("ip_address"),
                 remarks=f"AI 助手跳转到 {event_data.get('path', '')}",
             )
         except Exception as exc:  # noqa: BLE001 - 审计失败不应阻断主流程

@@ -82,7 +82,7 @@ def create_role(
     service: RoleService = Depends(get_role_service),
 ) -> JSONResponse:
     """创建角色（需 `role:write` scope）。"""
-    result = service.create(body.model_dump(), operator=get_app_operator_context(app))
+    result = service.create(body.model_dump(), operator=get_app_operator_context(app, request))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -123,7 +123,7 @@ def update_role(
     service: RoleService = Depends(get_role_service),
 ) -> JSONResponse:
     """更新角色信息（需 `role:write` scope）。"""
-    result = service.update(role_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app))
+    result = service.update(role_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app, request))
     return success_response(result.model_dump(), request)
 
 
@@ -141,7 +141,7 @@ def delete_role(
     service: RoleService = Depends(get_role_service),
 ) -> JSONResponse:
     """软删除角色（需 `role:write` scope；有关联用户的角色不可删除）。"""
-    service.delete(role_id, operator=get_app_operator_context(app))
+    service.delete(role_id, operator=get_app_operator_context(app, request))
     return success_response({"deleted": True}, request)
 
 

@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from starlette.responses import Response
 
-from src.api.admin.dependencies import get_current_user, is_admin_user, require_user_permission
+from src.api.admin.dependencies import (
+    get_current_user,
+    get_user_operator_context,
+    is_admin_user,
+    require_user_permission,
+)
 from src.api.admin.permission_decorator import permission
 from src.api.dependencies import get_file_service
 from src.api.response import success_response
@@ -32,7 +37,7 @@ def upload_file(
     result = service.save_upload(
         file,
         folder,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(result, request, code=201)
 
@@ -65,13 +70,14 @@ def list_files(
 )
 @permission(PermissionCode.FILE_VIEW)
 def get_file(
+    request: Request,
     file_path: str = Path(...),
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
-) -> Response:
+):
     result = service.download_file(
         file_path,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return result
 
@@ -90,6 +96,6 @@ def delete_file(
 ) -> JSONResponse:
     service.delete_file(
         file_id,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response({"deleted": True}, request)

@@ -43,7 +43,7 @@ def create_user(
     service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
     """创建用户（需 `user:write` scope）。"""
-    result = service.create(body.model_dump(), operator=get_app_operator_context(app))
+    result = service.create(body.model_dump(), operator=get_app_operator_context(app, request))
     return success_response(result.model_dump(), request, code=201)
 
 
@@ -115,7 +115,7 @@ def update_user(
     service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
     """更新用户信息（需 `user:write` scope）。"""
-    result = service.update(user_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app))
+    result = service.update(user_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app, request))
     return success_response(result.model_dump(), request)
 
 
@@ -133,5 +133,5 @@ def delete_user(
     service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
     """软删除用户（需 `user:write` scope）。"""
-    service.delete(user_id, operator=get_app_operator_context(app))
+    service.delete(user_id, operator=get_app_operator_context(app, request))
     return success_response({"deleted": True}, request)

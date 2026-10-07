@@ -80,7 +80,7 @@ def upload_file(
         data=data,
         filename=body.filename,
         folder=body.folder,
-        operator=get_app_operator_context(app),
+        operator=get_app_operator_context(app, request),
         app_owner=app.app_id,
     )
     return success_response(result, request, code=201)
@@ -99,7 +99,7 @@ def get_file(
     service: FileStorageService = Depends(get_file_service),
 ) -> Response:
     """下载文件（需 `file:read` scope；本地存储返回文件流，云存储返回 302 重定向 URL）。"""
-    result = service.download_file(file_path, operator=get_app_operator_context(app))
+    result = service.download_file(file_path, operator=get_app_operator_context(app, request))
     return result
 
 
@@ -117,5 +117,5 @@ def delete_file(
     service: FileStorageService = Depends(get_file_service),
     ) -> JSONResponse:
     """软删除文件（需 `file:write` scope）。"""
-    service.delete_file(file_id, operator=get_app_operator_context(app))
+    service.delete_file(file_id, operator=get_app_operator_context(app, request))
     return success_response({"deleted": True}, request)

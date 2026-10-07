@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from src.api.admin.dependencies import (
     get_announcement_service,
     get_current_user,
+    get_user_operator_context,
     require_user_permission,
 )
 from src.api.admin.permission_decorator import permission
@@ -72,7 +73,7 @@ def create_announcement(
     """
     entity = service.create(
         request=body,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(_to_response(entity).model_dump(), request)
 
@@ -106,7 +107,7 @@ def update_announcement(
     entity = service.update(
         announcement_id=announcement_id,
         request=body,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(_to_response(entity).model_dump(), request)
 
@@ -137,7 +138,7 @@ def delete_announcement(
     """
     service.delete(
         announcement_id=announcement_id,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response({"message": "公告已删除"}, request)
 
@@ -168,7 +169,7 @@ def publish_announcement(
     """
     entity = service.publish(
         announcement_id=announcement_id,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(_to_response(entity).model_dump(), request)
 
@@ -199,7 +200,7 @@ def unpublish_announcement(
     """
     entity = service.unpublish(
         announcement_id=announcement_id,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(_to_response(entity).model_dump(), request)
 

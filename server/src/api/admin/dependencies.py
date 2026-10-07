@@ -26,11 +26,12 @@ from src.constants.enums import SystemRoleCode
 from src.core.exceptions import AuthorizationException
 from src.infras.database import get_db_session
 from src.schemas.admin.auth import CurrentUser
-from src.services.alert_service import AlertService
 from src.services.admin.audit_service import AuditService
 from src.services.admin.auth_service import AuthService
 from src.services.admin.health_service import HealthService
 from src.services.admin.permission_service import PermissionService
+from src.services.alert_service import AlertService
+from src.utils.helpers import get_client_ip
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
@@ -366,12 +367,8 @@ def require_user_permission(permission_code: str) -> Callable[..., CurrentUser]:
 
 def get_user_operator_context(current_user: CurrentUser, request: Request | None = None) -> dict[str, object]:
     """构造用户态操作人上下文（供写操作审计/日志使用）。"""
-    client_ip = None
-    if request:
-        client_ip = request.client.host if request.client else None
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
+    # IP 提取统一走 utils.helpers.get_client_ip（只认 X-Real-IP，禁止在此另写取 IP 逻辑）
+    client_ip = get_client_ip(request) if request else None
     return {
         "operator_id": current_user.id,
         "operator_name": current_user.username,

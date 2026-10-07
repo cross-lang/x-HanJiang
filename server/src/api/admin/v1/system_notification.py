@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from src.api.admin.dependencies import (
     get_current_user,
     get_system_notification_service,
+    get_user_operator_context,
     require_user_permission,
 )
 from src.api.admin.permission_decorator import permission
@@ -66,10 +67,7 @@ def publish_notice(
     Returns:
         JSONResponse: 统一响应结构，data 为通知详情（含 sent_count 与 idempotent）。
     """
-    operator = {
-        "operator_id": current_user.id,
-        "operator_name": current_user.username,
-    }
+    operator = get_user_operator_context(current_user, request)
     entity, sent_count, idempotent = service.publish(
         title=body.title,
         content=body.content,
@@ -117,7 +115,7 @@ def withdraw_notice(
     """
     service.withdraw(
         notice_id=notice_id,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     return success_response(OperationResponse(message="通知已撤回").model_dump(), request)
 
@@ -149,7 +147,7 @@ def republish_notice(
     """
     entity, sent_count = service.republish(
         notice_id=notice_id,
-        operator={"operator_id": current_user.id, "operator_name": current_user.username},
+        operator=get_user_operator_context(current_user, request),
     )
     data = PublishResultResponse.model_validate(entity).model_dump()
     data["sent_count"] = sent_count

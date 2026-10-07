@@ -33,6 +33,7 @@ from src.infras.database import get_db_session
 from src.schemas.open.app import CurrentApp
 from src.schemas.open.request_context import OpenApiAuthContext
 from src.services.alert_service import AlertService
+from src.utils.helpers import get_client_ip
 
 if TYPE_CHECKING:
     from src.services.open.gateway_service import OpenGatewayService
@@ -68,11 +69,13 @@ def get_alert_service(
     return AlertService(dispatcher=dispatcher, session=db_session)
 
 
-def get_app_operator_context(app: CurrentApp) -> dict[str, object]:
+def get_app_operator_context(app: CurrentApp, request: Request | None = None) -> dict[str, object]:
     """构造应用态操作人上下文（供写操作审计/日志使用）。"""
+    client_ip = get_client_ip(request) if request else None
     return {
         "operator_id": app.app_id,
         "operator_name": app.name,
+        "ip_address": client_ip,
     }
 
 

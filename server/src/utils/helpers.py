@@ -13,27 +13,20 @@ from fastapi import Request
 
 
 def get_client_ip(request: Request) -> str:
-    """从请求中提取客户端真实 IP 地址。
-    按优先级依次检查代理头和直接连接地址：
-        1. X-Forwarded-For（第一个地址）
-        2. X-Real-IP
-        3. request.client.host
+    """提取客户端真实 IP（全项目唯一取 IP 入口）。
+
+    统一约定：真实 IP 由前置反向代理（Nginx）通过 X-Real-IP 头写入
+    （proxy_set_header X-Real-IP $remote_addr）；
+    本函数只读取该头，不自行解析 X-Forwarded-For 或 TCP 连接地址。
+    未经过反向代理（如本地直连开发）或代理未写该头时返回空字符串。
 
     Args:
         request: FastAPI 请求对象
 
     Returns:
-        str: 客户端 IP 地址
+        str: 客户端真实 IP；获取不到时为空字符串 ""
     """
-    forwarded: str | None = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip: str | None = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
-    if request.client:
-        return request.client.host
-    return "unknown"
+    return request.headers.get("X-Real-IP", "").strip()
 
 
 def mask_sensitive(data: dict[str, Any], keys: list[str] | None = None) -> dict[str, Any]:
