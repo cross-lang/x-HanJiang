@@ -28,10 +28,6 @@ from src.constants.assistant import AssistantEventType
 from src.constants.enums import HttpContentType
 from src.constants.permissions import PermissionCode
 from src.core.logger import logger
-from src.models.entities.assistant_entity import (
-    AssistantConversationEntity,
-    AssistantMessageEntity,
-)
 from src.schemas.admin.assistant import (
     ChatRequest,
     ConversationPinRequest,
@@ -51,30 +47,6 @@ _SSE_HEADERS: dict[str, str] = {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
-
-
-def _to_conversation_response(entity: AssistantConversationEntity) -> ConversationResponse:
-    """会话实体转响应模型。
-
-    Args:
-        entity: 会话实体
-
-    Returns:
-        ConversationResponse: 会话响应模型
-    """
-    return ConversationResponse.model_validate(entity)
-
-
-def _to_message_response(entity: AssistantMessageEntity) -> MessageResponse:
-    """消息实体转响应模型。
-
-    Args:
-        entity: 消息实体
-
-    Returns:
-        MessageResponse: 消息响应模型
-    """
-    return MessageResponse.model_validate(entity)
 
 
 @router.post(
@@ -164,7 +136,7 @@ def create_conversation(
         统一响应结构，data 为新建会话详情
     """
     entity = service.create_conversation(current_user.id)
-    return success_response(_to_conversation_response(entity), request)
+    return success_response(ConversationResponse.model_validate(entity), request)
 
 
 @router.get(
@@ -190,7 +162,7 @@ def list_conversations(
     """
     conversations = service.list_conversations(current_user.id)
     return success_response(
-        [_to_conversation_response(item) for item in conversations],
+        [ConversationResponse.model_validate(item) for item in conversations],
         request,
     )
 
@@ -220,7 +192,7 @@ def list_conversation_messages(
     """
     messages = service.list_messages(conversation_id, current_user.id)
     return success_response(
-        [_to_message_response(item) for item in messages],
+        [MessageResponse.model_validate(item) for item in messages],
         request,
     )
 
@@ -278,7 +250,7 @@ def pin_conversation(
         统一响应结构，data 为更新后的会话详情
     """
     entity = service.update_pinned(current_user.id, conversation_id, body.pinned)
-    return success_response(_to_conversation_response(entity), request)
+    return success_response(ConversationResponse.model_validate(entity), request)
 
 
 @router.post(
