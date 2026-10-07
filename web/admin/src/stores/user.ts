@@ -39,6 +39,7 @@ export const useUserStore = defineStore('user', () => {
     menus.value = []
     permissions.value = []
     clearToken()
+    localStorage.removeItem('ai_conversation_id')
   }
 
   return { userInfo, token, menus, permissions, fetchUserInfo, fetchMenus, hasPerm, setToken, logout }

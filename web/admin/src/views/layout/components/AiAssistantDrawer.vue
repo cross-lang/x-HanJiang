@@ -299,11 +299,16 @@ async function switchConversation(id: number) {
   await loadConversation(id)
 }
 
-/** 打开抽屉：刷新会话列表并恢复最近会话历史 */
-watch(visible, v => {
+/** 打开抽屉：先拉会话列表，再校验残留的 aiConversationId 是否属于本用户 */
+watch(visible, async v => {
   if (!v) return
   aiConvPanelVisible.value = false
-  void refreshConversations()
+  await refreshConversations()
+  // 跨账号登录后 localStorage 可能残留旧会话 ID：不在当前用户列表里则丢弃，避免 404
+  if (aiConversationId.value !== null && !aiConversations.value.some(c => c.id === aiConversationId.value)) {
+    aiConversationId.value = null
+    localStorage.removeItem('ai_conversation_id')
+  }
   if (aiMessages.value.length === 0) {
     void loadConversation(aiConversationId.value)
   }
