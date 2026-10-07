@@ -20,7 +20,7 @@
 
 Usage:
     from src.services.admin.base_service import BaseService
-    from src.schemas.admin.user import UserResponse
+    from src.schemas.user import UserResponse
     class UserService(BaseService[UserResponse, int, UserRepository]):
         entity_type = "user"  # 用于审计日志
         def _to_response(self, entity):

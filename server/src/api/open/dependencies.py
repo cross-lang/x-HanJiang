@@ -32,7 +32,7 @@ from src.core.exceptions import AuthorizationException
 from src.infras.database import get_db_session
 from src.schemas.open.app import CurrentApp
 from src.schemas.open.request_context import OpenApiAuthContext
-from src.services.admin.alert_service import AlertService
+from src.services.alert_service import AlertService
 
 if TYPE_CHECKING:
     from src.services.open.gateway_service import OpenGatewayService

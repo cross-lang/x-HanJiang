@@ -28,13 +28,13 @@ from src.api.dependencies import get_role_service
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.admin.auth import CurrentUser
-from src.schemas.admin.role import (
-    BindPermissionRequest,
+from src.schemas.admin.role import BindPermissionRequest
+from src.schemas.common import PaginatedResponse
+from src.schemas.role import (
     RoleCreateRequest,
     RoleResponse,
     RoleUpdateRequest,
 )
-from src.schemas.common import PaginatedResponse
 from src.services.admin.permission_service import PermissionService
 from src.services.role_service import RoleService
 

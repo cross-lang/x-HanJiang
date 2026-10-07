@@ -23,14 +23,14 @@ from src.api.open.dependencies import (
 from src.api.open.scope_decorator import app_scope
 from src.api.response import success_response
 from src.constants.scopes import OpenApiScopeCode
-from src.schemas.admin.role import (
+from src.schemas.common import ApiResponse, PaginatedResponse
+from src.schemas.open.app import CurrentApp
+from src.schemas.role import (
     PermissionResponse,
     RoleCreateRequest,
     RoleResponse,
     RoleUpdateRequest,
 )
-from src.schemas.common import ApiResponse, PaginatedResponse
-from src.schemas.open.app import CurrentApp
 from src.services.role_service import RoleService
 
 router = APIRouter(prefix="/roles", tags=["开放API：角色管理"])

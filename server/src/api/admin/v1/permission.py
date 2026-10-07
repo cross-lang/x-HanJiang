@@ -21,8 +21,8 @@ from src.api.admin.dependencies import (
 from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
-from src.schemas.admin.role import PermissionResponse
 from src.schemas.common import PaginatedResponse
+from src.schemas.role import PermissionResponse
 from src.services.admin.permission_service import PermissionService
 
 router = APIRouter(prefix="/permissions", tags=["管理系统：权限管理"])

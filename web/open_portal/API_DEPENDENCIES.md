@@ -37,9 +37,9 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/open-portal/v1/developer/profile` | 当前开发者资料（username/name/email/phone/certification_type/certification_status/company_name） |
-| PUT | `/api/open-portal/v1/developer/profile` | 更新姓名/手机号 |
-| POST | `/api/open-portal/v1/developer/certification` | 提交认证申请（personal/enterprise，预留，进入待审） |
+| GET | `/api/open-portal/v1/developers/profile` | 当前开发者资料（username/name/email/phone/certification_type/certification_status/company_name） |
+| PUT | `/api/open-portal/v1/developers/profile` | 更新姓名/手机号 |
+| POST | `/api/open-portal/v1/developers/certification` | 提交认证申请（personal/enterprise，预留，进入待审） |
 
 ### 1.3 应用管理（apps，页面：应用管理）
 

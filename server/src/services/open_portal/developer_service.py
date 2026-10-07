@@ -7,7 +7,7 @@ from src.constants.enums import CertificationStatus, CertificationType
 from src.core.exceptions import ValidationException
 from src.models.entities.developer_entity import DeveloperEntity
 from src.repositories.developer_repository import DeveloperRepository
-from src.schemas.open_portal.auth import (
+from src.schemas.open_portal.developer import (
     DeveloperCertificationRequest,
     DeveloperProfileResponse,
     DeveloperProfileUpdateRequest,

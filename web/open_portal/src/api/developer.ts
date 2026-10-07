@@ -8,15 +8,15 @@ import type { CertificationRequest, DeveloperProfile, DeveloperUpdateRequest } f
 
 /** 获取当前登录开发者资料 */
 export function getDeveloperProfile() {
-  return request.get<DeveloperProfile>('/developer/profile')
+  return request.get<DeveloperProfile>('/developers/profile')
 }
 
 /** 更新开发者资料（姓名/手机/头像） */
 export function updateDeveloperProfile(data: DeveloperUpdateRequest) {
-  return request.put<DeveloperProfile>('/developer/profile', data)
+  return request.put<DeveloperProfile>('/developers/profile', data)
 }
 
 /** 提交认证申请（个人认证 / 企业认证，预留） */
 export function applyCertification(data: CertificationRequest) {
-  return request.post<{ message: string }>('/developer/certification', data)
+  return request.post<{ message: string }>('/developers/certification', data)
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""系统告警服务。
+"""系统告警服务（管理端 / 开放接口两域共享，位于 services 根目录）。
 委托 NotificationDispatcher 发送告警，复用通知系统的：
 - 模板渲染
 - 多渠道发送

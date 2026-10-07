@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """开放平台开发者资料与认证接口（门户 JWT）。
-路由前缀：/api/open-portal/v1/developer
+路由前缀：/api/open-portal/v1/developers
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -11,14 +11,14 @@ from src.api.open_portal.dependencies import (
     get_developer_service,
 )
 from src.api.response import success_response
-from src.schemas.open_portal.auth import (
-    CurrentDeveloper,
+from src.schemas.open_portal.auth import CurrentDeveloper
+from src.schemas.open_portal.developer import (
     DeveloperCertificationRequest,
     DeveloperProfileUpdateRequest,
 )
 from src.services.open_portal.developer_service import DeveloperService
 
-router = APIRouter(prefix="/developer", tags=["开放平台：个人中心"])
+router = APIRouter(prefix="/developers", tags=["开放平台：个人中心"])
 
 
 @router.get(

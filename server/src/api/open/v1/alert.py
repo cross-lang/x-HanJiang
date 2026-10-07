@@ -7,7 +7,6 @@
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
 
 from src.api.open.dependencies import (
     get_alert_service,
@@ -18,21 +17,11 @@ from src.api.open.scope_decorator import app_scope
 from src.api.response import success_response
 from src.constants.scopes import OpenApiScopeCode
 from src.schemas.common import ApiResponse
+from src.schemas.open.alert import AlertSendRequest
 from src.schemas.open.app import CurrentApp
-from src.services.admin.alert_service import AlertService
+from src.services.alert_service import AlertService
 
 router = APIRouter(tags=["开放API：告警推送"])
-
-
-class AlertSendRequest(BaseModel):
-    """发送告警请求体。"""
-
-    subject: str = Field(..., description="告警标题", max_length=200)
-    message: str = Field(..., description="告警内容", max_length=2000)
-    recipients: dict[str, str] = Field(
-        default_factory=dict,
-        description="额外接收人（渠道→地址，如 {\"email\": \"a@b.com\"}），超管渠道自动追加",
-    )
 
 
 @router.post(

@@ -32,11 +32,8 @@ from src.core.tokens import (
 from src.infras.cache import CacheProvider
 from src.models.entities.developer_entity import DeveloperEntity
 from src.repositories.developer_repository import DeveloperRepository
-from src.schemas.open_portal.auth import (
-    CurrentDeveloper,
-    DeveloperProfileResponse,
-    DeveloperTokenResponse,
-)
+from src.schemas.open_portal.auth import CurrentDeveloper, DeveloperTokenResponse
+from src.schemas.open_portal.developer import DeveloperProfileResponse
 from src.utils.security import hash_password, verify_password
 
 # Redis 登录态键前缀：login_dev:{developer_id} -> 当前生效的 access token jti

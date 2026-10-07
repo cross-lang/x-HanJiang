@@ -726,9 +726,9 @@ Once the backend is running:
 | POST | `/api/open-portal/v1/auth/refresh` | Refresh tokens (old access token invalidated) |
 | POST | `/api/open-portal/v1/auth/logout` | Logout (revokes server-side session) |
 | POST | `/api/open-portal/v1/auth/change-password` | Change password (re-login required afterwards) |
-| GET | `/api/open-portal/v1/developer/profile` | Current developer profile |
-| PUT | `/api/open-portal/v1/developer/profile` | Update profile (name / phone) |
-| POST | `/api/open-portal/v1/developer/certification` | Submit certification application (personal/enterprise) |
+| GET | `/api/open-portal/v1/developers/profile` | Current developer profile |
+| PUT | `/api/open-portal/v1/developers/profile` | Update profile (name / phone) |
+| POST | `/api/open-portal/v1/developers/certification` | Submit certification application (personal/enterprise) |
 | GET | `/api/open-portal/v1/apps` | My apps (paged, owner-isolated) |
 | POST | `/api/open-portal/v1/apps` | Create app (app_key returned once; enters approval) |
 | GET | `/api/open-portal/v1/apps/{app_id}` | App detail (incl. approval status/notes) |

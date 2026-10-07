@@ -20,7 +20,7 @@ from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
 from src.constants.permissions import PermissionCode
 from src.schemas.admin.alert import AlertSendRequest
-from src.services.admin.alert_service import AlertService
+from src.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["管理系统：系统告警"])
 

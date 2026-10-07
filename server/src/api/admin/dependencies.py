@@ -26,7 +26,7 @@ from src.constants.enums import SystemRoleCode
 from src.core.exceptions import AuthorizationException
 from src.infras.database import get_db_session
 from src.schemas.admin.auth import CurrentUser
-from src.services.admin.alert_service import AlertService
+from src.services.alert_service import AlertService
 from src.services.admin.audit_service import AuditService
 from src.services.admin.auth_service import AuthService
 from src.services.admin.health_service import HealthService

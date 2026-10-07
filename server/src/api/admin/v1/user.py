@@ -31,13 +31,9 @@ from src.constants.enums import Gender, UserStatus
 from src.constants.permissions import PermissionCode
 from src.core.exceptions import ValidationException
 from src.schemas.admin.auth import CurrentUser
-from src.schemas.admin.user import (
-    AdminResetPasswordRequest,
-    UserCreateRequest,
-    UserResponse,
-    UserUpdateRequest,
-)
+from src.schemas.admin.user import AdminResetPasswordRequest
 from src.schemas.common import PaginatedResponse
+from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.user_service import UserService
 from src.utils.csv import build_csv_stream_response, parse_csv_rows
 

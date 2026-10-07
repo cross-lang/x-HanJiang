@@ -20,9 +20,9 @@ from src.api.open.scope_decorator import app_scope
 from src.api.response import success_response
 from src.constants.enums import UserStatus
 from src.constants.scopes import OpenApiScopeCode
-from src.schemas.admin.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.schemas.common import ApiResponse, PaginatedResponse
 from src.schemas.open.app import CurrentApp
+from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["开放API：用户管理"])

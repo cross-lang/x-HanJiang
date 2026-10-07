@@ -726,9 +726,9 @@ graph LR
 | POST | `/api/open-portal/v1/auth/refresh` | 刷新令牌（旧 access 令牌随即失效） |
 | POST | `/api/open-portal/v1/auth/logout` | 退出登录（撤销服务端会话） |
 | POST | `/api/open-portal/v1/auth/change-password` | 修改密码（成功后需重新登录） |
-| GET | `/api/open-portal/v1/developer/profile` | 当前开发者资料 |
-| PUT | `/api/open-portal/v1/developer/profile` | 更新资料（姓名/手机号） |
-| POST | `/api/open-portal/v1/developer/certification` | 提交认证申请（个人/企业） |
+| GET | `/api/open-portal/v1/developers/profile` | 当前开发者资料 |
+| PUT | `/api/open-portal/v1/developers/profile` | 更新资料（姓名/手机号） |
+| POST | `/api/open-portal/v1/developers/certification` | 提交认证申请（个人/企业） |
 | GET | `/api/open-portal/v1/apps` | 我的应用分页列表（owner 隔离） |
 | POST | `/api/open-portal/v1/apps` | 创建应用（app_key 仅此一次返回，进入审批流） |
 | GET | `/api/open-portal/v1/apps/{app_id}` | 应用详情（含审批状态/意见） |
