@@ -67,6 +67,26 @@ ASSISTANT_ENTITY_TYPE: str = "assistant"
 ASSISTANT_MESSAGE_LIST_LIMIT: int = 100
 #: 非流式结果直接切片输出时的单块字符数（模拟流式体验，避免重复调用 LLM）
 ASSISTANT_TOKEN_CHUNK_SIZE: int = 24
+#: 边界感知切块的断点字符：窗口内从后往前取最近一个（中英文句读 / 子句 / 空白 / 闭合符）
+ASSISTANT_CHUNK_BOUNDARY_CHARS: tuple[str, ...] = (
+    "。",
+    "！",
+    "？",
+    "\n",
+    "；",
+    "，",
+    "、",
+    ".",
+    "!",
+    "?",
+    ";",
+    ":",
+    " ",
+    ")",
+    "）",
+    "】",
+    "」",
+)
 
 
 # ── 系统入口清单（跳转工具的知识源）────────────────────────

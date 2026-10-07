@@ -27,6 +27,7 @@ from src.assistant.retriever import RetrieverProvider
 from src.assistant.title import generate_title
 from src.assistant.tools import ToolArgs, ToolRegistry
 from src.constants.assistant import (
+    ASSISTANT_CHUNK_BOUNDARY_CHARS,
     ASSISTANT_EMPTY_REPLY_MESSAGE,
     ASSISTANT_ENTITY_TYPE,
     ASSISTANT_ENTRY_CATALOG,
@@ -41,10 +42,12 @@ from src.core.exceptions import ExternalServiceException, NotFoundException
 from src.core.logger import logger
 from src.infras.llm import (
     ChatMessage,
-    LLMChatResult,
+    ContentDelta,
     LLMProvider,
-    StreamChunkKind,
+    ReasoningDelta,
     ToolCall,
+    ToolCallAccumulator,
+    ToolCallDelta,
     get_llm_provider,
 )
 from src.models.entities.assistant_entity import (
@@ -76,6 +79,103 @@ def _page_of_path(path: str) -> str | None:
         if item["path"] == path:
             return item["page"]
     return None
+
+
+class _InlineToolCallGate:
+    """流式正文内联工具调用检测门（服务层内部组件）。
+
+    背景：流式优先改造后，正文增量会实时发给前端；但推理模型偶发把工具
+    调用写进正文（<tool_call> XML 或 JSON，详见 _extract_text_tool_call），
+    一旦透出无法收回。
+
+    策略（对普通对话零延迟）：
+        - 只扣留「首个非空白字符为 < / { / [」的回复进行观察；
+        - 前缀一旦不可能匹配工具调用语法，立即补发扣留内容并转直放；
+        - 流结束仍未排除嫌疑的，由调用方用 _extract_text_tool_call 终判：
+          是工具调用则执行（内容从未泄漏），否则调用 release() 放行。
+
+    状态流转：watch（尚未见首字符）→ bypass（直放）/ hold（扣留观察）。
+    """
+
+    _XML_TAG: str = "<tool_call>"
+
+    def __init__(self) -> None:
+        """初始化：watch 状态、空缓冲。"""
+        self._state: str = "watch"
+        self._buffer: str = ""
+
+    def feed(self, text: str) -> list[str]:
+        """接收一段正文增量，返回当前可安全放行的文本。
+
+        Args:
+            text: 正文增量
+
+        Returns:
+            list[str]: 可立即下发的片段（直放时为整段，扣留时为空列表）
+        """
+        if self._state == "bypass":
+            return [text]
+        self._buffer += text
+        if self._state == "watch":
+            stripped = self._buffer.lstrip()
+            if not stripped:
+                return []
+            first = stripped[0]
+            if first not in ("<", "{", "["):
+                self._state = "bypass"
+                release, self._buffer = self._buffer, ""
+                return [release]
+            self._state = "hold"
+        return self._classify()
+
+    def _classify(self) -> list[str]:
+        """hold 状态下判断缓冲前缀是否仍可能是工具调用。
+
+        Returns:
+            list[str]: 排除嫌疑时返回全部扣留内容（同时转直放）；否则空列表
+        """
+        stripped = self._buffer.strip()
+        if stripped[0] == "<":
+            # XML：去空白缓冲必须仍是 <tool_call> 的前缀，或已含完整开标签
+            compatible = self._XML_TAG.startswith(stripped) or stripped.startswith(self._XML_TAG)
+            if not compatible:
+                return self._release_all()
+            return []
+        # JSON：能解析 → 完整 JSON，扣留到流终；
+        # 报错位置在「增长边缘」→ 可能只是未写完，继续等；
+        # 报错位置在缓冲内部 → 追加文本无法修复，排除嫌疑立即放行。
+        try:
+            json.loads(self._buffer)
+        except json.JSONDecodeError as exc:
+            edge = len(self._buffer.rstrip())
+            if exc.pos < edge - 1:
+                return self._release_all()
+        return []
+
+    def _release_all(self) -> list[str]:
+        """转直放并返回全部扣留内容。
+
+        Returns:
+            list[str]: 含全部扣留文本的单元素列表
+        """
+        self._state = "bypass"
+        release, self._buffer = self._buffer, ""
+        return [release]
+
+    @property
+    def is_holding(self) -> bool:
+        """流结束时是否仍处扣留态（待调用方终判）。"""
+        return self._state == "hold"
+
+    def release(self) -> str:
+        """终判非工具调用后放行扣留内容（仅 is_holding 时调用）。
+
+        Returns:
+            str: 全部扣留文本
+        """
+        held, self._buffer = self._buffer, ""
+        self._state = "bypass"
+        return held
 
 
 class AssistantService:
@@ -331,15 +431,20 @@ class AssistantService:
         query: str,
         operator: dict[str, object] | None = None,
     ) -> Iterator[dict[str, object]]:
-        """agent 循环：function calling 原生循环（ReAct 风格）。
+        """agent 循环：流式优先的 function calling 循环（ReAct 风格）。
 
-        每轮：模型输出 → 若含工具调用则执行并回填 tool 消息后继续；
-        无工具调用则流式输出最终答案并结束。
+        与旧版的差异：首轮直接流式调用 —— 思维链与正文在模型生成的同时
+        实时透出（消除「长时间只显示正在思考」的空等），工具调用碎片经
+        ToolCallAccumulator 累积，流结束后按三分支决策：
+            1. 结构化 tool_calls → 执行工具 → 流式生成最终回答；
+            2. 无结构化调用但正文是「文本形式工具调用」→ 检测门已将其
+               扣留（_InlineToolCallGate），识别后执行，内部结构不泄漏；
+            3. 普通回答 → 正文已实时呈现，直接落库收尾。
 
         Args:
             conversation: 会话实体
             user: 当前用户
-            query: 本轮用户输入
+            query: 本轮输入
             operator: 操作人上下文（navigate 审计落库用）
 
         Yields:
@@ -347,75 +452,57 @@ class AssistantService:
         """
         messages: list[dict[str, object]] = self._memory.build_context(conversation, user.id, query)
         messages.append({"role": "user", "content": query})
-        # 首字延迟兜底：进入 LLM 调用前先透出 thinking 事件，
-        # 让前端立即展示"思考中"状态，避免非流式 chat() 期间的空白等待
+        # 首字延迟兜底：进入 LLM 调用前先透出 thinking 事件，让前端立即展示思考态
         yield {"type": AssistantEventType.THINKING.mark}
         llm_cfg = settings.ai.llm
         llm_provider = self._get_llm()
         for _ in range(llm_cfg.max_tool_rounds):
-            result: LLMChatResult = llm_provider.chat(
+            # ── 流式首轮：思维链/正文实时透传，工具碎片同步累积，正文过检测门 ──
+            tool_accumulator = ToolCallAccumulator()
+            content_parts: list[str] = []
+            inline_gate = _InlineToolCallGate()
+            for stream_event in llm_provider.chat_stream(
                 messages=cast(ChatMessage, messages),
                 tools=self._tool_registry.schemas(),
                 temperature=llm_cfg.temperature,
                 max_tokens=llm_cfg.max_tokens,
-            )
-            messages.append(result.raw_message)  # 原样回填助手消息（含工具调用）
-            # 模型思考过程透出：非流式调用返回的完整思维链按块下发（不落库）
-            yield from self._reasoning_events(result.reasoning_content)
-            if result.tool_calls:
-                for tool_call in result.tool_calls:
-                    # 步骤提示：让前端实时感知 agent 正在执行的动作
+            ):
+                if isinstance(stream_event, ReasoningDelta):
                     yield {
-                        "type": AssistantEventType.STEP.mark,
-                        "content": f"正在调用工具：{tool_call.name}",
+                        "type": AssistantEventType.REASONING.mark,
+                        "content": stream_event.text,
                     }
-                    args = self._safe_parse_args(tool_call)
-                    tool_result = self._tool_registry.dispatch(tool_call.name, args, user)
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": tool_result.content,
-                        }
+                elif isinstance(stream_event, ToolCallDelta):
+                    tool_accumulator.add(stream_event)
+                else:
+                    # ContentDelta：检测门决定立即放行还是扣留观察
+                    content_parts.append(stream_event.text)
+                    for piece in inline_gate.feed(stream_event.text):
+                        yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
+
+            # ── 分支 1：结构化工具调用 ──
+            structured_calls = tool_accumulator.build()
+            if structured_calls:
+                messages.append(self._assistant_tool_calls_message(structured_calls))
+                for tool_call in structured_calls:
+                    yield from self._execute_tool_call(
+                        tool_call, conversation, user, messages, operator
                     )
-                    if tool_result.event_type is not None:
-                        yield {
-                            "type": tool_result.event_type.mark,
-                            **(tool_result.event_data or {}),
-                        }
-                        if tool_result.event_type is AssistantEventType.NAVIGATE:
-                            self._audit_navigate(
-                                user, conversation.id, tool_result.event_data or {}, operator
-                            )
-                # 工具执行完直接流式输出最终回复（不再非式再问一轮，避免 navigate 后长时间等待）
                 yield {
                     "type": AssistantEventType.STEP.mark,
                     "content": "工具执行完成，正在生成回答...",
                 }
-                answer_chunks: list[str] = []
-                for kind, chunk in llm_provider.chat_stream(
-                    messages=cast(ChatMessage, messages),
-                    temperature=llm_cfg.temperature,
-                    max_tokens=llm_cfg.max_tokens,
-                ):
-                    if kind is StreamChunkKind.REASONING:
-                        yield {"type": AssistantEventType.REASONING.mark, "content": chunk}
-                        continue
-                    answer_chunks.append(chunk)
-                    yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
-                content = "".join(answer_chunks).strip()
+                content = yield from self._stream_final_answer(messages, llm_provider)
                 if not content:
                     content = ASSISTANT_EMPTY_REPLY_MESSAGE
                     yield {"type": AssistantEventType.TOKEN.mark, "content": content}
-                saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
-                self._memory.roll_summary(conversation)
-                self._maybe_rename(conversation, query, content)
-                yield self._done_event(conversation.id, saved.id)
+                yield from self._finish_round(conversation, query, content)
                 return
-            # 兜底：推理模型偶发把工具调用写成正文文本（JSON / XML），
-            # 识别并转成真实动作，避免把内部 JSON 原样透传给用户
-            text_call = self._extract_text_tool_call(result.content)
-            if text_call is not None:
+
+            # ── 分支 2：文本形式工具调用（检测门仍扣留 → 正文从未泄漏）──
+            content = "".join(content_parts).strip()
+            text_call = self._extract_text_tool_call(content)
+            if text_call is not None and inline_gate.is_holding:
                 yield {
                     "type": AssistantEventType.STEP.mark,
                     "content": f"正在调用工具：{text_call.name}",
@@ -429,92 +516,199 @@ class AssistantService:
                         "content": text_result.content,
                     }
                 )
-                if text_result.event_type is not None:
+                if text_result.event_type is AssistantEventType.NAVIGATE:
                     yield {
-                        "type": text_result.event_type.mark,
+                        "type": AssistantEventType.NAVIGATE.mark,
                         **(text_result.event_data or {}),
                     }
-                    if text_result.event_type is AssistantEventType.NAVIGATE:
-                        self._audit_navigate(
-                            user, conversation.id, text_result.event_data or {}, operator
-                        )
+                    self._audit_navigate(
+                        user, conversation.id, text_result.event_data or {}, operator
+                    )
                 reply = self._build_navigate_reply(query, text_result.event_data or {})
-                yield {"type": AssistantEventType.TOKEN.mark, "content": reply}
-                saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, reply)
-                self._memory.roll_summary(conversation)
-                self._maybe_rename(conversation, query, reply)
-                yield self._done_event(conversation.id, saved.id)
+                for piece in self._chunk_text(reply):
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
+                yield from self._finish_round(conversation, query, reply)
                 return
-            # 非流式 chat 已返回最终答案：先透出思维链，再按块切片输出正式答案
-            # （模拟流式体验，同时避免同一答案再走一次 chat_stream 重复生成）
-            yield from self._reasoning_events(result.reasoning_content)
-            content = (result.content or "").strip()
-            if content:
-                for chunk in self._chunk_text(content):
-                    yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
-            else:
-                # 兜底：模型未返回任何内容时尝试流式再取一次，仍为空则给友好提示
+
+            # ── 分支 3：普通回答（正文已实时呈现；被扣留的合法非工具 JSON 在此放行）──
+            if inline_gate.is_holding:
+                held_text = inline_gate.release()
+                for piece in self._chunk_text(held_text):
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
+            if not content:
+                # 兜底：首轮流式未返回任何内容，再流式重试一次
                 yield {
                     "type": AssistantEventType.STEP.mark,
                     "content": "模型未返回内容，正在尝试重新生成...",
                 }
-                answer_chunks: list[str] = []
-                for kind, chunk in llm_provider.chat_stream(
-                    messages=cast(ChatMessage, messages),
-                    temperature=llm_cfg.temperature,
-                    max_tokens=llm_cfg.max_tokens,
-                ):
-                    if kind is StreamChunkKind.REASONING:
-                        yield {"type": AssistantEventType.REASONING.mark, "content": chunk}
-                        continue
-                    answer_chunks.append(chunk)
-                    yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
-                content = "".join(answer_chunks).strip()
+                content = yield from self._stream_final_answer(messages, llm_provider)
                 if not content:
                     content = ASSISTANT_EMPTY_REPLY_MESSAGE
                     yield {"type": AssistantEventType.TOKEN.mark, "content": content}
-            saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
-            self._memory.roll_summary(conversation)
-            self._maybe_rename(conversation, query, content)
-            yield self._done_event(conversation.id, saved.id)
+            yield from self._finish_round(conversation, query, content)
             return
+
         # 达到工具步数上限仍无最终答案（异常兜底，避免死循环）
-        saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, ASSISTANT_FALLBACK_MESSAGE)
+        saved = self._save_message(
+            conversation.id, AssistantMessageRole.ASSISTANT.value, ASSISTANT_FALLBACK_MESSAGE
+        )
         yield {"type": AssistantEventType.ERROR.mark, "message": "对话步骤超限，请重试"}
         yield self._done_event(conversation.id, saved.id)
 
-    @staticmethod
-    def _reasoning_events(reasoning_content: str | None) -> Iterator[dict[str, object]]:
-        """将完整思维链文本切块为 REASONING 事件序列。
-
-        非流式 chat() 调用会一次性返回完整思维链，按固定窗口切块后
-        模拟流式体验透出给前端；空内容时不产生任何事件。
+    def _execute_tool_call(
+        self,
+        tool_call: ToolCall,
+        conversation: AssistantConversationEntity,
+        user: CurrentUser,
+        messages: list[dict[str, object]],
+        operator: dict[str, object] | None,
+    ) -> Iterator[dict[str, object]]:
+        """执行单个结构化工具调用：STEP 提示 + 分发 + tool 消息回填 + 事件透出。
 
         Args:
-            reasoning_content: 模型返回的思维链完整文本（可空）
+            tool_call: 工具调用
+            conversation: 会话实体
+            user: 当前用户
+            messages: 对话消息列表（执行后回填 tool 结果，供最终回答使用）
+            operator: 操作人上下文（navigate 审计落库用）
 
         Yields:
-            dict[str, object]: REASONING 事件
+            dict[str, object]: STEP / NAVIGATE / DENIED 事件
         """
-        if not reasoning_content:
-            return
-        for chunk in AssistantService._chunk_text(reasoning_content):
-            yield {"type": AssistantEventType.REASONING.mark, "content": chunk}
+        yield {
+            "type": AssistantEventType.STEP.mark,
+            "content": f"正在调用工具：{tool_call.name}",
+        }
+        args = self._safe_parse_args(tool_call)
+        tool_result = self._tool_registry.dispatch(tool_call.name, args, user)
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": tool_result.content,
+            }
+        )
+        if tool_result.event_type is not None:
+            yield {
+                "type": tool_result.event_type.mark,
+                **(tool_result.event_data or {}),
+            }
+            if tool_result.event_type is AssistantEventType.NAVIGATE:
+                self._audit_navigate(user, conversation.id, tool_result.event_data or {}, operator)
+
+    def _stream_final_answer(
+        self,
+        messages: list[dict[str, object]],
+        llm_provider: LLMProvider,
+    ) -> Iterator[dict[str, object]]:
+        """不传 tools 的最终回答流式调用：实时透出 REASONING / TOKEN。
+
+        用于两处：结构化工具执行完后的收尾回答；首轮流式为空时的重试。
+
+        Args:
+            messages: 已回填工具结果（或重试场景原样）的消息列表
+            llm_provider: 大模型提供者
+
+        Yields:
+            dict[str, object]: REASONING / TOKEN 事件
+
+        Returns:
+            str: 拼接去空白后的完整正文（外层经 `yield from` 直接取此返回值）
+        """
+        answer_parts: list[str] = []
+        for stream_event in llm_provider.chat_stream(
+            messages=cast(ChatMessage, messages),
+            temperature=settings.ai.llm.temperature,
+            max_tokens=settings.ai.llm.max_tokens,
+        ):
+            if isinstance(stream_event, ReasoningDelta):
+                yield {
+                    "type": AssistantEventType.REASONING.mark,
+                    "content": stream_event.text,
+                }
+            elif isinstance(stream_event, ContentDelta):
+                answer_parts.append(stream_event.text)
+                yield {"type": AssistantEventType.TOKEN.mark, "content": stream_event.text}
+        return "".join(answer_parts).strip()
+
+    @staticmethod
+    def _assistant_tool_calls_message(tool_calls: list[ToolCall]) -> dict[str, object]:
+        """把拼装完成的工具调用转成回填用的 assistant 原始消息。
+
+        流式接口不会直接给出非流式的完整 message，需按 OpenAI 协议手工合成
+        （content=None + tool_calls），保证后续 tool 消息携带 tool_call_id 时合法。
+
+        Args:
+            tool_calls: 完整工具调用列表
+
+        Returns:
+            dict[str, object]: assistant 消息字典
+        """
+        return {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": tool_call.id,
+                    "type": "function",
+                    "function": {"name": tool_call.name, "arguments": tool_call.arguments},
+                }
+                for tool_call in tool_calls
+            ],
+        }
+
+    def _finish_round(
+        self,
+        conversation: AssistantConversationEntity,
+        query: str,
+        content: str,
+    ) -> Iterator[dict[str, object]]:
+        """一轮收尾：落库助手消息 + 滚动摘要 + 标题归纳 + DONE。
+
+        Args:
+            conversation: 会话实体
+            query: 本轮用户输入（标题归纳用）
+            content: 最终回复正文
+
+        Yields:
+            dict[str, object]: DONE 事件
+        """
+        saved = self._save_message(
+            conversation.id, AssistantMessageRole.ASSISTANT.value, content
+        )
+        self._memory.roll_summary(conversation)
+        self._maybe_rename(conversation, query, content)
+        yield self._done_event(conversation.id, saved.id)
 
     @staticmethod
     def _chunk_text(text: str) -> Iterator[str]:
-        """将完整回复按固定窗口切块，模拟流式输出体验。
+        """将整段文本按语句 / 短语边界切块（边界感知切片，方案①）。
 
-        非流式 chat 已拿到完整答案时直接切片下发，避免重复调用 LLM。
+        流式优先改造后，对话正文已是上游实时增量、无需切块；本方法仅服务于
+        「本地一次性持有整段文本」的少量场景：文本工具调用的收尾回复、检测
+        门终判后放行的内容。切块以 ASSISTANT_TOKEN_CHUNK_SIZE 为目标上限，
+        并在窗口内从后往前找最近的断点字符（ASSISTANT_CHUNK_BOUNDARY_CHARS）
+        对齐断点，避免劈开词句；窗口内无任何边界时退回硬切，保证有界推进。
 
         Args:
-            text: 完整回复文本
+            text: 完整文本
 
         Yields:
-            str: 切块后的文本片段
+            str: 边界对齐的文本片段
         """
-        for index in range(0, len(text), ASSISTANT_TOKEN_CHUNK_SIZE):
-            yield text[index : index + ASSISTANT_TOKEN_CHUNK_SIZE]
+        max_size = ASSISTANT_TOKEN_CHUNK_SIZE
+        total = len(text)
+        start = 0
+        while start < total:
+            end = min(start + max_size, total)
+            if end < total:
+                window = text[start:end]
+                for offset in range(len(window) - 1, -1, -1):
+                    if window[offset] in ASSISTANT_CHUNK_BOUNDARY_CHARS:
+                        end = start + offset + 1
+                        break
+            yield text[start:end]
+            start = end
 
     @staticmethod
     def _safe_parse_args(tool_call: ToolCall) -> ToolArgs:

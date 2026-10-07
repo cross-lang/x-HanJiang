@@ -21,7 +21,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Final, cast
 
 from openai import OpenAI, Stream
@@ -45,16 +44,102 @@ from src.core.logger import logger
 ChatMessage = list[ChatCompletionMessageParam]
 
 
-class StreamChunkKind(StrEnum):
-    """流式输出片段类型。
+@dataclass(frozen=True)
+class ReasoningDelta:
+    """思维链增量（推理模型在正式答案前的思考过程，不落库）。
 
-    推理模型（如 mimo-v2.5-pro）流式响应中先逐段输出思维链
-    （reasoning_content），思考结束后再输出正式答案（content）；
-    上层按类型分别透传给前端的不同 UI 区域。
+    Attributes:
+        text: 增量文本
     """
 
-    REASONING = "reasoning"  # 思维链增量（思考过程，不落库）
-    CONTENT = "content"  # 正式答案增量
+    text: str
+
+
+@dataclass(frozen=True)
+class ContentDelta:
+    """正式答案增量。
+
+    Attributes:
+        text: 增量文本
+    """
+
+    text: str
+
+
+@dataclass(frozen=True)
+class ToolCallDelta:
+    """流式工具调用增量（上游 tool_calls 按 index 分片段到达）。
+
+    上游在同一条流中可能并行发起多个工具调用，每个片段带相同的 index；
+    id / name 通常只在该 index 的首个片段出现，arguments 则可能拆成
+    多个片段陆续到达。由 ToolCallAccumulator 按 index 拼装。
+
+    Attributes:
+        index: 工具调用序号（同一调用的所有片段共享）
+        call_id: 工具调用ID（仅首片段可能携带，其余为空）
+        name: 工具名（仅首片段可能携带，其余为空）
+        arguments_delta: 入参 JSON 片段（可空串）
+    """
+
+    index: int
+    call_id: str | None = None
+    name: str | None = None
+    arguments_delta: str = ""
+
+
+class ToolCallAccumulator:
+    """流式工具调用碎片累积器：按 index 拼装为完整 ToolCall 列表。
+
+    用法：
+        acc = ToolCallAccumulator()
+        for event in provider.chat_stream(...):
+            if isinstance(event, ToolCallDelta):
+                acc.add(event)
+        calls = acc.build()
+
+    说明：
+        - 纯内存拼装、无 IO，便于单测；
+        - build() 结果按 index 升序（与上游发起顺序一致）。
+    """
+
+    def __init__(self) -> None:
+        """初始化空累积器。"""
+        self._call_ids: dict[int, str] = {}
+        self._names: dict[int, str] = {}
+        self._arguments: dict[int, list[str]] = {}
+
+    def add(self, delta: ToolCallDelta) -> None:
+        """接收一个工具调用碎片。
+
+        Args:
+            delta: 流式工具调用增量
+        """
+        index = delta.index
+        if delta.call_id:
+            self._call_ids.setdefault(index, delta.call_id)
+        if delta.name:
+            self._names.setdefault(index, delta.name)
+        if delta.arguments_delta:
+            self._arguments.setdefault(index, []).append(delta.arguments_delta)
+
+    def build(self) -> list[ToolCall]:
+        """拼装全部已接收碎片为完整工具调用列表。
+
+        Returns:
+            list[ToolCall]: 按 index 升序的工具调用；缺失字段以占位值补齐
+            （id 缺省 call_{index}，name 缺省空串，arguments 缺省空串）
+        """
+        indexes = set(self._call_ids) | set(self._names) | set(self._arguments)
+        result: list[ToolCall] = []
+        for index in sorted(indexes):
+            result.append(
+                ToolCall(
+                    id=self._call_ids.get(index, f"call_{index}"),
+                    name=self._names.get(index, ""),
+                    arguments="".join(self._arguments.get(index, [])),
+                )
+            )
+        return result
 
 
 @dataclass(frozen=True)
@@ -103,8 +188,8 @@ class LLMProvider(ABC):
         tools: list[dict[str, object]] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ) -> Iterator[tuple[StreamChunkKind, str]]:
-        """流式对话，逐 token 产出回复增量（区分思维链与正式答案）。
+    ) -> Iterator[ReasoningDelta | ContentDelta | ToolCallDelta]:
+        """流式对话，实时产出思维链 / 正文 / 工具调用三类增量。
 
         Args:
             messages: 对话消息列表（含 system / user / assistant / tool）
@@ -113,9 +198,10 @@ class LLMProvider(ABC):
             max_tokens: 输出上限（可空，使用配置默认值）
 
         Yields:
-            tuple[StreamChunkKind, str]: （片段类型, 文本增量）
-                REASONING = 思维链增量（思考过程，不落库）
-                CONTENT = 正式答案增量
+            ReasoningDelta | ContentDelta | ToolCallDelta:
+                ReasoningDelta = 思维链增量（思考过程，不落库）
+                ContentDelta   = 正式答案增量
+                ToolCallDelta  = 工具调用碎片（用 ToolCallAccumulator 拼装）
 
         Raises:
             ExternalServiceException: 大模型调用失败时抛出
@@ -205,7 +291,7 @@ class OpenAICompatProvider(LLMProvider):
         tools: list[dict[str, object]] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ) -> Iterator[tuple[StreamChunkKind, str]]:
+    ) -> Iterator[ReasoningDelta | ContentDelta | ToolCallDelta]:
         try:
             stream: Stream[ChatCompletionChunk] = self._client.chat.completions.create(
                 model=self._model,
@@ -225,9 +311,21 @@ class OpenAICompatProvider(LLMProvider):
                 # （OpenAI SDK 类型未声明该字段，属兼容协议的扩展字段，需动态读取）
                 reasoning = getattr(delta, "reasoning_content", None)
                 if reasoning:
-                    yield StreamChunkKind.REASONING, reasoning
+                    yield ReasoningDelta(text=reasoning)
                 if delta.content:
-                    yield StreamChunkKind.CONTENT, delta.content
+                    yield ContentDelta(text=delta.content)
+                # 工具调用碎片：按 index 透传（id / name 常仅首片段出现）
+                if delta.tool_calls:
+                    for tool_chunk in delta.tool_calls:
+                        function = tool_chunk.function
+                        yield ToolCallDelta(
+                            index=tool_chunk.index,
+                            call_id=tool_chunk.id,
+                            name=function.name if function is not None else None,
+                            arguments_delta=function.arguments
+                            if function is not None and function.arguments
+                            else "",
+                        )
         except Exception as exc:  # noqa: BLE001 - 统一转换为系统异常，避免暴露 SDK 原生异常
             raise ExternalServiceException(message=f"大模型流式调用失败: {exc}") from exc
 
@@ -353,10 +451,13 @@ def get_llm_provider() -> LLMProvider:
 
 
 __all__ = [
+    "ContentDelta",
+    "ReasoningDelta",
     "ToolCall",
+    "ToolCallAccumulator",
+    "ToolCallDelta",
     "LLMChatResult",
     "LLMProvider",
     "OpenAICompatProvider",
-    "StreamChunkKind",
     "get_llm_provider",
 ]
