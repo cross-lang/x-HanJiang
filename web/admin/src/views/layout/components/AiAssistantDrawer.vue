@@ -142,7 +142,7 @@
             <div class="ai-msg-body">
               <div :class="msg.role === 'user' ? 'ai-bubble ai-bubble-user' : 'ai-bubble ai-bubble-assistant'">
                 <span v-if="msg.loading && !msg.content" class="ai-typing">正在思考<span class="ai-dot">…</span></span>
-                <template v-else>{{ msg.content }}</template>
+                <div v-else class="ai-md" v-html="renderMarkdown(msg.content)"></div>
               </div>
               <div v-if="msg.role === 'assistant' && msg.messageId != null && msg.content" class="ai-feedback">
                 <el-button
@@ -195,6 +195,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { Loading, Top } from '@element-plus/icons-vue'
 import xiaoJiangLogo from '@/assets/xiaojiang-logo.png'
 import { useDragResize } from '@/composables/useDragResize'
@@ -203,6 +205,12 @@ import { useConversations } from '@/composables/useConversations'
 
 const visible = defineModel<boolean>('visible', { required: true })
 const router = useRouter()
+
+/** Markdown 渲染（marked 解析 + DOMPurify 消毒，防止 XSS） */
+function renderMarkdown(content: string): string {
+  const raw = marked.parse(content, { async: false }) as string
+  return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
+}
 
 // 抽屉整体宽度（左缘拖拽条可左右调整，扩大横向视野；380~760px 夹取）
 const {
@@ -615,6 +623,40 @@ watch(visible, async v => {
   color: #333;
   border: 1px solid #e4e7ed;
 }
+/* Markdown 渲染内容：重置浏览器默认边距，统一在气泡内排版 */
+.ai-md {
+  white-space: normal;
+  line-height: 1.6;
+}
+.ai-md > *:first-child {
+  margin-top: 0;
+}
+.ai-md > *:last-child {
+  margin-bottom: 0;
+}
+.ai-md p {
+  margin: 0 0 8px;
+}
+.ai-md ul,
+.ai-md ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.ai-md li {
+  margin: 2px 0;
+}
+.ai-md strong {
+  font-weight: 600;
+}
+.ai-md code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.ai-bubble-user .ai-md code {
+  background: rgba(255, 255, 255, 0.2);
+}
 .ai-feedback {
   display: flex;
   gap: 2px;
@@ -640,7 +682,7 @@ watch(visible, async v => {
 
 /* ===== 输入区（卡片式：多行输入在上、工具栏在下） ===== */
 .ai-input-area {
-  padding: 0 14px 16px;
+  padding: 0 0 16px;
 }
 .ai-input-card {
   border: 1px solid #e4e7ed;

@@ -335,6 +335,9 @@ class AssistantService:
         """
         messages: list[dict[str, object]] = self._build_context(conversation, user.id, query)
         messages.append({"role": "user", "content": query})
+        # 首字延迟兜底：进入 LLM 调用前先透出 thinking 事件，
+        # 让前端立即展示"思考中"状态，避免非流式 chat() 期间的空白等待
+        yield {"type": AssistantEventType.THINKING.mark}
         llm_cfg = settings.ai.llm
         llm_provider = self._get_llm()
         for _ in range(llm_cfg.max_tool_rounds):
