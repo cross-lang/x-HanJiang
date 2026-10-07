@@ -43,7 +43,7 @@ export function submitFeedback(data: {
 /**
  * SSE 流式对话（POST 流式，axios 无法流式消费，使用 fetch + ReadableStream）。
  * 事件协议（与后端 AssistantEventType 对齐）：
- *   thinking → token → navigate/denied → error → done
+ *   thinking → reasoning → step → token → navigate/denied → error → done
  * @param conversationId 会话ID（null 时后端自动创建，done 事件回传）
  * @param message 用户输入
  * @param handlers 事件回调
@@ -103,6 +103,12 @@ export async function chatSSE(
         switch (event.type) {
           case 'thinking':
             handlers.onThinking?.()
+            break
+          case 'reasoning':
+            handlers.onReasoning?.(String(event.content ?? ''))
+            break
+          case 'step':
+            handlers.onStep?.(String(event.content ?? ''))
             break
           case 'token':
             handlers.onToken(String(event.content ?? ''))

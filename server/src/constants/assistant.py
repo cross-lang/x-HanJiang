@@ -15,6 +15,8 @@ class AssistantEventType(StrBaseEnum):
     """AI 助手 SSE 流式事件类型（api 层透出给前端）。"""
 
     THINKING = ("thinking", "模型思考过程（可选透出）")
+    REASONING = ("reasoning", "思维链内容增量（模型推理过程透出，不落库）")
+    STEP = ("step", "执行步骤提示（工具调用 / 阶段进展）")
     TOKEN = ("token", "回复文本增量")
     NAVIGATE = ("navigate", "跳转指令（前端执行 router.push）")
     DENIED = ("denied", "越权拒绝提示")

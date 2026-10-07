@@ -31,7 +31,7 @@
                   <span class="ai-conv-head-text">会话列表</span>
                   <el-icon size="12" color="#9c9ca8"><ArrowUp /></el-icon>
                 </div>
-                <button type="button" class="ai-new-conv" @click.stop="createNewConversation">
+                <button type="button" class="ai-new-conv" @click.stop="handleNewConversation">
                   <el-icon size="12"><Plus /></el-icon>&nbsp;新建会话
                 </button>
               </div>
@@ -141,8 +141,35 @@
             </div>
             <div class="ai-msg-body">
               <div :class="msg.role === 'user' ? 'ai-bubble ai-bubble-user' : 'ai-bubble ai-bubble-assistant'">
-                <span v-if="msg.loading && !msg.content" class="ai-typing">正在思考<span class="ai-dot">…</span></span>
-                <div v-else class="ai-md" v-html="renderMarkdown(msg.content)"></div>
+                <!-- 执行步骤提示：工具调用/回答生成阶段实时展示，优先级最高 -->
+                <div v-if="msg.stepText" class="ai-step-text">{{ msg.stepText }}</div>
+                <!-- 加载中（无步骤、无思维链、无回答时兜底展示） -->
+                <span v-else-if="msg.loading && !msg.content && !msg.reasoning" class="ai-typing">
+                  正在思考<span class="ai-dot">…</span>
+                </span>
+                <!-- 思维链折叠面板：推理模型思考过程透出，回答开始后自动折叠 -->
+                <div v-if="msg.reasoning" class="ai-reasoning" :class="{ collapsed: msg.reasoningCollapsed }">
+                  <div class="ai-reasoning-header" @click="msg.reasoningCollapsed = !msg.reasoningCollapsed">
+                    <span class="ai-reasoning-label">
+                      <el-icon size="12"><MagicStick /></el-icon>
+                      {{ msg.reasoningCollapsed ? '已思考' : '思考过程' }}
+                    </span>
+                    <el-icon size="12" class="ai-reasoning-toggle">
+                      <ArrowDown v-if="!msg.reasoningCollapsed" />
+                      <ArrowUp v-else />
+                    </el-icon>
+                  </div>
+                  <div v-show="!msg.reasoningCollapsed" class="ai-reasoning-body">
+                    <pre>{{ msg.reasoning }}</pre>
+                  </div>
+                </div>
+                <!-- 正式回答 -->
+                <div
+                  v-if="msg.content"
+                  class="ai-md"
+                  v-html="renderMarkdown(msg.content)"
+                  @click="onMarkdownClick"
+                ></div>
               </div>
               <div v-if="msg.role === 'assistant' && msg.messageId != null && msg.content" class="ai-feedback">
                 <el-button
@@ -195,7 +222,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { marked } from 'marked'
+import { marked, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 import { Loading, Top } from '@element-plus/icons-vue'
 import xiaoJiangLogo from '@/assets/xiaojiang-logo.png'
@@ -206,10 +233,50 @@ import { useConversations } from '@/composables/useConversations'
 const visible = defineModel<boolean>('visible', { required: true })
 const router = useRouter()
 
-/** Markdown 渲染（marked 解析 + DOMPurify 消毒，防止 XSS） */
+/**
+ * Markdown 渲染（marked 解析 + DOMPurify 消毒，防止 XSS）。
+ *
+ * 链接处理策略：
+ *   - 外部链接（http/https/mailto 等）：添加 target="_blank" + rel="noopener noreferrer"，新标签页打开
+ *   - 内部路由链接（以 / 开头）：保留 href，由点击事件委托拦截并 router.push，避免整页刷新
+ *   - 纯文本 URL：依赖 marked gfm 自动识别为超链接
+ */
+const markedRenderer = new marked.Renderer()
+markedRenderer.link = function ({ href, title, text }: Tokens.Link) {
+  const safeHref = href || ''
+  const isExternal = /^https?:\/\//i.test(safeHref) || /^mailto:/i.test(safeHref)
+  const targetAttr = isExternal ? ' target="_blank"' : ''
+  const relAttr = isExternal ? ' rel="noopener noreferrer"' : ''
+  const titleAttr = title ? ` title="${title}"` : ''
+  return `<a href="${safeHref}"${titleAttr}${targetAttr}${relAttr}>${text}</a>`
+}
+
 function renderMarkdown(content: string): string {
-  const raw = marked.parse(content, { async: false }) as string
-  return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
+  const raw = marked.parse(content, {
+    async: false,
+    gfm: true,
+    breaks: true,
+    renderer: markedRenderer,
+  }) as string
+  return DOMPurify.sanitize(raw, {
+    USE_PROFILES: { html: true },
+    ADD_ATTR: ['target', 'rel'],
+  })
+}
+
+/** 拦截 AI 回复中链接的点击：内部路由走 SPA 跳转，外部链接新标签页打开 */
+function onMarkdownClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  const link = target.closest('a') as HTMLAnchorElement | null
+  if (!link) return
+  const href = link.getAttribute('href')
+  if (!href) return
+  // 内部路由（以 / 开头且非协议链接）：交给 vue-router，避免整页刷新
+  if (href.startsWith('/') && !/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+    e.preventDefault()
+    router.push(href)
+  }
+  // 外部链接：浏览器默认行为（新标签页打开，因已设 target="_blank"）
 }
 
 // 抽屉整体宽度（左缘拖拽条可左右调整，扩大横向视野；380~760px 夹取）
@@ -237,13 +304,19 @@ const {
   initial: 220,
 })
 
+// 会话管理面板：展开时嵌入聊天区上方（不弹窗、不分栏）
+const aiConvPanelVisible = ref(false)
+
 // 聊天核心：SSE 流式对话、历史加载、自动滚底、反馈
 const chat = useChatSse({
   onNavigate: path => {
     // 跳转指令：执行路由跳转，保持抽屉打开以便继续对话
     router.push(path)
   },
-  onConversationsChange: () => void conversations.refreshConversations(),
+  onConversationsChange: () => {
+    // 仅面板展开时刷新列表；收起期间错过的变更在展开面板时补拉
+    if (aiConvPanelVisible.value) void conversations.refreshConversations()
+  },
 })
 
 // 会话列表：新建/置顶/删除/切换，经 conversationId 与聊天核心弱耦合
@@ -274,13 +347,10 @@ const {
   refreshConversations,
   convTitle,
   convTime,
-  createNewConversation,
+  createNewConversation: requestNewConversation,
   togglePin,
   deleteConversationItem,
 } = conversations
-
-// 会话管理面板：展开时嵌入聊天区上方（不弹窗、不分栏）
-const aiConvPanelVisible = ref(false)
 
 /** 切换会话管理面板（展开时刷新列表；聊天记录保持原位，面板嵌入其上方） */
 async function toggleConvPanel() {
@@ -294,6 +364,14 @@ async function toggleConvPanel() {
 async function switchConversation(id: number) {
   aiConvPanelVisible.value = false
   await loadConversation(id)
+}
+
+/** 新建会话：成功后收起会话面板，展示完整聊天区 */
+async function handleNewConversation() {
+  const ok = await requestNewConversation()
+  if (ok) {
+    aiConvPanelVisible.value = false
+  }
 }
 
 /** 打开抽屉：先拉会话列表，再校验残留的 aiConversationId 是否属于本用户 */
@@ -648,6 +726,26 @@ watch(visible, async v => {
 .ai-md strong {
   font-weight: 600;
 }
+.ai-md a {
+  color: #5a6cf0;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+  cursor: pointer;
+}
+.ai-md a:hover {
+  color: #4c5fe6;
+  border-bottom-color: #4c5fe6;
+}
+.ai-bubble-user .ai-md a {
+  color: #e0e7ff;
+}
+.ai-bubble-user .ai-md a:hover {
+  color: #fff;
+  border-bottom-color: #fff;
+}
 .ai-md code {
   background: rgba(0, 0, 0, 0.06);
   padding: 1px 5px;
@@ -657,6 +755,66 @@ watch(visible, async v => {
 .ai-bubble-user .ai-md code {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* ===== 思考过程折叠面板 ===== */
+.ai-reasoning {
+  background: #f8f9fe;
+  border: 1px solid #e8eaf6;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+.ai-reasoning-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: #7c7c9e;
+  background: #f0f2fb;
+  transition: background 0.15s;
+}
+.ai-reasoning-header:hover {
+  background: #e8eaf6;
+}
+.ai-reasoning-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-reasoning-toggle {
+  transition: transform 0.2s;
+}
+.ai-reasoning.collapsed .ai-reasoning-toggle {
+  transform: rotate(180deg);
+}
+.ai-reasoning-body {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.6;
+}
+.ai-reasoning-body pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  color: #888;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+/* ===== 步骤提示文本 ===== */
+.ai-step-text {
+  font-size: 12px;
+  color: #909399;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+
 .ai-feedback {
   display: flex;
   gap: 2px;

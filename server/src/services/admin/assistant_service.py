@@ -22,8 +22,8 @@ from collections.abc import Iterator
 from typing import cast
 
 from src.assistant.knowledge import KnowledgeBase
-from src.assistant.memory import NullUserMemory, UserMemoryProvider
-from src.assistant.retriever import RetrieverProvider, get_retriever_provider
+from src.assistant.memory import MemoryManager, NullUserMemory, UserMemoryProvider
+from src.assistant.retriever import RetrieverProvider
 from src.assistant.title import generate_title
 from src.assistant.tools import ToolArgs, ToolRegistry
 from src.constants.assistant import (
@@ -32,8 +32,6 @@ from src.constants.assistant import (
     ASSISTANT_ENTRY_CATALOG,
     ASSISTANT_FALLBACK_MESSAGE,
     ASSISTANT_MESSAGE_LIST_LIMIT,
-    ASSISTANT_ROLL_CHUNK_SIZE,
-    ASSISTANT_ROLL_TRIGGER_FACTOR,
     ASSISTANT_TOKEN_CHUNK_SIZE,
     AssistantEventType,
     AssistantMessageRole,
@@ -41,7 +39,14 @@ from src.constants.assistant import (
 from src.core.config import settings
 from src.core.exceptions import ExternalServiceException, NotFoundException
 from src.core.logger import logger
-from src.infras.llm import ChatMessage, LLMChatResult, LLMProvider, ToolCall, get_llm_provider
+from src.infras.llm import (
+    ChatMessage,
+    LLMChatResult,
+    LLMProvider,
+    StreamChunkKind,
+    ToolCall,
+    get_llm_provider,
+)
 from src.models.entities.assistant_entity import (
     AssistantConversationEntity,
     AssistantMessageEntity,
@@ -53,7 +58,6 @@ from src.repositories.assistant_repository import (
 )
 from src.schemas.admin.assistant import FeedbackRequest
 from src.schemas.admin.auth import CurrentUser
-from src.utils.text import estimate_tokens
 
 
 def _page_of_path(path: str) -> str | None:
@@ -109,7 +113,15 @@ class AssistantService:
         self._tool_registry: ToolRegistry = tool_registry or self._build_default_registry()
         self._user_memory: UserMemoryProvider = user_memory or NullUserMemory()
         self._knowledge_base: KnowledgeBase = knowledge_base or KnowledgeBase(self._user_memory)
-        self._retriever: RetrieverProvider = retriever or get_retriever_provider()
+        # 记忆子系统：四层记忆统一编排（L0 委托知识库；存储端口注入仓储；
+        # LLM 复用本服务懒加载实例，保证注入的 fake provider 生效）
+        self._memory: MemoryManager = MemoryManager(
+            knowledge_base=self._knowledge_base,
+            conversation_store=conversation_repository,
+            message_store=message_repository,
+            retriever=retriever,
+            llm_provider_getter=self._get_llm,
+        )
 
     def _get_llm(self) -> LLMProvider:
         """懒加载 LLM 提供者（首次对话调用时初始化）。
@@ -333,7 +345,7 @@ class AssistantService:
         Yields:
             dict[str, object]: SSE 事件字典
         """
-        messages: list[dict[str, object]] = self._build_context(conversation, user.id, query)
+        messages: list[dict[str, object]] = self._memory.build_context(conversation, user.id, query)
         messages.append({"role": "user", "content": query})
         # 首字延迟兜底：进入 LLM 调用前先透出 thinking 事件，
         # 让前端立即展示"思考中"状态，避免非流式 chat() 期间的空白等待
@@ -348,8 +360,15 @@ class AssistantService:
                 max_tokens=llm_cfg.max_tokens,
             )
             messages.append(result.raw_message)  # 原样回填助手消息（含工具调用）
+            # 模型思考过程透出：非流式调用返回的完整思维链按块下发（不落库）
+            yield from self._reasoning_events(result.reasoning_content)
             if result.tool_calls:
                 for tool_call in result.tool_calls:
+                    # 步骤提示：让前端实时感知 agent 正在执行的动作
+                    yield {
+                        "type": AssistantEventType.STEP.mark,
+                        "content": f"正在调用工具：{tool_call.name}",
+                    }
                     args = self._safe_parse_args(tool_call)
                     tool_result = self._tool_registry.dispatch(tool_call.name, args, user)
                     messages.append(
@@ -369,12 +388,19 @@ class AssistantService:
                                 user, conversation.id, tool_result.event_data or {}, operator
                             )
                 # 工具执行完直接流式输出最终回复（不再非式再问一轮，避免 navigate 后长时间等待）
+                yield {
+                    "type": AssistantEventType.STEP.mark,
+                    "content": "工具执行完成，正在生成回答...",
+                }
                 answer_chunks: list[str] = []
-                for chunk in llm_provider.chat_stream(
+                for kind, chunk in llm_provider.chat_stream(
                     messages=cast(ChatMessage, messages),
                     temperature=llm_cfg.temperature,
                     max_tokens=llm_cfg.max_tokens,
                 ):
+                    if kind is StreamChunkKind.REASONING:
+                        yield {"type": AssistantEventType.REASONING.mark, "content": chunk}
+                        continue
                     answer_chunks.append(chunk)
                     yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
                 content = "".join(answer_chunks).strip()
@@ -382,7 +408,7 @@ class AssistantService:
                     content = ASSISTANT_EMPTY_REPLY_MESSAGE
                     yield {"type": AssistantEventType.TOKEN.mark, "content": content}
                 saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
-                self._maybe_roll_summary(conversation)
+                self._memory.roll_summary(conversation)
                 self._maybe_rename(conversation, query, content)
                 yield self._done_event(conversation.id, saved.id)
                 return
@@ -390,6 +416,10 @@ class AssistantService:
             # 识别并转成真实动作，避免把内部 JSON 原样透传给用户
             text_call = self._extract_text_tool_call(result.content)
             if text_call is not None:
+                yield {
+                    "type": AssistantEventType.STEP.mark,
+                    "content": f"正在调用工具：{text_call.name}",
+                }
                 text_args = self._safe_parse_args(text_call)
                 text_result = self._tool_registry.dispatch(text_call.name, text_args, user)
                 messages.append(
@@ -411,24 +441,32 @@ class AssistantService:
                 reply = self._build_navigate_reply(query, text_result.event_data or {})
                 yield {"type": AssistantEventType.TOKEN.mark, "content": reply}
                 saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, reply)
-                self._maybe_roll_summary(conversation)
+                self._memory.roll_summary(conversation)
                 self._maybe_rename(conversation, query, reply)
                 yield self._done_event(conversation.id, saved.id)
                 return
-            # 非流式 chat 已返回最终答案：直接按块切片输出（模拟流式），
-            # 避免同一答案再走一次 chat_stream 重复生成，节省一次完整 LLM 调用
+            # 非流式 chat 已返回最终答案：先透出思维链，再按块切片输出正式答案
+            # （模拟流式体验，同时避免同一答案再走一次 chat_stream 重复生成）
+            yield from self._reasoning_events(result.reasoning_content)
             content = (result.content or "").strip()
             if content:
                 for chunk in self._chunk_text(content):
                     yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
             else:
                 # 兜底：模型未返回任何内容时尝试流式再取一次，仍为空则给友好提示
+                yield {
+                    "type": AssistantEventType.STEP.mark,
+                    "content": "模型未返回内容，正在尝试重新生成...",
+                }
                 answer_chunks: list[str] = []
-                for chunk in llm_provider.chat_stream(
+                for kind, chunk in llm_provider.chat_stream(
                     messages=cast(ChatMessage, messages),
                     temperature=llm_cfg.temperature,
                     max_tokens=llm_cfg.max_tokens,
                 ):
+                    if kind is StreamChunkKind.REASONING:
+                        yield {"type": AssistantEventType.REASONING.mark, "content": chunk}
+                        continue
                     answer_chunks.append(chunk)
                     yield {"type": AssistantEventType.TOKEN.mark, "content": chunk}
                 content = "".join(answer_chunks).strip()
@@ -436,7 +474,7 @@ class AssistantService:
                     content = ASSISTANT_EMPTY_REPLY_MESSAGE
                     yield {"type": AssistantEventType.TOKEN.mark, "content": content}
             saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
-            self._maybe_roll_summary(conversation)
+            self._memory.roll_summary(conversation)
             self._maybe_rename(conversation, query, content)
             yield self._done_event(conversation.id, saved.id)
             return
@@ -445,59 +483,23 @@ class AssistantService:
         yield {"type": AssistantEventType.ERROR.mark, "message": "对话步骤超限，请重试"}
         yield self._done_event(conversation.id, saved.id)
 
-    def _build_context(
-        self,
-        conversation: AssistantConversationEntity,
-        user_id: int,
-        query: str,
-    ) -> list[dict[str, object]]:
-        """组装对话上下文（第 0/2/3 层记忆）。
-
-        第 0 层：系统提示词（入口清单 + 用户档案 + RAG 预留位），永不丢弃
-        第 2 层：滚动摘要（Conversation.summary）
-        第 3 层：最近原文（保留 recent_raw_rounds 轮，按 token 预算裁剪）
-
-        Args:
-            conversation: 会话实体
-            user_id: 用户ID
-            query: 本轮用户输入（供 RAG 检索）
-
-        Returns:
-            list[dict[str, object]]: 上下文消息列表（调用 SDK 时 cast 为 ChatMessage）
-        """
-        memory_cfg = settings.ai.memory
-        retriever_context = self._retrieve_context(query)
-        system_prompt = self._knowledge_base.build_system_prompt(
-            user_id, retriever_context=retriever_context, user_question=query
-        )
-        budget = max(memory_cfg.token_budget - estimate_tokens(system_prompt), 0)
-        messages: list[dict[str, object]] = [{"role": "system", "content": system_prompt}]
-        if conversation.summary:
-            messages.append({"role": "system", "content": f"历史摘要：{conversation.summary}"})
-        keep_messages = memory_cfg.recent_raw_rounds * ASSISTANT_ROLL_TRIGGER_FACTOR
-        recent = self._message_repository.list_by_conversation(conversation.id, limit=keep_messages)
-        raw_messages: list[dict[str, object]] = [
-            {"role": entity.role, "content": entity.content} for entity in recent
-        ]
-        while (
-            raw_messages
-            and estimate_tokens(self._join_text(messages) + self._join_text(raw_messages)) > budget
-        ):
-            raw_messages.pop(0)
-        messages.extend(raw_messages)
-        return messages
-
     @staticmethod
-    def _join_text(messages: list[dict[str, object]]) -> str:
-        """将消息列表拼为纯文本用于 token 估算。
+    def _reasoning_events(reasoning_content: str | None) -> Iterator[dict[str, object]]:
+        """将完整思维链文本切块为 REASONING 事件序列。
+
+        非流式 chat() 调用会一次性返回完整思维链，按固定窗口切块后
+        模拟流式体验透出给前端；空内容时不产生任何事件。
 
         Args:
-            messages: 消息列表
+            reasoning_content: 模型返回的思维链完整文本（可空）
 
-        Returns:
-            str: 拼接文本
+        Yields:
+            dict[str, object]: REASONING 事件
         """
-        return "\n".join(str(item.get("content", "")) for item in messages)
+        if not reasoning_content:
+            return
+        for chunk in AssistantService._chunk_text(reasoning_content):
+            yield {"type": AssistantEventType.REASONING.mark, "content": chunk}
 
     @staticmethod
     def _chunk_text(text: str) -> Iterator[str]:
@@ -513,20 +515,6 @@ class AssistantService:
         """
         for index in range(0, len(text), ASSISTANT_TOKEN_CHUNK_SIZE):
             yield text[index : index + ASSISTANT_TOKEN_CHUNK_SIZE]
-
-    def _retrieve_context(self, query: str) -> str:
-        """获取检索补充知识（RAG 预留；未启用时返回空串）。
-
-        Args:
-            query: 查询文本
-
-        Returns:
-            str: 补充知识文本（空串表示无）
-        """
-        if not settings.ai.retriever.enabled:
-            return ""
-        chunks = self._retriever.retrieve(query, top_k=settings.ai.retriever.top_k)
-        return "\n".join(chunk.content for chunk in chunks)
 
     @staticmethod
     def _safe_parse_args(tool_call: ToolCall) -> ToolArgs:
@@ -751,39 +739,6 @@ class AssistantService:
         entity = self._message_repository.add_message(conversation_id, role, content)
         self._message_repository.commit()
         return entity
-
-    def _maybe_roll_summary(self, conversation: AssistantConversationEntity) -> None:
-        """第 2 层滚动摘要：窗口外旧消息渐进压缩进 summary 并删除原文。
-
-        触发条件：消息总数超过（recent_raw_rounds × 2）；
-        每次折入 ASSISTANT_ROLL_CHUNK_SIZE 条最旧消息，避免单次压缩过重。
-
-        Args:
-            conversation: 会话实体
-        """
-        memory_cfg = settings.ai.memory
-        if not memory_cfg.enabled:
-            return
-        total = self._message_repository.count_by_conversation(conversation.id)
-        keep_count = memory_cfg.recent_raw_rounds * ASSISTANT_ROLL_TRIGGER_FACTOR
-        if total <= keep_count:
-            return
-        evicted = self._message_repository.list_oldest_outside_window(
-            conversation.id,
-            keep_count=keep_count,
-            limit=ASSISTANT_ROLL_CHUNK_SIZE,
-        )
-        if not evicted:
-            return
-        chunk_text = "\n".join(f"{entity.role}: {entity.content}" for entity in evicted)
-        previous = conversation.summary or ""
-        combined = f"{previous}\n{chunk_text}" if previous else chunk_text
-        new_summary = self._get_llm().summarize(combined)
-        self._conversation_repository.update_summary(conversation.id, new_summary)
-        conversation.summary = new_summary
-        self._message_repository.delete_by_ids([entity.id for entity in evicted])
-        self._conversation_repository.commit()
-        logger.info(f"AI 助手滚动摘要：conversation={conversation.id} 折入 {len(evicted)} 条旧消息")
 
     def _maybe_rename(
         self,

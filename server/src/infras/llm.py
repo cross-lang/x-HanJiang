@@ -21,6 +21,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Final, cast
 
 from openai import OpenAI, Stream
@@ -42,6 +43,18 @@ from src.core.logger import logger
 # 说明：底层 SDK 对 TypedDict 字面量校验较严，业务侧组装的 dict 在调用边界
 # 通过 cast 显式转换（消息结构由本模块的对话协议保证）。
 ChatMessage = list[ChatCompletionMessageParam]
+
+
+class StreamChunkKind(StrEnum):
+    """流式输出片段类型。
+
+    推理模型（如 mimo-v2.5-pro）流式响应中先逐段输出思维链
+    （reasoning_content），思考结束后再输出正式答案（content）；
+    上层按类型分别透传给前端的不同 UI 区域。
+    """
+
+    REASONING = "reasoning"  # 思维链增量（思考过程，不落库）
+    CONTENT = "content"  # 正式答案增量
 
 
 @dataclass(frozen=True)
@@ -68,11 +81,13 @@ class LLMChatResult:
                      需原样回填到 messages 以继续多轮工具循环）
         content: 回复文本（可空，工具调用轮通常为空）
         tool_calls: 工具调用列表（可空）
+        reasoning_content: 思维链文本（推理模型透出，可空；不落库）
     """
 
     raw_message: dict[str, object]
     content: str | None
     tool_calls: list[ToolCall] | None
+    reasoning_content: str | None = None
 
 
 class LLMProvider(ABC):
@@ -88,8 +103,8 @@ class LLMProvider(ABC):
         tools: list[dict[str, object]] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ) -> Iterator[str]:
-        """流式对话，逐 token 产出回复文本增量。
+    ) -> Iterator[tuple[StreamChunkKind, str]]:
+        """流式对话，逐 token 产出回复增量（区分思维链与正式答案）。
 
         Args:
             messages: 对话消息列表（含 system / user / assistant / tool）
@@ -98,7 +113,9 @@ class LLMProvider(ABC):
             max_tokens: 输出上限（可空，使用配置默认值）
 
         Yields:
-            str: 回复文本增量
+            tuple[StreamChunkKind, str]: （片段类型, 文本增量）
+                REASONING = 思维链增量（思考过程，不落库）
+                CONTENT = 正式答案增量
 
         Raises:
             ExternalServiceException: 大模型调用失败时抛出
@@ -188,7 +205,7 @@ class OpenAICompatProvider(LLMProvider):
         tools: list[dict[str, object]] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ) -> Iterator[str]:
+    ) -> Iterator[tuple[StreamChunkKind, str]]:
         try:
             stream: Stream[ChatCompletionChunk] = self._client.chat.completions.create(
                 model=self._model,
@@ -197,10 +214,20 @@ class OpenAICompatProvider(LLMProvider):
                 stream=True,
                 temperature=settings.ai.llm.temperature if temperature is None else temperature,
                 max_tokens=settings.ai.llm.max_tokens if max_tokens is None else max_tokens,
+                # MiMo 推理模型思维链开关（厂商扩展字段，SDK 未建模，经 extra_body 透传）
+                extra_body={"thinking": {"type": "enabled"}},
             )
             for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+                if not chunk.choices or not chunk.choices[0].delta:
+                    continue
+                delta = chunk.choices[0].delta
+                # 思维链增量：推理模型在正式答案前先逐段输出 reasoning_content
+                # （OpenAI SDK 类型未声明该字段，属兼容协议的扩展字段，需动态读取）
+                reasoning = getattr(delta, "reasoning_content", None)
+                if reasoning:
+                    yield StreamChunkKind.REASONING, reasoning
+                if delta.content:
+                    yield StreamChunkKind.CONTENT, delta.content
         except Exception as exc:  # noqa: BLE001 - 统一转换为系统异常，避免暴露 SDK 原生异常
             raise ExternalServiceException(message=f"大模型流式调用失败: {exc}") from exc
 
@@ -219,6 +246,8 @@ class OpenAICompatProvider(LLMProvider):
                 stream=False,
                 temperature=settings.ai.llm.temperature if temperature is None else temperature,
                 max_tokens=settings.ai.llm.max_tokens if max_tokens is None else max_tokens,
+                # MiMo 推理模型思维链开关（厂商扩展字段，SDK 未建模，经 extra_body 透传）
+                extra_body={"thinking": {"type": "enabled"}},
             )
         except Exception as exc:  # noqa: BLE001 - 统一转换为系统异常，避免暴露 SDK 原生异常
             raise ExternalServiceException(message=f"大模型调用失败: {exc}") from exc
@@ -237,10 +266,17 @@ class OpenAICompatProvider(LLMProvider):
                         arguments=tool_call.function.arguments,
                     )
                 )
+        # 思维链完整文本：兼容协议的扩展字段，SDK 类型未声明，动态读取
+        reasoning_content: str | None = getattr(message, "reasoning_content", None)
+        # raw_message 需原样回填 messages 继续多轮工具循环：
+        # 剔除 reasoning_content，避免下一轮请求携带思维链字段被供应商拒绝
+        raw_message = message.model_dump(exclude_none=True)
+        raw_message.pop("reasoning_content", None)
         return LLMChatResult(
-            raw_message=message.model_dump(exclude_none=True),
+            raw_message=raw_message,
             content=message.content,
             tool_calls=tool_calls,
+            reasoning_content=reasoning_content if isinstance(reasoning_content, str) else None,
         )
 
     @staticmethod
@@ -321,5 +357,6 @@ __all__ = [
     "LLMChatResult",
     "LLMProvider",
     "OpenAICompatProvider",
+    "StreamChunkKind",
     "get_llm_provider",
 ]

@@ -45,7 +45,7 @@ export function useConversations(
     return formatMonthDayTime(item.updated_at)
   }
 
-  /** 新建会话（成功后置顶插入并切换） */
+  /** 新建会话（成功后置顶插入并切换；返回是否成功，供 UI 决定是否收起面板） */
   async function createNewConversation() {
     try {
       const res = await createConversation()
@@ -53,9 +53,12 @@ export function useConversations(
       if (conv?.id) {
         aiConversations.value = [conv, ...aiConversations.value.filter(c => c.id !== conv.id)]
         await loadConversation(conv.id)
+        return true
       }
+      return false
     } catch {
       ElMessage.error('新建会话失败')
+      return false
     }
   }
 

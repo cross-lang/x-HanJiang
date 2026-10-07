@@ -25,6 +25,10 @@ export interface ChatDoneInfo {
 
 export interface ChatSSEHandlers {
   onThinking?: () => void
+  /** 思维链内容增量（模型推理过程，流式透出） */
+  onReasoning?: (text: string) => void
+  /** 执行步骤提示（如"正在调用 navigate 工具"） */
+  onStep?: (text: string) => void
   onToken: (text: string) => void
   onNavigate: (path: string) => void
   onDenied: () => void

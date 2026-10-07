@@ -8,6 +8,12 @@ export interface AiMsg {
   loading?: boolean
   messageId?: number | null
   feedback?: 'up' | 'down' | null
+  /** 思维链内容（模型推理过程，流式透出，不落库） */
+  reasoning?: string
+  /** 当前执行步骤提示（如"正在调用工具：navigate"） */
+  stepText?: string
+  /** 思维链是否已折叠（回答开始后自动折叠，用户可展开回看） */
+  reasoningCollapsed?: boolean
 }
 
 export interface UseChatSseOptions {
@@ -102,7 +108,21 @@ export function useChatSse(options: UseChatSseOptions) {
         onThinking: () => {
           // 可在此透出"正在思考"；默认由 loading 占位展示
         },
+        onReasoning: chunk => {
+          // 思维链增量：追加到 reasoning 字段，供思考过程区域流式渲染
+          assistantMsg.reasoning = (assistantMsg.reasoning || '') + chunk
+          assistantMsg.reasoningCollapsed = false
+        },
+        onStep: step => {
+          // 步骤提示：替换当前步骤文本（如"正在调用 navigate 工具"）
+          assistantMsg.stepText = step
+        },
         onToken: chunk => {
+          // 首个正式答案 token 到达：折叠思考过程，清空步骤提示
+          if (assistantMsg.reasoning && !assistantMsg.reasoningCollapsed) {
+            assistantMsg.reasoningCollapsed = true
+          }
+          assistantMsg.stepText = undefined
           assistantMsg.content += chunk
         },
         onNavigate: path => {
