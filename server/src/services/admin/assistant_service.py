@@ -209,7 +209,6 @@ class AssistantService:
         if conversation is None or conversation.user_id != user_id:
             raise NotFoundException(message="会话不存在")
         self._conversation_repository.update_pinned(conversation_id, pinned)
-        conversation.is_pinned = pinned
         self._conversation_repository.commit()
         return conversation
 
