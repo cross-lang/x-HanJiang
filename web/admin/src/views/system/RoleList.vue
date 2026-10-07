@@ -38,11 +38,15 @@
       </el-table-column>
       <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="handleEdit(row as RoleItem)">编辑</el-button>
-          <el-button size="small" @click="handleToggleStatus(row as RoleItem)">
-            {{ row.status === 'enabled' ? '禁用' : '启用' }}
-          </el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row as RoleItem)">删除</el-button>
+          <!-- 系统内置角色（superadmin/admin/user）不允许编辑、禁用、删除 -->
+          <template v-if="row.role_type !== 'system'">
+            <el-button size="small" @click="handleEdit(row as RoleItem)">编辑</el-button>
+            <el-button size="small" @click="handleToggleStatus(row as RoleItem)">
+              {{ row.status === 'enabled' ? '禁用' : '启用' }}
+            </el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row as RoleItem)">删除</el-button>
+          </template>
+          <span v-else class="hj-text-muted">系统内置</span>
         </template>
       </el-table-column>
     </el-table>

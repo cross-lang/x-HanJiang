@@ -13,10 +13,11 @@ from typing import TYPE_CHECKING, Any
 
 from src.constants.enums import AuditAction, NotificationEvent, NotificationSource, SystemRoleCode
 from src.constants.permissions import PermissionAction, PermissionModule
-from src.core.exceptions import NotFoundException
+from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger
 from src.models.entities.user_entity import (
     PermissionEntity,
+    RoleEntity,
 )
 from src.repositories.permission_repository import PermissionRepository
 from src.repositories.role_permission_repository import RolePermissionRepository
@@ -140,9 +141,11 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
     def bind_permission(
         self, role_id: int, permission_id: int, operator: dict[str, Any] | None = None
     ) -> RolePermissionResponse:
-        """为角色绑定权限。"""
-        if self._role_repository.get_by_id(role_id) is None:
+        """为角色绑定权限。系统内置角色不允许调整权限。"""
+        role = self._role_repository.get_by_id(role_id)
+        if role is None:
             raise NotFoundException(message=f"角色 {role_id} 不存在")
+        self._ensure_editable(role)
         perm = self._repository.get_by_id(permission_id)
         if perm is None:
             raise NotFoundException(message=f"权限 {permission_id} 不存在")
@@ -165,7 +168,11 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
         return RolePermissionResponse(role_id=role_id, permission=self._to_response(perm))
 
     def unbind_permission(self, role_id: int, permission_id: int, operator: dict[str, Any] | None = None) -> bool:
-        """解除角色与权限的绑定。"""
+        """解除角色与权限的绑定。系统内置角色不允许调整权限。"""
+        role = self._role_repository.get_by_id(role_id)
+        if role is None:
+            raise NotFoundException(message=f"角色 {role_id} 不存在")
+        self._ensure_editable(role)
         perm = self._repository.get_by_id(permission_id)
         result = self._rp_repository.remove_permission(role_id, permission_id)
         if result:
@@ -186,6 +193,12 @@ class PermissionService(BaseService[PermissionResponse, int, PermissionRepositor
                     event_type=NotificationEvent.PERMISSION_REVOKED,
                 )
         return result
+
+    @staticmethod
+    def _ensure_editable(role: RoleEntity) -> None:
+        """系统内置角色（role_type=system）禁止调整权限。"""
+        if role.role_type == "system":
+            raise ConflictException(message=f"系统内置角色「{role.role_name}」不允许调整权限")
 
     def _to_response(self, entity: PermissionEntity) -> PermissionResponse:
         """实体转响应 DTO。"""

@@ -24,29 +24,14 @@
         <!-- 会话管理面板：点击「会话管理」嵌入聊天区上方，聊天记录顺势下移 -->
         <transition name="ai-panel">
           <div v-if="aiConvPanelVisible" class="ai-conv-wrap">
-            <div
-              class="ai-conv-panel"
-              :style="`height: ${aiPanelHeight}px; overflow-y: auto; border-radius: 12px; padding: 12px 8px 8px`"
-            >
+            <div class="ai-conv-panel" :style="`height: ${aiPanelHeight}px; overflow-y: auto`">
               <!-- 标题行 -->
-              <div
-                class="ai-conv-head"
-                title="点击收起会话面板"
-                @click="toggleConvPanel"
-                @mouseenter="($event.currentTarget as HTMLElement).style.background = 'rgba(144, 147, 153, 0.06)'"
-                @mouseleave="($event.currentTarget as HTMLElement).style.background = 'transparent'"
-              >
+              <div class="ai-conv-head" @click="toggleConvPanel">
                 <div class="ai-conv-head-left">
-                  <span class="ai-conv-bar"></span>
                   <span class="ai-conv-head-text">会话列表</span>
+                  <el-icon size="12" color="#9c9ca8"><ArrowUp /></el-icon>
                 </div>
-                <button
-                  type="button"
-                  class="ai-new-conv"
-                  @mouseenter="($event.target as HTMLElement).style.filter = 'brightness(1.08)'"
-                  @mouseleave="($event.target as HTMLElement).style.filter = 'none'"
-                  @click.stop="createNewConversation"
-                >
+                <button type="button" class="ai-new-conv" @click.stop="createNewConversation">
                   <el-icon size="12"><Plus /></el-icon>&nbsp;新建会话
                 </button>
               </div>
@@ -57,13 +42,11 @@
               </div>
               <div v-for="item in aiConversations" :key="item.id" class="ai-conv-item">
                 <!-- 分组标签：置顶 / 最近 -->
-                <div v-if="item.is_pinned && item.id === pinnedConvs[0]?.id" class="ai-conv-group ai-conv-label">
-                  置顶
-                </div>
-                <div v-else-if="!item.is_pinned && item.id === recentConvs[0]?.id" class="ai-conv-group ai-conv-label">
+                <div v-if="item.is_pinned && item.id === pinnedConvs[0]?.id" class="ai-conv-group-label">置顶</div>
+                <div v-else-if="!item.is_pinned && item.id === recentConvs[0]?.id" class="ai-conv-group-label">
                   最近
                 </div>
-                <!-- 会话行：左侧当前会话高亮条 + 名称时间 + 置顶/删除 -->
+                <!-- 会话行 -->
                 <div
                   class="ai-conv-row"
                   :class="{ active: item.id === aiConversationId }"
@@ -76,24 +59,19 @@
                     <div class="ai-conv-name">{{ convTitle(item) }}</div>
                     <div class="ai-conv-time">{{ convTime(item) }}</div>
                   </div>
-                  <div class="ai-conv-actions">
+                  <div
+                    class="ai-conv-actions"
+                    :class="{ visible: aiConvHoverId === item.id || item.id === aiConversationId }"
+                  >
                     <el-icon
-                      :color="item.is_pinned ? '#8b5cf6' : '#b8b8c2'"
+                      :color="item.is_pinned ? '#a78bfa' : '#9c9ca8'"
                       :title="item.is_pinned ? '取消置顶' : '置顶'"
                       class="ai-conv-act"
-                      @mouseenter="($event.target as HTMLElement).style.color = '#8b5cf6'"
-                      @mouseleave="($event.target as HTMLElement).style.color = item.is_pinned ? '#8b5cf6' : '#b8b8c2'"
                       @click.stop="togglePin(item)"
                     >
                       <Paperclip />
                     </el-icon>
-                    <el-icon
-                      title="删除"
-                      class="ai-conv-act ai-conv-del"
-                      @mouseenter="($event.target as HTMLElement).style.color = '#f56c6c'"
-                      @mouseleave="($event.target as HTMLElement).style.color = '#b8b8c2'"
-                      @click.stop="deleteConversationItem(item.id)"
-                    >
+                    <el-icon title="删除" class="ai-conv-act ai-conv-del" @click.stop="deleteConversationItem(item.id)">
                       <Delete />
                     </el-icon>
                   </div>
@@ -377,80 +355,107 @@ watch(visible, async v => {
   align-items: center;
   gap: 6px;
 }
-.ai-conv-bar {
-  width: 3px;
-  height: 14px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #8b5cf6, #6366f1);
-  display: inline-block;
+.ai-conv-panel {
+  padding: 16px 12px 12px;
+  background: linear-gradient(180deg, #fafbff 0%, #f5f6fa 100%);
+  border-radius: 12px;
+  border: 1px solid #e8eaf0;
+}
+.ai-conv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.ai-conv-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .ai-conv-head-text {
-  font-size: 13px;
+  font-size: 14px;
   color: #1f2329;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 .ai-new-conv {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 6px 12px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   color: #fff;
   font-size: 12px;
-  font-weight: 500;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.3);
-  transition: filter 0.15s;
+  font-weight: 600;
+  background: linear-gradient(135deg, #a78bfa, #818cf8);
+  box-shadow: 0 2px 6px rgba(129, 140, 248, 0.25);
+  transition: all 0.2s;
   outline: none;
+}
+.ai-new-conv:hover {
+  box-shadow: 0 3px 10px rgba(129, 140, 248, 0.35);
+  transform: translateY(-1px);
 }
 .ai-conv-empty {
   text-align: center;
-  padding: 20px 8px;
+  padding: 32px 8px;
 }
 .ai-conv-empty-text {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   font-size: 12px;
-  color: #8f8f99;
+  color: #9c9ca8;
 }
 .ai-conv-item {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+}
+.ai-conv-group-label {
+  display: inline-block;
+  padding: 2px 10px;
+  margin: 4px 0 8px 2px;
+  font-size: 11px;
+  color: #9c9ca8;
+  background: #f0f0f5;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  font-weight: 500;
 }
 .ai-conv-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.2s;
   background: #fff;
-  border: 1px solid #eef0f5;
+  border: 1px solid #eceef3;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 .ai-conv-row:hover {
-  background: #f5f6fa;
+  background: #f7f7fb;
+  border-color: #e0e0ea;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
 }
 .ai-conv-row.active {
-  background: #f0f4ff;
-  border-color: #c7d2fe;
+  background: #f5f5fa;
+  border-color: #dcdce8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 .ai-conv-bar {
   width: 3px;
-  height: 20px;
+  height: 22px;
   flex-shrink: 0;
-  border-radius: 2px;
+  border-radius: 3px;
   background: transparent;
-  transition: background 0.15s;
+  transition: all 0.2s;
 }
 .ai-conv-bar.active {
-  background: linear-gradient(180deg, #8b5cf6, #6366f1);
-}
-.ai-conv-label {
-  padding: 6px 8px 10px;
-  font-size: 12px;
-  color: #6f6f7a;
-  letter-spacing: 0.5px;
+  background: linear-gradient(180deg, #a78bfa, #818cf8);
 }
 .ai-conv-main {
   flex: 1;
@@ -458,26 +463,43 @@ watch(visible, async v => {
 }
 .ai-conv-name {
   font-size: 13px;
-  color: #333;
+  color: #2c2c33;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.ai-conv-row.active .ai-conv-name {
+  font-weight: 600;
+  color: #4c4c6b;
+}
 .ai-conv-time {
   font-size: 11px;
-  color: #a3a3ad;
-  margin-top: 2px;
+  color: #b0b0ba;
+  margin-top: 3px;
 }
 .ai-conv-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ai-conv-actions.visible {
+  opacity: 1;
 }
 .ai-conv-act {
   cursor: pointer;
-  padding: 3px;
-  border-radius: 4px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.ai-conv-act:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.ai-conv-del:hover {
+  color: #f56c6c !important;
 }
 
 /* ===== 聊天区 ===== */

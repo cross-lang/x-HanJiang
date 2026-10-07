@@ -98,11 +98,12 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
 
     @audit_crud(PermissionAction.EDIT.mark)
     def update(self, id: int, data: dict[str, Any], operator: dict[str, Any] | None = None) -> RoleResponse:
-        """更新角色信息。"""
+        """更新角色信息。系统内置角色不允许修改。"""
         request = RoleUpdateRequest(**data)
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
+        self._ensure_editable(existing)
         patch = RoleEntity(
             id=id,
             role_name=existing.role_name,
@@ -125,10 +126,11 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
 
     @audit_crud(PermissionAction.DELETE.mark)
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
-        """软删除角色。有关联用户的角色不允许删除。"""
+        """软删除角色。系统内置角色不允许删除；有关联用户的角色不允许删除。"""
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"角色 {id} 不存在")
+        self._ensure_editable(existing)
         # 检查是否有关联用户（经仓库）
         user_count = self._repository.count_user_links(id)
         if user_count > 0:
@@ -145,6 +147,12 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
             raise NotFoundException(message=f"角色 {role_id} 不存在")
         entities = self._rp_repository.get_permissions_by_role(role_id)
         return [self._to_permission_response(e) for e in entities]
+
+    @staticmethod
+    def _ensure_editable(entity: RoleEntity) -> None:
+        """系统内置角色（role_type=system）禁止编辑、禁用、删除。"""
+        if entity.role_type == "system":
+            raise ConflictException(message=f"系统内置角色「{entity.role_name}」不允许编辑、禁用或删除")
 
     def _to_response(self, entity: RoleEntity) -> RoleResponse:
         """实体转响应 DTO。"""
