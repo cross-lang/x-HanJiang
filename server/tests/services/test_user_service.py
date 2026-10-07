@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import pytest
 from src.core.exceptions import ConflictException, NotFoundException
 from src.models.entities.user_entity import UserEntity
-from src.schemas.admin.user import UserCreateRequest
+from src.schemas.user import UserCreateRequest
 from src.services.user_service import UserService
 
 

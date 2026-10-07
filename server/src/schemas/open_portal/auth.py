@@ -46,10 +46,25 @@ class DeveloperTokenResponse(BaseModel):
 
 
 class DeveloperChangePasswordRequest(BaseModel):
-    """开发者修改密码请求。"""
+    """开发者修改密码请求（需通过邮箱验证码二次认证）。"""
 
     old_password: str = Field(min_length=1, max_length=64, description="原密码")
     new_password: str = Field(min_length=8, max_length=64, description="新密码")
+    code: str = Field(min_length=1, max_length=6, description="邮箱验证码")
+
+
+class DeveloperUpdatePhoneRequest(BaseModel):
+    """开发者修改手机号请求（需通过邮箱验证码二次认证）。"""
+
+    code: str = Field(min_length=1, max_length=6, description="邮箱验证码")
+    phone: str = Field(min_length=1, max_length=20, description="新手机号")
+
+
+class DeveloperUpdateEmailRequest(BaseModel):
+    """开发者修改邮箱请求（需通过原邮箱验证码二次认证）。"""
+
+    code: str = Field(min_length=1, max_length=6, description="原邮箱验证码")
+    email: str = Field(min_length=3, max_length=100, description="新邮箱地址")
 
 
 class DeveloperForgotPasswordRequest(BaseModel):

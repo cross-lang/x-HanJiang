@@ -27,11 +27,29 @@ export interface LoginResult {
   expires_in: number
 }
 
-/** 修改密码请求 */
+/** 修改密码请求（需邮箱验证码二次认证） */
 export interface ChangePasswordRequest {
   old_password: string
   new_password: string
   confirm_password: string
+  /** 邮箱验证码 */
+  code: string
+}
+
+/** 修改手机号请求（需邮箱验证码二次认证） */
+export interface UpdatePhoneRequest {
+  /** 邮箱验证码 */
+  code: string
+  /** 新手机号 */
+  phone: string
+}
+
+/** 修改邮箱请求（需原邮箱验证码二次认证） */
+export interface UpdateEmailRequest {
+  /** 原邮箱验证码 */
+  code: string
+  /** 新邮箱地址 */
+  email: string
 }
 
 /** 忘记密码请求：提交注册邮箱，触发重置邮件 */

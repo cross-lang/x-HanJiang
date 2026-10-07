@@ -41,32 +41,92 @@
       <el-tabs v-model="activeTab" class="profile-tabs">
         <el-tab-pane label="基本信息" name="info">
           <div class="pane-body">
-            <el-form :model="form" label-width="96px" class="info-form">
-              <el-form-item label="用户名">
-                <el-input :model-value="developerStore.profile?.username" disabled />
-              </el-form-item>
-              <el-form-item label="昵称">
-                <el-input v-model="form.name" placeholder="请输入昵称" />
-              </el-form-item>
-              <el-form-item label="手机号">
-                <el-input v-model="form.phone" placeholder="请输入手机号" />
-              </el-form-item>
-              <el-form-item label="邮箱">
-                <el-input :model-value="developerStore.profile?.email" placeholder="未绑定" disabled />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" round @click="saveInfo">保存修改</el-button>
-              </el-form-item>
-            </el-form>
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><User /></el-icon>
+                <div>
+                  <div class="sec-title">基本信息</div>
+                  <div class="sec-current">完善您的开发者资料，昵称与手机号将展示在个人主页</div>
+                </div>
+              </div>
+              <el-form :model="form" label-width="96px" class="sec-form">
+                <el-form-item label="用户名">
+                  <el-input :model-value="developerStore.profile?.username" disabled />
+                </el-form-item>
+                <el-form-item label="昵称">
+                  <el-input v-model="form.name" placeholder="请输入昵称" />
+                </el-form-item>
+                <el-form-item label="手机号">
+                  <el-input v-model="form.phone" placeholder="请输入手机号" />
+                </el-form-item>
+                <el-form-item label="邮箱">
+                  <el-input :model-value="developerStore.profile?.email" placeholder="未绑定" disabled />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" round @click="saveInfo">保存修改</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
           </div>
         </el-tab-pane>
 
         <el-tab-pane label="安全设置" name="security">
           <div class="pane-body">
-            <el-alert type="info" :closable="false" class="pane-alert">
-              修改密码需提供原密码验证。手机号/邮箱换绑（验证码二次认证）为规划中的安全能力，后续开放。
+            <el-alert type="warning" :closable="false" class="pane-alert">
+              修改手机号、邮箱、密码均需通过验证码二次认证
             </el-alert>
 
+            <!-- 手机 -->
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Iphone /></el-icon>
+                <div>
+                  <div class="sec-title">{{ developerStore.profile?.phone ? '更换手机号' : '绑定手机' }}</div>
+                  <div class="sec-current">当前：{{ developerStore.profile?.phone || '未绑定' }}</div>
+                </div>
+              </div>
+              <el-form :model="phoneForm" label-width="88px" class="sec-form">
+                <el-form-item label="新手机号">
+                  <el-input v-model="phoneForm.phone" placeholder="请输入新手机号" />
+                </el-form-item>
+                <el-form-item label="验证码">
+                  <div class="code-row">
+                    <el-input v-model="phoneForm.code" placeholder="6 位验证码" />
+                    <el-button @click="sendCode" :loading="codeLoading">发送验证码</el-button>
+                  </div>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" round @click="updatePhoneInfo">修改手机号</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+
+            <!-- 邮箱 -->
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Message /></el-icon>
+                <div>
+                  <div class="sec-title">{{ developerStore.profile?.email ? '更换邮箱' : '绑定邮箱' }}</div>
+                  <div class="sec-current">当前：{{ developerStore.profile?.email || '未绑定' }}</div>
+                </div>
+              </div>
+              <el-form :model="emailForm" label-width="88px" class="sec-form">
+                <el-form-item label="新邮箱">
+                  <el-input v-model="emailForm.email" placeholder="请输入新邮箱" />
+                </el-form-item>
+                <el-form-item label="验证码">
+                  <div class="code-row">
+                    <el-input v-model="emailForm.code" placeholder="6 位验证码" />
+                    <el-button @click="sendCode" :loading="codeLoading">发送验证码</el-button>
+                  </div>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" round @click="updateEmailInfo">修改邮箱</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+
+            <!-- 密码 -->
             <div class="sec-card">
               <div class="sec-header">
                 <el-icon class="sec-icon"><Lock /></el-icon>
@@ -89,6 +149,12 @@
                     show-password
                     placeholder="请再次输入新密码"
                   />
+                </el-form-item>
+                <el-form-item label="验证码">
+                  <div class="code-row">
+                    <el-input v-model="pwdForm.code" placeholder="6 位验证码" />
+                    <el-button @click="sendCode" :loading="codeLoading">发送验证码</el-button>
+                  </div>
                 </el-form-item>
                 <el-form-item>
                   <el-button type="primary" round :loading="pwdLoading" @click="changePwd">修改密码</el-button>
@@ -145,10 +211,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Lock, User } from '@element-plus/icons-vue'
+import { Iphone, Lock, Message, User } from '@element-plus/icons-vue'
 import { useDeveloperStore } from '@/stores/developer'
 import { updateDeveloperProfile, applyCertification } from '@/api/developer'
-import { changePassword } from '@/api/auth'
+import { changePassword, sendVerifyCode, updateEmail, updatePhone } from '@/api/auth'
 
 const developerStore = useDeveloperStore()
 const activeTab = ref('info')
@@ -167,7 +233,10 @@ const certificationStatusText = computed(
 const certificationSubmitted = computed(() => developerStore.profile?.certification_status === 'pending')
 
 const form = ref({ name: '', phone: '' })
-const pwdForm = ref({ old_password: '', new_password: '', confirm_password: '' })
+const phoneForm = ref({ phone: '', code: '' })
+const emailForm = ref({ email: '', code: '' })
+const pwdForm = ref({ old_password: '', new_password: '', confirm_password: '', code: '' })
+const codeLoading = ref(false)
 const pwdLoading = ref(false)
 
 const certForm = ref<{
@@ -196,6 +265,56 @@ async function saveInfo() {
   }
 }
 
+async function sendCode() {
+  codeLoading.value = true
+  try {
+    await sendVerifyCode()
+    ElMessage.success('验证码已发送至邮箱，5 分钟内有效')
+  } catch {
+    // 错误已处理
+  } finally {
+    codeLoading.value = false
+  }
+}
+
+async function updatePhoneInfo() {
+  if (!phoneForm.value.phone) {
+    ElMessage.warning('请输入新手机号')
+    return
+  }
+  if (!phoneForm.value.code) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
+  try {
+    await updatePhone({ code: phoneForm.value.code, phone: phoneForm.value.phone })
+    ElMessage.success('手机号修改成功')
+    phoneForm.value = { phone: '', code: '' }
+    developerStore.fetchProfile()
+  } catch {
+    // 错误已处理
+  }
+}
+
+async function updateEmailInfo() {
+  if (!emailForm.value.email) {
+    ElMessage.warning('请输入新邮箱')
+    return
+  }
+  if (!emailForm.value.code) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
+  try {
+    await updateEmail({ code: emailForm.value.code, email: emailForm.value.email })
+    ElMessage.success('邮箱修改成功')
+    emailForm.value = { email: '', code: '' }
+    developerStore.fetchProfile()
+  } catch {
+    // 错误已处理
+  }
+}
+
 async function changePwd() {
   if (!pwdForm.value.old_password || !pwdForm.value.new_password) {
     ElMessage.warning('请填写原密码与新密码')
@@ -205,9 +324,18 @@ async function changePwd() {
     ElMessage.error('两次输入的密码不一致')
     return
   }
+  if (!pwdForm.value.code) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
   pwdLoading.value = true
   try {
-    await changePassword(pwdForm.value)
+    await changePassword({
+      old_password: pwdForm.value.old_password,
+      new_password: pwdForm.value.new_password,
+      confirm_password: pwdForm.value.confirm_password,
+      code: pwdForm.value.code,
+    })
     ElMessage.success('密码修改成功，请重新登录')
     developerStore.logout()
     window.location.href = '/login'
@@ -351,40 +479,41 @@ async function submitCertification() {
   margin-bottom: 20px;
   border-radius: 10px;
 }
-.info-form {
-  max-width: 520px;
-}
 
-/* ===== 安全设置 / 认证 ===== */
+/* ===== 安全设置 / 认证 / 基本信息（与管理系统个人中心统一风格） ===== */
 .sec-card {
   border: 1px solid var(--hj-border-light);
   border-radius: 14px;
   padding: 22px 24px;
   margin-bottom: 18px;
   background: var(--hj-bg-card);
+  box-shadow: var(--hj-shadow-card);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .sec-card:hover {
   border-color: var(--hj-primary-border);
-  box-shadow: var(--hj-shadow-card);
+  box-shadow: 0 6px 20px rgba(31, 45, 61, 0.1);
 }
 .sec-header {
   display: flex;
   align-items: center;
   gap: 14px;
+  padding-bottom: 14px;
   margin-bottom: 18px;
+  border-bottom: 1px solid var(--hj-border-lighter); /* 标题区与表单分隔线 */
 }
 .sec-icon {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--hj-primary-bg), #f5faff);
-  color: var(--hj-primary);
+  background: linear-gradient(135deg, var(--hj-primary), var(--hj-primary-hover)); /* 实心品牌蓝渐变 */
+  color: #fff;
   font-size: 20px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.28);
 }
 .sec-title {
   font-size: 15px;
@@ -398,5 +527,29 @@ async function submitCertification() {
 }
 .sec-form {
   max-width: 520px;
+}
+.sec-form .el-form-item {
+  margin-bottom: 14px;
+}
+.sec-form .el-form-item:last-child {
+  margin-bottom: 0;
+}
+.sec-form .el-input__wrapper {
+  border-radius: 8px;
+}
+.sec-form .el-button {
+  border-radius: 8px;
+}
+.code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.code-row .el-input {
+  flex: 1;
+}
+.code-row .el-button {
+  flex-shrink: 0;
+  min-width: 96px;
 }
 </style>

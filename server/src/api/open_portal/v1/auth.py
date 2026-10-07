@@ -21,6 +21,8 @@ from src.schemas.open_portal.auth import (
     DeveloperRefreshRequest,
     DeveloperRegisterRequest,
     DeveloperResetPasswordRequest,
+    DeveloperUpdateEmailRequest,
+    DeveloperUpdatePhoneRequest,
 )
 from src.services.open_portal.auth_service import DeveloperAuthService
 
@@ -91,7 +93,7 @@ def logout(
 @router.post(
     "/change-password",
     summary="修改密码",
-    description="校验原密码后更新密码哈希，并撤销服务端登录态（修改成功后需重新登录）",
+    description="校验原密码与邮箱验证码后更新密码哈希，并撤销服务端登录态（修改成功后需重新登录）",
 )
 def change_password(
     body: DeveloperChangePasswordRequest,
@@ -99,8 +101,55 @@ def change_password(
     current_developer: CurrentDeveloper = Depends(get_current_developer),
     service: DeveloperAuthService = Depends(get_developer_auth_service),
 ) -> JSONResponse:
-    service.change_password(current_developer.id, body.old_password, body.new_password)
+    service.change_password(current_developer.id, body.old_password, body.new_password, body.code)
     return success_response({"changed": True}, request)
+
+
+@router.post(
+    "/send-verify-code",
+    summary="发送验证码",
+    description="安全设置二次认证：向当前开发者邮箱发送 6 位验证码，5 分钟有效",
+)
+def send_verify_code(
+    request: Request,
+    current_developer: CurrentDeveloper = Depends(get_current_developer),
+    service: DeveloperAuthService = Depends(get_developer_auth_service),
+) -> JSONResponse:
+    """向当前开发者邮箱发送验证码（修改手机号/邮箱前使用）。"""
+    service.send_verify_code(current_developer.id)
+    return success_response({"message": "验证码已发送至邮箱"}, request)
+
+
+@router.post(
+    "/update-phone",
+    summary="修改手机号",
+    description="需通过邮箱验证码二次认证",
+)
+def update_phone(
+    body: DeveloperUpdatePhoneRequest,
+    request: Request,
+    current_developer: CurrentDeveloper = Depends(get_current_developer),
+    service: DeveloperAuthService = Depends(get_developer_auth_service),
+) -> JSONResponse:
+    """通过验证码校验后修改开发者手机号。"""
+    service.verify_and_update_phone(current_developer.id, body.code, body.phone)
+    return success_response({"message": "手机号修改成功"}, request)
+
+
+@router.post(
+    "/update-email",
+    summary="修改邮箱",
+    description="需通过原邮箱验证码二次认证",
+)
+def update_email(
+    body: DeveloperUpdateEmailRequest,
+    request: Request,
+    current_developer: CurrentDeveloper = Depends(get_current_developer),
+    service: DeveloperAuthService = Depends(get_developer_auth_service),
+) -> JSONResponse:
+    """通过原验证码校验后修改开发者邮箱。"""
+    service.verify_and_update_email(current_developer.id, body.code, body.email)
+    return success_response({"message": "邮箱修改成功"}, request)
 
 
 @router.post(

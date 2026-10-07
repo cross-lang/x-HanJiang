@@ -40,56 +40,83 @@
       <el-tabs v-model="activeTab" class="profile-tabs">
         <el-tab-pane label="基本信息" name="info">
           <div class="pane-body">
-            <el-form :model="form" label-width="96px" class="info-form">
-              <el-form-item label="用户名">
-                <el-input :model-value="userStore.userInfo?.username" disabled />
-              </el-form-item>
-              <el-form-item label="姓名">
-                <el-input v-model="form.name" placeholder="请输入姓名" />
-              </el-form-item>
-              <el-form-item label="生日">
-                <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" class="hj-w-full" />
-              </el-form-item>
-              <el-form-item label="性别">
-                <el-radio-group v-model="form.gender">
-                  <el-radio value="male">男</el-radio>
-                  <el-radio value="female">女</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <!-- 邮箱/手机号仅展示，换绑请前往「安全设置」标签页 -->
-              <el-form-item label="邮箱">
-                <el-input :model-value="userStore.userInfo?.email" placeholder="未绑定" disabled />
-              </el-form-item>
-              <el-form-item label="手机号">
-                <el-input :model-value="userStore.userInfo?.phone" placeholder="未绑定" disabled />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" round @click="saveInfo">保存修改</el-button>
-              </el-form-item>
-            </el-form>
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><User /></el-icon>
+                <div>
+                  <div class="sec-title">基本信息</div>
+                  <div class="sec-current">完善您的个人资料，生日、性别等信息将展示在个人主页</div>
+                </div>
+              </div>
+              <el-form :model="form" label-width="96px" class="sec-form wide">
+                <el-form-item label="用户名">
+                  <el-input :model-value="userStore.userInfo?.username" disabled />
+                </el-form-item>
+                <el-form-item label="姓名">
+                  <el-input v-model="form.name" placeholder="请输入姓名" />
+                </el-form-item>
+                <el-form-item label="生日">
+                  <el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" class="hj-w-full" />
+                </el-form-item>
+                <el-form-item label="性别">
+                  <el-radio-group v-model="form.gender">
+                    <el-radio value="male">男</el-radio>
+                    <el-radio value="female">女</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <!-- 邮箱/手机号仅展示，换绑请前往「安全设置」标签页 -->
+                <el-form-item label="邮箱">
+                  <el-input :model-value="userStore.userInfo?.email" placeholder="未绑定" disabled />
+                </el-form-item>
+                <el-form-item label="手机号">
+                  <el-input :model-value="userStore.userInfo?.phone" placeholder="未绑定" disabled />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" round @click="saveInfo">保存修改</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
           </div>
         </el-tab-pane>
 
         <el-tab-pane label="角色权限" name="roles">
           <div class="pane-body">
-            <h4 class="pane-title">我的角色</h4>
-            <div class="role-wrap">
-              <div v-for="r in roles" :key="r.id" class="role-chip">
-                <el-icon><Avatar /></el-icon>
-                <span>{{ r.role_name }}</span>
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Avatar /></el-icon>
+                <div>
+                  <div class="sec-title">我的角色</div>
+                  <div class="sec-current">当前账号拥有的角色，决定您在系统中的操作范围</div>
+                </div>
+              </div>
+              <div class="role-wrap">
+                <div v-for="r in roles" :key="r.id" class="role-chip">
+                  <el-icon><Avatar /></el-icon>
+                  <span>{{ r.role_name }}</span>
+                </div>
               </div>
             </div>
 
-            <h4 class="pane-title">我的权限</h4>
-            <el-alert v-if="isSuperAdmin" type="success" :closable="false" class="pane-alert">
-              超级管理员，拥有所有权限
-            </el-alert>
-            <div v-else class="perm-grid">
-              <div v-for="group in groupedPermissions" :key="group.module" class="perm-card">
-                <div class="perm-module">{{ group.module_label || group.module }}</div>
-                <div v-for="p in group.items" :key="p.code" class="perm-item">
-                  <span>{{ p.name }}</span>
-                  <span class="perm-code">{{ p.code }}</span>
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Key /></el-icon>
+                <div>
+                  <div class="sec-title">我的权限</div>
+                  <div class="sec-current">
+                    {{ isSuperAdmin ? '超级管理员，拥有所有权限' : '按功能模块展示当前账号的权限明细' }}
+                  </div>
+                </div>
+              </div>
+              <el-alert v-if="isSuperAdmin" type="success" :closable="false" class="pane-alert">
+                超级管理员，拥有所有权限
+              </el-alert>
+              <div v-else class="perm-grid">
+                <div v-for="group in groupedPermissions" :key="group.module" class="perm-card">
+                  <div class="perm-module">{{ group.module_label || group.module }}</div>
+                  <div v-for="p in group.items" :key="p.code" class="perm-item">
+                    <span>{{ p.name }}</span>
+                    <span class="perm-code">{{ p.code }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -98,22 +125,29 @@
 
         <el-tab-pane label="通知偏好" name="notify">
           <div class="pane-body">
-            <el-alert type="info" :closable="false" class="pane-alert">
-              选择您希望接收哪些事件的通知，未勾选的将不再推送
-            </el-alert>
-            <el-table :data="preferenceEvents" border class="pref-table">
-              <el-table-column prop="name" label="事件" width="220" />
-              <el-table-column v-for="ch in channelList" :key="ch.code" :label="ch.name" width="120" align="center">
-                <template #default="{ row }">
-                  <el-switch
-                    :model-value="(row as PreferenceEvent).channels.find(c => c.code === ch.code)?.enabled"
-                    @change="
-                      (val: string | number | boolean) => toggleChannel(row as PreferenceEvent, ch.code, val as boolean)
-                    "
-                  />
-                </template>
-              </el-table-column>
-            </el-table>
+            <div class="sec-card">
+              <div class="sec-header">
+                <el-icon class="sec-icon"><Bell /></el-icon>
+                <div>
+                  <div class="sec-title">通知偏好</div>
+                  <div class="sec-current">选择您希望接收哪些事件的通知，未勾选的渠道将不再推送</div>
+                </div>
+              </div>
+              <el-table :data="preferenceEvents" border class="pref-table">
+                <el-table-column prop="name" label="事件" width="220" />
+                <el-table-column v-for="ch in channelList" :key="ch.code" :label="ch.name" width="120" align="center">
+                  <template #default="{ row }">
+                    <el-switch
+                      :model-value="(row as PreferenceEvent).channels.find(c => c.code === ch.code)?.enabled"
+                      @change="
+                        (val: string | number | boolean) =>
+                          toggleChannel(row as PreferenceEvent, ch.code, val as boolean)
+                      "
+                    />
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
           </div>
         </el-tab-pane>
 
@@ -286,7 +320,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Avatar, Iphone, Message, Lock, ChatDotRound } from '@element-plus/icons-vue'
+import { Avatar, Iphone, Message, Lock, ChatDotRound, User, Key, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   updateMe,
@@ -674,21 +708,15 @@ async function changePwd() {
   padding: 20px 24px 28px;
 }
 
-.pane-title {
-  margin: 0 0 16px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
-}
-
 .pane-alert {
   margin-bottom: 20px;
   border-radius: 10px;
 }
 
-.info-form {
+/* 基本信息表单：卡片内占满宽度（覆盖 sec-form 默认 420px 限制） */
+.sec-form.wide {
   width: 100%;
-  max-width: none;
+  max-width: 560px;
 }
 
 /* ===== 角色权限 ===== */
@@ -696,7 +724,6 @@ async function changePwd() {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 34px;
 }
 
 .role-chip {
@@ -758,33 +785,37 @@ async function changePwd() {
 
 /* ===== 安全设置 ===== */
 .sec-card {
-  border: 1px solid #eceef3;
-  border-radius: 14px;
+  border: 1px solid #eef0f4;
+  border-radius: 12px; /* 与 hero-card / main-card 圆角一致 */
   padding: 22px 24px;
   margin-bottom: 18px;
   background: #fff;
+  box-shadow: 0 2px 10px rgba(31, 45, 61, 0.05); /* 与页面卡片阴影一致 */
   transition: box-shadow 0.2s ease;
 }
 
 .sec-card:hover {
-  box-shadow: 0 4px 14px rgba(31, 45, 61, 0.07);
+  box-shadow: 0 4px 16px rgba(31, 45, 61, 0.08);
 }
 
 .sec-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #f0f2f5; /* 标题区与表单分区 */
 }
 
 .sec-icon {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: #ecf5ff;
-  color: #409eff;
+  background: linear-gradient(135deg, #409eff, #66b1ff); /* 品牌蓝渐变 */
+  color: #fff;
   font-size: 20px;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.28);
 }
 
 .sec-title {
@@ -800,8 +831,33 @@ async function changePwd() {
 }
 
 .sec-form {
-  width: 100%;
-  max-width: none;
+  width: 420px;
+  max-width: 100%;
+}
+
+/* 表单项间距收紧，表单更精致 */
+.sec-form .el-form-item {
+  margin-bottom: 14px;
+}
+.sec-form .el-form-item:last-child {
+  margin-bottom: 0;
+}
+.sec-form .el-form-item__label {
+  color: #606266;
+}
+
+/* 输入框/按钮圆角统一，视觉更柔和 */
+.sec-form .el-input__wrapper {
+  border-radius: 8px;
+}
+.sec-form .el-button {
+  border-radius: 8px;
+}
+
+/* 验证码行：按钮不压缩、不换行 */
+.code-row .el-button {
+  flex-shrink: 0;
+  min-width: 92px;
 }
 
 .code-row {

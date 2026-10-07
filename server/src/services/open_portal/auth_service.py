@@ -15,13 +15,14 @@ Classes:
 from __future__ import annotations
 
 import contextlib
+import random
 import secrets
 from datetime import datetime
 
 from src.constants.constants import TOKEN_TTL_SECONDS
 from src.constants.enums import DeveloperStatus
 from src.core.config import settings
-from src.core.exceptions import AuthenticationException, ConflictException
+from src.core.exceptions import AuthenticationException, ConflictException, ValidationException
 from src.core.logger import logger
 from src.core.tokens import (
     REFRESH_TOKEN_TYPE,
@@ -178,17 +179,156 @@ class DeveloperAuthService:
 
     # ── 修改密码 ────────────────────────────────────────
 
-    def change_password(self, developer_id: int, old_password: str, new_password: str) -> None:
-        """修改密码：校验原密码后更新哈希，并清除 Redis 登录态（强制重新登录）。"""
+    def change_password(self, developer_id: int, old_password: str, new_password: str, code: str) -> None:
+        """修改密码：校验原密码与邮箱验证码后更新哈希，并清除 Redis 登录态（强制重新登录）。
+
+        Args:
+            developer_id: 当前开发者 ID
+            old_password: 原密码
+            new_password: 新密码
+            code: 邮箱验证码（二次认证）
+
+        Raises:
+            AuthenticationException: 开发者不存在或原密码不正确时抛出
+            ValidationException: 验证码错误或已过期时抛出
+        """
+        dev = self._require_developer(developer_id)
+        if not verify_password(old_password, dev.password_hash or ""):
+            raise AuthenticationException(message="原密码不正确")
+        if not self._check_email_code(developer_id, code):
+            raise ValidationException(message="验证码错误或已过期")
+        dev.password_hash = hash_password(new_password)
+        self._repository.commit()
+        # 改密后撤销全部已签发令牌（强制重新登录）
+        self.logout(developer_id)
+
+    # ── 安全设置：邮箱二次认证（修改手机号 / 邮箱）──────────
+
+    def send_verify_code(self, developer_id: int) -> None:
+        """向当前开发者邮箱发送 6 位验证码（5 分钟有效）。
+
+        安全策略：
+        - 验证码仅存 Redis（键 `verify_code_dev:{id}`，与管理端 `verify_code:{user_id}` 隔离）；
+        - 邮件发送失败抛出业务异常，前端可感知失败而非静默成功。
+
+        Args:
+            developer_id: 当前开发者 ID
+
+        Raises:
+            ValidationException: 账号未绑定邮箱或验证码邮件发送失败时抛出
+        """
+        from src.constants.constants import (
+            VERIFY_CODE_DEV_CACHE_PREFIX,
+            VERIFY_CODE_MAX,
+            VERIFY_CODE_MIN,
+            VERIFY_CODE_TTL_SECONDS,
+        )
+
+        dev = self._require_developer(developer_id)
+        if not dev.email:
+            raise ValidationException(message="当前账号未绑定邮箱，无法发送验证码")
+        code = f"{random.randint(VERIFY_CODE_MIN, VERIFY_CODE_MAX)}"
+        try:
+            provider = self._cache_provider()
+            provider.set(
+                f"{VERIFY_CODE_DEV_CACHE_PREFIX}{dev.id}",
+                code,
+                ttl=VERIFY_CODE_TTL_SECONDS,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"开发者验证码写入 Redis 失败: developer_id={dev.id} error={e}")
+            raise ConflictException(message="验证码生成失败，请稍后重试") from e
+        try:
+            self._dispatch_verify_email(dev.email, code, dev.name or dev.username)
+        except Exception as e:  # noqa: BLE001
+            with contextlib.suppress(Exception):
+                provider.delete(f"{VERIFY_CODE_DEV_CACHE_PREFIX}{dev.id}")
+            logger.error(f"开发者验证码邮件发送失败: developer_id={dev.id} error={e}")
+            raise ConflictException(message="验证码邮件发送失败，请稍后重试") from e
+
+    def verify_and_update_phone(self, developer_id: int, code: str, phone: str) -> None:
+        """通过验证码校验后修改开发者手机号。
+
+        Args:
+            developer_id: 当前开发者 ID
+            code: 验证码（一次性）
+            phone: 新手机号
+
+        Raises:
+            AuthenticationException: 开发者不存在时抛出
+            ValidationException: 验证码错误或已过期时抛出
+        """
+        dev = self._require_developer(developer_id)
+        if not self._check_email_code(developer_id, code):
+            raise ValidationException(message="验证码错误或已过期")
+        dev.phone = phone
+        self._repository.commit()
+
+    def verify_and_update_email(self, developer_id: int, code: str, email: str) -> None:
+        """通过原验证码校验后修改开发者邮箱。
+
+        Args:
+            developer_id: 当前开发者 ID
+            code: 原验证码（一次性）
+            email: 新邮箱地址
+
+        Raises:
+            AuthenticationException: 开发者不存在时抛出
+            ValidationException: 验证码错误/已过期，或新邮箱已被占用时抛出
+        """
+        dev = self._require_developer(developer_id)
+        if not self._check_email_code(developer_id, code):
+            raise ValidationException(message="原验证码错误或已过期")
+        existing = self._repository.get_by_email(email)
+        if existing is not None and existing.id != developer_id:
+            raise ConflictException(message="该邮箱已被其他开发者绑定")
+        dev.email = email
+        self._repository.commit()
+
+    def _require_developer(self, developer_id: int) -> DeveloperEntity:
+        """按 ID 查询开发者，不存在时抛出认证异常。"""
         dev = self._repository.get_by_id(developer_id)
         if dev is None:
             raise AuthenticationException(message="开发者不存在")
-        if not verify_password(old_password, dev.password_hash or ""):
-            raise AuthenticationException(message="原密码不正确")
-        dev.password_hash = hash_password(new_password)
-        self._repository.commit()
-        # 改密后撤销全部已签发令牌（开发者域无验证码二次认证，改密即失效更安全）
-        self.logout(developer_id)
+        return dev
+
+    def _check_email_code(self, developer_id: int, code: str) -> bool:
+        """校验验证码（一次性，校验通过后立即删除）。
+
+        Args:
+            developer_id: 开发者 ID
+            code: 待校验的验证码
+
+        Returns:
+            bool: 校验是否通过
+        """
+        from src.constants.constants import VERIFY_CODE_DEV_CACHE_PREFIX
+
+        if not code:
+            return False
+        key = f"{VERIFY_CODE_DEV_CACHE_PREFIX}{developer_id}"
+        saved = self._cache_provider().get(key)
+        if saved != code:
+            return False
+        with contextlib.suppress(Exception):
+            self._cache_provider().delete(key)
+        return True
+
+    def _dispatch_verify_email(self, to_email: str, code: str, username: str) -> None:
+        """通过通知调度器向开发者邮箱发送验证码邮件（复用管理系统同款事件与模板）。"""
+        from src.constants.constants import VERIFY_CODE_EVENT
+        from src.infras.notification import get_registry
+        from src.notification.dispatcher import NotificationDispatcher
+
+        dispatcher = NotificationDispatcher(
+            registry=get_registry(),
+            session=self._repository.session,
+        )
+        dispatcher.dispatch(
+            event_type=VERIFY_CODE_EVENT,
+            recipients={"email": to_email},
+            variables={"code": code, "username": username},
+        )
 
     # ── 忘记密码（邮箱二次认证）─────────────────────────
 

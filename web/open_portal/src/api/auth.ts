@@ -6,6 +6,8 @@ import type {
   LoginResult,
   RegisterRequest,
   ResetPasswordRequest,
+  UpdateEmailRequest,
+  UpdatePhoneRequest,
 } from '@/types/auth'
 
 /**
@@ -37,6 +39,21 @@ export function logout() {
 /** 修改密码（成功后服务端登录态被撤销，需重新登录） */
 export function changePassword(data: ChangePasswordRequest) {
   return request.post<{ message: string }>('/auth/change-password', data)
+}
+
+/** 发送邮箱验证码（修改手机号/邮箱前的二次认证） */
+export function sendVerifyCode() {
+  return request.post<{ message: string }>('/auth/send-verify-code')
+}
+
+/** 修改手机号（需邮箱验证码二次认证） */
+export function updatePhone(data: UpdatePhoneRequest) {
+  return request.post<{ message: string }>('/auth/update-phone', data)
+}
+
+/** 修改邮箱（需原邮箱验证码二次认证） */
+export function updateEmail(data: UpdateEmailRequest) {
+  return request.post<{ message: string }>('/auth/update-email', data)
 }
 
 /** 忘记密码：提交注册邮箱，向邮箱发送一次性重置链接（30 分钟有效） */

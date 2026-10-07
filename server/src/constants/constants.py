@@ -67,6 +67,10 @@ VERIFY_CODE_MAX: int = 999999  # 验证码随机范围上界（含）
 VERIFY_CODE_CACHE_PREFIX: str = "verify_code:"  # 验证码 Redis Key 前缀
 VERIFY_CODE_EVENT: str = "security.verify_code"  # 验证码邮件事件类型
 
+# ── 开放平台门户：开发者邮箱二次认证验证码 ────────────
+# 与管理端 verify_code:{user_id} 键隔离（用户 ID 与开发者 ID 各自从 1 起，避免覆盖）
+VERIFY_CODE_DEV_CACHE_PREFIX: str = "verify_code_dev:"
+
 # ── 通知与广播 ────────────────────────────────────────
 DEFAULT_ENABLED_CHANNEL: str = "station"  # 用户通知偏好未显式配置时的默认启用渠道（站内信默认开启）
 MAX_BROADCAST_USER_LIMIT: int = 10000  # 告警/维护广播单次查询用户上限
