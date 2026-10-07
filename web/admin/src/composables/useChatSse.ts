@@ -100,8 +100,17 @@ export function useChatSse(options: UseChatSseOptions) {
     aiInput.value = ''
     aiMessages.value.push({ role: 'user', content: text })
     // 助手占位消息：SSE 期间流式填充
-    const assistantMsg: AiMsg = { role: 'assistant', content: '', loading: true, messageId: null, feedback: null }
-    aiMessages.value.push(assistantMsg)
+    aiMessages.value.push({
+      role: 'assistant',
+      content: '',
+      loading: true,
+      messageId: null,
+      feedback: null,
+    })
+    // 必须通过数组代理取回该对象再修改：若持有推入前的原始引用直接改其属性，
+    // 会绕过响应式 trigger，导致流式的思考过程/正文不实时渲染，全部堆积到
+    // 本轮结束其他 ref 触发重渲染时才一并出现。
+    const assistantMsg = aiMessages.value[aiMessages.value.length - 1]
     aiLoading.value = true
     try {
       await chatSSE(aiConversationId.value, text, {
