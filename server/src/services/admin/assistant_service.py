@@ -24,7 +24,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Iterator
 
-from src.assistant.agent import AgentStepLimitExceeded, AssistantAgent
+from src.assistant.agent import AssistantAgent
 from src.assistant.knowledge import SystemPromptBuilder
 from src.assistant.memory import MemoryFacade, NullUserLongTermMemory
 from src.assistant.title import generate_title
@@ -238,11 +238,11 @@ class AssistantService:
             step:                执行步骤提示（工具调用等）
             navigate / denied:   工具动作透出
             token:               回复文本增量
-            error:               功能未启用 / 会话不存在 / 大模型服务异常 / 超时 / 步数超限
+            error:               功能未启用 / 会话不存在 / 大模型服务异常 / 超时
             done:                本轮结束（成功含 message_id；失败时 message_id 为空）
 
         通道级保护（在事件流外层包裹，业务异常 + 不可预期异常均在服务层兜底）：
-            - 请求级超时：整轮对话（含多轮 tool call）超过
+            - 请求级超时：整轮对话（含工具调用）超过
               chat_request_timeout_seconds 时主动下发 error + done 并终止；
             - 客户端断连感知：节流调用 disconnect_checker，客户端关闭页面后
               及时终止服务端生成，避免浪费大模型 token 与线程资源。
@@ -282,14 +282,6 @@ class AssistantService:
             # 会话不存在或归属不符：不落库，直接提示并结束
             yield {"type": AssistantEventType.ERROR.mark, "message": str(exc)}
             yield {"type": AssistantEventType.DONE.mark, "conversation_id": conversation_id, "message_id": None}
-        except AgentStepLimitExceeded as exc:
-            # agent 循环步数超限：落兜底消息并提示重试（与下方外部异常同一收尾形态）
-            logger.warning(f"AI 助手对话步数超限：conversation={exc.conversation_id}")
-            saved = self._save_message(
-                exc.conversation_id, AssistantMessageRole.ASSISTANT.value, ASSISTANT_FALLBACK_MESSAGE
-            )
-            yield {"type": AssistantEventType.ERROR.mark, "message": "对话步骤超限，请重试"}
-            yield self._done_event(exc.conversation_id, saved.id)
         except ExternalServiceException as exc:
             conv_id_log = conversation.id if conversation is not None else None
             logger.warning(f"AI 助手对话失败：conversation={conv_id_log} err={exc}")

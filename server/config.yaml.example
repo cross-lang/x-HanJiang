@@ -142,9 +142,7 @@ ai:
     temperature: 0.7
     max_tokens: 2048
     timeout_seconds: 60
-    # agent 循环步数上限（防死循环）
-    max_tool_rounds: 3
-    # 单轮对话整体超时秒数（含多轮 tool call），超过则主动终止并下发 error
+    # 单轮对话整体超时秒数（含工具调用），超过则主动终止并下发 error
     chat_request_timeout_seconds: 180
   memory:
     enabled: true

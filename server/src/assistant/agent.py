@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Agent 循环：流式 function calling（ReAct 风格）的推理编排。
+"""Agent 推理：流式 function calling 的单回合三分支决策。
 
 TL;DR —— 本模块做什么：
-    驱动「LLM 流式推理 → 三分支决策 → 工具执行 → 最终回答」的循环，
+    驱动「LLM 流式推理 → 三分支决策 → 工具执行 → 最终回答」的单回合流程，
     逐事件产出 SSE 数据。持久化、摘要、审计等写路径经构造时注入的回调
     端口委托给调用方（AssistantService），本模块自身零仓储依赖。
 
@@ -21,15 +21,18 @@ TL;DR —— 本模块做什么：
 ReAct 对应关系：
     reasoning 透出 = Thought；tool_calls = Action；tool 结果回填 = Observation
 
-三分支决策（每轮流式结束后）：
+三分支决策（一次流式推理结束后，互斥且有序）：
     1. 结构化 tool_calls → 执行工具 → 流式生成最终回答；
     2. 文本形式工具调用（检测门已扣留，见 src/assistant/text_call.py）
        → 识别后执行，正文不泄漏；
     3. 普通回答 → 正文已实时呈现，交回调收尾。
 
-步骤上限：达到 max_tool_rounds 仍无最终答案时抛出 AgentStepLimitExceeded
-（携带会话ID），由调用方翻译为 SSE error + done 事件并落兜底消息，
-保持本模块零持久化。
+工具回合（当前能力边界）：
+    本模块为「单回合」：一次用户提问内最多发生 1 次工具调用，工具执行后
+    以不带 tools 的流式调用强制收尾（模型只能给文字答案，不能再发起工具）。
+    这覆盖了当前唯一工具 navigate 的场景，且天然不存在多工具死循环。
+    后续若需要 A 工具结果→再调 B 工具的多步链路，再把 run 改造成带回环的
+    ReAct 多轮循环（工具结果回填后回到推理起点，并补回步数上限保护）。
 """
 
 from __future__ import annotations
@@ -48,6 +51,7 @@ from src.constants.assistant import (
     AssistantEventType,
 )
 from src.core.config import settings
+from src.core.logger import logger
 from src.infras.llm import (
     ChatMessage,
     ContentDelta,
@@ -72,27 +76,11 @@ NavigateAuditor: TypeAlias = Callable[
 ]
 
 
-class AgentStepLimitExceeded(Exception):
-    """agent 循环达到 max_tool_rounds 仍无最终答案。
-
-    携带会话ID，供调用方（chat_stream）定位会话并落兜底消息。
-    """
-
-    def __init__(self, conversation_id: int) -> None:
-        """记录超限会话。
-
-        Args:
-            conversation_id: 触发超限的会话ID
-        """
-        super().__init__(f"agent 步数超限：conversation={conversation_id}")
-        self.conversation_id: int = conversation_id
-
-
 @dataclass
 class RoundState:
     """单轮流式推理的中间状态（在流式首轮中累积，供三分支决策读取）。
 
-    封装目的：避免 run 循环中散落多个局部变量（tool_accumulator /
+    封装目的：避免 run 单回合流程中散落多个局部变量（tool_accumulator /
     content_parts / inline_gate），让流式首轮和分支决策之间只通过
     state 对象传递，新增字段时不影响方法签名。
 
@@ -103,11 +91,11 @@ class RoundState:
     """
 
     tool_accumulator: ToolCallAccumulator = field(default_factory=ToolCallAccumulator)
-    content_parts: list[str] = field(default_factory=list)
+    content_parts: list[str] = field(default_factory=list) 
     inline_gate: InlineToolCallGate = field(default_factory=InlineToolCallGate)
 
     @property
-    def structured_calls(self) -> list[ToolCall]:
+    def structured_tool_calls(self) -> list[ToolCall]:
         """流结束后取出累积完成的结构化工具调用列表。"""
         return self.tool_accumulator.build()
 
@@ -123,10 +111,10 @@ class RoundState:
 
 
 class AssistantAgent:
-    """Agent 循环编排器：流式 function calling（ReAct 风格）。
+    """Agent 推理编排器：流式 function calling（ReAct 风格，单回合）。
 
     职责边界（与 AssistantService 的分工）：
-        - 本类：LLM 流式推理、三分支决策、工具执行、SSE 事件产出；
+        - 本类：LLM 流式推理、三分支决策、最多一次工具执行、SSE 事件产出；
         - 服务层：上下文组装（MemoryFacade）、消息落库、摘要、命名、审计
           ——经构造时注入的回调端口接入，本类零仓储依赖。
 
@@ -172,7 +160,9 @@ class AssistantAgent:
         messages: list[dict[str, object]],
         operator: dict[str, object] | None = None,
     ) -> Iterator[dict[str, object]]:
-        """执行 agent 循环：流式推理 → 三分支决策（至多 max_tool_rounds 轮）。
+        """执行单回合推理：一次流式推理 → 互斥三分支决策。
+
+        工具回合能力边界见模块 docstring：最多 1 次工具调用，执行后强制收尾。
 
         Args:
             conversation: 会话实体
@@ -183,34 +173,28 @@ class AssistantAgent:
 
         Yields:
             dict[str, object]: SSE 事件字典
-
-        Raises:
-            AgentStepLimitExceeded: 达到步数上限仍无最终答案
         """
         # 先发 THINKING 事件：LLM 首字可能延迟数秒，提前通知前端展示思考态，避免用户面对空白
         yield {"type": AssistantEventType.THINKING.mark}
 
-        for _ in range(settings.ai.llm.max_tool_rounds):
-            # ── 流式首轮：思维链/正文实时透传，工具碎片同步累积 ──
-            state = RoundState()
-            yield from self._stream_first_round(messages, state)
-            # ── 分支 1：结构化工具调用 ──
-            if state.structured_calls:
-                yield from self._handle_structured_calls(
-                    state, messages, conversation, user, operator, query
-                )
-                return
-            # ── 分支 2：文本形式工具调用（检测门仍扣留 → 正文从未泄漏）──
-            if state.text_tool_call is not None and state.inline_gate.is_holding:
-                yield from self._handle_inline_call(
-                    state, messages, conversation, user, operator, query
-                )
-                return
-            # ── 分支 3：普通回答（正文已实时呈现）──
-            yield from self._handle_plain_answer(state, messages, conversation, query)
+        # ── 唯一一轮流式推理：思维链/正文实时透传，工具碎片同步累积 ──
+        state = RoundState()
+        yield from self._stream_first_round(messages, state)
+        # ── 分支 1：结构化工具调用 ──
+        if state.structured_tool_calls:
+            yield from self._handle_structured_calls(
+                state, messages, conversation, user, operator, query
+            )
             return
-        # 达到工具步数上限仍无最终答案：抛异常交调用方收尾（落兜底消息 + error + done）
-        raise AgentStepLimitExceeded(conversation.id)
+        # ── 分支 2：文本形式工具调用（检测门仍扣留 → 正文从未泄漏）──
+        # 文本形式工具调用是为了接住那些把工具调用写进正文的模型，保证跳转功能不因模型不守规矩而失效
+        if state.text_tool_call is not None and state.inline_gate.is_holding:
+            yield from self._handle_inline_call(
+                state, messages, conversation, user, operator, query
+            )
+            return
+        # ── 分支 3：普通回答（正文已实时呈现）──
+        yield from self._handle_plain_answer(state, messages, conversation, query)
 
     def _stream_first_round(
         self,
@@ -237,18 +221,27 @@ class AssistantAgent:
             temperature=llm_cfg.temperature,
             max_tokens=llm_cfg.max_tokens,
         ):
+            # 模型“思考过程”的文字。直接包成 REASONING 事件 yield 给前端展示思考态， 不写 state
+            # 思考过程不落库、不参与决策，看完即焚
             if isinstance(stream_event, ReasoningDelta):
                 yield {
                     "type": AssistantEventType.REASONING.mark,
                     "content": stream_event.text,
                 }
+
+            # 背景：模型决定调工具时，一个完整的工具调用是被 拆成碎片 流式到达的（id 一片、name 一片、arguments 的 JSON 字符串一片一片）。单看任何一片都不完整
+            # 解决：将所有碎片累积起来，等完整一个工具调用后再处理
             elif isinstance(stream_event, ToolCallDelta):
                 state.tool_accumulator.add(stream_event)
-            else:
-                # ContentDelta：检测门决定立即放行还是扣留观察
+            elif isinstance(stream_event, ContentDelta):
+                # 正文：1️⃣先存底稿，2️⃣再经检测门决定立即放行还是扣留观察
                 state.content_parts.append(stream_event.text)
                 for piece in state.inline_gate.feed(stream_event.text):
                     yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
+            else:
+                # 联合类型已穷尽（chat_stream 只产三类事件），理论不可达；
+                # 防御未来新增事件类型时被静默误当正文透出
+                logger.warning(f"agent 首轮流式收到未识别事件类型，已忽略：{type(stream_event).__name__}")
 
     def _handle_structured_calls(
         self,
@@ -262,7 +255,7 @@ class AssistantAgent:
         """分支 1：结构化工具调用 → 执行工具 → 流式生成最终回答 → 收尾。
 
         Args:
-            state: 本轮中间状态（读取 structured_calls）
+            state: 本轮中间状态（读取 structured_tool_calls）
             messages: 对话消息列表（执行后回填 tool 结果）
             conversation: 会话实体
             user: 当前用户
@@ -272,8 +265,8 @@ class AssistantAgent:
         Yields:
             dict[str, object]: STEP / NAVIGATE / DENIED / TOKEN / DONE 事件
         """
-        messages.append(assistant_tool_calls_message(state.structured_calls))
-        for tool_call in state.structured_calls:
+        messages.append(assistant_tool_calls_message(state.structured_tool_calls))
+        for tool_call in state.structured_tool_calls:
             yield from self._execute_tool_call(
                 tool_call, conversation, user, messages, operator
             )
@@ -453,6 +446,10 @@ class AssistantAgent:
             elif isinstance(stream_event, ContentDelta):
                 answer_parts.append(stream_event.text)
                 yield {"type": AssistantEventType.TOKEN.mark, "content": stream_event.text}
+            else:
+                # 此调用不传 tools，正常不会有 ToolCallDelta；
+                # 防御未来新增事件类型（如用量统计）被静默吞掉
+                logger.warning(f"agent 收尾流式收到未识别事件类型，已忽略：{type(stream_event).__name__}")
         return "".join(answer_parts).strip()
 
 

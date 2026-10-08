@@ -254,8 +254,7 @@ class AILLMConfig:
     temperature: float = 0.7
     max_tokens: int = 2048
     timeout_seconds: int = 60
-    max_tool_rounds: int = 3  # agent 循环步数上限，防死循环
-    chat_request_timeout_seconds: int = 180  # 单轮对话整体超时（含多轮 tool call），超过则主动终止并下发 error
+    chat_request_timeout_seconds: int = 180  # 单轮对话整体超时（含工具调用），超过则主动终止并下发 error
 
 
 @dataclass
@@ -522,7 +521,6 @@ class Settings:
                     "temperature": 0.7,
                     "max_tokens": 2048,
                     "timeout_seconds": 60,
-                    "max_tool_rounds": 3,
                     "chat_request_timeout_seconds": 180,
                 },
                 "memory": {
@@ -684,7 +682,6 @@ class Settings:
         _ai_env_int_map: dict[str, tuple[dict[str, Any], str]] = {
             "AI_LLM_MAX_TOKENS": (ai_llm, "max_tokens"),
             "AI_LLM_TIMEOUT_SECONDS": (ai_llm, "timeout_seconds"),
-            "AI_LLM_MAX_TOOL_ROUNDS": (ai_llm, "max_tool_rounds"),
             "AI_LLM_CHAT_REQUEST_TIMEOUT_SECONDS": (ai_llm, "chat_request_timeout_seconds"),
             "AI_MEMORY_RECENT_RAW_ROUNDS": (ai_memory, "recent_raw_rounds"),
             "AI_MEMORY_TOKEN_BUDGET": (ai_memory, "token_budget"),
