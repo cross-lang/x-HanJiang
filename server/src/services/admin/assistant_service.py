@@ -233,13 +233,29 @@ class AssistantService:
     ) -> Iterator[dict[str, object]]:
         """执行一轮对话，逐事件产出 SSE 数据。
 
+        处理流程：
+            1. 功能开关检查：未启用时直接下发 error + done；
+            2. 获取/创建会话（校验归属）并保存用户消息；
+            3. 组装四层记忆上下文（系统提示词 / 长期记忆 / 滚动摘要 / 近期消息）；
+            4. 委托 agent 单回合三分支决策（结构化工具调用 / 文本形式工具调用 /
+               普通回答），逐事件透出；
+            5. 事件流外层包裹通道级保护（见下），轮次收尾时落库助手回复并下发 done。
+
         事件类型（AssistantEventType）：
-            thinking / reasoning: 思考状态 / 思维链增量
-            step:                执行步骤提示（工具调用等）
-            navigate / denied:   工具动作透出
-            token:               回复文本增量
-            error:               功能未启用 / 会话不存在 / 大模型服务异常 / 超时
-            done:                本轮结束（成功含 message_id；失败时 message_id 为空）
+            thinking:  推理开始信号（LLM 首字前下发，前端展示思考态）
+            reasoning: 思维链增量（仅前端展示，不落库）
+            step:      执行步骤提示（工具调用等阶段进展）
+            token:     回复文本增量
+            navigate:  跳转指令（前端执行 router.push）
+            denied:    越权拒绝提示
+            error:     错误提示（功能未启用 / 会话不存在 / 大模型服务异常 / 超时）
+            done:      本轮结束（成功含 message_id；失败时 message_id 为空）
+
+        错误语义：
+            - 会话不存在 / 归属不符（NotFoundException）：不落库，error + done；
+            - 大模型服务异常（ExternalServiceException）：落库兜底回复后
+              error + done（done 携带兜底消息的 message_id）；
+            - 超时 / 不可预期异常：由通道保护下发 error + done，不落库。
 
         通道级保护（在事件流外层包裹，业务异常 + 不可预期异常均在服务层兜底）：
             - 请求级超时：整轮对话（含工具调用）超过

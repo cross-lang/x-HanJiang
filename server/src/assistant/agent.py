@@ -234,7 +234,7 @@ class AssistantAgent:
             elif isinstance(stream_event, ToolCallDelta):
                 state.tool_accumulator.add(stream_event)
             elif isinstance(stream_event, ContentDelta):
-                # 正文：1️⃣先存底稿，2️⃣再经检测门决定立即放行还是扣留观察
+                # 正文：1️⃣先存底稿；2️⃣再经检测门决定立即放行还是扣留观察
                 state.content_parts.append(stream_event.text)
                 for piece in state.inline_gate.feed(stream_event.text):
                     yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
