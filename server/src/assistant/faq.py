@@ -12,7 +12,7 @@ FAQ 内容以数据文件（server/templates/assistant_templates/assistant_faq.y
     - entry_path 校验依赖 ASSISTANT_ENTRY_CATALOG（入口目录是数据源权威）
 
 演进预留：后续第 2 级（知识数据化 / 检索召回）只需替换本模块的数据来源
-（如改为从数据库读取），上层 KnowledgeBase 不感知。
+（如改为从数据库读取），上层 SystemPromptBuilder 不感知。
 """
 
 from __future__ import annotations

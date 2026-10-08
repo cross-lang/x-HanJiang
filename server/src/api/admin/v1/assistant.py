@@ -14,6 +14,10 @@ SSE 通道说明：chat 接口返回 text/event-stream，事件为 data: <json> 
 
 from collections.abc import Iterator
 
+import asyncio
+import time
+
+from anyio.from_thread import run as _run_from_thread
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -27,6 +31,7 @@ from src.api.response import success_response
 from src.constants.assistant import AssistantEventType
 from src.constants.enums import HttpContentType
 from src.constants.permissions import PermissionCode
+from src.core.config import settings
 from src.core.logger import logger
 from src.schemas.admin.assistant import (
     ChatRequest,
@@ -47,6 +52,31 @@ _SSE_HEADERS: dict[str, str] = {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
+#: 客户端断连检测间隔（秒）：节流调用 request.is_disconnected()，避免逐 chunk 检测带来的额外等待
+_DISCONNECT_CHECK_INTERVAL: float = 2.0
+#: 单次断连检测的等待上限（秒）：is_disconnected() 在客户端仍连接时会阻塞等待 http.disconnect，
+#: 用 wait_for 设短超时，超时即视为仍连接，单次检测开销 ≤ 该值
+_DISCONNECT_PROBE_TIMEOUT: float = 0.02
+
+
+async def _probe_disconnect_async(request: Request) -> bool:
+    """在事件循环中检测客户端是否已断开（带短超时，避免阻塞）。"""
+    try:
+        return await asyncio.wait_for(request.is_disconnected(), timeout=_DISCONNECT_PROBE_TIMEOUT)
+    except asyncio.TimeoutError:
+        return False
+
+
+def _is_client_disconnected(request: Request) -> bool:
+    """同步路由中检测客户端断连。
+
+    同步路由运行在线程池中，通过 anyio 提供的 portal 将协程调度到主事件循环执行。
+    任何异常均按「仍连接」处理（fail-open），避免误杀正常请求。
+    """
+    try:
+        return _run_from_thread(_probe_disconnect_async, request)
+    except Exception:  # noqa: BLE001 - 检测失败不影响主流程
+        return False
 
 
 @router.post(
@@ -82,7 +112,16 @@ def chat(
         业务异常（功能未启用 / 会话不存在 / 大模型服务异常）已在 services 层
         内部转为 error + done 事件，此处 except 只作为 SSE 通道的最后防线，
         防止不可预期异常导致流中断无响应。
+
+        额外通道级保护：
+            - 请求级超时：整轮对话（含多轮 tool call）超过 chat_request_timeout_seconds
+              时主动下发 error + done 并终止，防止线程被长期占用。
+            - 客户端断连感知：节流检测 request.is_disconnected()，客户端关闭页面后
+              及时终止服务端生成，避免浪费大模型 token 与线程资源。
         """
+        start_time = time.monotonic()
+        request_timeout = settings.ai.llm.chat_request_timeout_seconds
+        last_disconnect_check = 0.0
         try:
             for event in service.chat_stream(
                 current_user,
@@ -90,6 +129,38 @@ def chat(
                 body.message,
                 operator=operator,
             ):
+                now = time.monotonic()
+                # 1. 请求级超时：在事件边界检查，超时则主动结束
+                if now - start_time > request_timeout:
+                    logger.warning(
+                        f"AI 助手对话超时（>{request_timeout}s），主动终止；"
+                        f"conversation={body.conversation_id}"
+                    )
+                    yield build_sse_event(
+                        {
+                            "type": AssistantEventType.ERROR.mark,
+                            "message": "AI 助手响应超时，请稍后重试",
+                        }
+                    )
+                    yield build_sse_event(
+                        {
+                            "type": AssistantEventType.DONE.mark,
+                            "conversation_id": body.conversation_id,
+                            "message_id": None,
+                        }
+                    )
+                    return
+
+                # 2. 客户端断连：节流检测，命中则静默终止（客户端已收不到事件）
+                if now - last_disconnect_check >= _DISCONNECT_CHECK_INTERVAL:
+                    last_disconnect_check = now
+                    if _is_client_disconnected(request):
+                        logger.info(
+                            f"AI 助手客户端已断开，终止对话流；"
+                            f"conversation={body.conversation_id}"
+                        )
+                        return
+
                 yield build_sse_event(event)
         except Exception as exc:  # noqa: BLE001 - SSE 通道最后防线，仅兜底不可预期异常
             logger.error(f"AI 助手 SSE 通道异常: {exc}")

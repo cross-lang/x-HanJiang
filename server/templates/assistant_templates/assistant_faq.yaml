@@ -2,7 +2,7 @@
 #
 # 本文件是运行时加载的数据文件，不属于代码常量：
 #   - 加载器：src/assistant/faq.py::load_assistant_faq()
-#   - 使用方：src/assistant/knowledge.py::KnowledgeBase.match_faq()
+#   - 使用方：src/assistant/knowledge.py::SystemPromptBuilder.match_faq()
 #
 # 维护说明：
 #   - faq 列表顺序 = 匹配优先级，高频/具体的问题放前面

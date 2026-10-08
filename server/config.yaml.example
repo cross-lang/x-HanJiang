@@ -144,6 +144,8 @@ ai:
     timeout_seconds: 60
     # agent 循环步数上限（防死循环）
     max_tool_rounds: 3
+    # 单轮对话整体超时秒数（含多轮 tool call），超过则主动终止并下发 error
+    chat_request_timeout_seconds: 180
   memory:
     enabled: true
     # 第 3 层：保留的最近原文轮数（一轮 = 一问一答）

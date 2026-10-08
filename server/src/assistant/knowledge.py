@@ -32,7 +32,7 @@ from src.constants.assistant import ASSISTANT_ENTRY_CATALOG
 from src.utils.helpers import find_project_root
 
 
-class KnowledgeBase:
+class SystemPromptBuilder:
     """系统提示词组装器。
 
     Attributes:

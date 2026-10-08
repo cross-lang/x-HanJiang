@@ -3,7 +3,7 @@
 
 分层结构（每层一个内聚类，MemoryManager 只做编排，不写具体记忆逻辑）：
     第 0 层 · 系统提示词   永不丢弃，固定预算
-                     SystemPromptLayer —— 适配 knowledge.KnowledgeBase
+                     SystemPromptLayer —— 适配 knowledge.SystemPromptBuilder
                      （身份设定 / 系统入口清单 / FAQ），并并入 RAG 补充知识
     第 1 层 · 长期记忆     跨会话用户档案 ——【当前仅预留接口】
                      UserMemoryProvider 抽象 + NullUserMemory 空实现。
@@ -22,9 +22,9 @@
     排序的层列表并遍历，对外暴露 build_context / roll_summary。
 
 依赖倒置（避免上层耦合与循环导入）：
-    各层不直接依赖具体仓储，只面向本模块存储端口（MessageStore /
-    ConversationStore，Protocol），仓储结构化满足，由装配层注入。
-    KnowledgeBase / ORM 实体仅在 TYPE_CHECKING 下导入，运行时零循环导入。
+    各层不直接依赖具体仓储，只面向本模块存储端口（MessageRepository /
+    ConversationRepository，Protocol），仓储结构化满足，由装配层注入。
+    SystemPromptBuilder / ORM 实体仅在 TYPE_CHECKING 下导入，运行时零循环导入。
 
 一轮对话的数据流（build_context 内部）：
 
@@ -54,7 +54,7 @@
     想了解「某层干什么」→ 看对应 *Layer 类的类 docstring；
     想了解「层如何被驱动」→ 看 MemoryLayer 抽象与 MemoryManager；
     想了解「层之间传什么」→ 看 MemoryContext；
-    想了解「数据从哪来」→ 看 MessageStore / ConversationStore 端口。
+    想了解「数据从哪来」→ 看 MessageRepository / ConversationRepository 端口。
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ from src.infras.llm import LLMProvider, get_llm_provider
 from src.utils.text import estimate_tokens
 
 if TYPE_CHECKING:
-    from src.assistant.knowledge import KnowledgeBase
+    from src.assistant.knowledge import SystemPromptBuilder
     from src.models.entities.assistant_entity import AssistantConversationEntity
 
 
@@ -126,11 +126,11 @@ class NullUserMemory(UserMemoryProvider):
 #   2. 端口由「消费方」（记忆子系统）定义，是依赖倒置：记忆层不认识
 #      SQLAlchemy，也不关心数据来自 MySQL 还是其他实现，可被内存 fake
 #      轻松替换，便于单测；
-#   3. 接口隔离：拆成 MessageStore（消息读写）与 ConversationStore
+#   3. 接口隔离：拆成 MessageRepository（消息读写）与 ConversationRepository
 #      （摘要持久化 + commit），L3 只依赖消息读取，不被迫看到摘要接口。
 #
 # 事务边界约定：端口方法（delete_by_ids 等）内部只做 flush，不 commit；
-# 真正提交统一走 ConversationStore.commit，保证「提交权在记忆/服务边界」。
+# 真正提交统一走 ConversationRepository.commit，保证「提交权在记忆/服务边界」。
 
 
 class MessageRecord(Protocol):
@@ -141,7 +141,7 @@ class MessageRecord(Protocol):
     content: str
 
 
-class MessageStore(Protocol):
+class MessageRepository(Protocol):
     """消息存储端口：第 3 层原文读取 + 第 2 层压缩时移除旧消息。"""
 
     def list_by_conversation(
@@ -164,7 +164,7 @@ class MessageStore(Protocol):
         """按主键批量删除已折入摘要的旧消息。"""
 
 
-class ConversationStore(Protocol):
+class ConversationRepository(Protocol):
     """会话存储端口：第 2 层摘要持久化。"""
 
     def update_summary(self, conversation_id: int, summary: str) -> None:
@@ -263,19 +263,19 @@ class MemoryLayer(ABC):
 
 
 # ============================================================
-# 第 0 层：系统提示词（适配 KnowledgeBase + 并入 RAG）
+# 第 0 层：系统提示词（适配 SystemPromptBuilder + 并入 RAG）
 # ============================================================
 
 
 class SystemPromptLayer(MemoryLayer):
     """第 0 层：系统提示词（最高优先级，永不丢弃）。
 
-    作为 MemoryLayer 与 KnowledgeBase 之间的适配器：L0 的具体内容仍由
-    KnowledgeBase 组装，本类负责 RAG 检索、调用并把结果纳入预算记账。
+    作为 MemoryLayer 与 SystemPromptBuilder 之间的适配器：L0 的具体内容仍由
+    SystemPromptBuilder 组装，本类负责 RAG 检索、调用并把结果纳入预算记账。
 
     职责：
         1. 按开关做 RAG 检索，得到补充知识（未启用时空串）；
-        2. 委托 KnowledgeBase 组装完整系统提示词（其中已含 L1 用户档案、
+        2. 委托 SystemPromptBuilder 组装完整系统提示词（其中已含 L1 用户档案、
            入口清单与 FAQ）；
         3. 向 ctx 追加该 system 消息并按实际 token 扣减预算。
 
@@ -291,16 +291,16 @@ class SystemPromptLayer(MemoryLayer):
 
     def __init__(
         self,
-        knowledge_base: KnowledgeBase,
+        system_prompt_builder: SystemPromptBuilder,
         retriever: RetrieverProvider,
     ) -> None:
         """初始化第 0 层。
 
         Args:
-            knowledge_base: 系统提示词组装器（L1 用户档案经其内部注入）
+            system_prompt_builder: 系统提示词组装器（L1 用户档案经其内部注入）
             retriever: RAG 检索提供者
         """
-        self._knowledge_base: KnowledgeBase = knowledge_base
+        self._system_prompt_builder: SystemPromptBuilder = system_prompt_builder
         self._retriever: RetrieverProvider = retriever
 
     def contribute(
@@ -319,7 +319,7 @@ class SystemPromptLayer(MemoryLayer):
             query: 本轮用户输入（FAQ 命中与 RAG 检索用）
         """
         retriever_context = self._retrieve_context(query)
-        system_prompt = self._knowledge_base.build_system_prompt(
+        system_prompt = self._system_prompt_builder.build_system_prompt(
             user_id, retriever_context=retriever_context, user_question=query
         )
         ctx.append("system", system_prompt)
@@ -375,19 +375,19 @@ class SummaryMemoryLayer(MemoryLayer):
 
     def __init__(
         self,
-        conversation_store: ConversationStore,
-        message_store: MessageStore,
+        conversation_repository: ConversationRepository,
+        message_repository: MessageRepository,
         llm_provider_getter: Callable[[], LLMProvider],
     ) -> None:
         """初始化第 2 层。
 
         Args:
-            conversation_store: 会话存储端口（摘要持久化 + 提交）
-            message_store: 消息存储端口（压缩时取/删旧消息）
+            conversation_repository: 会话存储端口（摘要持久化 + 提交）
+            message_repository: 消息存储端口（压缩时取/删旧消息）
             llm_provider_getter: LLM 获取器（summarize 调用，懒加载）
         """
-        self._conversation_store: ConversationStore = conversation_store
-        self._message_store: MessageStore = message_store
+        self._conversation_repository: ConversationRepository = conversation_repository
+        self._message_repository: MessageRepository = message_repository
         self._get_llm: Callable[[], LLMProvider] = llm_provider_getter
 
     def contribute(
@@ -423,11 +423,11 @@ class SummaryMemoryLayer(MemoryLayer):
         memory_cfg = settings.ai.memory
         if not memory_cfg.enabled:
             return
-        total = self._message_store.count_by_conversation(conversation.id)
+        total = self._message_repository.count_by_conversation(conversation.id)
         keep_count = memory_cfg.recent_raw_rounds * ASSISTANT_ROLL_TRIGGER_FACTOR
         if total <= keep_count:
             return
-        evicted = self._message_store.list_oldest_outside_window(
+        evicted = self._message_repository.list_oldest_outside_window(
             conversation.id,
             keep_count=keep_count,
             limit=ASSISTANT_ROLL_CHUNK_SIZE,
@@ -438,10 +438,10 @@ class SummaryMemoryLayer(MemoryLayer):
         previous = conversation.summary or ""
         combined = f"{previous}\n{chunk_text}" if previous else chunk_text
         new_summary = self._get_llm().summarize(combined)
-        self._conversation_store.update_summary(conversation.id, new_summary)
+        self._conversation_repository.update_summary(conversation.id, new_summary)
         conversation.summary = new_summary
-        self._message_store.delete_by_ids([entity.id for entity in evicted])
-        self._conversation_store.commit()
+        self._message_repository.delete_by_ids([entity.id for entity in evicted])
+        self._conversation_repository.commit()
         logger.info(f"AI 助手滚动摘要：conversation={conversation.id} 折入 {len(evicted)} 条旧消息")
 
 
@@ -473,13 +473,13 @@ class RecentMemoryLayer(MemoryLayer):
 
     order: ClassVar[int] = 3
 
-    def __init__(self, message_store: MessageStore) -> None:
+    def __init__(self, message_repository: MessageRepository) -> None:
         """初始化第 3 层。
 
         Args:
-            message_store: 消息存储端口
+            message_repository: 消息存储端口
         """
-        self._message_store: MessageStore = message_store
+        self._message_repository: MessageRepository = message_repository
 
     def contribute(
         self,
@@ -501,7 +501,7 @@ class RecentMemoryLayer(MemoryLayer):
         """
         memory_cfg = settings.ai.memory
         keep_count = memory_cfg.recent_raw_rounds * ASSISTANT_ROLL_TRIGGER_FACTOR
-        recent = self._message_store.list_by_conversation(conversation.id, limit=keep_count)
+        recent = self._message_repository.list_by_conversation(conversation.id, limit=keep_count)
         recent_messages: list[dict[str, object]] = []
         used_tokens = 0
         for entity in reversed(recent):
@@ -542,32 +542,32 @@ class MemoryManager:
 
     def __init__(
         self,
-        knowledge_base: KnowledgeBase,
-        conversation_store: ConversationStore,
-        message_store: MessageStore,
+        system_prompt_builder: SystemPromptBuilder,
+        conversation_repository: ConversationRepository,
+        message_repository: MessageRepository,
         retriever: RetrieverProvider | None = None,
         llm_provider_getter: Callable[[], LLMProvider] | None = None,
     ) -> None:
         """初始化记忆编排器并装配各记忆层。
 
         Args:
-            knowledge_base: L0 系统提示词组装器
-            conversation_store: 会话存储端口
-            message_store: 消息存储端口
+            system_prompt_builder: L0 系统提示词组装器
+            conversation_repository: 会话存储端口
+            message_repository: 消息存储端口
             retriever: RAG 检索提供者（缺省按配置工厂创建）
             llm_provider_getter: LLM 获取器（缺省使用全局懒加载工厂）
         """
         get_llm: Callable[[], LLMProvider] = llm_provider_getter or get_llm_provider
         self._summary_layer: SummaryMemoryLayer = SummaryMemoryLayer(
-            conversation_store=conversation_store,
-            message_store=message_store,
+            conversation_repository=conversation_repository,
+            message_repository=message_repository,
             llm_provider_getter=get_llm,
         )
         # 列表顺序即注入优先级（order 字段为层身份标识，供排查/扩展用）
         self._layers: list[MemoryLayer] = [
-            SystemPromptLayer(knowledge_base, retriever or get_retriever_provider()),
+            SystemPromptLayer(system_prompt_builder, retriever or get_retriever_provider()),
             self._summary_layer,
-            RecentMemoryLayer(message_store),
+            RecentMemoryLayer(message_repository),
         ]
 
     def build_context(

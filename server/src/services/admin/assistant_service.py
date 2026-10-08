@@ -21,7 +21,7 @@ import re
 from collections.abc import Iterator
 from typing import cast
 
-from src.assistant.knowledge import KnowledgeBase
+from src.assistant.knowledge import SystemPromptBuilder
 from src.assistant.memory import MemoryManager, NullUserMemory, UserMemoryProvider
 from src.assistant.retriever import RetrieverProvider
 from src.assistant.title import generate_title
@@ -188,7 +188,7 @@ class AssistantService:
         feedback_repository: AssistantFeedbackRepository,
         llm_provider: LLMProvider | None = None,
         tool_registry: ToolRegistry | None = None,
-        knowledge_base: KnowledgeBase | None = None,
+        system_prompt_builder: SystemPromptBuilder | None = None,
         user_memory: UserMemoryProvider | None = None,
         retriever: RetrieverProvider | None = None,
     ) -> None:
@@ -200,7 +200,7 @@ class AssistantService:
             feedback_repository: 反馈仓库
             llm_provider: 大模型提供者（默认由工厂懒加载单例）
             tool_registry: 工具注册表（默认创建并注册内置工具）
-            knowledge_base: 系统提示词组装器（默认使用空长期记忆实现）
+            system_prompt_builder: 系统提示词组装器（默认使用空长期记忆实现）
             user_memory: 用户长期记忆提供者（第 1 层预留，默认空实现）
             retriever: 知识检索提供者（RAG 预留，默认按配置创建）
         """
@@ -212,13 +212,13 @@ class AssistantService:
         self._llm_provider: LLMProvider | None = llm_provider
         self._tool_registry: ToolRegistry = tool_registry or self._build_default_registry()
         self._user_memory: UserMemoryProvider = user_memory or NullUserMemory()
-        self._knowledge_base: KnowledgeBase = knowledge_base or KnowledgeBase(self._user_memory)
+        self._system_prompt_builder: SystemPromptBuilder = system_prompt_builder or SystemPromptBuilder(self._user_memory)
         # 记忆子系统：四层记忆统一编排（L0 委托知识库；存储端口注入仓储；
         # LLM 复用本服务懒加载实例，保证注入的 fake provider 生效）
         self._memory: MemoryManager = MemoryManager(
-            knowledge_base=self._knowledge_base,
-            conversation_store=conversation_repository,
-            message_store=message_repository,
+            system_prompt_builder=self._system_prompt_builder,
+            conversation_repository=conversation_repository,
+            message_repository=message_repository,
             retriever=retriever,
             llm_provider_getter=self._get_llm,
         )
@@ -402,6 +402,8 @@ class AssistantService:
         try:
             conversation = self._get_or_create_conversation(user.id, conversation_id)
             self._save_message(conversation.id, AssistantMessageRole.USER.value, message)
+
+            # agent 循环：流式优先的 function calling 循环（ReAct 风格）
             yield from self._run_agent(conversation, user, message, operator)
         except NotFoundException as exc:
             # 会话不存在或归属不符：不落库，直接提示并结束
@@ -433,11 +435,10 @@ class AssistantService:
     ) -> Iterator[dict[str, object]]:
         """agent 循环：流式优先的 function calling 循环（ReAct 风格）。
 
-        与旧版的差异：首轮直接流式调用 —— 思维链与正文在模型生成的同时
-        实时透出（消除「长时间只显示正在思考」的空等），工具调用碎片经
-        ToolCallAccumulator 累积，流结束后按三分支决策：
+        首轮直接流式调用：思维链与正文在模型生成的同时实时透出，
+        工具调用碎片经 ToolCallAccumulator 累积，流结束后按三分支决策：
             1. 结构化 tool_calls → 执行工具 → 流式生成最终回答；
-            2. 无结构化调用但正文是「文本形式工具调用」→ 检测门已将其
+            2. 无结构化调用但正文是「文本形式工具调用」→ 检测门将其
                扣留（_InlineToolCallGate），识别后执行，内部结构不泄漏；
             3. 普通回答 → 正文已实时呈现，直接落库收尾。
 
@@ -881,7 +882,7 @@ class AssistantService:
         Returns:
             str: 自然语言回复（不包含任何工具调用 JSON / XML 文本）
         """
-        hit = self._knowledge_base.match_faq(query)
+        hit = self._system_prompt_builder.match_faq(query)
         if hit is not None:
             return hit.answer
         path = str(event_data.get("path") or "")
