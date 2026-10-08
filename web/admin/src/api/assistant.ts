@@ -127,7 +127,10 @@ export async function chatSSE(
               conversationId: typeof event.conversation_id === 'number' ? event.conversation_id : null,
               messageId: typeof event.message_id === 'number' ? event.message_id : null,
             })
-            break
+            // done 是终止事件：后端在 done 之后仍会同步执行滚动摘要 / 标题归纳等
+            // 尽力而为的后置任务（期间 HTTP 流不关闭）。前端无需等待流关闭，收到
+            // done 即结束消费并 resolve，避免输入框与发送按钮持续停留在加载态。
+            return
           default:
             break
         }
