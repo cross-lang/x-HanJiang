@@ -60,7 +60,7 @@ from src.infras.llm import (
 from src.models.entities.assistant_entity import AssistantConversationEntity
 from src.schemas.admin.auth import CurrentUser
 
-#: 轮次收尾回调：落库助手消息 + 滚动摘要 + 标题归纳 + DONE 事件（由服务层提供）
+#: 轮次收尾回调：落库助手消息 + DONE 先行，摘要/命名后置为尽力而为（由服务层提供）
 RoundFinisher: TypeAlias = Callable[
     [AssistantConversationEntity, str, str], Iterator[dict[str, object]]
 ]
@@ -131,7 +131,7 @@ class AssistantAgent:
           ——经构造时注入的回调端口接入，本类零仓储依赖。
 
     回调端口（均由 AssistantService 提供）：
-        - finish_round: 轮次收尾（落库助手消息 + 滚动摘要 + 标题归纳 + DONE）
+        - finish_round: 轮次收尾（落库 + DONE 先行；摘要/命名后置尽力而为）
         - navigate_reply_builder: navigate 兜底回复（FAQ 命中 / 入口目录引导语）
         - navigate_auditor: 跳转审计落库（失败静默，不阻断主流程）
 
@@ -154,7 +154,7 @@ class AssistantAgent:
         Args:
             llm_provider: 大模型提供者（由服务层构造时创建并注入）
             tool_registry: 工具注册表（schemas 供首轮调用，dispatch 执行工具）
-            finish_round: 轮次收尾回调（落库 + 摘要 + 命名 + DONE 事件）
+            finish_round: 轮次收尾回调（落库 + DONE 先行，重活后置）
             navigate_reply_builder: navigate 兜底回复构造回调
             navigate_auditor: 跳转审计回调
         """

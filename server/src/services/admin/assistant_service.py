@@ -6,7 +6,8 @@
     - 反馈：用户 👍👎 写入 assistant_feedbacks（后续提示词调优数据源）
     - 对话入口：组装上下文（MemoryFacade 四层记忆）→ 委托 agent 循环
     - SSE 通道保护：请求级超时 / 客户端断连检测 / 异常兜底
-    - 轮次收尾：消息落库 + 滚动摘要 + 标题归纳（经回调端口注入 agent）
+    - 轮次收尾：消息落库 → DONE 先行 → 摘要压缩/标题归纳后置为尽力而为
+      （经回调端口注入 agent）
     - 跳转审计：navigate 动作写审计日志（经回调端口注入 agent）
 
 协作模块（深度实现不在本文件）：
@@ -381,7 +382,13 @@ class AssistantService:
         query: str,
         content: str,
     ) -> Iterator[dict[str, object]]:
-        """一轮收尾：落库助手消息 + 滚动摘要 + 标题归纳 + DONE。
+        """一轮收尾：落库助手消息 → DONE 先行 → 重活后置（尽力而为）。
+
+        顺序刻意安排为「DONE 先行」：滚动摘要压缩内部含一次同步 LLM 调用
+        （秒级），若放在 DONE 之前会拖长最后一轮的结束信号，且压缩失败还会
+        以 error 事件污染一次本已成功的回答。DONE 之后的重活定位为尽力而为：
+        失败仅记日志、绝不影响响应收尾；摘要漏压一轮无碍——下轮收尾会继续
+        折入（触发条件按消息总数判断，不依赖上一轮是否成功）。
 
         Args:
             conversation: 会话实体
@@ -394,9 +401,19 @@ class AssistantService:
         saved = self._save_message(
             conversation.id, AssistantMessageRole.ASSISTANT.value, content
         )
-        self._memory_facade.roll_summary(conversation)
-        self._maybe_rename(conversation, query, content)
+        # DONE 先行：客户端立即结束加载态，后续重活不再阻塞用户
         yield self._done_event(conversation.id, saved.id)
+        # 重活后置：此时代码仍在流式响应体内执行，请求级 session 尚未关闭
+        try:
+            self._memory_facade.roll_summary(conversation)
+        except Exception:
+            # 收尾重活兜底：回答已完成、DONE 已下发，压缩失败只记日志
+            logger.warning(
+                f"AI 助手滚动摘要失败（尽力而为，忽略）：conversation={conversation.id}",
+                exc_info=True,
+            )
+        # 标题归纳（内部已自带失败静默，仅未命名会话触发一次 LLM 调用）
+        self._maybe_rename(conversation, query, content)
 
     def _build_navigate_reply(self, query: str, event_data: dict[str, object]) -> str:
         """为文本工具调用兜底生成自然语言收尾回复。
