@@ -7,14 +7,13 @@ TL;DR —— 本模块做什么：
 
 如何使用（入口在 MemoryManager）：
     # 1. 每轮对话开始前，组装上下文：
-    ctx_messages = memory_manager.build_context(conversation, user_id, query)
+    memory_manager.build_context(conversation, user_id, query)
     # 2. 对话结束、回复落库后触发摘要压缩：
     memory_manager.roll_summary(conversation)
 
 四层结构（每层一个内聚类，MemoryManager 只做编排）：
     L0 系统提示词   SystemPromptLayer    永不丢弃；身份/入口清单/FAQ + RAG
-    L1 长期记忆     UserLongTermMemory   跨会话用户档案【当前仅预留接口】
-                                         （作为内容提供者喂给 L0，不实现 MemoryLayer）
+    L1 长期记忆     UserLongTermMemory   跨会话用户档案【当前仅预留接口】（作为内容提供者喂给 L0，不实现 MemoryLayer）
     L2 滚动摘要     SummaryMemoryLayer   窗口外旧消息渐进压缩进 Conversation.summary
     L3 最近 N 轮    RecentMemoryLayer    精确保留最近几轮原文，超预算从最旧丢弃
 
@@ -113,6 +112,100 @@ from src.utils.text import estimate_tokens
 if TYPE_CHECKING:
     from src.assistant.knowledge import SystemPromptBuilder
     from src.models.entities.assistant_entity import AssistantConversationEntity
+
+
+
+# ============================================================
+# 存储端口（Ports）：记忆层所需持久化能力，仓储结构化满足
+# ============================================================
+
+
+class Message(Protocol):
+    """消息记录最小结构（AssistantMessageEntity 结构化满足）。"""
+
+    id: int
+    role: str
+    content: str
+
+
+class MessageRepository(Protocol):
+    """消息存储端口：第 3 层原文读取 + 第 2 层压缩时移除旧消息。"""
+
+    def list_by_conversation(
+        self, conversation_id: int, limit: int = 100
+    ) -> list[Message]:
+        """按时间正序返回会话最近 limit 条消息。"""
+
+    def count_by_conversation(self, conversation_id: int) -> int:
+        """统计会话消息总数。"""
+
+    def list_oldest_outside_window(
+        self,
+        conversation_id: int,
+        keep_count: int,
+        limit: int = 10,
+    ) -> list[Message]:
+        """跳过最近 keep_count 条，按时间正序返回最旧的 limit 条。"""
+
+    def delete_by_ids(self, message_ids: list[int]) -> None:
+        """按主键批量删除已折入摘要的旧消息。"""
+
+
+class ConversationRepository(Protocol):
+    """会话存储端口：第 2 层摘要持久化。"""
+
+    def update_summary(self, conversation_id: int, summary: str) -> None:
+        """更新会话滚动摘要。"""
+
+    def commit(self) -> None:
+        """提交事务（提交权归属服务/记忆边界，仓储只 flush）。"""
+
+
+# ============================================================
+# 记忆层统一抽象 + 层间编排上下文
+# ============================================================
+
+
+@dataclass
+class MemoryContext:
+    """层间编排状态：在各 MemoryLayer 之间传递（黑板 / Blackboard 模式）。
+
+    Attributes:
+        messages: 已累积的上下文消息（按层注入顺序）
+        remaining_budget: 剩余 token 预算（强制层占用后递减；供 L3 裁剪）
+
+    设计说明：
+        让各层共享同一个可变上下文，而不是每层各自返回一个列表再由
+        Manager 拼接，好处是——① 消息追加与预算扣减集中记账，不会出现
+        某层忘记扣预算；② 层与层之间互不持有引用、互不感知，只读写 ctx，
+        新增/调整层顺序时其他层零改动。
+
+    不变式：
+        - remaining_budget 永远 ≥ 0（charge 用 max(...,0) 兜底）；
+        - messages 的下标顺序严格等于层的注入顺序（L0 在前、L3 在后）；
+        - 「追加内容」与「扣减预算」是两个正交动作：append 只加消息、
+          charge 只减预算，由各层按需分别调用，不强行绑定。
+    """
+
+    messages: list[dict[str, object]] = field(default_factory=list)
+    remaining_budget: int = 0
+
+    def append(self, role: str, content: str) -> None:
+        """追加一条消息。
+
+        Args:
+            role: 消息角色（system / user / assistant）
+            content: 消息内容
+        """
+        self.messages.append({"role": role, "content": content})
+
+    def charge(self, tokens: int) -> None:
+        """从剩余预算中扣除已占用 token（不产生负预算）。
+
+        Args:
+            tokens: 本层占用的 token 数
+        """
+        self.remaining_budget = max(self.remaining_budget - tokens, 0)
 
 
 class MemoryLayer(ABC):
@@ -452,110 +545,10 @@ class RecentMemoryLayer(MemoryLayer):
 
 
 
-# ============================================================
-# 存储端口（Ports）：记忆层所需持久化能力，仓储结构化满足
-# ============================================================
-#
-# 为什么用 typing.Protocol 而不是让仓储继承 ABC：
-#   1. 结构化子类型（structural subtyping）：仓储无需显式声明继承、
-#      也无需为接入记忆系统做任何改动，只要方法签名匹配即被 mypy /
-#      pyright 认可——对仓储零侵入；
-#   2. 端口由「消费方」（记忆子系统）定义，是依赖倒置：记忆层不认识
-#      SQLAlchemy，也不关心数据来自 MySQL 还是其他实现，可被内存 fake
-#      轻松替换，便于单测；
-#   3. 接口隔离：拆成 MessageRepository（消息读写）与 ConversationRepository
-#      （摘要持久化 + commit），L3 只依赖消息读取，不被迫看到摘要接口。
-#
-# 事务边界约定：端口方法（delete_by_ids 等）内部只做 flush，不 commit；
-# 真正提交统一走 ConversationRepository.commit，保证「提交权在记忆/服务边界」。
 
 
-class Message(Protocol):
-    """消息记录最小结构（AssistantMessageEntity 结构化满足）。"""
-
-    id: int
-    role: str
-    content: str
 
 
-class MessageRepository(Protocol):
-    """消息存储端口：第 3 层原文读取 + 第 2 层压缩时移除旧消息。"""
-
-    def list_by_conversation(
-        self, conversation_id: int, limit: int = 100
-    ) -> list[Message]:
-        """按时间正序返回会话最近 limit 条消息。"""
-
-    def count_by_conversation(self, conversation_id: int) -> int:
-        """统计会话消息总数。"""
-
-    def list_oldest_outside_window(
-        self,
-        conversation_id: int,
-        keep_count: int,
-        limit: int = 10,
-    ) -> list[Message]:
-        """跳过最近 keep_count 条，按时间正序返回最旧的 limit 条。"""
-
-    def delete_by_ids(self, message_ids: list[int]) -> None:
-        """按主键批量删除已折入摘要的旧消息。"""
-
-
-class ConversationRepository(Protocol):
-    """会话存储端口：第 2 层摘要持久化。"""
-
-    def update_summary(self, conversation_id: int, summary: str) -> None:
-        """更新会话滚动摘要。"""
-
-    def commit(self) -> None:
-        """提交事务（提交权归属服务/记忆边界，仓储只 flush）。"""
-
-
-# ============================================================
-# 记忆层统一抽象 + 层间编排上下文
-# ============================================================
-
-
-@dataclass
-class MemoryContext:
-    """层间编排状态：在各 MemoryLayer 之间传递（黑板 / Blackboard 模式）。
-
-    Attributes:
-        messages: 已累积的上下文消息（按层注入顺序）
-        remaining_budget: 剩余 token 预算（强制层占用后递减；供 L3 裁剪）
-
-    设计说明：
-        让各层共享同一个可变上下文，而不是每层各自返回一个列表再由
-        Manager 拼接，好处是——① 消息追加与预算扣减集中记账，不会出现
-        某层忘记扣预算；② 层与层之间互不持有引用、互不感知，只读写 ctx，
-        新增/调整层顺序时其他层零改动。
-
-    不变式：
-        - remaining_budget 永远 ≥ 0（charge 用 max(...,0) 兜底）；
-        - messages 的下标顺序严格等于层的注入顺序（L0 在前、L3 在后）；
-        - 「追加内容」与「扣减预算」是两个正交动作：append 只加消息、
-          charge 只减预算，由各层按需分别调用，不强行绑定。
-    """
-
-    messages: list[dict[str, object]] = field(default_factory=list)
-    remaining_budget: int = 0
-
-    def append(self, role: str, content: str) -> None:
-        """追加一条消息。
-
-        Args:
-            role: 消息角色（system / user / assistant）
-            content: 消息内容
-        """
-        self.messages.append({"role": role, "content": content})
-
-    def charge(self, tokens: int) -> None:
-        """从剩余预算中扣除已占用 token（不产生负预算）。
-
-        Args:
-            tokens: 本层占用的 token 数
-        """
-        self.remaining_budget = max(self.remaining_budget - tokens, 0)
 
 
 
