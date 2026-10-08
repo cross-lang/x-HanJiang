@@ -22,7 +22,7 @@ from collections.abc import Iterator
 from typing import cast
 
 from src.assistant.knowledge import SystemPromptBuilder
-from src.assistant.memory import MemoryManager, NullUserMemory, UserMemoryProvider
+from src.assistant.memory import MemoryManager, NullUserLongTermMemory, UserLongTermMemory
 from src.assistant.retriever import RetrieverProvider
 from src.assistant.title import generate_title
 from src.assistant.tools import ToolArgs, ToolRegistry
@@ -189,7 +189,7 @@ class AssistantService:
         llm_provider: LLMProvider | None = None,
         tool_registry: ToolRegistry | None = None,
         system_prompt_builder: SystemPromptBuilder | None = None,
-        user_memory: UserMemoryProvider | None = None,
+        user_long_term_memory: UserLongTermMemory | None = None,
         retriever: RetrieverProvider | None = None,
     ) -> None:
         """初始化 AI 助手服务。
@@ -201,7 +201,7 @@ class AssistantService:
             llm_provider: 大模型提供者（默认由工厂懒加载单例）
             tool_registry: 工具注册表（默认创建并注册内置工具）
             system_prompt_builder: 系统提示词组装器（默认使用空长期记忆实现）
-            user_memory: 用户长期记忆提供者（第 1 层预留，默认空实现）
+            user_long_term_memory: 用户长期记忆提供者（第 1 层预留，默认空实现）
             retriever: 知识检索提供者（RAG 预留，默认按配置创建）
         """
         self._conversation_repository: AssistantConversationRepository = conversation_repository
@@ -211,8 +211,8 @@ class AssistantService:
         # 会话列表 / 反馈等非对话接口不应受影响
         self._llm_provider: LLMProvider | None = llm_provider
         self._tool_registry: ToolRegistry = tool_registry or self._build_default_registry()
-        self._user_memory: UserMemoryProvider = user_memory or NullUserMemory()
-        self._system_prompt_builder: SystemPromptBuilder = system_prompt_builder or SystemPromptBuilder(self._user_memory)
+        self._user_long_term_memory: UserLongTermMemory = user_long_term_memory or NullUserLongTermMemory()
+        self._system_prompt_builder: SystemPromptBuilder = system_prompt_builder or SystemPromptBuilder(self._user_long_term_memory)
         # 记忆子系统：四层记忆统一编排（L0 委托知识库；存储端口注入仓储；
         # LLM 复用本服务懒加载实例，保证注入的 fake provider 生效）
         self._memory: MemoryManager = MemoryManager(

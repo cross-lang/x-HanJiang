@@ -17,7 +17,7 @@
 
 说明：
     - 不引入 RAG：知识以提示词注入为主；retriever_context 参数预留 RAG 注入位
-    - 用户档案通过 UserMemoryProvider 注入（第 1 层长期记忆，当前为空实现）
+    - 用户档案通过 UserLongTermMemory 注入（第 1 层长期记忆，当前为空实现）
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pathlib import Path
 import yaml
 
 from src.assistant.faq import FaqItem, load_assistant_faq
-from src.assistant.memory import UserMemoryProvider
+from src.assistant.memory import UserLongTermMemory
 from src.constants.assistant import ASSISTANT_ENTRY_CATALOG
 from src.utils.helpers import find_project_root
 
@@ -36,7 +36,7 @@ class SystemPromptBuilder:
     """系统提示词组装器。
 
     Attributes:
-        _user_memory: 用户长期记忆提供者（第 1 层注入点）
+        _user_long_term_memory: 用户长期记忆提供者（第 1 层注入点）
         _faq_items: FAQ 操作手册条目（加载自数据文件，顺序即匹配优先级）
         _prompt_path: 系统提示词模板路径（默认 templates/assistant_templates/assistant_prompt.yaml）
         _prompt_template: 系统提示词模板缓存（懒加载）
@@ -45,18 +45,18 @@ class SystemPromptBuilder:
 
     def __init__(
         self,
-        user_memory: UserMemoryProvider,
+        user_long_term_memory: UserLongTermMemory,
         faq_path: Path | None = None,
         prompt_path: Path | None = None,
     ) -> None:
         """初始化知识库。
 
         Args:
-            user_memory: 用户长期记忆提供者
+            user_long_term_memory: 用户长期记忆提供者
             faq_path: FAQ 数据文件路径（缺省使用默认路径）
             prompt_path: 系统提示词模板路径（缺省使用默认路径）
         """
-        self._user_memory: UserMemoryProvider = user_memory
+        self._user_long_term_memory: UserLongTermMemory = user_long_term_memory
         self._faq_items: tuple[FaqItem, ...] = load_assistant_faq(faq_path)
         self._prompt_path: Path = prompt_path or (
             find_project_root() / "templates" / "assistant_templates" / "assistant_prompt.yaml"
@@ -105,7 +105,7 @@ class SystemPromptBuilder:
             f"- {item['title']}（{item['path']}）：{item['description']}"
             for item in ASSISTANT_ENTRY_CATALOG
         )
-        user_context = self._user_memory.load_user_context(user_id)
+        user_context = self._user_long_term_memory.load_user_context(user_id)
         user_block = user_context if user_context else "（暂无，按通用规则回答）"
         rag_block = f"\n【补充知识】\n{retriever_context}" if retriever_context else ""
         hit = self.match_faq(user_question) if user_question else None
