@@ -237,9 +237,10 @@ class AssistantService:
             1. 功能开关检查：未启用时直接下发 error + done；
             2. 获取/创建会话（校验归属）并保存用户消息；
             3. 组装四层记忆上下文（系统提示词 / 长期记忆 / 滚动摘要 / 近期消息）；
-            4. 委托 agent 单回合三分支决策（结构化工具调用 / 文本形式工具调用 /
-               普通回答），逐事件透出；
-            5. 事件流外层包裹通道级保护（见下），轮次收尾时落库助手回复并下发 done。
+            4. 创建 agent 事件流（生成器惰性执行，单回合三分支决策：结构化
+               工具调用 / 文本形式工具调用 / 普通回答）；
+            5. 事件流外层包裹通道级保护（见下）并逐事件透出，轮次收尾时
+               落库助手回复并下发 done。
 
         事件类型（AssistantEventType）：
             thinking:  推理开始信号（LLM 首字前下发，前端展示思考态）
@@ -275,6 +276,7 @@ class AssistantService:
         Yields:
             dict[str, object]: SSE 事件字典
         """
+        # 1. 功能开关检查：未启用时直接下发 error + done
         if not settings.ai.enabled:
             yield {"type": AssistantEventType.ERROR.mark, "message": "AI 助手功能未启用，请在配置中开启"}
             yield {"type": AssistantEventType.DONE.mark, "conversation_id": conversation_id, "message_id": None}
@@ -282,15 +284,22 @@ class AssistantService:
         conversation: AssistantConversationEntity | None = None
 
         try:
-            # 1. 保存会话和用户输入消息
+            # 2. 获取/创建会话（校验归属），保存用户消息
             conversation = self._get_or_create_conversation(user.id, conversation_id)
             self._save_message(conversation.id, AssistantMessageRole.USER.value, message)
 
-            # 2. 组装上下文（四层记忆）并委托 agent 循环 + 通道级保护（超时/断连/异常兜底）
+            # 3. 组装四层记忆上下文（系统提示词 / 长期记忆 / 滚动摘要 / 近期消息）
             messages = self._memory_facade.build_context(conversation, user.id, message)
             messages.append({"role": "user", "content": message})
+
+            # 4. 创建 agent 事件流（生成器惰性执行：此处仅创建对象，不发起 LLM 调用，
+            #    单回合三分支决策的首个事件要到下一步被迭代时才产生）
+            event_stream = self._agent.run(conversation, user, message, messages, operator)
+
+            # 5. 包裹通道级保护（超时 / 断连 / 异常兜底）并逐事件透出，
+            #    轮次收尾时落库助手回复并下发 done
             yield from self._stream_with_protection(
-                self._agent.run(conversation, user, message, messages, operator),
+                event_stream,
                 conversation_id=conversation.id,
                 disconnect_checker=disconnect_checker,
             )
