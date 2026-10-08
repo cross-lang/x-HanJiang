@@ -1,30 +1,66 @@
 #!/usr/bin/env python3
 """记忆系统：四层记忆的类封装与统一编排。
 
-分层结构（每层一个内聚类，MemoryManager 只做编排，不写具体记忆逻辑）：
-    第 0 层 · 系统提示词   永不丢弃，固定预算
-                     SystemPromptLayer —— 适配 knowledge.SystemPromptBuilder
-                     （身份设定 / 系统入口清单 / FAQ），并并入 RAG 补充知识
-    第 1 层 · 长期记忆     跨会话用户档案 ——【当前仅预留接口】
-                     UserMemoryProvider 抽象 + NullUserMemory 空实现。
-                     语义上档案填进 L0 提示词的 {user_block} 槽位，由 L0
-                     消费，故 L1 是「内容提供者」而非「消息层」，不实现
-                     MemoryLayer 接口（不为对称而破坏语义）
-    第 2 层 · 滚动摘要     窗口外旧消息渐进压缩（Conversation.summary）
-                     SummaryMemoryLayer —— contribute 注入摘要消息；
-                     consolidate 执行压缩（对话结束后由 Manager 调用）
-    第 3 层 · 最近 N 轮原文 精确保留最近几轮（超预算从最旧一条丢弃）
-                     RecentMemoryLayer —— 在剩余预算内反向贪心选取
+TL;DR —— 本模块做什么：
+    给 AI 助手每轮对话拼装「上下文消息列表」交给 LLM。上下文由四层
+    记忆按优先级依次贡献，超出 token 预算的旧消息会被压缩进摘要。
 
-编排机制：
-    MemoryLayer 统一抽象 contribute(ctx, ...)；MemoryContext 在层间传递
-    「已累积消息 + 剩余 token 预算」。MemoryManager 持有按 L0 → L2 → L3
-    排序的层列表并遍历，对外暴露 build_context / roll_summary。
+如何使用（入口在 MemoryManager）：
+    ctx_messages = memory_manager.build_context(conversation, user_id, query)
+    # 对话结束、回复落库后触发摘要压缩：
+    memory_manager.roll_summary(conversation)
 
-依赖倒置（避免上层耦合与循环导入）：
-    各层不直接依赖具体仓储，只面向本模块存储端口（MessageRepository /
-    ConversationRepository，Protocol），仓储结构化满足，由装配层注入。
-    SystemPromptBuilder / ORM 实体仅在 TYPE_CHECKING 下导入，运行时零循环导入。
+四层结构（每层一个内聚类，MemoryManager 只做编排）：
+    L0 系统提示词   SystemPromptLayer    永不丢弃；身份/入口清单/FAQ + RAG
+    L1 长期记忆     UserMemoryProvider   跨会话用户档案【当前仅预留接口】
+                                         （作为内容提供者喂给 L0，不实现 MemoryLayer）
+    L2 滚动摘要     SummaryMemoryLayer   窗口外旧消息渐进压缩进 Conversation.summary
+    L3 最近 N 轮    RecentMemoryLayer    精确保留最近几轮原文，超预算从最旧丢弃
+
+核心抽象：
+    - MemoryLayer.contribute(ctx, ...)：各层向 ctx 追加消息并扣减预算
+    - MemoryContext：层间传递的「消息 + 剩余预算」黑板
+    - MemoryManager.build_context() / roll_summary()：组装与压缩入口
+
+依赖倒置：各层只面向本模块的 Protocol 端口（MessageRepository /
+ConversationRepository），不依赖具体仓储；SystemPromptBuilder / ORM
+实体仅在 TYPE_CHECKING 下导入，运行时零循环导入。
+
+build_context 返回的真实示例（用户第 3 轮问「怎么发公告」）：
+
+    messages = [
+        # ── L0 系统提示词（1 条 system，永不丢弃）──
+        {
+            "role": "system",
+            "content": "你是「小江」，寒江政务管理系统的智能助手……\n\n"
+                       "【系统入口清单】\n"
+                       "- 首页（/home）：系统首页\n"
+                       "- 用户管理（/users）：用户增删改查\n"
+                       "- 公告管理（/announcements）：通知发布与撤回\n"
+                       "……（完整入口列表）\n\n"
+                       "【用户档案】（暂无，按通用规则回答）\n"
+                       "【优先参考】\n"
+                       "问：怎么发公告\n"
+                       "答：1. 点击「公告管理」→「发布公告」……"
+        },
+        # ── L2 历史摘要（0~1 条 system；有摘要才注入，无则跳过）──
+        {
+            "role": "system",
+            "content": "历史摘要：用户之前询问了如何创建新用户，小江引导其"
+                       "进入用户管理页面并指导填写表单……"
+        },
+        # ── L3 最近 N 轮原文（0~N 条，超预算从最旧丢弃）──
+        {"role": "user",      "content": "怎么创建新用户？"},
+        {"role": "assistant", "content": "创建新用户的步骤：\n1. 点击「用户管理」……"},
+        # ── 本轮用户提问（由调用方 assistant_service 追加，不在本模块）──
+        {"role": "user",      "content": "怎么发公告"},
+    ]
+
+    阅读要点：
+        - 每个元素就是一个 dict，role 只有 system / user / assistant 三种；
+        - 顺序固定：system(L0) → system(L2 摘要，可选) → user/assistant 交替(L3 原文) → user(本轮)；
+        - 条数不固定：L0 恒 1 条，L2 有摘要才有，L3 受 token 预算裁剪可能 0 条；
+        - LLM 读到的完整上下文就是这张列表，它据此理解历史并回答本轮问题。
 
 一轮对话的数据流（build_context 内部）：
 
@@ -47,14 +83,13 @@
     L0 注入提示词（假设 2000 tok）→ charge → 剩余 30000
     L2 注入摘要（假设 800 tok）    → charge → 剩余 29200
     L3 在 ≤29200 额度内从最新一条反向累加；装不下的更旧原文被丢弃
-    口径说明：token_budget 只覆盖「系统提示词 + 历史上下文」，不含本轮
-    用户消息与模型输出预留。
+    注：token_budget 只覆盖「系统提示词 + 历史上下文」，不含本轮用户消息与模型输出。
 
 阅读导引：
-    想了解「某层干什么」→ 看对应 *Layer 类的类 docstring；
-    想了解「层如何被驱动」→ 看 MemoryLayer 抽象与 MemoryManager；
-    想了解「层之间传什么」→ 看 MemoryContext；
-    想了解「数据从哪来」→ 看 MessageRepository / ConversationRepository 端口。
+    「某层干什么」       → 对应 *Layer 类的 docstring
+    「层如何被驱动」     → MemoryLayer 抽象 + MemoryManager
+    「层之间传什么」     → MemoryContext
+    「数据从哪来」       → MessageRepository / ConversationRepository 端口
 """
 
 from __future__ import annotations
@@ -133,7 +168,7 @@ class NullUserMemory(UserMemoryProvider):
 # 真正提交统一走 ConversationRepository.commit，保证「提交权在记忆/服务边界」。
 
 
-class MessageRecord(Protocol):
+class Message(Protocol):
     """消息记录最小结构（AssistantMessageEntity 结构化满足）。"""
 
     id: int
@@ -146,7 +181,7 @@ class MessageRepository(Protocol):
 
     def list_by_conversation(
         self, conversation_id: int, limit: int = 100
-    ) -> list[MessageRecord]:
+    ) -> list[Message]:
         """按时间正序返回会话最近 limit 条消息。"""
 
     def count_by_conversation(self, conversation_id: int) -> int:
@@ -157,7 +192,7 @@ class MessageRepository(Protocol):
         conversation_id: int,
         keep_count: int,
         limit: int = 10,
-    ) -> list[MessageRecord]:
+    ) -> list[Message]:
         """跳过最近 keep_count 条，按时间正序返回最旧的 limit 条。"""
 
     def delete_by_ids(self, message_ids: list[int]) -> None:
@@ -421,12 +456,14 @@ class SummaryMemoryLayer(MemoryLayer):
             conversation: 会话实体
         """
         memory_cfg = settings.ai.memory
+        # 1. 前置检查：记忆开关 + 消息数是否超过保留窗口
         if not memory_cfg.enabled:
             return
         total = self._message_repository.count_by_conversation(conversation.id)
         keep_count = memory_cfg.recent_raw_rounds * ASSISTANT_ROLL_TRIGGER_FACTOR
         if total <= keep_count:
             return
+        # 2. 取窗口外最旧的一块（ASSISTANT_ROLL_CHUNK_SIZE 条）
         evicted = self._message_repository.list_oldest_outside_window(
             conversation.id,
             keep_count=keep_count,
@@ -434,10 +471,13 @@ class SummaryMemoryLayer(MemoryLayer):
         )
         if not evicted:
             return
+        # 3. 拼接待压缩文本：旧摘要 + 本批窗口外消息
         chunk_text = "\n".join(f"{entity.role}: {entity.content}" for entity in evicted)
         previous = conversation.summary or ""
         combined = f"{previous}\n{chunk_text}" if previous else chunk_text
+        # 4. 调 LLM 压缩，得到新摘要
         new_summary = self._get_llm().summarize(combined)
+        # 5. 持久化 + 清理：更新摘要 → 同步内存对象 → 删除已折原文 → 提交
         self._conversation_repository.update_summary(conversation.id, new_summary)
         conversation.summary = new_summary
         self._message_repository.delete_by_ids([entity.id for entity in evicted])
