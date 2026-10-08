@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from typing import cast
 
 from src.assistant.knowledge import SystemPromptBuilder
-from src.assistant.memory import MemoryManager, NullUserLongTermMemory, UserLongTermMemory
+from src.assistant.memory import MemoryFacade, NullUserLongTermMemory, UserLongTermMemory
 from src.assistant.retriever import RetrieverProvider
 from src.assistant.title import generate_title
 from src.assistant.tools import ToolArgs, ToolRegistry
@@ -178,6 +180,44 @@ class _InlineToolCallGate:
         return held
 
 
+@dataclass
+class _RoundState:
+    """单轮流式推理的中间状态（在流式首轮中累积，供三分支决策读取）。
+
+    封装目的：避免 _run_agent 中散落多个局部变量（tool_accumulator /
+    content_parts / inline_gate），让流式首轮和分支决策之间只通过
+    state 对象传递，新增字段时不影响方法签名。
+
+    Attributes:
+        tool_accumulator: 结构化工具调用碎片累积器
+        content_parts: 正文增量片段列表（流结束后拼接为完整正文）
+        inline_gate: 文本形式工具调用检测门（决定正文立即放行还是扣留观察）
+    """
+
+    tool_accumulator: ToolCallAccumulator = field(default_factory=ToolCallAccumulator)
+    content_parts: list[str] = field(default_factory=list)
+    inline_gate: _InlineToolCallGate = field(default_factory=_InlineToolCallGate)
+
+    @property
+    def structured_calls(self) -> list[ToolCall]:
+        """流结束后取出累积完成的结构化工具调用列表。"""
+        return self.tool_accumulator.build()
+
+    @property
+    def content(self) -> str:
+        """拼接去空白后的完整正文。"""
+        return "".join(self.content_parts).strip()
+
+    @property
+    def text_tool_call(self) -> ToolCall | None:
+        """从正文中识别的文本形式工具调用（非工具调用文本返回 None）。"""
+        return AssistantService._extract_text_tool_call(self.content)
+
+
+#: 客户端断连检测间隔（秒）：节流调用 disconnect_checker，避免逐事件检测
+_DISCONNECT_CHECK_INTERVAL: float = 2.0
+
+
 class AssistantService:
     """AI 助手编排服务（特殊编排职责，不继承 BaseService，参考 AuthService 写法）。"""
 
@@ -215,7 +255,7 @@ class AssistantService:
         self._system_prompt_builder: SystemPromptBuilder = system_prompt_builder or SystemPromptBuilder(self._user_long_term_memory)
         # 记忆子系统：四层记忆统一编排（L0 委托知识库；存储端口注入仓储；
         # LLM 复用本服务懒加载实例，保证注入的 fake provider 生效）
-        self._memory: MemoryManager = MemoryManager(
+        self._memory_facade: MemoryFacade = MemoryFacade(
             system_prompt_builder=self._system_prompt_builder,
             conversation_repository=conversation_repository,
             message_repository=message_repository,
@@ -370,19 +410,23 @@ class AssistantService:
         conversation_id: int | None,
         message: str,
         operator: dict[str, object] | None = None,
+        disconnect_checker: Callable[[], bool] | None = None,
     ) -> Iterator[dict[str, object]]:
         """执行一轮对话，逐事件产出 SSE 数据。
 
         事件类型（AssistantEventType）：
-            navigate / denied: 工具动作透出
-            token:            回复文本增量
-            error:            功能未启用 / 会话不存在 / 大模型服务异常（含兜底回复）
-            done:             本轮结束（成功含 message_id；失败时 message_id 为空）
+            thinking / reasoning: 思考状态 / 思维链增量
+            step:                执行步骤提示（工具调用等）
+            navigate / denied:   工具动作透出
+            token:               回复文本增量
+            error:               功能未启用 / 会话不存在 / 大模型服务异常 / 超时
+            done:                本轮结束（成功含 message_id；失败时 message_id 为空）
 
-        异常处理约定（遵循分层规范）：
-            本方法为 SSE 通道的服务端边界，业务异常（NotFoundException /
-            ExternalServiceException）在此**服务层内**转为 error + done 事件，
-            不向 api 层抛出；api 层兜底仅处理不可预期异常。
+        通道级保护（在事件流外层包裹，业务异常 + 不可预期异常均在服务层兜底）：
+            - 请求级超时：整轮对话（含多轮 tool call）超过
+              chat_request_timeout_seconds 时主动下发 error + done 并终止；
+            - 客户端断连感知：节流调用 disconnect_checker，客户端关闭页面后
+              及时终止服务端生成，避免浪费大模型 token 与线程资源。
 
         Args:
             user: 当前用户
@@ -390,6 +434,8 @@ class AssistantService:
             message: 用户输入
             operator: 操作人上下文（operator_id / operator_name / ip_address，
                 由 api 层 get_user_operator_context 构造，navigate 审计落库用）
+            disconnect_checker: 客户端断连检测回调（由 api 层注入，返回 True
+                表示已断开）；service 层不持有 Request 对象，通过回调解耦
 
         Yields:
             dict[str, object]: SSE 事件字典
@@ -399,12 +445,18 @@ class AssistantService:
             yield {"type": AssistantEventType.DONE.mark, "conversation_id": conversation_id, "message_id": None}
             return
         conversation: AssistantConversationEntity | None = None
+
         try:
+            # 1. 保存会话和用户输入消息
             conversation = self._get_or_create_conversation(user.id, conversation_id)
             self._save_message(conversation.id, AssistantMessageRole.USER.value, message)
 
-            # agent 循环：流式优先的 function calling 循环（ReAct 风格）
-            yield from self._run_agent(conversation, user, message, operator)
+            # 2. 核心：agent 循环 + 通道级保护（超时 / 断连 / 异常兜底）
+            yield from self._stream_with_protection(
+                self._run_agent(conversation, user, message, operator),
+                conversation_id=conversation.id,
+                disconnect_checker=disconnect_checker,
+            )
         except NotFoundException as exc:
             # 会话不存在或归属不符：不落库，直接提示并结束
             yield {"type": AssistantEventType.ERROR.mark, "message": str(exc)}
@@ -424,6 +476,75 @@ class AssistantService:
             yield {"type": AssistantEventType.ERROR.mark, "message": str(exc)}
             yield {"type": AssistantEventType.DONE.mark, "conversation_id": conversation_id, "message_id": message_id}
 
+    def _stream_with_protection(
+        self,
+        event_stream: Iterator[dict[str, object]],
+        conversation_id: int,
+        disconnect_checker: Callable[[], bool] | None,
+    ) -> Iterator[dict[str, object]]:
+        """SSE 通道保护：超时检测 + 客户端断连检测 + 不可预期异常兜底。
+
+        在 agent 事件流外层包裹，逐事件检查：
+            1. 请求级超时：超过 chat_request_timeout_seconds 时下发 error + done；
+            2. 客户端断连：节流调用 disconnect_checker，命中则静默终止；
+            3. 不可预期异常：兜底为 error + done，防止流中断无响应。
+
+        Args:
+            event_stream: agent 事件流（_run_agent 产出）
+            conversation_id: 会话ID（超时/异常事件需要）
+            disconnect_checker: 客户端断连检测回调（None 表示不检测）
+
+        Yields:
+            dict[str, object]: SSE 事件字典
+        """
+        start_time = time.monotonic()
+        request_timeout = settings.ai.llm.chat_request_timeout_seconds
+        last_disconnect_check = 0.0
+        try:
+            for event in event_stream:
+                now = time.monotonic()
+                # 1. 请求级超时：在事件边界检查，超时则主动结束
+                if now - start_time > request_timeout:
+                    logger.warning(
+                        f"AI 助手对话超时（>{request_timeout}s），主动终止；"
+                        f"conversation={conversation_id}"
+                    )
+                    yield {
+                        "type": AssistantEventType.ERROR.mark,
+                        "message": "AI 助手响应超时，请稍后重试",
+                    }
+                    yield {
+                        "type": AssistantEventType.DONE.mark,
+                        "conversation_id": conversation_id,
+                        "message_id": None,
+                    }
+                    return
+
+                # 2. 客户端断连：节流检测，命中则静默终止（客户端已收不到事件）
+                if (
+                    disconnect_checker is not None
+                    and now - last_disconnect_check >= _DISCONNECT_CHECK_INTERVAL
+                ):
+                    last_disconnect_check = now
+                    if disconnect_checker():
+                        logger.info(
+                            f"AI 助手客户端已断开，终止对话流；"
+                            f"conversation={conversation_id}"
+                        )
+                        return
+                yield event
+        except Exception as exc:  # noqa: BLE001 - SSE 通道最后防线，仅兜底不可预期异常
+            logger.error(f"AI 助手 SSE 通道异常: {exc}")
+            yield {
+                "type": AssistantEventType.ERROR.mark,
+                "message": AssistantEventType.ERROR.desc,
+            }
+            yield {
+                "type": AssistantEventType.DONE.mark,
+                "conversation_id": conversation_id,
+                "message_id": None,
+            }
+
     # ── 内部实现 ───────────────────────────────────────────────
 
     def _run_agent(
@@ -433,14 +554,13 @@ class AssistantService:
         query: str,
         operator: dict[str, object] | None = None,
     ) -> Iterator[dict[str, object]]:
-        """agent 循环：流式优先的 function calling 循环（ReAct 风格）。
+        """agent 循环：流式优先的 function calling（ReAct 风格）。
 
-        首轮直接流式调用：思维链与正文在模型生成的同时实时透出，
-        工具调用碎片经 ToolCallAccumulator 累积，流结束后按三分支决策：
+        每轮先流式调用 LLM（思维链/正文实时透出、工具碎片同步累积），
+        流结束后按三分支决策：
             1. 结构化 tool_calls → 执行工具 → 流式生成最终回答；
-            2. 无结构化调用但正文是「文本形式工具调用」→ 检测门将其
-               扣留（_InlineToolCallGate），识别后执行，内部结构不泄漏；
-            3. 普通回答 → 正文已实时呈现，直接落库收尾。
+            2. 文本形式工具调用 → 检测门已扣留 → 识别后执行，正文不泄漏；
+            3. 普通回答 → 正文已实时呈现，落库收尾。
 
         Args:
             conversation: 会话实体
@@ -451,110 +571,207 @@ class AssistantService:
         Yields:
             dict[str, object]: SSE 事件字典
         """
-        messages: list[dict[str, object]] = self._memory.build_context(conversation, user.id, query)
+
+        # 组装本轮对话上下文
+        messages = self._memory_facade.build_context(conversation, user.id, query)
         messages.append({"role": "user", "content": query})
-        # 首字延迟兜底：进入 LLM 调用前先透出 thinking 事件，让前端立即展示思考态
+        # 先发 THINKING 事件：LLM 首字可能延迟数秒，提前通知前端展示思考态，避免用户面对空白
         yield {"type": AssistantEventType.THINKING.mark}
-        llm_cfg = settings.ai.llm
-        llm_provider = self._get_llm()
-        for _ in range(llm_cfg.max_tool_rounds):
-            # ── 流式首轮：思维链/正文实时透传，工具碎片同步累积，正文过检测门 ──
-            tool_accumulator = ToolCallAccumulator()
-            content_parts: list[str] = []
-            inline_gate = _InlineToolCallGate()
-            for stream_event in llm_provider.chat_stream(
-                messages=cast(ChatMessage, messages),
-                tools=self._tool_registry.schemas(),
-                temperature=llm_cfg.temperature,
-                max_tokens=llm_cfg.max_tokens,
-            ):
-                if isinstance(stream_event, ReasoningDelta):
-                    yield {
-                        "type": AssistantEventType.REASONING.mark,
-                        "content": stream_event.text,
-                    }
-                elif isinstance(stream_event, ToolCallDelta):
-                    tool_accumulator.add(stream_event)
-                else:
-                    # ContentDelta：检测门决定立即放行还是扣留观察
-                    content_parts.append(stream_event.text)
-                    for piece in inline_gate.feed(stream_event.text):
-                        yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
 
+        for _ in range(settings.ai.llm.max_tool_rounds):
+            # ── 流式首轮：思维链/正文实时透传，工具碎片同步累积 ──
+            state = _RoundState()
+            yield from self._stream_first_round(messages, state)
             # ── 分支 1：结构化工具调用 ──
-            structured_calls = tool_accumulator.build()
-            if structured_calls:
-                messages.append(self._assistant_tool_calls_message(structured_calls))
-                for tool_call in structured_calls:
-                    yield from self._execute_tool_call(
-                        tool_call, conversation, user, messages, operator
-                    )
-                yield {
-                    "type": AssistantEventType.STEP.mark,
-                    "content": "工具执行完成，正在生成回答...",
-                }
-                content = yield from self._stream_final_answer(messages, llm_provider)
-                if not content:
-                    content = ASSISTANT_EMPTY_REPLY_MESSAGE
-                    yield {"type": AssistantEventType.TOKEN.mark, "content": content}
-                yield from self._finish_round(conversation, query, content)
-                return
-
-            # ── 分支 2：文本形式工具调用（检测门仍扣留 → 正文从未泄漏）──
-            content = "".join(content_parts).strip()
-            text_call = self._extract_text_tool_call(content)
-            if text_call is not None and inline_gate.is_holding:
-                yield {
-                    "type": AssistantEventType.STEP.mark,
-                    "content": f"正在调用工具：{text_call.name}",
-                }
-                text_args = self._safe_parse_args(text_call)
-                text_result = self._tool_registry.dispatch(text_call.name, text_args, user)
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": text_call.id,
-                        "content": text_result.content,
-                    }
+            if state.structured_calls:
+                yield from self._handle_structured_calls(
+                    state, messages, conversation, user, operator, query
                 )
-                if text_result.event_type is AssistantEventType.NAVIGATE:
-                    yield {
-                        "type": AssistantEventType.NAVIGATE.mark,
-                        **(text_result.event_data or {}),
-                    }
-                    self._audit_navigate(
-                        user, conversation.id, text_result.event_data or {}, operator
-                    )
-                reply = self._build_navigate_reply(query, text_result.event_data or {})
-                for piece in self._chunk_text(reply):
-                    yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
-                yield from self._finish_round(conversation, query, reply)
                 return
-
-            # ── 分支 3：普通回答（正文已实时呈现；被扣留的合法非工具 JSON 在此放行）──
-            if inline_gate.is_holding:
-                held_text = inline_gate.release()
-                for piece in self._chunk_text(held_text):
-                    yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
-            if not content:
-                # 兜底：首轮流式未返回任何内容，再流式重试一次
-                yield {
-                    "type": AssistantEventType.STEP.mark,
-                    "content": "模型未返回内容，正在尝试重新生成...",
-                }
-                content = yield from self._stream_final_answer(messages, llm_provider)
-                if not content:
-                    content = ASSISTANT_EMPTY_REPLY_MESSAGE
-                    yield {"type": AssistantEventType.TOKEN.mark, "content": content}
-            yield from self._finish_round(conversation, query, content)
+            # ── 分支 2：文本形式工具调用（检测门仍扣留 → 正文从未泄漏）──
+            if state.text_tool_call is not None and state.inline_gate.is_holding:
+                yield from self._handle_inline_call(
+                    state, messages, conversation, user, operator, query
+                )
+                return
+            # ── 分支 3：普通回答（正文已实时呈现）──
+            yield from self._handle_plain_answer(
+                state, messages, conversation, query
+            )
             return
-
         # 达到工具步数上限仍无最终答案（异常兜底，避免死循环）
         saved = self._save_message(
             conversation.id, AssistantMessageRole.ASSISTANT.value, ASSISTANT_FALLBACK_MESSAGE
         )
         yield {"type": AssistantEventType.ERROR.mark, "message": "对话步骤超限，请重试"}
         yield self._done_event(conversation.id, saved.id)
+
+    def _stream_first_round(
+        self,
+        messages: list[dict[str, object]],
+        state: _RoundState,
+    ) -> Iterator[dict[str, object]]:
+        """流式首轮调用 LLM：思维链/正文实时透出，工具碎片同步累积。
+
+        产出事件：
+            - REASONING：思维链增量
+            - TOKEN：正文增量（经检测门决定立即放行还是扣留观察）
+
+        Args:
+            messages: 对话消息列表
+            state: 本轮中间状态（tool 碎片、正文片段、检测门由本方法写入）
+
+        Yields:
+            dict[str, object]: REASONING / TOKEN 事件
+        """
+        llm_cfg = settings.ai.llm
+        for stream_event in self._get_llm().chat_stream(
+            messages=cast(ChatMessage, messages),
+            tools=self._tool_registry.schemas(),
+            temperature=llm_cfg.temperature,
+            max_tokens=llm_cfg.max_tokens,
+        ):
+            if isinstance(stream_event, ReasoningDelta):
+                yield {
+                    "type": AssistantEventType.REASONING.mark,
+                    "content": stream_event.text,
+                }
+            elif isinstance(stream_event, ToolCallDelta):
+                state.tool_accumulator.add(stream_event)
+            else:
+                # ContentDelta：检测门决定立即放行还是扣留观察
+                state.content_parts.append(stream_event.text)
+                for piece in state.inline_gate.feed(stream_event.text):
+                    yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
+
+    def _handle_structured_calls(
+        self,
+        state: _RoundState,
+        messages: list[dict[str, object]],
+        conversation: AssistantConversationEntity,
+        user: CurrentUser,
+        operator: dict[str, object] | None,
+        query: str,
+    ) -> Iterator[dict[str, object]]:
+        """分支 1：结构化工具调用 → 执行工具 → 流式生成最终回答 → 收尾。
+
+        Args:
+            state: 本轮中间状态（读取 structured_calls）
+            messages: 对话消息列表（执行后回填 tool 结果）
+            conversation: 会话实体
+            user: 当前用户
+            operator: 操作人上下文（navigate 审计落库用）
+            query: 本轮用户输入（收尾标题归纳用）
+
+        Yields:
+            dict[str, object]: STEP / NAVIGATE / DENIED / TOKEN / DONE 事件
+        """
+        messages.append(self._assistant_tool_calls_message(state.structured_calls))
+        for tool_call in state.structured_calls:
+            yield from self._execute_tool_call(
+                tool_call, conversation, user, messages, operator
+            )
+        yield {
+            "type": AssistantEventType.STEP.mark,
+            "content": "工具执行完成，正在生成回答...",
+        }
+        content = yield from self._stream_final_answer(messages, self._get_llm())
+        if not content:
+            content = ASSISTANT_EMPTY_REPLY_MESSAGE
+            yield {"type": AssistantEventType.TOKEN.mark, "content": content}
+        yield from self._finish_round(conversation, query, content)
+
+    def _handle_inline_call(
+        self,
+        state: _RoundState,
+        messages: list[dict[str, object]],
+        conversation: AssistantConversationEntity,
+        user: CurrentUser,
+        operator: dict[str, object] | None,
+        query: str,
+    ) -> Iterator[dict[str, object]]:
+        """分支 2：文本形式工具调用（检测门已扣留，正文从未泄漏给前端）。
+
+        部分推理模型偶发把工具调用写进正文而非结构化 tool_calls，检测门
+        在流式阶段已将其扣留。此处识别后交由正常工具执行链路处理，
+        执行结果以 navigate 事件透出，回复正文用预设导航文案替代。
+
+        Args:
+            state: 本轮中间状态（读取 text_tool_call）
+            messages: 对话消息列表（执行后回填 tool 结果）
+            conversation: 会话实体
+            user: 当前用户
+            operator: 操作人上下文（navigate 审计落库用）
+            query: 本轮用户输入
+
+        Yields:
+            dict[str, object]: STEP / NAVIGATE / TOKEN / DONE 事件
+        """
+        text_call = state.text_tool_call
+        yield {
+            "type": AssistantEventType.STEP.mark,
+            "content": f"正在调用工具：{text_call.name}",
+        }
+        text_args = self._safe_parse_args(text_call)
+        text_result = self._tool_registry.dispatch(text_call.name, text_args, user)
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": text_call.id,
+                "content": text_result.content,
+            }
+        )
+        if text_result.event_type is AssistantEventType.NAVIGATE:
+            yield {
+                "type": AssistantEventType.NAVIGATE.mark,
+                **(text_result.event_data or {}),
+            }
+            self._audit_navigate(
+                user, conversation.id, text_result.event_data or {}, operator
+            )
+        reply = self._build_navigate_reply(query, text_result.event_data or {})
+        for piece in self._chunk_text(reply):
+            yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
+        yield from self._finish_round(conversation, query, reply)
+
+    def _handle_plain_answer(
+        self,
+        state: _RoundState,
+        messages: list[dict[str, object]],
+        conversation: AssistantConversationEntity,
+        query: str,
+    ) -> Iterator[dict[str, object]]:
+        """分支 3：普通回答（正文已实时呈现；被扣留的合法非工具 JSON 在此放行）。
+
+        若首轮流式未返回任何内容，再流式重试一次（不传 tools），
+        仍为空则用兜底文案。
+
+        Args:
+            state: 本轮中间状态（读取 content / inline_gate）
+            messages: 对话消息列表
+            conversation: 会话实体
+            query: 本轮用户输入（收尾标题归纳用）
+
+        Yields:
+            dict[str, object]: TOKEN / STEP / DONE 事件
+        """
+        # 被检测门扣留的合法非工具 JSON 在此放行
+        if state.inline_gate.is_holding:
+            held_text = state.inline_gate.release()
+            for piece in self._chunk_text(held_text):
+                yield {"type": AssistantEventType.TOKEN.mark, "content": piece}
+        content = state.content
+        if not content:
+            # 兜底：首轮流式未返回任何内容，再流式重试一次
+            yield {
+                "type": AssistantEventType.STEP.mark,
+                "content": "模型未返回内容，正在尝试重新生成...",
+            }
+            content = yield from self._stream_final_answer(messages, self._get_llm())
+            if not content:
+                content = ASSISTANT_EMPTY_REPLY_MESSAGE
+                yield {"type": AssistantEventType.TOKEN.mark, "content": content}
+        yield from self._finish_round(conversation, query, content)
 
     def _execute_tool_call(
         self,
@@ -677,7 +894,7 @@ class AssistantService:
         saved = self._save_message(
             conversation.id, AssistantMessageRole.ASSISTANT.value, content
         )
-        self._memory.roll_summary(conversation)
+        self._memory_facade.roll_summary(conversation)
         self._maybe_rename(conversation, query, content)
         yield self._done_event(conversation.id, saved.id)
 

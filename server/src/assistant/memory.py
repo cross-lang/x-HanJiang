@@ -5,13 +5,13 @@ TL;DR —— 本模块做什么：
     给 AI 助手每轮对话拼装「上下文消息列表」交给 LLM。上下文由四层
     记忆按优先级依次贡献，超出 token 预算的旧消息会被压缩进摘要。
 
-如何使用（入口在 MemoryManager）：
+如何使用（入口在 MemoryFacade）：
     # 1. 每轮对话开始前，组装上下文：
-    memory_manager.build_context(conversation, user_id, query)
+    memory_facade.build_context(conversation, user_id, query)
     # 2. 对话结束、回复落库后触发摘要压缩：
-    memory_manager.roll_summary(conversation)
+    memory_facade.roll_summary(conversation)
 
-四层结构（每层一个内聚类，MemoryManager 只做编排）：
+四层结构（每层一个内聚类，MemoryFacade 只做编排）：
     L0 系统提示词   SystemPromptLayer    永不丢弃；身份/入口清单/FAQ + RAG
     L1 长期记忆     UserLongTermMemory   跨会话用户档案【当前仅预留接口】（作为内容提供者喂给 L0，不实现 MemoryLayer）
     L2 滚动摘要     SummaryMemoryLayer   窗口外旧消息渐进压缩进 Conversation.summary
@@ -20,7 +20,7 @@ TL;DR —— 本模块做什么：
 核心抽象：
     - MemoryLayer.contribute(ctx, ...)：各层向 ctx 追加消息并扣减预算
     - MemoryContext：层间传递的「消息 + 剩余预算」黑板
-    - MemoryManager.build_context() / roll_summary()：组装与压缩入口
+    - MemoryFacade.build_context() / roll_summary()：组装与压缩入口
 
 依赖倒置：各层只面向本模块的 Protocol 端口（MessageRepository /
 ConversationRepository），不依赖具体仓储；SystemPromptBuilder / ORM
@@ -75,7 +75,7 @@ build_context 返回的真实示例（用户第 3 轮问「怎么发公告」）
     └─────────────┘               └──────────────┘ 到旧贪心选原文
            │
            ▼ 对话结束、回复落库后
-    Manager.roll_summary → L2.consolidate：把窗口外最旧消息 LLM 压缩进
+    MemoryFacade.roll_summary → L2.consolidate：把窗口外最旧消息 LLM 压缩进
     Conversation.summary 并删除原文（L2 的「写入/沉淀」反向操作）
 
 预算流转示例（token_budget=32000）：
@@ -87,7 +87,7 @@ build_context 返回的真实示例（用户第 3 轮问「怎么发公告」）
 
 阅读导引：
     「某层干什么」       → 对应 *Layer 类的 docstring
-    「层如何被驱动」     → MemoryLayer 抽象 + MemoryManager
+    「层如何被驱动」     → MemoryLayer 抽象 + MemoryFacade
     「层之间传什么」     → MemoryContext
     「数据从哪来」       → MessageRepository / ConversationRepository 端口
 """
@@ -116,12 +116,20 @@ if TYPE_CHECKING:
 
 
 # ============================================================
-# 存储端口（Ports）：记忆层所需持久化能力，仓储结构化满足
+# 数据结构契约与存储端口（Ports）
 # ============================================================
+#
+# 三个 Protocol 类只定义契约（方法签名/字段），不提供实现：
+#   - Message：消息记录的最小结构契约（ORM 实体结构化满足）
+#   - MessageRepository / ConversationRepository：存储端口
+#
+# 实际干活的实现方在 repositories/assistant_repository.py，
+# 只要方法签名匹配即被认可为满足契约（结构化子类型），无需显式继承。
+# 这样记忆层不认识 SQLAlchemy，可被内存 fake 轻松替换，便于单测。
 
 
 class Message(Protocol):
-    """消息记录最小结构（AssistantMessageEntity 结构化满足）。"""
+    """消息记录最小结构契约（ORM 实体 AssistantMessageEntity 结构化满足）。"""
 
     id: int
     role: str
@@ -129,7 +137,7 @@ class Message(Protocol):
 
 
 class MessageRepository(Protocol):
-    """消息存储端口：第 3 层原文读取 + 第 2 层压缩时移除旧消息。"""
+    """消息存储端口（契约）：声明消息读写能力，实现方在 repositories/assistant_repository.py。"""
 
     def list_by_conversation(
         self, conversation_id: int, limit: int = 100
@@ -152,7 +160,7 @@ class MessageRepository(Protocol):
 
 
 class ConversationRepository(Protocol):
-    """会话存储端口：第 2 层摘要持久化。"""
+    """会话存储端口（契约）：声明摘要持久化能力，实现方在 repositories/assistant_repository.py。"""
 
     def update_summary(self, conversation_id: int, summary: str) -> None:
         """更新会话滚动摘要。"""
@@ -176,7 +184,7 @@ class MemoryContext:
 
     设计说明：
         让各层共享同一个可变上下文，而不是每层各自返回一个列表再由
-        Manager 拼接，好处是——① 消息追加与预算扣减集中记账，不会出现
+        MemoryFacade 拼接，好处是——① 消息追加与预算扣减集中记账，不会出现
         某层忘记扣预算；② 层与层之间互不持有引用、互不感知，只读写 ctx，
         新增/调整层顺序时其他层零改动。
 
@@ -224,7 +232,7 @@ class MemoryLayer(ABC):
         - 依赖来源：只可使用构造时注入的端口 / 适配器，不新建全局资源。
 
     order 字段说明：
-        当前注入顺序由 Manager 中 _layers 的列表顺序显式决定（更直观、
+        当前注入顺序由 MemoryFacade 中 _layers 的列表顺序显式决定（更直观、
         可插入重排）；order 主要作为层的身份标识与可读性提示，也为将来
         需要「按编号动态收集/排序各层」预留元数据。
     """
@@ -375,7 +383,7 @@ class SummaryMemoryLayer(MemoryLayer):
         - 读路径 contribute（实现统一接口）：把已有摘要作为一条 system
           消息注入上下文，属于组装阶段，只读不写；
         - 写路径 consolidate（本层特有，不在 MemoryLayer 接口内）：对话
-          结束后由 Manager 调用，把窗口外最旧消息经 LLM 压缩进 summary、
+          结束后由 MemoryFacade 调用，把窗口外最旧消息经 LLM 压缩进 summary、
           删除原文并提交，是记忆从 L3「沉淀」到 L2 的反向操作。
 
     职责：
@@ -542,22 +550,12 @@ class RecentMemoryLayer(MemoryLayer):
         ctx.messages.extend(recent_messages)
 
 
-
-
-
-
-
-
-
-
-
-
 # ============================================================
 # 记忆门面：编排各层（自身不写记忆逻辑）
 # ============================================================
 
 
-class MemoryManager:
+class MemoryFacade:
     """记忆系统编排器（Facade）：持有有序记忆层并统一驱动。
 
     只负责编排，不包含具体记忆逻辑：
@@ -566,16 +564,15 @@ class MemoryManager:
 
     Attributes:
         _layers: 按注入优先级排序的记忆层列表（L0 / L2 / L3）
-        _summary_layer: 第 2 层引用（压缩入口）
 
     生命周期与不变式：
         - 「层实例」长生命周期、可跨多轮复用：层的依赖（端口 / 适配器）
           在构造时固定，层自身不在 contribute 中累积跨轮状态；
         - 「MemoryContext」每轮一次性：build_context 每次新建 ctx，组装完
           即丢弃，杜绝上一轮消息/预算泄漏到下一轮；
-        - _layers 在装配后不再变更（顺序即优先级），Manager 不做动态排序；
+        - _layers 在装配后不再变更（顺序即优先级），Facade 不做动态排序；
         - roll_summary 只做转发，不在此处判断是否该压缩——触发条件、取数、
-          提交全部内聚在 L2.consolidate，保持 Manager 轻薄。
+          提交全部内聚在 L2.consolidate，保持 Facade 轻薄。
     """
 
     def __init__(
@@ -595,16 +592,12 @@ class MemoryManager:
             retriever: RAG 检索提供者（缺省按配置工厂创建）
             llm_provider_getter: LLM 获取器（缺省使用全局懒加载工厂）
         """
-        get_llm: Callable[[], LLMProvider] = llm_provider_getter or get_llm_provider
-        self._summary_layer: SummaryMemoryLayer = SummaryMemoryLayer(
-            conversation_repository=conversation_repository,
-            message_repository=message_repository,
-            llm_provider_getter=get_llm,
-        )
-        # 列表顺序即注入优先级（order 字段为层身份标识，供排查/扩展用）
         self._layers: list[MemoryLayer] = [
+            # L0 系统提示词层
             SystemPromptLayer(system_prompt_builder, retriever or get_retriever_provider()),
-            self._summary_layer,
+            # L2 滚动摘要层
+            SummaryMemoryLayer(conversation_repository, message_repository, llm_provider_getter or get_llm_provider),
+            # L3 最近原文层
             RecentMemoryLayer(message_repository),
         ]
 
@@ -635,4 +628,5 @@ class MemoryManager:
         Args:
             conversation: 会话实体
         """
-        self._summary_layer.consolidate(conversation)
+        summary_layer: SummaryMemoryLayer = self._layers[1]
+        summary_layer.consolidate(conversation)
