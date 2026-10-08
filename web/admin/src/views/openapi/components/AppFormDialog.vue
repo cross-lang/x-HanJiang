@@ -138,6 +138,8 @@ async function handleCreate() {
   try {
     const res = await createApp(form.value)
     emit('created', { app_id: res.data.app_id, app_key: res.data.app_key })
+    // 创建成功后关闭表单弹窗，仅保留父级的密钥结果弹窗
+    dialogVisible.value = false
   } catch {
     // 错误已处理
   }
