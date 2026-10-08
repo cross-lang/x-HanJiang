@@ -592,14 +592,15 @@ class MemoryFacade:
             retriever: RAG 检索提供者（缺省按配置工厂创建）
             llm_provider_getter: LLM 获取器（缺省使用全局懒加载工厂）
         """
-        self._layers: list[MemoryLayer] = [
+        self.system_prompt_builder: SystemPromptBuilder = system_prompt_builder
+        self.layers: tuple[MemoryLayer] = (
             # L0 系统提示词层
-            SystemPromptLayer(system_prompt_builder, retriever or get_retriever_provider()),
+            SystemPromptLayer(self.system_prompt_builder, retriever or get_retriever_provider()),
             # L2 滚动摘要层
             SummaryMemoryLayer(conversation_repository, message_repository, llm_provider_getter or get_llm_provider),
             # L3 最近原文层
             RecentMemoryLayer(message_repository),
-        ]
+        )
 
     def build_context(
         self,
@@ -618,7 +619,7 @@ class MemoryFacade:
             list[dict[str, object]]: 上下文消息列表（调用 SDK 时 cast 为 ChatMessage）
         """
         ctx = MemoryContext(remaining_budget=settings.ai.memory.token_budget)
-        for layer in self._layers:
+        for layer in self.layers:
             layer.contribute(ctx, conversation, user_id, query)
         return ctx.messages
 
@@ -628,5 +629,5 @@ class MemoryFacade:
         Args:
             conversation: 会话实体
         """
-        summary_layer: SummaryMemoryLayer = self._layers[1]
+        summary_layer: SummaryMemoryLayer = self.layers[1]
         summary_layer.consolidate(conversation)
