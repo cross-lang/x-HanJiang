@@ -37,6 +37,9 @@ FROM nginx:1.27-alpine
 # 同域路由配置（覆盖默认站点配置）
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# 清理基础镜像默认页，避免直访 /index.html 暴露 nginx 欢迎页
+RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html
+
 # admin 产物放 admin/ 子目录（挂 /admin/ 路由，vite base=/admin/）
 COPY --from=admin-builder /build/admin/dist/ /usr/share/nginx/html/admin/
 # open_portal 产物放 open-portal/ 子目录（挂 /open-portal/ 路由，vite base=/open-portal/）

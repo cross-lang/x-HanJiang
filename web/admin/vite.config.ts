@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import { compression } from 'vite-plugin-compression2'
 
 export default defineConfig(({ mode }) => {
   // 加载当前模式对应的环境变量文件（.env / .env.development / .env.production）
@@ -20,6 +21,15 @@ export default defineConfig(({ mode }) => {
         resolvers: [ElementPlusResolver()],
         directives: true,
         dts: 'src/components.d.ts',
+      }),
+      // 构建时生成同名 .gz 预压缩文件（nginx gzip_static 直接发送，零运行时压缩开销）
+      compression({
+        // 与 nginx gzip_min_length 对齐：小于 1KB 的文件不压缩
+        threshold: 1024,
+        // 保留原文件：nginx 未命中 .gz 时回退发送原文件
+        deleteOriginalFiles: false,
+        // 单线程同步压缩：多线程 worker 在构建收尾时可能未写盘完成
+        useMultipleThread: false,
       }),
     ],
     resolve: {
