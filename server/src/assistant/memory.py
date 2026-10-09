@@ -12,7 +12,7 @@ TL;DR —— 本模块做什么：
     memory_facade.roll_summary(conversation)
 
 四层结构（每层一个内聚类，MemoryFacade 只做编排）：
-    L0 系统提示词   SystemPromptLayer    永不丢弃；身份/入口清单/FAQ + RAG
+    L0 系统提示词   SystemPromptLayer    永不丢弃；身份/入口清单/FAQ + L1 用户档案 + RAG
     L1 长期记忆     UserLongTermMemory   跨会话用户档案【当前仅预留接口】（作为内容提供者喂给 L0，不实现 MemoryLayer）
     L2 滚动摘要     SummaryMemoryLayer   窗口外旧消息渐进压缩进 Conversation.summary
     L3 最近 N 轮    RecentMemoryLayer    精确保留最近几轮原文，超预算从最旧丢弃
@@ -32,7 +32,7 @@ build_context 返回的真实示例（用户第 3 轮问「怎么发公告」）
         # ── L0 系统提示词（1 条 system，永不丢弃）──
         {
             "role": "system",
-            "content": "你是「小江」，寒江政务管理系统的智能助手……\n\n"
+            "content": "你是「小江」，汉江管理系统的智能助手……\n\n"
                        "【系统入口清单】\n"
                        "- 首页（/home）：系统首页\n"
                        "- 用户管理（/users）：用户增删改查\n"
@@ -265,14 +265,15 @@ class MemoryLayer(ABC):
 class SystemPromptLayer(MemoryLayer):
     """第 0 层：系统提示词（最高优先级，永不丢弃）。
 
-    作为 MemoryLayer 与 SystemPromptBuilder 之间的适配器：L0 的具体内容仍由
-    SystemPromptBuilder 组装，本类负责 RAG 检索、调用并把结果纳入预算记账。
+    作为 MemoryLayer 与 SystemPromptBuilder 之间的适配器：提示词的静态内容
+    （身份 / 入口清单 / FAQ）由 SystemPromptBuilder 渲染，本类负责汇聚两个
+    本轮动态内容源——L1 用户档案与 RAG 补充知识——调用渲染并纳入预算记账。
 
     职责：
-        1. 按开关做 RAG 检索，得到补充知识（未启用时空串）；
-        2. 委托 SystemPromptBuilder 组装完整系统提示词（其中已含 L1 用户档案、
-           入口清单与 FAQ）；
-        3. 向 ctx 追加该 system 消息并按实际 token 扣减预算。
+        1. 从 L1 长期记忆读取用户档案（未接入时为空串）；
+        2. 按开关做 RAG 检索，得到补充知识（未启用时空串）；
+        3. 委托 SystemPromptBuilder 组装完整系统提示词；
+        4. 向 ctx 追加该 system 消息并按实际 token 扣减预算。
 
     不变式：
         - 每轮恰好注入 1 条 role="system" 的消息；
@@ -288,15 +289,18 @@ class SystemPromptLayer(MemoryLayer):
         self,
         system_prompt_builder: SystemPromptBuilder,
         retriever: RetrieverProvider,
+        user_long_term_memory: UserLongTermMemory,
     ) -> None:
         """初始化第 0 层。
 
         Args:
-            system_prompt_builder: 系统提示词组装器（L1 用户档案经其内部注入）
+            system_prompt_builder: 系统提示词组装器（纯静态渲染）
             retriever: RAG 检索提供者
+            user_long_term_memory: L1 用户长期记忆提供者
         """
         self._system_prompt_builder: SystemPromptBuilder = system_prompt_builder
         self._retriever: RetrieverProvider = retriever
+        self._user_long_term_memory: UserLongTermMemory = user_long_term_memory
 
     def contribute(
         self,
@@ -313,15 +317,22 @@ class SystemPromptLayer(MemoryLayer):
             user_id: 当前用户ID
             query: 本轮用户输入（FAQ 命中与 RAG 检索用）
         """
+
+        # 按本轮问题动态检索外部知识，把相关片段补进系统提示词。
+        # 让模型回答时有超出「身份设定 + 入口清单 + FAQ」之外的事实依据（标准的 RAG 增强环节）
+        # L1 用户档案与 RAG 补充知识两个动态内容源在此汇聚，取好后交由静态组装器渲染
+        user_context = self._user_long_term_memory.load_user_context(user_id)
         retriever_context = self._retrieve_context(query)
         system_prompt = self._system_prompt_builder.build_system_prompt(
-            user_id, retriever_context=retriever_context, user_question=query
+            user_context=user_context,
+            retriever_context=retriever_context,
+            user_question=query,
         )
         ctx.append("system", system_prompt)
         ctx.charge(estimate_tokens(system_prompt))
 
     def _retrieve_context(self, query: str) -> str:
-        """获取检索补充知识（RAG；未启用时返回空串）。
+        """动态检索外部补充知识（RAG；未启用时返回空串）。
 
         Args:
             query: 查询文本
@@ -580,22 +591,28 @@ class MemoryFacade:
         system_prompt_builder: SystemPromptBuilder,
         conversation_repository: ConversationRepository,
         message_repository: MessageRepository,
+        user_long_term_memory: UserLongTermMemory | None = None,
         retriever: RetrieverProvider | None = None,
         llm_provider_getter: Callable[[], LLMProvider] | None = None,
     ) -> None:
         """初始化记忆编排器并装配各记忆层。
 
         Args:
-            system_prompt_builder: L0 系统提示词组装器
+            system_prompt_builder: L0 系统提示词组装器（纯静态渲染）
             conversation_repository: 会话存储端口
             message_repository: 消息存储端口
+            user_long_term_memory: L1 用户长期记忆提供者（缺省使用空实现）
             retriever: RAG 检索提供者（缺省按配置工厂创建）
             llm_provider_getter: LLM 获取器（缺省使用全局懒加载工厂）
         """
         self.system_prompt_builder: SystemPromptBuilder = system_prompt_builder
         self.layers: tuple[MemoryLayer] = (
-            # L0 系统提示词层
-            SystemPromptLayer(self.system_prompt_builder, retriever or get_retriever_provider()),
+            # L0 系统提示词层（汇聚 L1 用户档案 + RAG 补充知识）
+            SystemPromptLayer(
+                self.system_prompt_builder,
+                retriever or get_retriever_provider(),
+                user_long_term_memory or NullUserLongTermMemory(),
+            ),
             # L2 滚动摘要层
             SummaryMemoryLayer(conversation_repository, message_repository, llm_provider_getter or get_llm_provider),
             # L3 最近原文层

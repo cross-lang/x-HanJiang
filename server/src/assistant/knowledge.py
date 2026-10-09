@@ -17,7 +17,9 @@
 
 说明：
     - 不引入 RAG：知识以提示词注入为主；retriever_context 参数预留 RAG 注入位
-    - 用户档案通过 UserLongTermMemory 注入（第 1 层长期记忆，当前为空实现）
+    - 用户档案（第 1 层长期记忆）与 RAG 补充知识均为「本轮动态内容」，由
+      L0 层（SystemPromptLayer）取好后以参数传入，本类不依赖记忆层 / 检索层，
+      只做静态模板渲染，零 I/O
 """
 
 from __future__ import annotations
@@ -27,16 +29,14 @@ from pathlib import Path
 import yaml
 
 from src.assistant.faq import FaqItem, load_assistant_faq
-from src.assistant.memory import UserLongTermMemory
 from src.constants.assistant import ASSISTANT_ENTRY_CATALOG
 from src.utils.helpers import find_project_root
 
 
 class SystemPromptBuilder:
-    """系统提示词组装器。
+    """系统提示词组装器（纯静态渲染：输入本轮内容，输出提示词）。
 
     Attributes:
-        _user_long_term_memory: 用户长期记忆提供者（第 1 层注入点）
         _faq_items: FAQ 操作手册条目（加载自数据文件，顺序即匹配优先级）
         _prompt_path: 系统提示词模板路径（默认 templates/assistant_templates/assistant_prompt.yaml）
         _prompt_template: 系统提示词模板缓存（懒加载）
@@ -45,18 +45,15 @@ class SystemPromptBuilder:
 
     def __init__(
         self,
-        user_long_term_memory: UserLongTermMemory,
         faq_path: Path | None = None,
         prompt_path: Path | None = None,
     ) -> None:
         """初始化知识库。
 
         Args:
-            user_long_term_memory: 用户长期记忆提供者
             faq_path: FAQ 数据文件路径（缺省使用默认路径）
             prompt_path: 系统提示词模板路径（缺省使用默认路径）
         """
-        self._user_long_term_memory: UserLongTermMemory = user_long_term_memory
         self._faq_items: tuple[FaqItem, ...] = load_assistant_faq(faq_path)
         self._prompt_path: Path = prompt_path or (
             find_project_root() / "templates" / "assistant_templates" / "assistant_prompt.yaml"
@@ -87,14 +84,15 @@ class SystemPromptBuilder:
 
     def build_system_prompt(
         self,
-        user_id: int,
+        user_context: str = "",
         retriever_context: str = "",
         user_question: str = "",
     ) -> str:
         """组装系统提示词。
 
         Args:
-            user_id: 当前用户ID（用于注入用户档案）
+            user_context: 用户档案文本（第 1 层长期记忆内容，由 L0 层读取后
+                传入；空串表示无档案，模板中给出通用回答提示）
             retriever_context: 检索补充知识（RAG 预留，未启用时为空串）
             user_question: 本轮用户提问（用于命中 FAQ，为空则跳过）
 
@@ -105,7 +103,6 @@ class SystemPromptBuilder:
             f"- {item['title']}（{item['path']}）：{item['description']}"
             for item in ASSISTANT_ENTRY_CATALOG
         )
-        user_context = self._user_long_term_memory.load_user_context(user_id)
         user_block = user_context if user_context else "（暂无，按通用规则回答）"
         rag_block = f"\n【补充知识】\n{retriever_context}" if retriever_context else ""
         hit = self.match_faq(user_question) if user_question else None

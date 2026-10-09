@@ -26,7 +26,7 @@ from collections.abc import Callable, Iterator
 
 from src.assistant.agent import AssistantAgent
 from src.assistant.knowledge import SystemPromptBuilder
-from src.assistant.memory import MemoryFacade, NullUserLongTermMemory
+from src.assistant.memory import MemoryFacade, NullUserLongTermMemory, UserLongTermMemory
 from src.assistant.title import generate_title
 from src.assistant.tools import ToolRegistry
 from src.constants.assistant import (
@@ -79,10 +79,13 @@ class AssistantService:
         self._feedback_repository: AssistantFeedbackRepository = feedback_repository
         self._llm_provider: LLMProvider = get_llm_provider()
         self._tool_registry: ToolRegistry = self._build_default_registry()
-        self._system_prompt_builder: SystemPromptBuilder = SystemPromptBuilder(NullUserLongTermMemory())
-        # 记忆子系统：四层记忆统一编排（L0 委托知识库；存储端口注入仓储）
+        # L1 用户长期记忆（当前空实现；接入时替换为读取 user_profile 表的真实实现）
+        self._user_long_term_memory: UserLongTermMemory = NullUserLongTermMemory()
+        self._system_prompt_builder: SystemPromptBuilder = SystemPromptBuilder()
+        # 记忆子系统：四层记忆统一编排（L0 汇聚 L1 档案；存储端口注入仓储）
         self._memory_facade: MemoryFacade = MemoryFacade(
             system_prompt_builder=self._system_prompt_builder,
+            user_long_term_memory=self._user_long_term_memory,
             conversation_repository=conversation_repository,
             message_repository=message_repository,
         )
