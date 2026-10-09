@@ -144,8 +144,11 @@ uv run x-HanJiang --reload
 
 **方式二：Docker 容器部署**
 
+编排文件位于**仓库根目录**（nginx + app + mysql + redis 四服务，nginx 统一 80 入口）：
+
 ```bash
-docker-compose up --build
+# 在仓库根目录执行
+docker compose up -d --build
 ```
 
 **方式三（可选）：直接使用 Uvicorn**
@@ -228,7 +231,7 @@ server/
 ├── config.yaml.example       # YAML 配置文件模板
 ├── alembic/                  # 数据库迁移管理
 │   ├── env.py                # 迁移运行环境
-│   └── versions/             # 迁移版本脚本（0001~0020，覆盖用户/通知/应用/公告/AI 会话/开发者等核心表）
+│   └── versions/             # 迁移版本脚本（0001~0033，覆盖用户/通知/应用/公告/AI 会话/开发者档案等核心表）
 ├── docs/                     # 项目文档（建表 SQL、Postman OpenAPI 集合）
 ├── examples/                 # 使用示例脚本
 │   ├── layered_architecture.py  # 三层架构 CRUD 示例
@@ -273,7 +276,11 @@ server/
 │   │   ├── dependencies.py   # DI 依赖函数
 │   │   ├── response.py       # 统一响应封装
 │   │   └── router.py         # 路由聚合注册
-│   ├── assistant/           # AI 助手子系统（对话编排 / 记忆 / 检索 / 工具）
+│   ├── assistant/           # AI 助手子系统
+│   │   ├── agent.py          # agent 循环（流式推理 / 三分支决策 / 工具执行）
+│   │   ├── tools/            # 内置工具包（页面跳转 + 只读查询工具 / 注册表 / 工具来源）
+│   │   ├── memories/         # 四层记忆包（端口 / 上下文 / 提示词层 / 长期记忆 / 滚动摘要 / 最近原文 / 门面 / 知识库）
+│   │   └── text_call.py      # 正文内联工具调用的协议防御（检测门 + 解析）
 │   ├── constants/            # 业务常量与枚举（ModuleCode、BaseEnum 等）
 │   ├── core/                 # 核心支撑模块
 │   │   ├── config.py         # 配置加载（env / yaml 合并）
@@ -303,12 +310,12 @@ server/
 │   │   └── retry_worker.py   # 通知重试 Worker（轮询 Redis 重试队列）
 │   ├── schemas/              # Pydantic 请求 / 响应 DTO
 │   ├── services/             # 业务逻辑层（Service 模式）
+│   ├── templates/            # 提示词模板（AI 助手系统提示词 / FAQ）
 │   ├── utils/                # 工具函数（security 等）
 │   └── __init__.py
 ├── statics/                   # 本地文件存储目录（storage.provider=local 时）
 ├── tests/                    # 单元测试
-├── Dockerfile                # 多阶段构建镜像
-├── docker-compose.yml        # Docker Compose 编排（app + mysql + redis）
+├── Dockerfile                # 多阶段构建镜像（由仓库根 docker-compose.yml 的 app 服务引用）
 ├── pyproject.toml            # 项目配置与依赖声明
 └── uv.lock                   # 依赖锁定文件（可复现构建）
 ```
@@ -472,7 +479,7 @@ graph LR
 | `api/admin` | 管理系统接口层（`/api/v1` 与 `/api/admin/v1` 双路径兼容），JWT + RBAC 权限校验，覆盖认证、用户、角色、权限、审计、文件、公告、通知、AI 助手、开放应用审批等 18 个路由模块 |
 | `api/open` | 开放平台接口层（`/api/open/v1`），AppId/AppKey + HanJiang-1 HMAC 签名鉴权，`@app_scope` 声明式注册 scope，覆盖健康 / 应用 / 用户 / 角色 / 文件 5 类能力 |
 | `api/open_portal` | 开放平台门户接口层（`/api/open-portal/v1`），开发者会话 JWT + Redis 有状态登录态，覆盖注册登录、开发者资料与认证、应用与 scope 申请、站内信 |
-| `assistant` | AI 助手编排：SSE 流式对话、记忆压缩（滚动摘要 + 最近原文）、知识库检索、工具调用、👍👎 反馈收集 |
+| `assistant` | AI 助手编排：agent 循环（三分支决策）、四层记忆（memories/：系统提示词 / 长期记忆 / 滚动摘要 / 最近原文）、内置工具（tools/：页面跳转 + 只读查询）、正文内联工具调用防御、👍👎 反馈收集 |
 | `notification` | 通知子系统：事件分发、模板渲染、多渠道 Provider（站内信/邮件/钉钉/飞书/短信）、失败自动重试 |
 | `infras` | 基础设施：数据库连接池、Redis 缓存、邮件、HTTP 客户端、存储抽象（本地/S3）、LLM 客户端（openai_compat） |
 | `core` | 核心支撑：配置加载（env/yaml）、统一异常、日志（loguru）、中间件、JWT 令牌、种子数据 |
@@ -764,7 +771,7 @@ graph LR
 
 - **类型**：MySQL 8.0+
 - **配置**：通过 `.env` 配置 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`、`MYSQL_POOL_SIZE`
-- **迁移**：使用 Alembic 管理数据库版本（0001~0020），覆盖用户、通知记录、用户通知配置、开放平台应用、系统通知、公告、AI 助手会话、开发者、开发者消息、文件归属等核心表
+- **迁移**：使用 Alembic 管理数据库版本（0001~0033），覆盖用户、通知记录、用户通知配置、开放平台应用、系统通知、公告、AI 助手会话与消息、开发者、开发者站内信、用户档案、文件归属等核心表
 - **注意**：生产环境务必通过环境变量注入数据库密码，且不写入版本库
 
 ### ⚡ 缓存

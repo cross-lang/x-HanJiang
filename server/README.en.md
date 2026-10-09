@@ -144,8 +144,11 @@ uv run x-HanJiang
 
 **Option 2: Docker deployment**
 
+The orchestration file lives at the **repository root** (nginx + app + mysql + redis, unified entry on port 80):
+
 ```bash
-docker-compose up --build
+# Run from the repository root
+docker compose up -d --build
 ```
 
 **Option 3 (optional): Run Uvicorn directly**
@@ -228,7 +231,7 @@ server/
 ├── config.yaml.example       # YAML configuration template
 ├── alembic/                  # Database migration management
 │   ├── env.py                # Migration runtime environment
-│   └── versions/             # Migration version scripts (0001~0020, covering users/notifications/apps/announcements/AI conversations/developers and more)
+│   └── versions/             # Migration version scripts (0001~0033, covering users/notifications/apps/announcements/AI conversations/developer profiles and more)
 ├── docs/                     # Project docs (DDL SQL, Postman OpenAPI collection)
 ├── examples/                 # Usage examples
 │   ├── layered_architecture.py  # Three-layer architecture CRUD example
@@ -273,7 +276,11 @@ server/
 │   │   ├── dependencies.py   # DI dependency functions
 │   │   ├── response.py       # Unified response wrapper
 │   │   └── router.py         # Route aggregation & registration
-│   ├── assistant/           # AI assistant subsystem (chat orchestration / memory / retrieval / tools)
+│   ├── assistant/           # AI assistant subsystem
+│   │   ├── agent.py          # agent loop (streaming inference / three-branch decision / tool execution)
+│   │   ├── tools/            # Built-in tools (page navigation + read-only query tools / registry / sources)
+│   │   ├── memories/         # Four-layer memory package (ports / context / prompt layer / long-term / summary / recent / facade / knowledge)
+│   │   └── text_call.py      # Protocol defense for inline tool calls in chat text (gate + parser)
 │   ├── constants/            # Business constants & enums (ModuleCode, BaseEnum, etc.)
 │   ├── core/                 # Core support modules
 │   │   ├── config.py         # Config loading (env / yaml merged)
@@ -303,12 +310,12 @@ server/
 │   │   └── retry_worker.py   # Notification retry worker (polls Redis retry queue)
 │   ├── schemas/              # Pydantic request / response DTOs
 │   ├── services/             # Business logic layer (Service pattern)
+│   ├── templates/            # Prompt templates (AI assistant system prompt / FAQ)
 │   ├── utils/                # Utilities (security, etc.)
 │   └── __init__.py
 ├── statics/                   # Local file storage directory (when storage.provider=local)
 ├── tests/                    # Unit tests
-├── Dockerfile                # Multi-stage build image
-├── docker-compose.yml        # Docker Compose orchestration (app + mysql + redis)
+├── Dockerfile                # Multi-stage build image (referenced by the app service in the root docker-compose.yml)
 ├── pyproject.toml            # Project config & dependency declaration
 └── uv.lock                   # Lock file (reproducible builds)
 ```
@@ -472,7 +479,7 @@ graph LR
 | `api/admin` | Admin API layer (`/api/v1` & `/api/admin/v1` dual paths), JWT + RBAC checks; covers 18 route modules including auth, users, roles, permissions, audit, files, announcements, notifications, AI assistant and open-app approval |
 | `api/open` | Open platform API layer (`/api/open/v1`), AppId/AppKey + HanJiang-1 HMAC signature auth, `@app_scope` declarative scope registration; covers health / app / user / role / file capabilities |
 | `api/open_portal` | Open portal API layer (`/api/open-portal/v1`), developer session JWT + Redis stateful login; covers registration/login, developer profile & certification, app & scope applications, station messages |
-| `assistant` | AI assistant orchestration: SSE streaming chat, memory compaction (rolling summary + recent raw turns), knowledge retrieval, tool calls, 👍👎 feedback collection |
+| `assistant` | AI assistant orchestration: agent loop (three-branch decision), four-layer memory (memories/: system prompt / long-term / rolling summary / recent), built-in tools (tools/: navigation + read-only queries), inline tool-call defense, 👍👎 feedback collection |
 | `notification` | Notification subsystem: event dispatch, template rendering, multi-channel providers (station/email/DingTalk/Feishu/SMS), automatic retry on failure |
 | `infras` | Infrastructure: database connection pool, Redis cache, email, HTTP client, storage abstraction (local/S3), LLM client (openai_compat) |
 | `core` | Core support: configuration loading (env/yaml), unified exceptions, logging (loguru), middleware, JWT tokens, seed data |
@@ -764,7 +771,7 @@ Once the backend is running:
 
 - **Type**: MySQL 8.0+
 - **Config**: via `.env` (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_POOL_SIZE`)
-- **Migrations**: Alembic (0001~0020); covering users, notification records, user notification configs, open platform apps, system notifications, announcements, AI assistant conversations, developers, developer messages, file ownership and other core tables
+- **Migrations**: Alembic (0001~0033); covering users, notification records, user notification configs, open platform apps, system notifications, announcements, AI assistant conversations & messages, developers, developer inbox, user profiles, file ownership and other core tables
 - **Note**: inject the database password via environment variables in production; never commit it
 
 ### ⚡ Cache
