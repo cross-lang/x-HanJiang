@@ -305,7 +305,9 @@ class AssistantService:
             self._save_message(conversation.id, AssistantMessageRole.USER.value, message)
 
             # 3. 组装四层记忆上下文（系统提示词 / 长期记忆 / 滚动摘要 / 近期消息）
-            messages = self._memory_facade.build_context(conversation, user.id, message)
+            messages = self._memory_facade.build_context(
+                conversation, user.id, message, user_permissions=set(user.permissions),
+            )
             messages.append({"role": "user", "content": message})
 
             # 4. 创建 agent 事件流（生成器惰性执行：此处仅创建对象，不发起 LLM 调用，

@@ -84,11 +84,36 @@ class SystemPromptBuilder:
                     return item
         return None
 
+    @staticmethod
+    def _filter_entries_by_permissions(
+        user_permissions: set[str] | None,
+    ) -> tuple[dict[str, str], ...]:
+        """按用户权限过滤入口清单。
+
+        过滤规则：
+            - None：不过滤，返回全量（兼容测试 / 无权限场景）
+            - 含 "*"：超级管理员通配，返回全量
+            - 否则：只保留 permission==""（登录即可访问）或 permission 在集合中的入口
+
+        Args:
+            user_permissions: 用户权限码集合
+
+        Returns:
+            tuple[dict[str, str], ...]: 过滤后的入口清单
+        """
+        if user_permissions is None or "*" in user_permissions:
+            return ASSISTANT_ENTRY_CATALOG
+        return tuple(
+            item for item in ASSISTANT_ENTRY_CATALOG
+            if not item["permission"] or item["permission"] in user_permissions
+        )
+
     def build_system_prompt(
         self,
         user_context: str = "",
         retriever_context: str = "",
         user_question: str = "",
+        user_permissions: set[str] | None = None,
     ) -> str:
         """组装系统提示词。
 
@@ -97,15 +122,20 @@ class SystemPromptBuilder:
                 传入；空串表示无档案，模板中给出通用回答提示）
             retriever_context: 检索补充知识（RAG 预留，未启用时为空串）
             user_question: 本轮用户提问（用于命中 FAQ，为空则跳过）
+            user_permissions: 当前用户权限码集合，用于过滤入口清单；
+                None 表示不过滤（全量，兼容测试/无权限场景）；
+                含 "*" 表示超级管理员通配，保留全量；
+                空集或部分集合则只保留 permission=="" 或 permission in 集合 的入口
 
         Returns:
             str: 完整系统提示词
         """
-        # 系统入口路由表：遍历结构化路由表（ASSISTANT_ENTRY_CATALOG）渲染为多行列表，
-        # 每行格式「- 标题（路径）：用途说明」；静态数据源，零 I/O
+        # 入口清单块：遍历结构化路由表（ASSISTANT_ENTRY_CATALOG）渲染为多行列表，
+        # 按用户权限过滤：None=不过滤；含"*"=全量(超管)；否则只保留 无权限要求 或 有权限 的入口
+        visible_entries = self._filter_entries_by_permissions(user_permissions)
         entries_block = "\n".join(
             f"- {item['title']}（{item['path']}）：{item['description']}"
-            for item in ASSISTANT_ENTRY_CATALOG
+            for item in visible_entries
         )
         # 用户档案块：L1 长期记忆内容；空则给通用兜底，保证模板占位总有值
         user_block = user_context if user_context else "（暂无，按通用规则回答）"

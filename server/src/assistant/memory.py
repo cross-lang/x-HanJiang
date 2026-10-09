@@ -195,6 +195,8 @@ class MemoryContext:
     Attributes:
         messages: 已累积的上下文消息（按层注入顺序）
         remaining_budget: 剩余 token 预算（强制层占用后递减；供 L3 裁剪）
+        user_permissions: 当前用户权限码集合（L0 据此过滤入口清单；
+            空集表示未传入，L0 不过滤；含 "*" 表示超级管理员通配）
 
     设计说明：
         让各层共享同一个可变上下文，而不是每层各自返回一个列表再由
@@ -211,6 +213,7 @@ class MemoryContext:
 
     messages: list[dict[str, object]] = field(default_factory=list)
     remaining_budget: int = 0
+    user_permissions: set[str] = field(default_factory=set)
 
     def append(self, role: str, content: str) -> None:
         """追加一条消息。
@@ -341,11 +344,12 @@ class SystemPromptLayer(MemoryLayer):
         #  2. 按开关做 RAG 检索，得到补充知识（未启用时空串）
         retriever_context = self._retrieve_context(query)
 
-        #  3. 委托 SystemPromptBuilder 组装完整系统提示词
+        #  3. 委托 SystemPromptBuilder 组装完整系统提示词（按用户权限过滤入口清单）
         system_prompt = self._system_prompt_builder.build_system_prompt(
             user_context=user_context,
             retriever_context=retriever_context,
             user_question=query,
+            user_permissions=ctx.user_permissions,
         )
 
         #  4. 向 ctx 追加该 system 消息并按实际 token 扣减预算
@@ -662,6 +666,7 @@ class MemoryFacade:
         conversation: AssistantConversationEntity,
         user_id: int,
         query: str,
+        user_permissions: set[str] | None = None,
     ) -> list[dict[str, object]]:
         """组装本轮对话上下文：遍历各层依次贡献记忆。
 
@@ -669,11 +674,16 @@ class MemoryFacade:
             conversation: 会话实体
             user_id: 当前用户ID
             query: 本轮用户输入
+            user_permissions: 当前用户权限码集合（L0 据此过滤入口清单；
+                None 表示不传入，L0 不过滤；含 "*" 表示超级管理员通配）
 
         Returns:
             list[dict[str, object]]: 上下文消息列表（调用 SDK 时 cast 为 ChatMessage）
         """
-        ctx = MemoryContext(remaining_budget=settings.ai.memory.token_budget)
+        ctx = MemoryContext(
+            remaining_budget=settings.ai.memory.token_budget,
+            user_permissions=user_permissions or set(),
+        )
         for layer in self.layers:
             layer.contribute(ctx, conversation, user_id, query)
         return ctx.messages
