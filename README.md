@@ -69,6 +69,13 @@
 ![认证和授权](./me/open_portal_auth.png)
 ![个人中心](./me/open_portal_profile.png)
 
+## 🍪 在线体验
+
+| 端 | 地址 | 账号 |
+|----|------|------|
+| 🌐 开放平台 | `http://121.40.147.234/open-portal/` | `yeyushilai` / `admin@123456` |
+| 💻 管理系统 | `http://121.40.147.234/admin/` | `superadmin` / `admin@123456` |
+
 ## 🚀 快速开始
 
 ### 🖥️ 后端
