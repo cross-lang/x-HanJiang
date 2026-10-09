@@ -89,9 +89,12 @@ ASSISTANT_CHUNK_BOUNDARY_CHARS: tuple[str, ...] = (
 )
 
 
-# ── 系统入口清单（跳转工具的知识源）────────────────────────
+# ── 系统入口路由表（AI 助手跳转工具的结构化知识源）────────────
 
-#: 系统入口清单：page 标识 / 前端路径 / 标题 / 用途说明 / 所需权限码（空 = 登录即可访问）。
+#: 结构化路由表：每条含 page（前端路由标识）/ path（URL 路径）/ title（页面标题）
+#: / description（用途说明）/ permission（所需权限码，空 = 登录即可访问）五个字段。
+#: 被 SystemPromptBuilder 渲染为系统提示词中的【系统入口清单】块，
+#: 同时作为 navigate 工具的跳转目标表（模型按 page / path 生成跳转指令）。
 #: 权限码引用 PermissionCode 统一目录，与 api/v1 各业务路由的 @permission 声明一致；
 #: 后续可替换为从菜单表（menu）动态生成，此处为 P0 静态清单。
 ASSISTANT_ENTRY_CATALOG: tuple[dict[str, str], ...] = (

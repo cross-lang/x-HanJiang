@@ -179,7 +179,7 @@ class NotificationChannel(StrBaseEnum):
 class NotificationEvent(StrBaseEnum):
     """通知事件类型。
     按业务域分组，格式：{domain}.{action}
-    走 dispatcher 的事件必须在 templates/notification_templates/ 下有对应模板；
+    走 dispatcher 的事件必须在 src/templates/notification_templates/ 下有对应模板；
     直接入库型事件（SYSTEM_NOTICE / STATION_MESSAGE）内容由调用方给出，无需模板。
     """
 

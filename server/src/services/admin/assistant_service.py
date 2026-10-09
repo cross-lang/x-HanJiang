@@ -26,7 +26,12 @@ from collections.abc import Callable, Iterator
 
 from src.assistant.agent import AssistantAgent
 from src.assistant.knowledge import SystemPromptBuilder
-from src.assistant.memory import MemoryFacade, NullUserLongTermMemory, UserLongTermMemory
+from src.assistant.memory import (
+    MemoryFacade,
+    NullUserLongTermMemory,
+    UserLongTermMemory,
+    build_user_long_term_memory,
+)
 from src.assistant.title import generate_title
 from src.assistant.tools import ToolRegistry
 from src.constants.assistant import (
@@ -49,6 +54,7 @@ from src.repositories.assistant_repository import (
     AssistantConversationRepository,
     AssistantFeedbackRepository,
     AssistantMessageRepository,
+    AssistantUserProfileRepository,
 )
 from src.schemas.admin.assistant import FeedbackRequest
 from src.schemas.admin.auth import CurrentUser
@@ -79,8 +85,15 @@ class AssistantService:
         self._feedback_repository: AssistantFeedbackRepository = feedback_repository
         self._llm_provider: LLMProvider = get_llm_provider()
         self._tool_registry: ToolRegistry = self._build_default_registry()
-        # L1 用户长期记忆（当前空实现；接入时替换为读取 user_profile 表的真实实现）
-        self._user_long_term_memory: UserLongTermMemory = NullUserLongTermMemory()
+        # L1 用户长期记忆：按配置开关创建（开启时从历史对话抽取用户档案沉淀到库）
+        self._profile_repository: AssistantUserProfileRepository = AssistantUserProfileRepository(
+            session=message_repository.session
+        )
+        self._user_long_term_memory: UserLongTermMemory = build_user_long_term_memory(
+            profile_repository=self._profile_repository,
+            message_repository=message_repository,
+            llm_provider_getter=get_llm_provider,
+        )
         self._system_prompt_builder: SystemPromptBuilder = SystemPromptBuilder()
         # 记忆子系统：四层记忆统一编排（L0 汇聚 L1 档案；存储端口注入仓储）
         self._memory_facade: MemoryFacade = MemoryFacade(
@@ -432,6 +445,8 @@ class AssistantService:
                 f"AI 助手滚动摘要失败（尽力而为，忽略）：conversation={conversation.id}",
                 exc_info=True,
             )
+        # 长期记忆抽取：按间隔节流触发（每 N 轮抽取一次用户档案）
+        self._maybe_consolidate_profile(conversation)
         # 标题归纳（内部已自带失败静默，仅未命名会话触发一次 LLM 调用）
         self._maybe_rename(conversation, query, content)
 
@@ -534,6 +549,29 @@ class AssistantService:
             logger.info(f"AI 助手会话命名：conversation={conversation.id} title={title}")
         except ExternalServiceException:
             logger.warning(f"AI 助手会话命名失败（模型调用异常）：conversation={conversation.id}")
+
+    def _maybe_consolidate_profile(self, conversation: AssistantConversationEntity) -> None:
+        """按间隔节流触发用户档案抽取（失败静默，不影响主流程）。
+
+        触发条件：长期记忆开关开启，且会话消息总数是间隔的整数倍。
+        每轮对话收尾时检查一次，漏触发无碍——下一轮继续判断。
+
+        Args:
+            conversation: 会话实体（含 user_id）
+        """
+        long_term_cfg = settings.ai.memory.long_term
+        if not long_term_cfg.enabled:
+            return
+        msg_count = self._message_repository.count_by_conversation(conversation.id)
+        if not msg_count or msg_count % long_term_cfg.consolidate_interval != 0:
+            return
+        try:
+            self._memory_facade.consolidate_user_profile(conversation.user_id, conversation.id)
+        except Exception:
+            logger.warning(
+                f"AI 助手长期记忆抽取失败（尽力而为，忽略）：conversation={conversation.id}",
+                exc_info=True,
+            )
 
     def _audit_navigate(
         self,

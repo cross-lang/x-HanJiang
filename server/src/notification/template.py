@@ -1,7 +1,7 @@
 """通知模板管理。
 模板存储在 YAML 文件中，支持变量插值。
 按 event_type + channel 组合查找模板。
-模板文件示例 (templates/notification_templates/user_events.yaml):
+模板文件示例 (src/templates/notification_templates/user_events.yaml):
     user.password_changed:
 
       email:
@@ -22,7 +22,7 @@ import yaml
 from src.core.logger import logger
 from src.utils.helpers import find_project_root
 
-_TEMPLATE_DIR = find_project_root() / "templates" / "notification_templates"
+_TEMPLATE_DIR = find_project_root() / "src" / "templates" / "notification_templates"
 
 _templates: dict[str, Any] | None = None
 

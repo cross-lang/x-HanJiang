@@ -258,17 +258,34 @@ class AILLMConfig:
 
 
 @dataclass
+class AIMemoryLongTermConfig:
+    """AI 助手长期记忆配置（第 1 层：用户档案抽取）。
+    enabled: 开关，默认关闭；开启后对话收尾按间隔触发 LLM 抽取并沉淀档案
+    consolidate_interval: 每 N 轮对话触发一次档案抽取（按会话消息总数取模判断）
+    profile_model: 抽取用模型，为空则复用主模型
+    max_profile_tokens: 档案文本输出上限（控制 prompt 长度）
+    """
+
+    enabled: bool = False
+    consolidate_interval: int = 5
+    profile_model: str = ""
+    max_profile_tokens: int = 500
+
+
+@dataclass
 class AIMemoryConfig:
     """AI 助手记忆配置（第 2/3 层）。
     recent_raw_rounds: 第 3 层保留的最近原文轮数（一轮 = 一问一答）
     token_budget: 历史上下文 token 预算上限（不含系统提示词与输出预留）
     summary_model: 滚动摘要使用的模型，为空则复用主模型
+    long_term: 第 1 层长期记忆子配置（用户档案抽取）
     """
 
     enabled: bool = True
     recent_raw_rounds: int = 6
     token_budget: int = 32000
     summary_model: str = ""
+    long_term: AIMemoryLongTermConfig = field(default_factory=AIMemoryLongTermConfig)
 
 
 @dataclass
@@ -528,6 +545,12 @@ class Settings:
                     "recent_raw_rounds": 6,
                     "token_budget": 32000,
                     "summary_model": "",
+                    "long_term": {
+                        "enabled": False,
+                        "consolidate_interval": 5,
+                        "profile_model": "",
+                        "max_profile_tokens": 500,
+                    },
                 },
                 "retriever": {
                     "enabled": False,
@@ -677,6 +700,7 @@ class Settings:
         ai = config.setdefault("ai", {})
         ai_llm = ai.setdefault("llm", {})
         ai_memory = ai.setdefault("memory", {})
+        ai_memory_long_term = ai_memory.setdefault("long_term", {})
         ai_retriever = ai.setdefault("retriever", {})
         ai_tools = ai.setdefault("tools", {})
         _ai_env_int_map: dict[str, tuple[dict[str, Any], str]] = {
@@ -685,6 +709,8 @@ class Settings:
             "AI_LLM_CHAT_REQUEST_TIMEOUT_SECONDS": (ai_llm, "chat_request_timeout_seconds"),
             "AI_MEMORY_RECENT_RAW_ROUNDS": (ai_memory, "recent_raw_rounds"),
             "AI_MEMORY_TOKEN_BUDGET": (ai_memory, "token_budget"),
+            "AI_MEMORY_LONG_TERM_CONSOLIDATE_INTERVAL": (ai_memory_long_term, "consolidate_interval"),
+            "AI_MEMORY_LONG_TERM_MAX_PROFILE_TOKENS": (ai_memory_long_term, "max_profile_tokens"),
             "AI_RETRIEVER_TOP_K": (ai_retriever, "top_k"),
         }
         for env_key, (section, key) in _ai_env_int_map.items():
@@ -693,6 +719,7 @@ class Settings:
         _ai_env_bool_map: dict[str, tuple[dict[str, Any], str]] = {
             "AI_ENABLED": (ai, "enabled"),
             "AI_MEMORY_ENABLED": (ai_memory, "enabled"),
+            "AI_MEMORY_LONG_TERM_ENABLED": (ai_memory_long_term, "enabled"),
             "AI_RETRIEVER_ENABLED": (ai_retriever, "enabled"),
             "AI_TOOLS_MCP_ENABLED": (ai_tools, "mcp_enabled"),
         }
@@ -705,6 +732,7 @@ class Settings:
             "AI_LLM_API_KEY": (ai_llm, "api_key"),
             "AI_LLM_MODEL": (ai_llm, "model"),
             "AI_MEMORY_SUMMARY_MODEL": (ai_memory, "summary_model"),
+            "AI_MEMORY_LONG_TERM_PROFILE_MODEL": (ai_memory_long_term, "profile_model"),
             "AI_RETRIEVER_PROVIDER": (ai_retriever, "provider"),
             "AI_TOOLS_MCP_SERVER_URL": (ai_tools, "mcp_server_url"),
             "AI_TOOLS_MCP_EXTRA_CONFIG": (ai_tools, "mcp_extra_config"),
@@ -752,12 +780,16 @@ class Settings:
         ai_raw = self._config.get("ai", {})
         ai_llm_raw = ai_raw.pop("llm", {})
         ai_memory_raw = ai_raw.pop("memory", {})
+        ai_memory_long_term_raw = ai_memory_raw.pop("long_term", {})
         ai_retriever_raw = ai_raw.pop("retriever", {})
         ai_tools_raw = ai_raw.pop("tools", {})
         self.ai = AIConfig(
             enabled=ai_raw.get("enabled", True),
             llm=AILLMConfig(**ai_llm_raw),
-            memory=AIMemoryConfig(**ai_memory_raw),
+            memory=AIMemoryConfig(
+                **ai_memory_raw,
+                long_term=AIMemoryLongTermConfig(**ai_memory_long_term_raw),
+            ),
             retriever=AIRetrieverConfig(**ai_retriever_raw),
             tools=AIToolsConfig(**ai_tools_raw),
         )

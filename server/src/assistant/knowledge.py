@@ -3,7 +3,7 @@
 
 职责：
     - 将系统入口清单（ASSISTANT_ENTRY_CATALOG）、FAQ 操作手册（数据文件
-      server/templates/assistant_templates/assistant_faq.yaml，经 src.assistant.faq 加载）
+      server/src/templates/assistant_templates/assistant_faq.yaml，经 src.assistant.faq 加载）
       与用户档案（记忆第 1 层注入点）组装为系统提示词，注入对话上下文
     - 入口清单与 FAQ 当前来自常量（静态维护）；后续可替换为从菜单表 /
       数据表动态生成，本类只依赖数据源，替换数据源不影响上层
@@ -38,7 +38,7 @@ class SystemPromptBuilder:
 
     Attributes:
         _faq_items: FAQ 操作手册条目（加载自数据文件，顺序即匹配优先级）
-        _prompt_path: 系统提示词模板路径（默认 templates/assistant_templates/assistant_prompt.yaml）
+        _prompt_path: 系统提示词模板路径（默认 src/templates/assistant_templates/assistant_prompt.yaml）
         _prompt_template: 系统提示词模板缓存（懒加载）
         _faq_block_template: 命中 FAQ 的【优先参考】块模板
     """
@@ -53,10 +53,12 @@ class SystemPromptBuilder:
         Args:
             faq_path: FAQ 数据文件路径（缺省使用默认路径）
             prompt_path: 系统提示词模板路径（缺省使用默认路径）
-        """
+        """  
+
+        
         self._faq_items: tuple[FaqItem, ...] = load_assistant_faq(faq_path)
         self._prompt_path: Path = prompt_path or (
-            find_project_root() / "templates" / "assistant_templates" / "assistant_prompt.yaml"
+            find_project_root() / "src" / "templates" / "assistant_templates" / "assistant_prompt.yaml"
         )
         self._prompt_template: str | None = None
         self._faq_block_template: str = ""
@@ -99,21 +101,29 @@ class SystemPromptBuilder:
         Returns:
             str: 完整系统提示词
         """
+        # 系统入口路由表：遍历结构化路由表（ASSISTANT_ENTRY_CATALOG）渲染为多行列表，
+        # 每行格式「- 标题（路径）：用途说明」；静态数据源，零 I/O
         entries_block = "\n".join(
             f"- {item['title']}（{item['path']}）：{item['description']}"
             for item in ASSISTANT_ENTRY_CATALOG
         )
+        # 用户档案块：L1 长期记忆内容；空则给通用兜底，保证模板占位总有值
         user_block = user_context if user_context else "（暂无，按通用规则回答）"
+        # 补充知识块：RAG 检索结果；无内容时为空串，模板对应段直接省略
         rag_block = f"\n【补充知识】\n{retriever_context}" if retriever_context else ""
+        # 按本轮问题做确定性关键词召回（数据文件顺序即优先级）
         hit = self.match_faq(user_question) if user_question else None
         faq_block = ""
+        # 命中 FAQ 则用模板渲染【优先参考】块，约束模型以标准答案为准组织回复
         if hit is not None:
             faq_block = self._faq_block_template.format(
                 hit_question=hit.question,
                 hit_answer=hit.answer,
                 hit_entry_path=hit.entry_path or "无需跳转",
             )
+        # 加载系统提示词模板（懒加载缓存，结构校验在 _load_prompt_template 内）
         template = self._load_prompt_template()
+        # 用四个块填充模板占位符，输出完整系统提示词
         return template.format(
             entries_block=entries_block,
             user_block=user_block,

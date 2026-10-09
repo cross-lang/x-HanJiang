@@ -18,6 +18,7 @@ from src.models.entities.assistant_entity import (
     AssistantConversationEntity,
     AssistantFeedbackEntity,
     AssistantMessageEntity,
+    AssistantUserProfileEntity,
 )
 from src.repositories.base_repository import BaseRepository
 
@@ -248,3 +249,48 @@ class AssistantFeedbackRepository(BaseRepository[AssistantFeedbackEntity, int]):
             comment=comment,
         )
         return self.create(entity)
+
+
+class AssistantUserProfileRepository(BaseRepository[AssistantUserProfileEntity, int]):
+    """用户长期档案仓库（第 1 层记忆持久化）。
+
+    一个用户至多一条档案，首次写入走 upsert，避免调用方判断是否存在。
+    """
+
+    model_class = AssistantUserProfileEntity
+
+    def get_by_user(self, user_id: int) -> AssistantUserProfileEntity | None:
+        """按用户ID查询档案记录。
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            AssistantUserProfileEntity | None: 档案实体；不存在返回 None
+        """
+        stmt = select(self.model_class).where(self.model_class.user_id == user_id)
+        return self.session.execute(stmt).scalars().first()
+
+    def upsert(self, user_id: int, profile: str, version: int) -> None:
+        """写入或更新用户档案（带乐观锁）。
+
+        存在记录则覆盖 profile 与 version；不存在则插入新记录。
+        乐观锁失败不抛异常（调用方下一次抽取会自然覆盖，档案抽取是尽力而为）。
+
+        Args:
+            user_id: 用户ID
+            profile: 新档案文本
+            version: 本次写入基于的版本号（已有记录的 version）
+        """
+        entity = self.get_by_user(user_id)
+        if entity is None:
+            entity = self.model_class(
+                user_id=user_id,
+                profile=profile,
+                version=version + 1,
+            )
+            self.create(entity)
+            return
+        entity.profile = profile
+        entity.version = version + 1
+        self.session.flush()

@@ -10,7 +10,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, String, Text, text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infras.database import Base
@@ -94,3 +94,36 @@ class AssistantFeedbackEntity(Base):
         comment="创建时间",
     )
     __table_args__ = (Index("idx_assistant_feedback_conv", "conversation_id"),)
+
+
+class AssistantUserProfileEntity(Base):
+    """AI 助手用户长期档案表实体（第 1 层记忆持久化）。
+
+    一个用户一条档案，由 LLM 从历史对话中定期抽取更新，跨会话沉淀。
+    """
+
+    __tablename__ = "assistant_user_profiles"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="所属用户ID")
+    profile: Mapped[str | None] = mapped_column(Text, nullable=True, comment="用户档案文本（LLM 抽取沉淀）")
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("0"),
+        default=0,
+        comment="版本号（乐观锁，防并发抽取覆盖）",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="创建时间",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="更新时间",
+    )
+    __table_args__ = (Index("uk_assistant_profile_user", "user_id", unique=True),)

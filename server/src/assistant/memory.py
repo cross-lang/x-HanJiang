@@ -97,7 +97,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Protocol
+
+import yaml
 
 from src.assistant.retriever import RetrieverProvider, get_retriever_provider
 from src.constants.assistant import (
@@ -107,6 +110,7 @@ from src.constants.assistant import (
 from src.core.config import settings
 from src.core.logger import logger
 from src.infras.llm import LLMProvider, get_llm_provider
+from src.utils.helpers import find_project_root
 from src.utils.text import estimate_tokens
 
 if TYPE_CHECKING:
@@ -167,6 +171,16 @@ class ConversationRepository(Protocol):
 
     def commit(self) -> None:
         """提交事务（提交权归属服务/记忆边界，仓储只 flush）。"""
+
+
+class UserProfileRepository(Protocol):
+    """用户档案存储端口（契约）：声明档案读写能力，实现方在 repositories/assistant_repository.py。"""
+
+    def get_by_user(self, user_id: int) -> object | None:
+        """按用户ID查询档案记录；返回含 profile / version 属性的对象，不存在返回 None。"""
+
+    def upsert(self, user_id: int, profile: str, version: int) -> None:
+        """写入或更新用户档案（带乐观锁）。"""
 
 
 # ============================================================
@@ -269,7 +283,7 @@ class SystemPromptLayer(MemoryLayer):
     （身份 / 入口清单 / FAQ）由 SystemPromptBuilder 渲染，本类负责汇聚两个
     本轮动态内容源——L1 用户档案与 RAG 补充知识——调用渲染并纳入预算记账。
 
-    职责：
+    流程：
         1. 从 L1 长期记忆读取用户档案（未接入时为空串）；
         2. 按开关做 RAG 检索，得到补充知识（未启用时空串）；
         3. 委托 SystemPromptBuilder 组装完整系统提示词；
@@ -318,16 +332,23 @@ class SystemPromptLayer(MemoryLayer):
             query: 本轮用户输入（FAQ 命中与 RAG 检索用）
         """
 
-        # 按本轮问题动态检索外部知识，把相关片段补进系统提示词。
+        # 整体目标：按本轮问题动态检索外部知识，把相关片段补进系统提示词。
         # 让模型回答时有超出「身份设定 + 入口清单 + FAQ」之外的事实依据（标准的 RAG 增强环节）
-        # L1 用户档案与 RAG 补充知识两个动态内容源在此汇聚，取好后交由静态组装器渲染
+
+        #  1. 从 L1 长期记忆读取用户档案（未接入时为空串）
         user_context = self._user_long_term_memory.load_user_context(user_id)
+
+        #  2. 按开关做 RAG 检索，得到补充知识（未启用时空串）
         retriever_context = self._retrieve_context(query)
+
+        #  3. 委托 SystemPromptBuilder 组装完整系统提示词
         system_prompt = self._system_prompt_builder.build_system_prompt(
             user_context=user_context,
             retriever_context=retriever_context,
             user_question=query,
         )
+
+        #  4. 向 ctx 追加该 system 消息并按实际 token 扣减预算
         ctx.append("system", system_prompt)
         ctx.charge(estimate_tokens(system_prompt))
 
@@ -354,6 +375,9 @@ class SystemPromptLayer(MemoryLayer):
 class UserLongTermMemory(ABC):
     """用户长期记忆提供者（第 1 层抽象接口）。
 
+    读路径 load_user_context：取用户档案注入系统提示词（每轮对话调用）；
+    写路径 consolidate：从最近对话中抽取并沉淀档案（对话收尾按间隔触发）。
+
     后续接入方式：
         1. 新增 user_profile 表（用户长期偏好 / 关注点）
         2. 实现子类读取该表并返回档案文本
@@ -371,15 +395,28 @@ class UserLongTermMemory(ABC):
             str: 档案文本；未接入长期记忆时返回空串
         """
 
+    @abstractmethod
+    def consolidate(self, user_id: int, conversation_id: int) -> None:
+        """从最近对话抽取并更新用户档案（对话收尾时触发）。
+
+        Args:
+            user_id: 用户ID
+            conversation_id: 会话ID（取最近对话原文用）
+        """
+
 
 class NullUserLongTermMemory(UserLongTermMemory):
     """长期记忆空实现（占位）。
 
-    第 1 层未启用时使用，返回空串，保证上层提示词组装逻辑不变。
+    第 1 层未启用时使用，读路径返回空串、写路径直接跳过，
+    保证上层提示词组装与收尾逻辑不变。
     """
 
     def load_user_context(self, user_id: int) -> str:
         return ""
+
+    def consolidate(self, user_id: int, conversation_id: int) -> None:
+        return None
 
 
 # ============================================================
@@ -606,12 +643,13 @@ class MemoryFacade:
             llm_provider_getter: LLM 获取器（缺省使用全局懒加载工厂）
         """
         self.system_prompt_builder: SystemPromptBuilder = system_prompt_builder
+        self._user_long_term_memory: UserLongTermMemory = user_long_term_memory or NullUserLongTermMemory()
         self.layers: tuple[MemoryLayer] = (
             # L0 系统提示词层（汇聚 L1 用户档案 + RAG 补充知识）
             SystemPromptLayer(
                 self.system_prompt_builder,
                 retriever or get_retriever_provider(),
-                user_long_term_memory or NullUserLongTermMemory(),
+                self._user_long_term_memory,
             ),
             # L2 滚动摘要层
             SummaryMemoryLayer(conversation_repository, message_repository, llm_provider_getter or get_llm_provider),
@@ -648,3 +686,176 @@ class MemoryFacade:
         """
         summary_layer: SummaryMemoryLayer = self.layers[1]
         summary_layer.consolidate(conversation)
+
+    def consolidate_user_profile(self, user_id: int, conversation_id: int) -> None:
+        """第 1 层档案抽取入口（对话结束后调用）。
+
+        Args:
+            user_id: 用户ID
+            conversation_id: 会话ID
+        """
+        self._user_long_term_memory.consolidate(user_id, conversation_id)
+
+
+# ============================================================
+# 第 1 层实现：基于数据库的用户长期记忆
+# ============================================================
+
+
+class DbUserLongTermMemory(UserLongTermMemory):
+    """基于数据库的用户长期记忆实现。
+
+    读路径 load_user_context：按 user_id 查 assistant_user_profiles 表，
+    返回 profile 文本供 L0 注入系统提示词；
+    写路径 consolidate：取最近对话原文 → 拼接旧档案 → LLM 抽取 → upsert。
+
+    依赖端口（依赖倒置，不认识 SQLAlchemy）：
+        - profile_repository: UserProfileRepository 端口（档案读写）
+        - message_repository: MessageRepository 端口（取最近对话）
+        - llm_provider_getter: LLM 获取器（抽取调用，懒加载）
+
+    抽取 prompt 模板：src/templates/assistant_templates/user_profile_extract.yaml，
+    懒加载缓存，结构同 assistant_prompt.yaml。
+    """
+
+    def __init__(
+        self,
+        profile_repository: UserProfileRepository,
+        message_repository: MessageRepository,
+        llm_provider_getter: Callable[[], LLMProvider],
+        extract_prompt_path: Path | None = None,
+    ) -> None:
+        """初始化长期记忆实现。
+
+        Args:
+            profile_repository: 用户档案存储端口
+            message_repository: 消息存储端口（取最近对话原文）
+            llm_provider_getter: LLM 获取器（抽取调用，懒加载）
+            extract_prompt_path: 抽取 prompt 模板路径（缺省使用默认路径）
+        """
+        self._profile_repository: UserProfileRepository = profile_repository
+        self._message_repository: MessageRepository = message_repository
+        self._get_llm: Callable[[], LLMProvider] = llm_provider_getter
+        self._extract_prompt_path: Path = extract_prompt_path or (
+            find_project_root() / "src" / "templates" / "assistant_templates" / "user_profile_extract.yaml"
+        )
+        self._extract_prompt_template: str | None = None
+
+    def load_user_context(self, user_id: int) -> str:
+        """查表返回用户档案文本（无记录返回空串）。
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            str: 档案文本；无记录返回空串
+        """
+        entity = self._profile_repository.get_by_user(user_id)
+        if entity is None:
+            return ""
+        profile = getattr(entity, "profile", None)
+        return profile if profile else ""
+
+    def consolidate(self, user_id: int, conversation_id: int) -> None:
+        """从最近对话抽取并更新用户档案。
+
+        流程：取最近 N 条对话 → 读旧档案 → LLM 抽取 → upsert 写回。
+        失败仅记日志（尽力而为，不阻断主流程）。
+
+        Args:
+            user_id: 用户ID
+            conversation_id: 会话ID
+        """
+        long_term_cfg = settings.ai.memory.long_term
+        if not long_term_cfg.enabled:
+            return
+        # 1. 取最近对话原文（限制条数避免 prompt 过长）
+        recent = self._message_repository.list_by_conversation(
+            conversation_id, limit=long_term_cfg.consolidate_interval * 2
+        )
+        if not recent:
+            return
+        # 2. 拼接对话文本与旧档案
+        dialog_text = "\n".join(f"{msg.role}: {msg.content}" for msg in recent)
+        old_entity = self._profile_repository.get_by_user(user_id)
+        old_profile = getattr(old_entity, "profile", "") or ""
+        old_version = getattr(old_entity, "version", 0) or 0
+        # 3. 加载抽取 prompt 模板并填充
+        template = self._load_extract_prompt_template()
+        prompt = template.format(
+            old_profile=old_profile or "（暂无）",
+            recent_dialog=dialog_text,
+            max_profile_tokens=long_term_cfg.max_profile_tokens,
+        )
+        # 4. 调 LLM 抽取新档案
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "请抽取用户档案。"},
+        ]
+        result = self._get_llm().chat(
+            messages=messages,
+            temperature=0.3,
+            max_tokens=long_term_cfg.max_profile_tokens,
+        )
+        new_profile = (result.content or "").strip()
+        if not new_profile or new_profile == old_profile:
+            return
+        # 5. upsert 写回（带版本号递增）
+        self._profile_repository.upsert(user_id, new_profile, old_version)
+        logger.info(f"AI 助手长期记忆抽取：user={user_id} version={old_version + 1}")
+
+    def _load_extract_prompt_template(self) -> str:
+        """加载抽取 prompt 模板（懒加载缓存）。
+
+        Returns:
+            str: 抽取 prompt 模板（含占位符）
+
+        Raises:
+            ValueError: 模板文件缺失或结构不合法
+        """
+        if self._extract_prompt_template is not None:
+            return self._extract_prompt_template
+        if not self._extract_prompt_path.exists():
+            raise ValueError(f"用户档案抽取模板不存在: {self._extract_prompt_path}")
+        try:
+            raw: object = yaml.safe_load(self._extract_prompt_path.read_text(encoding="utf-8"))
+        except yaml.YAMLError as exc:
+            raise ValueError(f"用户档案抽取模板 YAML 解析失败: {self._extract_prompt_path}: {exc}") from exc
+        if not isinstance(raw, dict) or not isinstance(raw.get("system_prompt"), str):
+            raise ValueError(f"用户档案抽取模板缺少 system_prompt 字段: {self._extract_prompt_path}")
+        template: str = raw["system_prompt"]
+        required = ("{old_profile}", "{recent_dialog}", "{max_profile_tokens}")
+        missing = [name for name in required if name not in template]
+        if missing:
+            raise ValueError(f"用户档案抽取模板缺少必需占位符 {missing}: {self._extract_prompt_path}")
+        self._extract_prompt_template = template
+        return template
+
+
+# ============================================================
+# 工厂
+# ============================================================
+
+
+def build_user_long_term_memory(
+    profile_repository: UserProfileRepository,
+    message_repository: MessageRepository,
+    llm_provider_getter: Callable[[], LLMProvider] | None = None,
+) -> UserLongTermMemory:
+    """按配置创建长期记忆实现实例。
+
+    Args:
+        profile_repository: 用户档案存储端口
+        message_repository: 消息存储端口
+        llm_provider_getter: LLM 获取器（缺省使用全局懒加载工厂）
+
+    Returns:
+        UserLongTermMemory: 配置开启时返回 DbUserLongTermMemory，否则返回空实现
+    """
+    if not settings.ai.memory.long_term.enabled:
+        return NullUserLongTermMemory()
+    return DbUserLongTermMemory(
+        profile_repository=profile_repository,
+        message_repository=message_repository,
+        llm_provider_getter=llm_provider_getter or get_llm_provider,
+    )
