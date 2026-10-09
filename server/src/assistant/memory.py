@@ -810,10 +810,11 @@ class MemoryFacade:
             remaining_budget=settings.ai.memory.token_budget,
             user_permissions=user_permissions or set(),
         )
-        # 先取本轮动态内容（L1 用户档案 + RAG 补充知识）写入 ctx 黑板
+        # 1. 取用户档案
         ctx.user_context = self._user_long_term_memory.load_user_context(user_id)
+        # 2. 取 RAG 补充知识
         ctx.retriever_context = self._retrieve_context(query)
-        # 再按 L0 → L2 → L3 顺序驱动各层（L0 直接读 ctx，不自行拉取）
+        # 3. 按 L0 → L2 → L3 顺序驱动各层（L0 直接读 ctx，不自行拉取）
         for layer in self.layers:
             layer.contribute(ctx, conversation, user_id, query)
         return ctx.messages
