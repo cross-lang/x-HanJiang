@@ -24,11 +24,13 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Iterator
 
+from sqlalchemy.orm import Session
+
 from src.assistant.agent import AssistantAgent
-from src.assistant.knowledge import SystemPromptBuilder
-from src.assistant.memory import (
+from src.assistant.memories import (
     MemoryFacade,
     NullUserLongTermMemory,
+    SystemPromptBuilder,
     UserLongTermMemory,
     build_user_long_term_memory,
 )
@@ -84,7 +86,7 @@ class AssistantService:
         self._message_repository: AssistantMessageRepository = message_repository
         self._feedback_repository: AssistantFeedbackRepository = feedback_repository
         self._llm_provider: LLMProvider = get_llm_provider()
-        self._tool_registry: ToolRegistry = self._build_default_registry()
+        self._tool_registry: ToolRegistry = self._build_default_registry(message_repository.session)
         # L1 用户长期记忆：按配置开关创建（开启时从历史对话抽取用户档案沉淀到库）
         self._profile_repository: AssistantUserProfileRepository = AssistantUserProfileRepository(
             session=message_repository.session
@@ -112,8 +114,11 @@ class AssistantService:
         )
 
     @staticmethod
-    def _build_default_registry() -> ToolRegistry:
+    def _build_default_registry(session: Session) -> ToolRegistry:
         """构建默认工具注册表（内置工具 + 按配置启用 MCP 工具源）。
+
+        Args:
+            session: 请求级数据库会话（查询类工具的仓储数据来源）
 
         Returns:
             ToolRegistry: 已注册内置工具的注册表
@@ -121,7 +126,7 @@ class AssistantService:
         from src.assistant.tools import BuiltinToolSource, MCPToolSource
 
         registry = ToolRegistry()
-        registry.register_source(BuiltinToolSource())
+        registry.register_source(BuiltinToolSource(session=session))
         if settings.ai.tools.mcp_enabled:
             registry.register_source(MCPToolSource(server_url=settings.ai.tools.mcp_server_url))
         return registry

@@ -2,7 +2,7 @@
 """
 AI 助手长期记忆（第 1 层）单元测试
 
-测试 src/assistant/memory.py 中长期记忆相关逻辑：
+测试 src/assistant/memories/long_term.py 中长期记忆相关逻辑：
     - NullUserLongTermMemory：空实现的读/写路径
     - DbUserLongTermMemory：基于数据库的实现（读路径 + 抽取写路径）
     - build_user_long_term_memory：工厂函数（开关分发）
@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.assistant.memory import (
+from src.assistant.memories import (
     DbUserLongTermMemory,
     NullUserLongTermMemory,
     build_user_long_term_memory,
@@ -170,7 +170,7 @@ class TestDbConsolidate:
         """配置开关关闭时跳过。"""
         repo = _FakeProfileRepo()
         memory = _make_db_memory(repo, _FakeMessageRepo(), _FakeLLMProvider())
-        with patch("src.assistant.memory.settings") as mock_settings:
+        with patch("src.assistant.memories.long_term.settings") as mock_settings:
             mock_settings.ai.memory.long_term.enabled = False
             memory.consolidate(1, 100)
         assert repo.upserted == []
@@ -179,7 +179,7 @@ class TestDbConsolidate:
         """无对话消息时跳过。"""
         repo = _FakeProfileRepo()
         memory = _make_db_memory(repo, _FakeMessageRepo([]), _FakeLLMProvider())
-        with patch("src.assistant.memory.settings") as mock_settings:
+        with patch("src.assistant.memories.long_term.settings") as mock_settings:
             mock_settings.ai.memory.long_term.enabled = True
             mock_settings.ai.memory.long_term.consolidate_interval = 5
             mock_settings.ai.memory.long_term.max_profile_tokens = 500
@@ -195,7 +195,7 @@ class TestDbConsolidate:
         repo = _FakeProfileRepo(entity=None)
         llm = _FakeLLMProvider(content="- 角色：管理员\n- 关注：公告管理")
         memory = _make_db_memory(repo, _FakeMessageRepo(messages), llm)
-        with patch("src.assistant.memory.settings") as mock_settings:
+        with patch("src.assistant.memories.long_term.settings") as mock_settings:
             mock_settings.ai.memory.long_term.enabled = True
             mock_settings.ai.memory.long_term.consolidate_interval = 5
             mock_settings.ai.memory.long_term.max_profile_tokens = 500
@@ -215,7 +215,7 @@ class TestDbConsolidate:
         llm = _FakeLLMProvider(content=old_profile)
         messages = [_FakeMessageEntity(id=1, role="user", content="你好")]
         memory = _make_db_memory(repo, _FakeMessageRepo(messages), llm)
-        with patch("src.assistant.memory.settings") as mock_settings:
+        with patch("src.assistant.memories.long_term.settings") as mock_settings:
             mock_settings.ai.memory.long_term.enabled = True
             mock_settings.ai.memory.long_term.consolidate_interval = 5
             mock_settings.ai.memory.long_term.max_profile_tokens = 500
@@ -228,7 +228,7 @@ class TestDbConsolidate:
         llm = _FakeLLMProvider(content="")
         messages = [_FakeMessageEntity(id=1, role="user", content="你好")]
         memory = _make_db_memory(repo, _FakeMessageRepo(messages), llm)
-        with patch("src.assistant.memory.settings") as mock_settings:
+        with patch("src.assistant.memories.long_term.settings") as mock_settings:
             mock_settings.ai.memory.long_term.enabled = True
             mock_settings.ai.memory.long_term.consolidate_interval = 5
             mock_settings.ai.memory.long_term.max_profile_tokens = 500
@@ -246,7 +246,7 @@ class TestBuildUserLongTermMemory:
 
     def test_disabled_returns_null(self):
         """配置关闭时返回空实现。"""
-        with patch("src.assistant.memory.settings") as mock_settings:
+        with patch("src.assistant.memories.long_term.settings") as mock_settings:
             mock_settings.ai.memory.long_term.enabled = False
             result = build_user_long_term_memory(
                 profile_repository=_FakeProfileRepo(),
@@ -256,7 +256,7 @@ class TestBuildUserLongTermMemory:
 
     def test_enabled_returns_db(self):
         """配置开启时返回数据库实现。"""
-        with patch("src.assistant.memory.settings") as mock_settings:
+        with patch("src.assistant.memories.long_term.settings") as mock_settings:
             mock_settings.ai.memory.long_term.enabled = True
             result = build_user_long_term_memory(
                 profile_repository=_FakeProfileRepo(),

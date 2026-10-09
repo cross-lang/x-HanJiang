@@ -43,6 +43,13 @@ class AssistantMessageRole(StrBaseEnum):
 #: 跳转工具名称（作为 tool name 暴露给模型）
 NAVIGATE_TOOL_NAME: str = "navigate"
 
+#: 只读查询工具名称（作为 tool name 暴露给模型，全部为只读、不产生写操作）
+QUERY_SYSTEM_STATS_TOOL_NAME: str = "query_system_stats"
+QUERY_USER_INFO_TOOL_NAME: str = "query_user_info"
+QUERY_MY_PERMISSIONS_TOOL_NAME: str = "query_my_permissions"
+QUERY_ANNOUNCEMENTS_TOOL_NAME: str = "query_announcements"
+QUERY_APP_STATUS_TOOL_NAME: str = "query_app_status"
+
 
 # ── 权限元数据 ───────────────────────────────────────────
 

@@ -6,11 +6,13 @@ models）**的领域能力，参考 notification/ 域子系统的组织方式。
 
 本包成员与职责：
     - tools       工具注册机制（BaseTool / ToolRegistry / ToolSource）。
-                  工具可运行时动态注册；来源可插拔：内置（BuiltinToolSource）+
+                  工具可运行时动态注册；来源可插拔：内置（BuiltinToolSource，
+                  跳转 + 只读查询：系统统计/用户查询/我的权限/生效公告/应用状态）+
                   预留 MCP（MCPToolSource，受配置 ai.tools.mcp_enabled 控制）
-    - memory      记忆分层接口。第 1 层长期记忆 UserLongTermMemory（Null 空实现 +
-                  DbUserLongTermMemory 数据库实现）；第 2/3 层实现在 memory.py
-    - knowledge   静态知识库：系统提示词 + 系统入口路由表组装（含用户档案注入点）
+    - memories    记忆子系统：四层记忆（L0 SystemPromptLayer / L1 UserLongTermMemory：
+                  Null 空实现 + DbUserLongTermMemory 数据库实现 / L2 SummaryMemoryLayer /
+                  L3 RecentMemoryLayer）与 MemoryFacade 统一编排；静态知识库
+                  knowledge.py（系统提示词 + FAQ 组装）也并入本包
     - retriever   知识检索（RAG）：RetrieverProvider 抽象 + NullRetriever 空实现，待接入
 
 大模型客户端抽象（LLMProvider）位于 infras/llm.py（第三方 SDK 封装，遵循

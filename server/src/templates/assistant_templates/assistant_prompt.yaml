@@ -2,7 +2,7 @@
 #
 # 说明：
 #   - 本文件是「内容级」知识资产（提示词工程文案），与 assistant_faq.yaml 同级，
-#     由 src.assistant.knowledge.SystemPromptBuilder 加载并做占位符替换。
+#     由 src.assistant.memories.knowledge.SystemPromptBuilder 加载并做占位符替换。
 #   - 占位符（由代码动态注入，勿删除）：
 #       {entries_block}  系统系统入口路由表（由 ASSISTANT_ENTRY_CATALOG 生成，含权限过滤提示）
 #       {user_block}     用户档案（第 1 层长期记忆注入点；无档案时注入占位文案）
