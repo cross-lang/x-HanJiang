@@ -50,6 +50,13 @@
 - **可观测性**：业务审计日志、登录日志、操作日志趋势、系统告警
 - **工程化**：分层架构（API → Service → Repository）、统一异常处理、Swagger 文档、Alembic 迁移、GitHub Actions CI
 
+## 🍪 在线体验
+
+| 端 | 地址 | 账号 |
+|----|------|------|
+| 🌐 开放平台 | `http://121.40.147.234/open-portal/` | `yeyushilai` / `admin@123456` |
+| 💻 管理系统 | `http://121.40.147.234/admin/` | `superadmin` / `admin@123456` |
+
 ## 📸 界面预览
 
 ### 管理系统
@@ -68,13 +75,6 @@
 ![开放能力](./me/open_portal_openapi.png)
 ![认证和授权](./me/open_portal_auth.png)
 ![个人中心](./me/open_portal_profile.png)
-
-## 🍪 在线体验
-
-| 端 | 地址 | 账号 |
-|----|------|------|
-| 🌐 开放平台 | `http://121.40.147.234/open-portal/` | `yeyushilai` / `admin@123456` |
-| 💻 管理系统 | `http://121.40.147.234/admin/` | `superadmin` / `admin@123456` |
 
 ## 🚀 快速开始
 
