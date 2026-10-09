@@ -4,7 +4,7 @@
 #   - 本文件是「内容级」知识资产（提示词工程文案），与 assistant_faq.yaml 同级，
 #     由 src.assistant.knowledge.SystemPromptBuilder 加载并做占位符替换。
 #   - 占位符（由代码动态注入，勿删除）：
-#       {entries_block}  系统入口清单（由 ASSISTANT_ENTRY_CATALOG 生成，含权限过滤提示）
+#       {entries_block}  系统系统入口路由表（由 ASSISTANT_ENTRY_CATALOG 生成，含权限过滤提示）
 #       {user_block}     用户档案（第 1 层长期记忆注入点；无档案时注入占位文案）
 #       {faq_block}      命中 FAQ 的【优先参考】块（未命中时为空白）
 #       {rag_block}      【补充知识】RAG 预留注入位（retriever 未启用时为空白）

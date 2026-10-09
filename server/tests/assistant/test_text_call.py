@@ -59,7 +59,7 @@ class TestExtractTextToolCall:
         assert json.loads(call.arguments) == {"page": "users"}
 
     def test_navigate_dict_with_unknown_path_maps_to_empty(self):
-        """path 不在入口清单时映射为空串（原有语义保持兼容）。"""
+        """path 不在系统入口路由表时映射为空串（原有语义保持兼容）。"""
         call = _extract('{"action":"navigate","path":"/unknown-page"}')
         assert call is not None
         assert json.loads(call.arguments) == {"page": ""}

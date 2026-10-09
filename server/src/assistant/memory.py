@@ -12,14 +12,14 @@ TL;DR —— 本模块做什么：
     memory_facade.roll_summary(conversation)
 
 四层结构（每层一个内聚类，MemoryFacade 只做编排）：
-    L0 系统提示词   SystemPromptLayer    永不丢弃；身份/入口清单/FAQ + L1 用户档案 + RAG
-    L1 长期记忆     UserLongTermMemory   跨会话用户档案（作为内容提供者喂给 L0，不实现 MemoryLayer）
+    L0 系统提示词   SystemPromptLayer    永不丢弃；身份/系统入口路由表/FAQ
+    L1 长期记忆     UserLongTermMemory   跨会话用户档案
     L2 滚动摘要     SummaryMemoryLayer   窗口外旧消息渐进压缩进 Conversation.summary
     L3 最近 N 轮    RecentMemoryLayer    精确保留最近几轮原文，超预算从最旧丢弃
 
 核心抽象：
     - MemoryLayer.contribute(ctx, ...)：各层向 ctx 追加消息并扣减预算
-    - MemoryContext：层间传递的「消息 + 剩余预算」黑板
+    - MemoryContext：层间传递的「消息 + 剩余预算 + 本轮动态内容」黑板
     - MemoryFacade.build_context() / roll_summary()：组装与压缩入口
 
 依赖倒置：各层只面向本模块的 Protocol 端口（MessageRepository /
@@ -33,7 +33,7 @@ build_context 返回的真实示例（用户第 3 轮问「怎么发公告」）
         {
             "role": "system",
             "content": "你是「小江」，汉江管理系统的智能助手……\n\n"
-                       "【系统入口清单】\n"
+                       "【系统系统入口路由表】\n"
                        "- 首页（/home）：系统首页\n"
                        "- 用户管理（/users）：用户增删改查\n"
                        "- 公告管理（/announcements）：通知发布与撤回\n"
@@ -195,18 +195,28 @@ class MemoryContext:
     Attributes:
         messages: 已累积的上下文消息（按层注入顺序）
         remaining_budget: 剩余 token 预算（强制层占用后递减；供 L3 裁剪）
-        user_permissions: 当前用户权限码集合（L0 据此过滤入口清单；
+        user_permissions: 当前用户权限码集合（L0 据此过滤系统入口路由表；
             空集表示未传入，L0 不过滤；含 "*" 表示超级管理员通配）
+        user_context: L1 用户档案文本（由 MemoryFacade 取好后注入 ctx，
+            L0 读取渲染进系统提示词；空串表示无档案）
+        retriever_context: RAG 检索补充知识（由 MemoryFacade 取好后注入 ctx，
+            L0 读取渲染进系统提示词；空串表示无补充知识）
 
     设计说明：
         让各层共享同一个可变上下文，而不是每层各自返回一个列表再由
         MemoryFacade 拼接，好处是——① 消息追加与预算扣减集中记账，不会出现
         某层忘记扣预算；② 层与层之间互不持有引用、互不感知，只读写 ctx，
         新增/调整层顺序时其他层零改动。
+        L1 用户档案与 RAG 补充知识也走 ctx：MemoryFacade 在驱动各层之前，
+        先把这两个「本轮动态内容」取好写入 ctx.user_context /
+        ctx.retriever_context，L0 直接读取，从而 L0 不再持有 L1 /
+        RAG 的引用——L0 退化为纯渲染适配器，与记忆层 / 检索层彻底解耦。
 
     不变式：
         - remaining_budget 永远 ≥ 0（charge 用 max(...,0) 兜底）；
         - messages 的下标顺序严格等于层的注入顺序（L0 在前、L3 在后）；
+        - user_context / retriever_context 在层循环开始前由 Facade 一次性写定，
+          各层只读不写；
         - 「追加内容」与「扣减预算」是两个正交动作：append 只加消息、
           charge 只减预算，由各层按需分别调用，不强行绑定。
     """
@@ -214,6 +224,8 @@ class MemoryContext:
     messages: list[dict[str, object]] = field(default_factory=list)
     remaining_budget: int = 0
     user_permissions: set[str] = field(default_factory=set)
+    user_context: str = ""
+    retriever_context: str = ""
 
     def append(self, role: str, content: str) -> None:
         """追加一条消息。
@@ -275,27 +287,31 @@ class MemoryLayer(ABC):
 
 
 # ============================================================
-# 第 0 层：系统提示词（适配 SystemPromptBuilder + 并入 RAG）
+# 第 0 层：系统提示词（适配 SystemPromptBuilderx）
 # ============================================================
 
 
 class SystemPromptLayer(MemoryLayer):
     """第 0 层：系统提示词（最高优先级，永不丢弃）。
 
-    作为 MemoryLayer 与 SystemPromptBuilder 之间的适配器：提示词的静态内容
-    （身份 / 入口清单 / FAQ）由 SystemPromptBuilder 渲染，本类负责汇聚两个
-    本轮动态内容源——L1 用户档案与 RAG 补充知识——调用渲染并纳入预算记账。
+    作为 MemoryLayer 与 SystemPromptBuilder 之间的纯渲染适配器：提示词的
+    静态内容（身份 / 系统入口路由表 / FAQ）由 SystemPromptBuilder 渲染，本轮两个
+    动态内容源——L1 用户档案与 RAG 补充知识——不再由本层主动拉取，而是由
+    MemoryFacade 在驱动各层之前取好，经 ctx.user_context /
+    ctx.retriever_context 注入；本层只读 ctx 并调用渲染、纳入预算记账。
+
+    这样 L0 与 L1 长期记忆 / RAG 检索彻底解耦：L0 不持有 retriever /
+    user_long_term_memory 引用，新增 / 替换 L1 或 RAG 实现时 L0 零改动。
 
     流程：
-        1. 从 L1 长期记忆读取用户档案（未接入时为空串）；
-        2. 按开关做 RAG 检索，得到补充知识（未启用时空串）；
-        3. 委托 SystemPromptBuilder 组装完整系统提示词；
-        4. 向 ctx 追加该 system 消息并按实际 token 扣减预算。
+        1. 从 ctx 读取 MemoryFacade 预先注入的用户档案与检索补充知识；
+        2. 委托 SystemPromptBuilder 组装完整系统提示词（按用户权限过滤系统入口路由表）；
+        3. 向 ctx 追加该 system 消息并按实际 token 扣减预算。
 
     不变式：
         - 每轮恰好注入 1 条 role="system" 的消息；
         - 作为第一个执行的层（order=0），其 charge 决定 L2/L3 的可用预算；
-        - 不读取 conversation、不写库（纯只读 + ctx 写入）；
+        - 不读取 conversation、不写库、不调用 L1 / RAG（纯只读 ctx + 渲染）；
         - 即便 remaining_budget=0 也照常注入：L0 优先级最高，预算缺口由
           后面的 L3「少带原文」来吸收，而不是压缩提示词本身。
     """
@@ -305,19 +321,13 @@ class SystemPromptLayer(MemoryLayer):
     def __init__(
         self,
         system_prompt_builder: SystemPromptBuilder,
-        retriever: RetrieverProvider,
-        user_long_term_memory: UserLongTermMemory,
     ) -> None:
         """初始化第 0 层。
 
         Args:
             system_prompt_builder: 系统提示词组装器（纯静态渲染）
-            retriever: RAG 检索提供者
-            user_long_term_memory: L1 用户长期记忆提供者
         """
         self._system_prompt_builder: SystemPromptBuilder = system_prompt_builder
-        self._retriever: RetrieverProvider = retriever
-        self._user_long_term_memory: UserLongTermMemory = user_long_term_memory
 
     def contribute(
         self,
@@ -326,49 +336,29 @@ class SystemPromptLayer(MemoryLayer):
         user_id: int,
         query: str,
     ) -> None:
-        """组装并注入系统提示词（RAG 补充知识在此并入）。
+        """组装并注入系统提示词。
+
+        L1 用户档案与 RAG 补充知识由 MemoryFacade 预先写入 ctx，本层直接读取，
+        不再持有 L1 / RAG 引用，也不再自行检索。
 
         Args:
-            ctx: 层间编排上下文
+            ctx: 层间编排上下文（含 user_context / retriever_context /
+                user_permissions，均由 Facade 在层循环前写定）
             conversation: 会话实体（本层不使用，保持接口一致）
-            user_id: 当前用户ID
-            query: 本轮用户输入（FAQ 命中与 RAG 检索用）
+            user_id: 当前用户ID（本层不使用，保持接口一致）
+            query: 本轮用户输入（FAQ 命中用）
         """
-
-        # 整体目标：按本轮问题动态检索外部知识，把相关片段补进系统提示词。
-        # 让模型回答时有超出「身份设定 + 入口清单 + FAQ」之外的事实依据（标准的 RAG 增强环节）
-
-        #  1. 从 L1 长期记忆读取用户档案（未接入时为空串）
-        user_context = self._user_long_term_memory.load_user_context(user_id)
-
-        #  2. 按开关做 RAG 检索，得到补充知识（未启用时空串）
-        retriever_context = self._retrieve_context(query)
-
-        #  3. 委托 SystemPromptBuilder 组装完整系统提示词（按用户权限过滤入口清单）
+        # 委托 SystemPromptBuilder 组装完整系统提示词（按用户权限过滤系统入口路由表）
         system_prompt = self._system_prompt_builder.build_system_prompt(
-            user_context=user_context,
-            retriever_context=retriever_context,
+            user_context=ctx.user_context,
+            retriever_context=ctx.retriever_context,
             user_question=query,
             user_permissions=ctx.user_permissions,
         )
 
-        #  4. 向 ctx 追加该 system 消息并按实际 token 扣减预算
+        # 向 ctx 追加该 system 消息并按实际 token 扣减预算
         ctx.append("system", system_prompt)
         ctx.charge(estimate_tokens(system_prompt))
-
-    def _retrieve_context(self, query: str) -> str:
-        """动态检索外部补充知识（RAG；未启用时返回空串）。
-
-        Args:
-            query: 查询文本
-
-        Returns:
-            str: 补充知识文本（空串表示无）
-        """
-        if not settings.ai.retriever.enabled:
-            return ""
-        chunks = self._retriever.retrieve(query, top_k=settings.ai.retriever.top_k)
-        return "\n".join(chunk.content for chunk in chunks)
 
 
 # ============================================================
@@ -740,12 +730,16 @@ class RecentMemoryLayer(MemoryLayer):
 class MemoryFacade:
     """记忆系统编排器（Facade）：持有有序记忆层并统一驱动。
 
-    只负责编排，不包含具体记忆逻辑：
-        - build_context：按 L0 → L2 → L3 顺序遍历各层 contribute
+    职责：
+        - build_context：先取 L1 用户档案与 RAG 补充知识写入 ctx，再按
+          L0 → L2 → L3 顺序遍历各层 contribute（L0 只读 ctx 渲染，不感知 L1/RAG）
         - roll_summary：委托第 2 层 consolidate 执行压缩
+        - consolidate_user_profile：委托 L1 抽取用户档案
 
     Attributes:
         _layers: 按注入优先级排序的记忆层列表（L0 / L2 / L3）
+        _user_long_term_memory: L1 用户长期记忆提供者（读路径喂给 L0，写路径供对话结束抽取）
+        _retriever: RAG 检索提供者（按开关检索补充知识，未启用时返回空串）
 
     生命周期与不变式：
         - 「层实例」长生命周期、可跨多轮复用：层的依赖（端口 / 适配器）
@@ -778,13 +772,10 @@ class MemoryFacade:
         """
         self.system_prompt_builder: SystemPromptBuilder = system_prompt_builder
         self._user_long_term_memory: UserLongTermMemory = user_long_term_memory or NullUserLongTermMemory()
+        self._retriever: RetrieverProvider = retriever or get_retriever_provider()
         self.layers: tuple[MemoryLayer] = (
-            # L0 系统提示词层（汇聚 L1 用户档案 + RAG 补充知识）
-            SystemPromptLayer(
-                self.system_prompt_builder,
-                retriever or get_retriever_provider(),
-                self._user_long_term_memory,
-            ),
+            # L0 系统提示词层（纯渲染：从 ctx 读取 L1/RAG 内容，不持有 L1/RAG 引用）
+            SystemPromptLayer(self.system_prompt_builder),
             # L2 滚动摘要层
             SummaryMemoryLayer(conversation_repository, message_repository, llm_provider_getter or get_llm_provider),
             # L3 最近原文层
@@ -798,13 +789,18 @@ class MemoryFacade:
         query: str,
         user_permissions: set[str] | None = None,
     ) -> list[dict[str, object]]:
-        """组装本轮对话上下文：遍历各层依次贡献记忆。
+        """组装本轮对话上下文：先取 L1/RAG 写入 ctx，再遍历各层贡献记忆。
+
+        L1 用户档案与 RAG 补充知识是「本轮动态内容」，由本编排器在驱动
+        各层之前统一取好并写入 ctx.user_context / ctx.retriever_context。
+        这样 L0 只读 ctx 渲染，不再持有 L1 / RAG 引用——L1 / RAG 的新增
+        或替换只影响本编排器，L0 零改动。
 
         Args:
             conversation: 会话实体
             user_id: 当前用户ID
             query: 本轮用户输入
-            user_permissions: 当前用户权限码集合（L0 据此过滤入口清单；
+            user_permissions: 当前用户权限码集合（L0 据此过滤系统入口路由表；
                 None 表示不传入，L0 不过滤；含 "*" 表示超级管理员通配）
 
         Returns:
@@ -814,9 +810,27 @@ class MemoryFacade:
             remaining_budget=settings.ai.memory.token_budget,
             user_permissions=user_permissions or set(),
         )
+        # 先取本轮动态内容（L1 用户档案 + RAG 补充知识）写入 ctx 黑板
+        ctx.user_context = self._user_long_term_memory.load_user_context(user_id)
+        ctx.retriever_context = self._retrieve_context(query)
+        # 再按 L0 → L2 → L3 顺序驱动各层（L0 直接读 ctx，不自行拉取）
         for layer in self.layers:
             layer.contribute(ctx, conversation, user_id, query)
         return ctx.messages
+
+    def _retrieve_context(self, query: str) -> str:
+        """动态检索外部补充知识（RAG；未启用时返回空串）。
+
+        Args:
+            query: 查询文本
+
+        Returns:
+            str: 补充知识文本（空串表示无）
+        """
+        if not settings.ai.retriever.enabled:
+            return ""
+        chunks = self._retriever.retrieve(query, top_k=settings.ai.retriever.top_k)
+        return "\n".join(chunk.content for chunk in chunks)
 
     def roll_summary(self, conversation: AssistantConversationEntity) -> None:
         """第 2 层压缩入口（对话结束后调用）。

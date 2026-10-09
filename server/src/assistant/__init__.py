@@ -10,7 +10,7 @@ models）**的领域能力，参考 notification/ 域子系统的组织方式。
                   预留 MCP（MCPToolSource，受配置 ai.tools.mcp_enabled 控制）
     - memory      记忆分层接口。第 1 层长期记忆 UserLongTermMemory（Null 空实现 +
                   DbUserLongTermMemory 数据库实现）；第 2/3 层实现在 memory.py
-    - knowledge   静态知识库：系统提示词 + 入口清单组装（含用户档案注入点）
+    - knowledge   静态知识库：系统提示词 + 系统入口路由表组装（含用户档案注入点）
     - retriever   知识检索（RAG）：RetrieverProvider 抽象 + NullRetriever 空实现，待接入
 
 大模型客户端抽象（LLMProvider）位于 infras/llm.py（第三方 SDK 封装，遵循

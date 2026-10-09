@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AI 助手业务常量与枚举。
 
-集中定义 AI 助手模块的 SSE 事件类型、会话消息角色、工具标识与系统入口清单，
+集中定义 AI 助手模块的 SSE 事件类型、会话消息角色、工具标识与系统系统入口路由表，
 避免业务代码中出现魔法字符串。按规范禁止散落业务字符串，全部收拢至此。
 """
 
@@ -93,7 +93,7 @@ ASSISTANT_CHUNK_BOUNDARY_CHARS: tuple[str, ...] = (
 
 #: 结构化路由表：每条含 page（前端路由标识）/ path（URL 路径）/ title（页面标题）
 #: / description（用途说明）/ permission（所需权限码，空 = 登录即可访问）五个字段。
-#: 被 SystemPromptBuilder 渲染为系统提示词中的【系统入口清单】块，
+#: 被 SystemPromptBuilder 渲染为系统提示词中的【系统系统入口路由表】块，
 #: 同时作为 navigate 工具的跳转目标表（模型按 page / path 生成跳转指令）。
 #: 权限码引用 PermissionCode 统一目录，与 api/v1 各业务路由的 @permission 声明一致；
 #: 后续可替换为从菜单表（menu）动态生成，此处为 P0 静态清单。

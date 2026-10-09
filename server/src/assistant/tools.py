@@ -89,7 +89,7 @@ class BaseTool(ABC):
 class NavigateTool(BaseTool):
     """跳转工具：引导用户进入系统指定入口。
 
-    权限规则：入口清单中 permission 为空的页面登录即可访问；
+    权限规则：系统入口路由表中 permission 为空的页面登录即可访问；
     否则要求当前用户拥有对应权限码（或 * 超管通配）。
     """
 
@@ -115,7 +115,7 @@ class NavigateTool(BaseTool):
             None,
         )
         if entry is None:
-            return ToolResult(content="未知页面标识，请只从系统入口清单中选择页面")
+            return ToolResult(content="未知页面标识，请只从系统系统入口路由表中选择页面")
         if not self._has_access(entry["permission"], user):
             logger.warning(f"AI 助手跳转被拒：user={user.id} page={page}")
             return ToolResult(

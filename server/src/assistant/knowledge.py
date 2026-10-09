@@ -4,24 +4,24 @@
 职责：
     - FAQ 操作手册：数据模型（FaqItem）+ 加载校验（load_assistant_faq）
       数据文件 server/src/templates/assistant_templates/assistant_faq.yaml
-    - 系统提示词组装：将入口清单（ASSISTANT_ENTRY_CATALOG）、FAQ 操作手册
+    - 系统提示词组装：将系统入口路由表（ASSISTANT_ENTRY_CATALOG）、FAQ 操作手册
       与用户档案（记忆第 1 层注入点）组装为系统提示词，注入对话上下文
-    - 入口清单与 FAQ 当前来自常量/数据文件（静态维护）；后续可替换为从菜单表 /
+    - 系统入口路由表与 FAQ 当前来自常量/数据文件（静态维护）；后续可替换为从菜单表 /
       数据表动态生成，本类只依赖数据源，替换数据源不影响上层
 
 知识分层（第 1 级方案）：
-    - 入口清单：回答「系统有哪些页面、如何跳转」（服务 navigate 工具）
+    - 系统入口路由表：回答「系统有哪些页面、如何跳转」（服务 navigate 工具）
     - FAQ 操作手册：回答「具体操作怎么做」（分步步骤，来自系统真实流程）
     - match_faq() 做确定性关键词召回：命中当前问题对应 FAQ 时，
       将标准答案注入【优先参考】块，并要求模型以该答案为准组织回复，
       从约束层压制「答非所问 / 编造操作步骤」
 
 说明：
-    - RAG 注入链路已就绪（SystemPromptLayer → retriever_context → rag_block），
+    - RAG 注入链路已就绪（MemoryFacade → retriever_context → rag_block），
       当前为 NullRetriever 空实现返回空串，待接入向量检索
     - 用户档案（第 1 层长期记忆）与 RAG 补充知识均为「本轮动态内容」，由
-      L0 层（SystemPromptLayer）取好后以参数传入，本类不依赖记忆层 / 检索层，
-      只做静态模板渲染，零 I/O
+      MemoryFacade 取好后以参数传入 build_system_prompt，本类不依赖
+      记忆层 / 检索层，只做静态模板渲染，零 I/O
 """
 
 from __future__ import annotations
@@ -276,11 +276,12 @@ class SystemPromptBuilder:
         """组装系统提示词。
 
         Args:
-            user_context: 用户档案文本（第 1 层长期记忆内容，由 L0 层读取后
-                传入；空串表示无档案，模板中给出通用回答提示）
-            retriever_context: 检索补充知识（RAG 预留，未启用时为空串）
+            user_context: 用户档案文本（第 1 层长期记忆内容，由 MemoryFacade
+                取好后传入；空串表示无档案，模板中给出通用回答提示）
+            retriever_context: 检索补充知识（RAG，由 MemoryFacade 取好后传入；
+                未启用时为空串）
             user_question: 本轮用户提问（用于命中 FAQ，为空则跳过）
-            user_permissions: 当前用户权限码集合，用于过滤入口清单；
+            user_permissions: 当前用户权限码集合，用于过滤系统入口路由表；
                 None 表示不过滤（全量，兼容测试/无权限场景）；
                 含 "*" 表示超级管理员通配，保留全量；
                 空集或部分集合则只保留 permission=="" 或 permission in 集合 的入口
@@ -288,7 +289,7 @@ class SystemPromptBuilder:
         Returns:
             str: 完整系统提示词，包含系统入口路由表、用户档案、补充知识、FAQ 个块。
         """
-        # 入口清单块：按用户权限过滤后渲染为多行列表
+        # 系统入口路由表块：按用户权限过滤后渲染为多行列表
         entries_block = self._build_entries_block(user_permissions)
         # 用户档案块：L1 长期记忆内容；空则给通用兜底，保证模板占位总有值
         user_block = user_context if user_context else "（暂无，按通用规则回答）"
