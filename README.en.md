@@ -54,8 +54,8 @@ HanJiang is an out-of-the-box enterprise full-stack rapid development platform: 
 
 | Frontend | URL | Account |
 |----|------|------|
-| 🌐 Developer Portal | `http://121.40.147.234/open-portal/` | `yeyushilai` / `admin@123456` |
-| 💻 Admin Console | `http://121.40.147.234/admin/` | `superadmin` / `admin@123456` |
+| 🌐 Developer Portal | [http://121.40.147.234/open-portal/](http://121.40.147.234/open-portal/) | `yeyushilai` / `admin@123456` |
+| 💻 Admin Console | [http://121.40.147.234/admin/](http://121.40.147.234/admin/) | `superadmin` / `admin@123456` |
 
 ## 📸 Screenshots
 
