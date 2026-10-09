@@ -1,11 +1,11 @@
 """开放平台（面向应用）身份数据实体。
 与面向用户的 UserEntity 平行：
 - UserEntity 代表"终端人"，用 JWT 鉴权；
-- ApiAppEntity 代表"调用方应用/服务"，用 AppId+AppKey（当前）或 HMAC 签名（未来）鉴权。
-表结构已为 HMAC 升级预留：
-- app_key_hash:         SHA256(app_key)，明文模式下走索引快查，不存明文；
-- app_key_encrypted:    Fernet 加密后的明文 app_key，HMAC 模式解密出来重算签名用；
-- auth_mode:            "plain" | "hmac" | "both"，升级时改这个字段即可，无需改代码。
+- ApiAppEntity 代表"调用方应用/服务"，用 AppId+AppKey 或 HMAC 签名鉴权。
+表结构支持 plain / hmac / both 三种鉴权模式：
+- app_key_hash:         SHA256(app_key)，plain 模式下走索引快查，不存明文；
+- app_key_encrypted:    Fernet 加密后的明文 app_key，hmac 模式解密出来重算签名用；
+- auth_mode:            "plain" | "hmac" | "both"，切换模式改这个字段即可，无需改表结构。
 """
 
 from datetime import datetime
