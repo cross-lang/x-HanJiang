@@ -4,7 +4,8 @@ import { useDeveloperStore } from '@/stores/developer'
 import { capabilityModuleMap } from '@/data/capability'
 
 const router = createRouter({
-  history: createWebHistory(),
+  // 生产构建挂载到 Nginx /portal/ 子路径（同域部署），BASE_URL 跟随 vite base
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/login',

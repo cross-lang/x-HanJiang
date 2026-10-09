@@ -1,6 +1,9 @@
 # 汉江（HanJiang）Docker Compose 配置
 # 使用方法：docker-compose up --build
 #
+# 架构：nginx（前端托管 + 统一入口 :80）→ app（后端 API，仅容器网络内）→ mysql / redis
+# 同域路由：/ 管理系统前端 | /portal/ 开放平台门户 | /api/ 后端反代（详见 web/nginx.conf）
+#
 # 注意：生产环境部署时：
 #   1. AUTH_SECRET_KEY 必须通过环境变量注入，禁用默认占位符
 #   2. 数据库密码同样需要外部注入
@@ -10,11 +13,13 @@
 services:
   app:
     build:
-      context: .
+      # 后端构建上下文为 server/ 目录（复用 server/Dockerfile，其 COPY 路径均相对 server/）
+      context: ./server
       dockerfile: Dockerfile
     container_name: x-HanJiang
-    ports:
-      - "8000:8000"
+    # 对外仅暴露 nginx :80（前端 + API 统一入口）；app 端口仅容器网络内可见
+    expose:
+      - "8000"
     environment:
       - APP_ENV=${APP_ENV:-production}
       # 必填项：生产环境必须覆盖默认值
@@ -29,6 +34,8 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       - REDIS_DB=${REDIS_DB:-0}
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+      # AI 助手大模型密钥（敏感信息仅经环境变量注入，不落镜像/代码）
+      - AI_LLM_API_KEY=${AI_LLM_API_KEY:-}
     depends_on:
       mysql:
         condition: service_healthy
@@ -56,6 +63,25 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  nginx:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: x-HanJiang-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   mysql:
     image: mysql:8.0

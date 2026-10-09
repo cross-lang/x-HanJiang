@@ -1,0 +1,10 @@
+# 依赖与构建产物（容器内自行安装/构建）
+node_modules
+admin/node_modules
+open_portal/node_modules
+admin/dist
+open_portal/dist
+
+# 日志与版本控制
+*.log
+.git
