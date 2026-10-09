@@ -5,8 +5,8 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
-  // 生产构建挂载到 Nginx /portal/ 子路径（同域部署）；开发环境保持根路径不变
-  base: process.env.NODE_ENV === 'production' ? '/portal/' : '/',
+  // 生产构建挂载到 Nginx /open-portal/ 子路径（同域部署）；开发环境保持根路径不变
+  base: process.env.NODE_ENV === 'production' ? '/open-portal/' : '/',
   plugins: [
     vue(),
     // Element Plus 按需引入：组件 + v-loading 等指令按需注册并注入样式

@@ -26,7 +26,7 @@ http.interceptors.response.use(
     if (error.response?.status === 401) {
       if (!window.location.pathname.includes('/login')) {
         clearToken()
-        window.location.href = '/login'
+        window.location.href = `${import.meta.env.BASE_URL}login`
       }
       return Promise.reject(error)
     }

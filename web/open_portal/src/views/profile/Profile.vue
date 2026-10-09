@@ -338,7 +338,7 @@ async function changePwd() {
     })
     ElMessage.success('密码修改成功，请重新登录')
     developerStore.logout()
-    window.location.href = '/login'
+    window.location.href = `${import.meta.env.BASE_URL}login`
   } catch {
     // 错误已处理
   } finally {
