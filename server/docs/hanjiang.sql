@@ -16,21 +16,20 @@ CREATE TABLE `users` (
     `id`  BIGINT  NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     `username`  VARCHAR(50)  NOT NULL  COMMENT '用户名',
     `email`  VARCHAR(100)  NOT NULL  COMMENT '邮箱',
-    `name`  VARCHAR(100)  COMMENT '姓名',
-    `age`  INT  COMMENT '年龄',
-    `password_hash`  VARCHAR(255)  COMMENT '密码哈希',
-    `phone`  VARCHAR(20)  COMMENT '手机号',
-    `avatar_url`  VARCHAR(500)  COMMENT '头像URL',
-    `role_id`  BIGINT  NULL  COMMENT '主角色ID',
+    `name`  VARCHAR(100)  NOT NULL  COMMENT '姓名',
+    `password_hash`  VARCHAR(255)  NOT NULL  COMMENT '密码哈希',
+    `phone`  VARCHAR(20)  NOT NULL  DEFAULT ''  COMMENT '手机号',
+    `gender`  VARCHAR(10)  NULL  DEFAULT NULL  COMMENT '性别：male/female（可空）',
+    `birthday`  DATETIME  NULL  DEFAULT NULL  COMMENT '生日（可空）',
+    `avatar_url`  VARCHAR(500)  NULL  COMMENT '头像URL',
     `status`  ENUM('enabled','disabled')  NOT NULL  DEFAULT 'enabled'  COMMENT '状态：enabled 启用 / disabled 禁用',
     `last_login_at`  DATETIME  NULL  COMMENT '最后登录时间',
-    `last_login_ip`  VARCHAR(45)  COMMENT '最后登录IP',
+    `last_login_ip`  VARCHAR(45)  NULL  COMMENT '最后登录IP',
     `created_at`  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP  COMMENT '创建时间',
     `updated_at`  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  COMMENT '更新时间',
     `deleted_at`  DATETIME  NULL  COMMENT '软删除时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_email` (`email`),
-    KEY `idx_role_id` (`role_id`)
+    UNIQUE KEY `uk_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- 角色表

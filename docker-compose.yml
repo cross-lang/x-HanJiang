@@ -102,6 +102,8 @@ services:
       - --port=${MYSQL_PORT:-3306}
     volumes:
       - mysql_data:/var/lib/mysql
+    ports:
+      - "3307:3306"   # 宿主机 3307 → 容器 3306；本机另有独立部署的 mysql 占用标准 3306，故错开端口
     networks:
       - backend
     healthcheck:
@@ -135,6 +137,8 @@ services:
     command: ["redis-server", "--appendonly", "yes", "--port", "${REDIS_PORT:-6379}", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     volumes:
       - redis_data:/data
+    ports:
+      - "6380:6379"   # 宿主机 6380 → 容器 6379；本机另有独立部署的 redis 占用标准 6379，故错开端口
     networks:
       - backend
     healthcheck:

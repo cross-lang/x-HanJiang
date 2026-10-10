@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from src.core.config import settings
@@ -167,6 +167,37 @@ def get_cached_database_provider() -> DatabaseProvider:
     if _db_provider is None:
         _db_provider = get_database_provider()
     return _db_provider
+
+
+# ============================================================
+# 启动期进程级互斥锁（MySQL GET_LOCK）
+# ============================================================
+
+
+def acquire_mysql_lock(session: Session, lock_name: str, timeout: int = 60) -> bool:
+    """获取 MySQL 命名锁（GET_LOCK），用于串行化启动期数据初始化。
+
+    背景：gunicorn 多 worker 各自执行 ASGI lifespan，seed / 权限对账 /
+    scope 对账会在多个进程中并发运行，唯一键（uk_perm_code 等）并发
+    插入必然产生 1062 Duplicate entry 竞态。命名锁保证同一时刻只有一个
+    worker 执行初始化，其余 worker 等待或跳过。
+
+    Args:
+        session: 当前数据库会话（锁与连接绑定，必须在同一会话上释放）
+        lock_name: 锁名（如 "hanjiang.seed"）
+        timeout: 等待锁的超时秒数
+
+    Returns:
+        True 表示成功获取锁；False 表示超时未获取（调用方应跳过初始化）
+    """
+    conn = session.connection()
+    acquired = conn.execute(text(f"SELECT GET_LOCK('{lock_name}', {timeout})")).scalar()
+    return bool(acquired)
+
+
+def release_mysql_lock(session: Session, lock_name: str) -> None:
+    """释放 MySQL 命名锁（RELEASE_LOCK），须与 acquire_mysql_lock 成对调用。"""
+    session.connection().execute(text(f"SELECT RELEASE_LOCK('{lock_name}')"))
 
 
 def init_db() -> None:

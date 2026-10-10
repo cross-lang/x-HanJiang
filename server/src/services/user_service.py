@@ -86,9 +86,9 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             email=request.email,
             password_hash=hash_password(request.password),
             name=request.name,
-            phone=request.phone,
-            gender=request.gender,
-            birthday=datetime.strptime(request.birthday, "%Y-%m-%d"),
+            phone=request.phone or "",
+            gender=request.gender or None,
+            birthday=datetime.strptime(request.birthday, "%Y-%m-%d") if request.birthday else None,
             avatar_url=request.avatar_url,
             status=request.status.value if isinstance(request.status, UserStatus) else request.status,
         )
@@ -175,8 +175,8 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             avatar_url=existing.avatar_url,
             status=existing.status,
         )
-        # 空字符串转 None（datetime/int 字段不接受空串）
-        for k in ("birthday", "phone", "email", "name"):
+        # 空字符串转 None（datetime 字段不接受空串；phone 保留空串语义直接存储）
+        for k in ("birthday", "email", "name", "gender"):
             if patch_dict.get(k) == "":
                 patch_dict[k] = None
         if patch_dict.get("birthday") and isinstance(patch_dict["birthday"], str):
@@ -195,6 +195,11 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         updated = self._repository.update(id, patch)
         if updated is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
+        # 显式置空：base_repository.update 会跳过 None 值（部分更新语义），
+        # 对可空列中用户显式清空的字段（gender/birthday/avatar_url）手动置 NULL
+        for key in ("gender", "birthday", "avatar_url"):
+            if patch_dict.get(key) is None and hasattr(updated, key):
+                setattr(updated, key, None)
         self._commit()
         result = self._to_response(updated)
         logger.info(f"User updated: id={result.id} username={result.username}")
@@ -306,7 +311,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             email=entity.email,
             name=entity.name,
             gender=entity.gender,
-            birthday=entity.birthday.strftime("%Y-%m-%d"),
+            birthday=entity.birthday.strftime("%Y-%m-%d") if entity.birthday else None,
             phone=entity.phone,
             avatar_url=entity.avatar_url,
             roles=roles,

@@ -121,7 +121,7 @@ ai:
     base_url: "https://api.xiaomimimo.com/v1"
     # API Key 由 AI_LLM_API_KEY 环境变量注入
     api_key: ""
-    model: "mimo-v2.5-pro"
+    model: "mimo-v2.6-pro"
     temperature: 0.7
     max_tokens: 2048
     timeout_seconds: 60

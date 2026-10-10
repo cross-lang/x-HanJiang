@@ -250,7 +250,7 @@ class AILLMConfig:
     provider: str = "openai_compat"
     base_url: str = "https://api.xiaomimimo.com/v1"
     api_key: str = ""  # 敏感信息，仅通过环境变量 / .env 注入
-    model: str = "mimo-v2.5-pro"
+    model: str = "mimo-v2.6-pro"
     temperature: float = 0.7
     max_tokens: int = 2048
     timeout_seconds: int = 60
@@ -534,7 +534,7 @@ class Settings:
                     "provider": "openai_compat",
                     "base_url": "https://api.xiaomimimo.com/v1",
                     "api_key": "",
-                    "model": "mimo-v2.5-pro",
+                    "model": "mimo-v2.6-pro",
                     "temperature": 0.7,
                     "max_tokens": 2048,
                     "timeout_seconds": 60,

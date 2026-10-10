@@ -100,7 +100,7 @@ def sync_permissions_to_db(app: FastAPI) -> tuple[int, int]:
     Returns:
         (active_count, deprecated_count): 本次启用权限数与新标记废弃权限数
     """
-    from src.infras.database import get_cached_database_provider
+    from src.infras.database import acquire_mysql_lock, get_cached_database_provider, release_mysql_lock
     from src.models.entities.user_entity import PermissionEntity
 
     collected = collect_permissions_from_app(app)
@@ -108,29 +108,36 @@ def sync_permissions_to_db(app: FastAPI) -> tuple[int, int]:
     active_codes = {p["perm_code"] for p in collected}
 
     with get_cached_database_provider().session() as session:
-        for perm in collected:
-            existing = session.query(PermissionEntity).filter_by(perm_code=perm["perm_code"]).first()
-            if existing:
-                existing.perm_name = perm["perm_name"]
-                existing.module = perm["module"]
-                existing.operation = perm["operation"]
-                existing.description = perm["description"]
-                existing.sort_order = perm["sort_order"]
-                existing.is_deprecated = False
-            else:
-                session.add(PermissionEntity(**perm, is_deprecated=False))
+        # gunicorn 多 worker 并发启动时串行化对账，避免唯一键并发插入竞态（1062）
+        if not acquire_mysql_lock(session, "hanjiang.permissions", timeout=60):
+            logger.warning("Permissions sync skipped: failed to acquire lock")
+            return 0, 0
+        try:
+            for perm in collected:
+                existing = session.query(PermissionEntity).filter_by(perm_code=perm["perm_code"]).first()
+                if existing:
+                    existing.perm_name = perm["perm_name"]
+                    existing.module = perm["module"]
+                    existing.operation = perm["operation"]
+                    existing.description = perm["description"]
+                    existing.sort_order = perm["sort_order"]
+                    existing.is_deprecated = False
+                else:
+                    session.add(PermissionEntity(**perm, is_deprecated=False))
 
-        deprecated = (
-            session.query(PermissionEntity)
-            .filter(
-                PermissionEntity.is_deprecated.is_(False),
-                ~PermissionEntity.perm_code.in_(active_codes),
+            deprecated = (
+                session.query(PermissionEntity)
+                .filter(
+                    PermissionEntity.is_deprecated.is_(False),
+                    ~PermissionEntity.perm_code.in_(active_codes),
+                )
+                .all()
             )
-            .all()
-        )
-        for d in deprecated:
-            d.is_deprecated = True
-            logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
+            for d in deprecated:
+                d.is_deprecated = True
+                logger.info(f"Permission deprecated (not found in routes): {d.perm_code}")
+        finally:
+            release_mysql_lock(session, "hanjiang.permissions")
 
     logger.info(f"Permissions auto-synced: {len(collected)} active, {len(deprecated)} deprecated")
     return len(collected), len(deprecated)

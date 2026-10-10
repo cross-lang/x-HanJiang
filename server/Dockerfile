@@ -36,12 +36,16 @@ RUN groupadd --system --gid 1001 appuser \
 COPY --from=builder /app/.venv /app/.venv
 
 # 设置 Python 路径使用虚拟环境
+# HOME 显式覆盖为容器内可写目录：防止宿主机（如 Windows）的 HOME 环境
+# 变量泄漏进容器，导致 gunicorn 26 的控制 socket 写到非法路径而报
+# "Control server error: Permission denied"。
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app" \
     APP_ENV=production \
-    GUNICORN_WORKERS=4
+    GUNICORN_WORKERS=4 \
+    HOME=/tmp
 
 # 复制应用源代码
 COPY --chown=appuser:appuser src/ ./src/
@@ -49,8 +53,9 @@ COPY --chown=appuser:appuser config*.yaml ./
 # pyproject.toml 用于 _find_project_root() 定位项目根目录
 COPY --chown=appuser:appuser pyproject.toml ./
 
-# 创建 logs 目录并授权给 appuser
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
+# 创建运行期目录（logs 日志、statics 本地文件存储根目录）并授权给 appuser
+# 说明：LocalStorage 初始化时会 mkdir base_dir（默认 statics），缺目录且 /app 归 root 所有会抛 PermissionError
+RUN mkdir -p /app/logs /app/statics && chown -R appuser:appuser /app/logs /app/statics
 
 USER appuser
 

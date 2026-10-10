@@ -10,7 +10,7 @@
   - SSE 流式对话接口（`POST /api/v1/assistant/chat`），事件类型 token / navigate / denied / error / done，仅要求登录
   - 会话管理：创建会话、会话列表、会话消息列表（校验归属）、消息反馈（👍👎，提示词调优数据源）
   - 对话编排：记忆管理（近 N 轮原文 + token 预算压缩，可配摘要模型）、知识库检索（默认关闭，可对接向量检索）、工具调用（多轮工具编排，含导航跳转）
-  - LLM 集成（`infras/llm.py`）：openai_compat 兼容协议，base_url 可切换 DeepSeek / 火山方舟 / 通义 / vLLM 等，默认对接小米 MiMo（`mimo-v2.5-pro`，可切图片理解模型）
+  - LLM 集成（`infras/llm.py`）：openai_compat 兼容协议，base_url 可切换 DeepSeek / 火山方舟 / 通义 / vLLM 等，默认对接小米 MiMo（`mimo-v2.6-pro`，可切图片理解模型）
 - **数据表**：新增 `assistant_conversations` / `assistant_messages` / `assistant_feedbacks` 三张表迁移（0008_create_assistant）
 - **权限**：`assistant:chat`（对话与会话管理，实际仅要求登录）、`assistant:feedback`（消息反馈），启动时自动注册
 - **依赖**：新增 `openai>=3.19.2`

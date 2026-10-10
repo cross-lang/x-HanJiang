@@ -125,7 +125,7 @@ cp config.yaml.example config.yaml
 | `AI_LLM_PROVIDER` | `AI_LLM_PROVIDER` | LLM provider: `openai_compat` (OpenAI-compatible protocol) |
 | `AI_LLM_BASE_URL` | `AI_LLM_BASE_URL` | LLM API base URL (DeepSeek / Volcano Ark / Qwen / vLLM etc.) |
 | `AI_LLM_API_KEY` | `AI_LLM_API_KEY` | LLM API key (inject sensitive values via environment variables) |
-| `AI_LLM_MODEL` | `AI_LLM_MODEL` | Model name, default `mimo-v2.5-pro` (switchable to vision-capable models) |
+| `AI_LLM_MODEL` | `AI_LLM_MODEL` | Model name, default `mimo-v2.6-pro` (switchable to vision-capable models) |
 
 > **Production**: inject sensitive configuration such as `AUTH_SECRET_KEY`, database password and Redis password via environment variables; never commit them to the repository.
 

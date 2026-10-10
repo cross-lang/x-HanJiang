@@ -100,7 +100,7 @@ def sync_scopes_to_db(app: FastAPI) -> tuple[int, int]:
     Returns:
         (active_count, deprecated_count): 本次启用 scope 数与新标记废弃数
     """
-    from src.infras.database import get_cached_database_provider
+    from src.infras.database import acquire_mysql_lock, get_cached_database_provider, release_mysql_lock
     from src.models.entities.app_entity import OpenApiScopeEntity
 
     collected_scopes = collect_scopes_from_app(app)
@@ -108,29 +108,36 @@ def sync_scopes_to_db(app: FastAPI) -> tuple[int, int]:
     active_scope_codes = {s["scope_code"] for s in collected_scopes}
 
     with get_cached_database_provider().session() as scope_session:
-        for sc in collected_scopes:
-            existing = scope_session.query(OpenApiScopeEntity).filter_by(scope_code=sc["scope_code"]).first()
-            if existing:
-                existing.scope_name = sc["scope_name"]
-                existing.module = sc["module"]
-                existing.operation = sc["operation"]
-                existing.description = sc["description"]
-                existing.sort_order = sc["sort_order"]
-                existing.is_deprecated = False
-            else:
-                scope_session.add(OpenApiScopeEntity(**sc, is_deprecated=False))
+        # gunicorn 多 worker 并发启动时串行化对账，避免唯一键并发插入竞态（1062）
+        if not acquire_mysql_lock(scope_session, "hanjiang.scopes", timeout=60):
+            logger.warning("OpenAPI scopes sync skipped: failed to acquire lock")
+            return 0, 0
+        try:
+            for sc in collected_scopes:
+                existing = scope_session.query(OpenApiScopeEntity).filter_by(scope_code=sc["scope_code"]).first()
+                if existing:
+                    existing.scope_name = sc["scope_name"]
+                    existing.module = sc["module"]
+                    existing.operation = sc["operation"]
+                    existing.description = sc["description"]
+                    existing.sort_order = sc["sort_order"]
+                    existing.is_deprecated = False
+                else:
+                    scope_session.add(OpenApiScopeEntity(**sc, is_deprecated=False))
 
-        deprecated_scopes = (
-            scope_session.query(OpenApiScopeEntity)
-            .filter(
-                OpenApiScopeEntity.is_deprecated.is_(False),
-                ~OpenApiScopeEntity.scope_code.in_(active_scope_codes),
+            deprecated_scopes = (
+                scope_session.query(OpenApiScopeEntity)
+                .filter(
+                    OpenApiScopeEntity.is_deprecated.is_(False),
+                    ~OpenApiScopeEntity.scope_code.in_(active_scope_codes),
+                )
+                .all()
             )
-            .all()
-        )
-        for d in deprecated_scopes:
-            d.is_deprecated = True
-            logger.info(f"Scope deprecated (not found in routes): {d.scope_code}")
+            for d in deprecated_scopes:
+                d.is_deprecated = True
+                logger.info(f"Scope deprecated (not found in routes): {d.scope_code}")
+        finally:
+            release_mysql_lock(scope_session, "hanjiang.scopes")
 
     logger.info(f"OpenAPI scopes auto-synced: {len(collected_scopes)} active, {len(deprecated_scopes)} deprecated")
     return len(collected_scopes), len(deprecated_scopes)

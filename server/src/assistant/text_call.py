@@ -154,7 +154,7 @@ class InlineToolCallGate:
 def extract_text_tool_call(content: str | None) -> ToolCall | None:
     """从回复正文中识别模型以文本形式输出的工具调用（兜底）。
 
-    部分推理模型（如 mimo-v2.5-pro）偶发把函数调用写进正文而非结构化
+    部分推理模型（如 mimo-v2.6-pro）偶发把函数调用写进正文而非结构化
     tool_calls，常见形式：
         - XML：<tool_call><tool_name>navigate</tool_name><path>/roles</path></tool_call>
         - JSON 对象：{"action": "navigate", "path": "/roles"}

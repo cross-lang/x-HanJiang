@@ -125,7 +125,7 @@ cp config.yaml.example config.yaml
 | `AI_LLM_PROVIDER` | `AI_LLM_PROVIDER` | 大模型供应商：`openai_compat`（OpenAI 兼容协议） |
 | `AI_LLM_BASE_URL` | `AI_LLM_BASE_URL` | 大模型 API 地址（可对接 DeepSeek / 火山方舟 / 通义 / vLLM） |
 | `AI_LLM_API_KEY` | `AI_LLM_API_KEY` | 大模型密钥（敏感信息走环境变量注入） |
-| `AI_LLM_MODEL` | `AI_LLM_MODEL` | 模型名称，默认 `mimo-v2.5-pro`（可切换图片理解模型） |
+| `AI_LLM_MODEL` | `AI_LLM_MODEL` | 模型名称，默认 `mimo-v2.6-pro`（可切换图片理解模型） |
 
 > **生产环境**：建议通过环境变量注入 `AUTH_SECRET_KEY`、数据库密码、Redis 密码等敏感配置，避免写入版本库。
 

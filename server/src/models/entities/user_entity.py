@@ -18,8 +18,8 @@ class UserEntity(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment="姓名")
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False, comment="密码哈希")
     phone: Mapped[str] = mapped_column(String(20), nullable=False, server_default="", comment="手机号")
-    gender: Mapped[str] = mapped_column(String(10), nullable=False, comment="性别：male/female")
-    birthday: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="生日")
+    gender: Mapped[str | None] = mapped_column(String(10), nullable=True, comment="性别：male/female（可空）")
+    birthday: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="生日（可空）")
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="头像URL")
     status: Mapped[str] = mapped_column(
         String(20),

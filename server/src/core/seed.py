@@ -24,13 +24,14 @@ from src.constants.constants import (
 from src.constants.enums import SystemRoleCode
 from src.constants.permissions import PERMISSION_CATALOG, PermissionCode
 from src.core.logger import logger
-from src.infras.database import get_cached_database_provider
+from src.infras.database import acquire_mysql_lock, get_cached_database_provider, release_mysql_lock
 from src.models.entities.menu_entity import MenuEntity
 from src.models.entities.user_entity import (
     PermissionEntity,
     RoleEntity,
     RolePermissionEntity,
     UserEntity,
+    UserRoleEntity,
 )
 from src.utils.security import hash_password
 
@@ -71,9 +72,16 @@ _SEED_MENUS = [
 
 
 def init_seed_data() -> None:
-    """初始化系统种子数据（幂等，可重复调用）。"""
+    """初始化系统种子数据（幂等，可重复调用）。
+
+    使用 MySQL 命名锁串行化：gunicorn 多 worker 并发执行 lifespan 时，
+    仅允许一个 worker 运行种子初始化，避免权限唯一键并发插入竞态（1062）。
+    """
     session = get_cached_database_provider().get_session_factory()()
     try:
+        if not acquire_mysql_lock(session, "hanjiang.seed", timeout=60):
+            logger.warning("Seed data initialization skipped: failed to acquire seed lock")
+            return
         # 1. 权限（元数据全部来自 PermissionCode 统一目录）
         perm_map: dict[str, PermissionEntity] = {}
         for perm_def in PERMISSION_CATALOG:
@@ -163,7 +171,7 @@ def init_seed_data() -> None:
                 name=SUPERADMIN_NAME,
                 email=SUPERADMIN_EMAIL,
                 password_hash=hash_password(SUPERADMIN_PASSWORD),
-                phone=None,
+                phone="",
                 gender="male",
                 birthday=date(1970, 1, 1),
                 avatar_url=None,
@@ -171,15 +179,9 @@ def init_seed_data() -> None:
             )
             session.add(admin)
             session.flush()
-            # 绑定超级管理员角色
-            session.add(
-                RolePermissionEntity.__class__
-                if False
-                else __import__("src.models.entities.user_entity", fromlist=["UserRoleEntity"]).UserRoleEntity(
-                    user_id=admin.id, role_id=role.id
-                )
-            )
             logger.info(f"Seed admin user created: username={SUPERADMIN_USERNAME}")
+        # 4.5 幂等补绑：无论用户是新建还是旧库遗留，都必须确保绑定超级管理员角色
+        _ensure_user_role(session, admin.id, role.id)
         # 5. 菜单数据
         _seed_menus(session)
         # 6. 通知渠道配置（把 .env 里的 SMTP 等配置初始化进数据库）
@@ -190,6 +192,7 @@ def init_seed_data() -> None:
         session.rollback()
         logger.warning(f"Seed data initialization skipped: {e}")
     finally:
+        release_mysql_lock(session, "hanjiang.seed")
         session.close()
 
 
@@ -215,6 +218,29 @@ def _ensure_role_permission(session: Session, role_id: int, permission_id: int) 
             role_id=role_id,
             permission_id=permission_id,
         )
+        session.add(relation)
+        session.flush()
+
+
+def _ensure_user_role(session: Session, user_id: int, role_id: int) -> None:
+    """确保用户角色关联存在，不存在则创建（幂等）。
+
+    兼容旧库：早期 users 表以 role_id 单列承载角色，新模型改为
+    user_roles 多对多关联；对已存在的旧用户执行种子初始化时，
+    必须显式补建关联，否则旧用户登录后无任何角色与权限。
+    """
+    relation = (
+        session.execute(
+            select(UserRoleEntity).where(
+                UserRoleEntity.user_id == user_id,
+                UserRoleEntity.role_id == role_id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if relation is None:
+        relation = UserRoleEntity(user_id=user_id, role_id=role_id)
         session.add(relation)
         session.flush()
 

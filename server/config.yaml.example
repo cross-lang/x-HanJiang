@@ -125,7 +125,7 @@ notification:
 # AI 助手配置
 # llm.provider: "openai_compat"（OpenAI 兼容协议，可对接小米 MiMo / DeepSeek /
 #               豆包火山方舟 / 通义 / 本地 vLLM 等，通过 base_url 切换）
-# 默认大模型：小米 MiMo mimo-v2.5-pro（文本推理更强）；
+# 默认大模型：小米 MiMo mimo-v2.6-pro（文本推理更强）；
 #             如需图片理解能力，model 改为 "mimo-v2.5"
 # memory:      第 2 层（滚动摘要）+ 第 3 层（最近原文）记忆参数
 # retriever:   RAG 预留，默认未启用（provider: "null"）
@@ -138,7 +138,7 @@ ai:
     provider: "openai_compat"
     base_url: "https://api.xiaomimimo.com/v1"
     api_key: ""
-    model: "mimo-v2.5-pro"
+    model: "mimo-v2.6-pro"
     temperature: 0.7
     max_tokens: 2048
     timeout_seconds: 60
