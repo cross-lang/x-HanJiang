@@ -5,18 +5,35 @@
 # 仅当暂存区命中 server 下的 .py 文件时执行 ruff check --fix + format
 # 修复后的改动回填暂存区，检查失败则阻断提交
 staged_py=$(git diff --cached --name-only --diff-filter=ACMR | grep '^server/.*\.py$' || true)
+
+# 解析 uv 可执行文件：PATH → 默认安装位置（hook 环境的 PATH 可能不含 uv）
+if command -v uv >/dev/null 2>&1; then
+  UV=uv
+elif [ -x "$HOME/.local/bin/uv" ]; then
+  UV="$HOME/.local/bin/uv"
+else
+  UV=""
+fi
+
 if [ -n "$staged_py" ] && [ -d "server" ]; then
-  echo "🐍  暂存区含 Python 改动，执行 ruff check --fix + format"
-  cd server
-  if ! uv run ruff check --fix src/ tests/; then
-    echo "❌  ruff check 失败，请修复后重新提交"
-    exit 1
+  if [ -z "$UV" ]; then
+    echo "⚠  uv 未找到，跳过后端 ruff 门禁"
+  else
+    echo "🐍  暂存区含 Python 改动，执行 ruff check --fix + format"
+    cd server
+    if ! "$UV" run ruff check --fix src/ tests/; then
+      echo "❌  ruff check 失败，请修复后重新提交"
+      exit 1
+    fi
+    "$UV" run ruff format src/ tests/
+    # 将 ruff 自动修复 / 格式化后的改动回填暂存区（限定 ruff 可触及的目录，无改动时不执行）
+    changed=$(git diff --name-only -- src/ tests/)
+    if [ -n "$changed" ]; then
+      # shellcheck disable=SC2086
+      git add $changed
+    fi
+    cd ..
   fi
-  uv run ruff format src/ tests/
-  # 将 ruff 自动修复 / 格式化后的改动回填暂存区
-  # shellcheck disable=SC2046
-  git add $(git diff --name-only)
-  cd ..
 else
   echo "ℹ  暂存区无 server/*.py 改动，跳过 ruff"
 fi
