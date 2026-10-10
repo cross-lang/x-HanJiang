@@ -82,19 +82,10 @@ class StationMessageRepository(BaseRepository[StationMessageEntity, int]):
             stmt = stmt.where(StationMessageEntity.created_at <= end_date)
         if keyword:
             like = f"%{keyword}%"
-            stmt = stmt.where(
-                StationMessageEntity.subject.like(like) | StationMessageEntity.content.like(like)
-            )
-        total = (
-            self.session.execute(select(func.count()).select_from(stmt.subquery())).scalar()
-            or 0
-        )
+            stmt = stmt.where(StationMessageEntity.subject.like(like) | StationMessageEntity.content.like(like))
+        total = self.session.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
         rows = list(
-            self.session.execute(
-                stmt.order_by(StationMessageEntity.created_at.desc())
-                .offset(skip)
-                .limit(limit)
-            )
+            self.session.execute(stmt.order_by(StationMessageEntity.created_at.desc()).offset(skip).limit(limit))
             .scalars()
             .all()
         )
@@ -111,9 +102,7 @@ class StationMessageRepository(BaseRepository[StationMessageEntity, int]):
             StationMessageEntity | None: 站内信实体
         """
         return (
-            self.session.execute(
-                self._station_query(user_id).where(StationMessageEntity.id == msg_id)
-            )
+            self.session.execute(self._station_query(user_id).where(StationMessageEntity.id == msg_id))
             .scalars()
             .first()
         )

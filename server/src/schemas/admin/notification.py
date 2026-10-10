@@ -39,9 +39,7 @@ class PublishNotificationRequest(BaseModel):
     )
     notice_type: SystemNotificationType = Field(default=SystemNotificationType.NOTICE, description="通知类型")
     maintenance_time: str | None = Field(default=None, max_length=50, description="维护开始时间")
-    duration_hours: float | None = Field(
-        default=None, gt=0, le=720, description="预计持续时长（小时数，整数或小数）"
-    )
+    duration_hours: float | None = Field(default=None, gt=0, le=720, description="预计持续时长（小时数，整数或小数）")
     reason: str | None = Field(default=None, max_length=500, description="维护原因")
     push_channels: list[NotificationChannel] | None = Field(
         default=None, description="强推渠道列表（站内信已默认广播，仅支持 email/dingtalk/feishu）"

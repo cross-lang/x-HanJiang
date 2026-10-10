@@ -53,8 +53,7 @@ def build_csv_stream_response(
         media_type="text/csv",
         headers={
             "Content-Disposition": (
-                f"attachment; filename=\"download{Path(filename).suffix}\"; "
-                f"filename*=UTF-8''{encoded_filename}"
+                f"attachment; filename=\"download{Path(filename).suffix}\"; filename*=UTF-8''{encoded_filename}"
             )
         },
     )

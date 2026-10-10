@@ -66,15 +66,11 @@ from src.models.entities.assistant_entity import AssistantConversationEntity
 from src.schemas.admin.auth import CurrentUser
 
 #: 轮次收尾回调：落库助手消息 + DONE 先行，摘要/命名后置为尽力而为（由服务层提供）
-RoundFinisher: TypeAlias = Callable[
-    [AssistantConversationEntity, str, str], Iterator[dict[str, object]]
-]
+RoundFinisher: TypeAlias = Callable[[AssistantConversationEntity, str, str], Iterator[dict[str, object]]]
 #: navigate 兜底回复构造回调：FAQ 命中返回标准答案，否则入口目录引导语
 NavigateReplyBuilder: TypeAlias = Callable[[str, dict[str, object]], str]
 #: 跳转审计回调：写入审计日志（失败静默，不阻断主流程）
-NavigateAuditor: TypeAlias = Callable[
-    [CurrentUser, int, dict[str, object], dict[str, object] | None], None
-]
+NavigateAuditor: TypeAlias = Callable[[CurrentUser, int, dict[str, object], dict[str, object] | None], None]
 
 
 @dataclass
@@ -92,7 +88,7 @@ class RoundState:
     """
 
     tool_accumulator: ToolCallAccumulator = field(default_factory=ToolCallAccumulator)
-    content_parts: list[str] = field(default_factory=list) 
+    content_parts: list[str] = field(default_factory=list)
     inline_gate: InlineToolCallGate = field(default_factory=InlineToolCallGate)
 
     @property
@@ -183,16 +179,12 @@ class AssistantAgent:
         yield from self._stream_first_round(messages, state)
         # ── 分支 1：结构化工具调用 ──
         if state.structured_tool_calls:
-            yield from self._handle_structured_calls(
-                state, messages, conversation, user, operator, query
-            )
+            yield from self._handle_structured_calls(state, messages, conversation, user, operator, query)
             return
         # ── 分支 2：文本形式工具调用（检测门仍扣留 → 正文从未泄漏）──
         # 文本形式工具调用是为了接住那些把工具调用写进正文的模型，保证跳转功能不因模型不守规矩而失效
         if state.text_tool_call is not None and state.inline_gate.is_holding:
-            yield from self._handle_inline_call(
-                state, messages, conversation, user, operator, query
-            )
+            yield from self._handle_inline_call(state, messages, conversation, user, operator, query)
             return
         # ── 分支 3：普通回答（正文已实时呈现）──
         yield from self._handle_plain_answer(state, messages, conversation, query)
@@ -230,7 +222,8 @@ class AssistantAgent:
                     "content": stream_event.text,
                 }
 
-            # 背景：模型决定调工具时，一个完整的工具调用是被 拆成碎片 流式到达的（id 一片、name 一片、arguments 的 JSON 字符串一片一片）。单看任何一片都不完整
+            # 背景：模型决定调工具时，一个完整的工具调用是被 拆成碎片
+            # 流式到达的（id 一片、name 一片、arguments 的 JSON 字符串一片一片）。单看任何一片都不完整
             # 解决：将所有碎片累积起来，等完整一个工具调用后再处理
             elif isinstance(stream_event, ToolCallDelta):
                 state.tool_accumulator.add(stream_event)
@@ -268,9 +261,7 @@ class AssistantAgent:
         """
         messages.append(assistant_tool_calls_message(state.structured_tool_calls))
         for tool_call in state.structured_tool_calls:
-            yield from self._execute_tool_call(
-                tool_call, conversation, user, messages, operator
-            )
+            yield from self._execute_tool_call(tool_call, conversation, user, messages, operator)
         yield {
             "type": AssistantEventType.STEP.mark,
             "content": "工具执行完成，正在生成回答...",
@@ -326,9 +317,7 @@ class AssistantAgent:
                 "type": AssistantEventType.NAVIGATE.mark,
                 **(text_result.event_data or {}),
             }
-            self._audit_navigate(
-                user, conversation.id, text_result.event_data or {}, operator
-            )
+            self._audit_navigate(user, conversation.id, text_result.event_data or {}, operator)
         reply = self._build_navigate_reply(query, text_result.event_data or {})
         for piece in chunk_text(reply):
             yield {"type": AssistantEventType.TOKEN.mark, "content": piece}

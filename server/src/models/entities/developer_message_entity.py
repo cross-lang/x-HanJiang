@@ -50,6 +50,4 @@ class DeveloperMessageEntity(Base):
         comment="更新时间",
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="软删除时间")
-    __table_args__ = (
-        Index("idx_dev_msg_developer", "developer_id"),
-    )
+    __table_args__ = (Index("idx_dev_msg_developer", "developer_id"),)

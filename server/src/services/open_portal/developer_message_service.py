@@ -22,9 +22,7 @@ class DeveloperMessageService:
 
     def list_messages(self, developer_id: int, page: int, page_size: int) -> dict[str, Any]:
         skip = (page - 1) * page_size
-        rows, total = self._repository.list_messages(
-            developer_id=developer_id, skip=skip, limit=page_size
-        )
+        rows, total = self._repository.list_messages(developer_id=developer_id, skip=skip, limit=page_size)
         items = [
             {
                 "id": r.id,

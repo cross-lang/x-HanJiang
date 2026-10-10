@@ -46,7 +46,7 @@
                 <el-icon class="sec-icon"><User /></el-icon>
                 <div>
                   <div class="sec-title">基本信息</div>
-                  <div class="sec-current">完善您的开发者资料，昵称与手机号将展示在个人主页</div>
+                  <div class="sec-current">完善您的开发者昵称，手机号与邮箱仅可在安全设置中验证后更换</div>
                 </div>
               </div>
               <el-form :model="form" label-width="96px" class="sec-form">
@@ -57,10 +57,12 @@
                   <el-input v-model="form.name" placeholder="请输入昵称" />
                 </el-form-item>
                 <el-form-item label="手机号">
-                  <el-input v-model="form.phone" placeholder="请输入手机号" />
+                  <el-input :model-value="developerStore.profile?.phone" placeholder="未绑定" disabled />
+                  <div class="form-tip">如需更换，请前往<el-link type="primary" :underline="false" @click="activeTab = 'security'">安全设置</el-link>完成验证码验证</div>
                 </el-form-item>
                 <el-form-item label="邮箱">
                   <el-input :model-value="developerStore.profile?.email" placeholder="未绑定" disabled />
+                  <div class="form-tip">如需更换，请前往<el-link type="primary" :underline="false" @click="activeTab = 'security'">安全设置</el-link>完成验证码验证</div>
                 </el-form-item>
                 <el-form-item>
                   <el-button type="primary" round @click="saveInfo">保存修改</el-button>
@@ -232,7 +234,7 @@ const certificationStatusText = computed(
 )
 const certificationSubmitted = computed(() => developerStore.profile?.certification_status === 'pending')
 
-const form = ref({ name: '', phone: '' })
+const form = ref({ name: '' })
 const phoneForm = ref({ phone: '', code: '' })
 const emailForm = ref({ email: '', code: '' })
 const pwdForm = ref({ old_password: '', new_password: '', confirm_password: '', code: '' })
@@ -249,7 +251,7 @@ const certLoading = ref(false)
 onMounted(async () => {
   const info = await developerStore.fetchProfile()
   if (info) {
-    form.value = { name: info.name || '', phone: info.phone || '' }
+    form.value = { name: info.name || '' }
     certForm.value.certification_type = info.certification_type || 'personal'
     certForm.value.company_name = info.company_name || ''
   }
@@ -338,7 +340,7 @@ async function changePwd() {
     })
     ElMessage.success('密码修改成功，请重新登录')
     developerStore.logout()
-    window.location.href = '/login'
+    window.location.href = `${import.meta.env.BASE_URL}login`
   } catch {
     // 错误已处理
   } finally {
@@ -539,6 +541,12 @@ async function submitCertification() {
 }
 .sec-form .el-button {
   border-radius: 8px;
+}
+.form-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
 }
 .code-row {
   display: flex;

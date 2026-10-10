@@ -65,9 +65,7 @@ class OpenApiAppRegistrationRepository(BaseRepository[OpenApiAppRegistrationEnti
 
     def code_exists(self, code: str) -> bool:
         """判断申请码是否已被占用（生成申请码时查重用）。"""
-        stmt = select(OpenApiAppRegistrationEntity.id).where(
-            OpenApiAppRegistrationEntity.registration_code == code
-        )
+        stmt = select(OpenApiAppRegistrationEntity.id).where(OpenApiAppRegistrationEntity.registration_code == code)
         return self.session.execute(stmt).first() is not None
 
     def find_pending_by_app(self, app_id: int) -> OpenApiAppRegistrationEntity | None:

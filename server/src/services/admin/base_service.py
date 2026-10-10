@@ -45,12 +45,14 @@ from src.core.logger import logger
 from src.repositories.base_repository import BaseRepository
 
 # 审计快照中必须剔除的敏感字段
-_SENSITIVE_SNAPSHOT_FIELDS = frozenset({
-    "password_hash",
-    "hashed_password",
-    "app_key_hash",
-    "app_key_encrypted",
-})
+_SENSITIVE_SNAPSHOT_FIELDS = frozenset(
+    {
+        "password_hash",
+        "hashed_password",
+        "app_key_hash",
+        "app_key_encrypted",
+    }
+)
 # 从快照中挑选用于 remarks 的展示标签字段（按优先级）
 _LABEL_FIELDS = ("username", "role_name", "title", "name")
 
@@ -90,11 +92,7 @@ def _snapshot(entity: Any) -> dict[str, Any] | None:
             raw = dump()
         except Exception:
             return None
-        return {
-            k: _json_safe(v)
-            for k, v in raw.items()
-            if k not in _SENSITIVE_SNAPSHOT_FIELDS
-        } or None
+        return {k: _json_safe(v) for k, v in raw.items() if k not in _SENSITIVE_SNAPSHOT_FIELDS} or None
     return None
 
 
@@ -139,7 +137,9 @@ class _AuditCrudSupport(Protocol):
 _B = TypeVar("_B", bound=_AuditCrudSupport)
 
 
-def audit_crud(action: str) -> Callable[
+def audit_crud(
+    action: str,
+) -> Callable[
     [Callable[Concatenate[_B, _P], _R]],
     Callable[Concatenate[_B, _P], _R],
 ]:
@@ -208,6 +208,7 @@ def audit_crud(action: str) -> Callable[
         return cast(Callable[Concatenate[_B, _P], _R], wrapper)
 
     return decorator
+
 
 T = TypeVar("T")
 ID = TypeVar("ID")

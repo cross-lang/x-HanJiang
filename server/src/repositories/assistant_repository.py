@@ -171,8 +171,10 @@ class AssistantMessageRepository(BaseRepository[AssistantMessageEntity, int]):
         Returns:
             int: 消息条数
         """
-        stmt = select(func.count()).select_from(self.model_class).where(
-            self.model_class.conversation_id == conversation_id
+        stmt = (
+            select(func.count())
+            .select_from(self.model_class)
+            .where(self.model_class.conversation_id == conversation_id)
         )
         return int(self.session.execute(stmt).scalar() or 0)
 

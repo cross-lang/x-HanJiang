@@ -14,6 +14,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /usr/local/bin/uv
 # 复制依赖声明文件（含 lock 以支持 --frozen）
 COPY pyproject.toml uv.lock ./
 
+# 使用清华 PyPI 镜像加速国内构建，加大超时避免网络抖动
+ENV UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple/ \
+    UV_HTTP_TIMEOUT=300
+
 # 仅安装生产依赖，且基于 lock 文件确保可复现
 RUN uv sync --frozen --no-dev --no-install-project
 

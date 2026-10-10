@@ -69,9 +69,7 @@ class DeveloperRepository(BaseRepository[DeveloperEntity, int]):
         if keyword:
             like = f"%{keyword}%"
             base = base.where(
-                DeveloperEntity.username.like(like)
-                | DeveloperEntity.email.like(like)
-                | DeveloperEntity.name.like(like)
+                DeveloperEntity.username.like(like) | DeveloperEntity.email.like(like) | DeveloperEntity.name.like(like)
             )
         if status:
             base = base.where(DeveloperEntity.status == status)

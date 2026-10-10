@@ -13,15 +13,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from unittest.mock import patch
 
-import pytest
-
 from src.assistant.memories import (
     DbUserLongTermMemory,
     NullUserLongTermMemory,
     build_user_long_term_memory,
 )
 from src.infras.llm import LLMChatResult, LLMProvider
-
 
 # ============================================================
 # 测试用 fakes
@@ -209,9 +206,7 @@ class TestDbConsolidate:
     def test_same_profile_skips_upsert(self):
         """LLM 输出与旧档案相同时不写回。"""
         old_profile = "- 角色：管理员"
-        repo = _FakeProfileRepo(
-            entity=_FakeProfileEntity(user_id=1, profile=old_profile, version=3)
-        )
+        repo = _FakeProfileRepo(entity=_FakeProfileEntity(user_id=1, profile=old_profile, version=3))
         llm = _FakeLLMProvider(content=old_profile)
         messages = [_FakeMessageEntity(id=1, role="user", content="你好")]
         memory = _make_db_memory(repo, _FakeMessageRepo(messages), llm)

@@ -219,93 +219,51 @@ class NotificationEvent(StrBaseEnum):
 # 未显式指定渠道的 dispatch 调用使用该路由表决定发送渠道。
 DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
     # 用户域
-    NotificationEvent.USER_PASSWORD_CHANGED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL
-    ],
-    NotificationEvent.USER_PROFILE_UPDATED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL
-    ],
+    NotificationEvent.USER_PASSWORD_CHANGED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_PROFILE_UPDATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
     NotificationEvent.USER_STATUS_CHANGED: [
         NotificationChannel.STATION,
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
     ],
-    NotificationEvent.USER_LOGIN_FAILED: [
-        NotificationChannel.EMAIL,
-        NotificationChannel.DINGTALK
-    ],
-    NotificationEvent.USER_CREATED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL
-    ],
-    NotificationEvent.USER_DELETED: [
-        NotificationChannel.EMAIL
-    ],
-    NotificationEvent.LOGIN_NEW_DEVICE: [
-        NotificationChannel.EMAIL
-    ],
+    NotificationEvent.USER_LOGIN_FAILED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
+    NotificationEvent.USER_CREATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
+    NotificationEvent.USER_DELETED: [NotificationChannel.EMAIL],
+    NotificationEvent.LOGIN_NEW_DEVICE: [NotificationChannel.EMAIL],
     # 角色权限域
     NotificationEvent.ROLE_ASSIGNED: [
         NotificationChannel.STATION,
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
     ],
-    NotificationEvent.PERMISSION_GRANTED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL
-    ],
+    NotificationEvent.PERMISSION_GRANTED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
     NotificationEvent.PERMISSION_REVOKED: [
         NotificationChannel.STATION,
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
     ],
-    NotificationEvent.ROLE_DELETED: [
-        NotificationChannel.STATION
-    ],
+    NotificationEvent.ROLE_DELETED: [NotificationChannel.STATION],
     # 文件域
-    NotificationEvent.FILE_UPLOADED: [
-        NotificationChannel.STATION
-    ],
-    NotificationEvent.FILE_DELETED: [
-        NotificationChannel.STATION
-    ],
-    NotificationEvent.FILE_DOWNLOADED: [
-        NotificationChannel.STATION
-    ],
+    NotificationEvent.FILE_UPLOADED: [NotificationChannel.STATION],
+    NotificationEvent.FILE_DELETED: [NotificationChannel.STATION],
+    NotificationEvent.FILE_DOWNLOADED: [NotificationChannel.STATION],
     # 安全域
-    NotificationEvent.SECURITY_VERIFY_CODE: [
-        NotificationChannel.EMAIL
-    ],
+    NotificationEvent.SECURITY_VERIFY_CODE: [NotificationChannel.EMAIL],
     # 开放应用域
-    NotificationEvent.OPENAPI_APP_CREATED: [
-        NotificationChannel.STATION
-    ],
-    NotificationEvent.OPENAPI_APP_UPDATED: [
-        NotificationChannel.STATION
-    ],
-    NotificationEvent.OPENAPI_APP_DELETED: [
-        NotificationChannel.STATION
-    ],
-    NotificationEvent.OPENAPI_APP_KEY_RESET: [
-        NotificationChannel.EMAIL
-    ],
+    NotificationEvent.OPENAPI_APP_CREATED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_UPDATED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_DELETED: [NotificationChannel.STATION],
+    NotificationEvent.OPENAPI_APP_KEY_RESET: [NotificationChannel.EMAIL],
     # 系统域
     NotificationEvent.SYSTEM_ALERT: [
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
         NotificationChannel.FEISHU,
     ],
-
     # 系统通知 / 站内信：直接入库型事件，仅走站内信；
     # 显式配置以防 dispatch 未传渠道时兜底误发邮件
-    NotificationEvent.SYSTEM_NOTICE: [
-        NotificationChannel.STATION
-    ],
-    NotificationEvent.STATION_MESSAGE: [
-        NotificationChannel.STATION
-    ],
+    NotificationEvent.SYSTEM_NOTICE: [NotificationChannel.STATION],
+    NotificationEvent.STATION_MESSAGE: [NotificationChannel.STATION],
 }
 
 
@@ -428,8 +386,10 @@ class AuditAction(StrBaseEnum):
 
 # ── HTTP 域 ───────────────────────────────────────────
 
+
 class HttpContentType(StrBaseEnum):
     """HTTP Content-Type 媒体类型枚举"""
+
     APPLICATION_JSON = "application/json", "JSON"
     APPLICATION_OCTET_STREAM = "application/octet-stream", "二进制流"
     APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded", "表单数据编码"
@@ -439,6 +399,7 @@ class HttpContentType(StrBaseEnum):
 
 class HttpHeaders(StrBaseEnum):
     """HTTP 请求头"""
+
     X_REQUEST_ID = "X-Request-ID", "请求ID"
     X_REAL_IP = "X-Real-IP", "真实地址"
     X_FORWARDED_FOR = "X-Forwarded-For", "转发地址"
@@ -450,6 +411,7 @@ class HttpHeaders(StrBaseEnum):
 
 class HttpStatusCode(IntBaseEnum):
     """HTTP 状态码"""
+
     OK = 200, "OK"
     CREATED = 201, "Created"
     ACCEPTED = 202, "Accepted"
@@ -473,6 +435,7 @@ class HttpStatusCode(IntBaseEnum):
 
 class ApiResponseCode(IntBaseEnum):
     """API 响应码"""
+
     SUCCESS = 0, "Success"
     ERROR = -1, "An error occurred"
     VALIDATION_ERROR = 40001, "Validation failed"
@@ -492,10 +455,10 @@ class ApiResponseCode(IntBaseEnum):
 
 class ApiResponseMessage(StrBaseEnum):
     """API 响应消息"""
+
     SUCCESS = "success", "成功"
     INTERNAL_ERROR = "Internal server error", "内部服务器错误"
     NOT_FOUND = "Resource not found", "资源不存在"
     VALIDATION_ERROR = "Validation error", "参数校验错误"
     AUTHENTICATION_FAILED = "Authentication failed", "认证失败"
     AUTHORIZATION_DENIED = "Permission denied", "权限拒绝"
-

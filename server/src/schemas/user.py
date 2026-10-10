@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from src.constants.enums import UserStatus
 from src.utils.time import normalize_date_str
 

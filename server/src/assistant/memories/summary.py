@@ -14,7 +14,7 @@ from src.constants.assistant import (
 )
 from src.core.config import settings
 from src.core.logger import logger
-from src.infras.llm import LLMProvider, get_llm_provider
+from src.infras.llm import LLMProvider
 from src.utils.text import estimate_tokens
 
 if TYPE_CHECKING:

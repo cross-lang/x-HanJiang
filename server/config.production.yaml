@@ -1,0 +1,146 @@
+# 汉江（HanJiang）生产环境配置
+# 优先级：环境变量 > 本文件(config.production.yaml) > config.yaml > 代码默认值
+#
+# 使用说明：
+#   1. 本文件随 Dockerfile `COPY config*.yaml ./` 进入镜像，APP_ENV=production 时自动加载
+#   2. 敏感信息（数据库密码 / Redis 密码 / JWT 密钥 / AI API Key）一律不写入本文件，
+#      通过 docker-compose.yml 的 environment 或 .env 注入（MYSQL_* / REDIS_* / AUTH_SECRET_KEY / AI_LLM_API_KEY）
+#   3. CORS 白名单默认覆盖开发端口与同域访问；生产域名请在 .env 中通过 CORS_ORIGINS 覆盖（逗号分隔）
+
+app_env: "production"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  # 生产环境强制关闭调试（config.py validate() 校验）
+  debug: false
+  # worker 数量由 GUNICORN_WORKERS 环境变量控制（compose 默认 4）
+  workers: 4
+
+logging:
+  level: "INFO"
+  format: "json"
+  file_path: "logs/x-HanJiang-{time:YYYYMMDDHH}.log"
+  rotation: "1 day"
+  retention: "7 days"
+  compression: "zip"
+  console_output: true
+
+cors:
+  # 生产环境禁止 '*'（config.py validate() 校验）；同域访问无跨域问题，
+  # 此白名单主要服务于开发期前端与未来子域名。生产域名在 .env 通过 CORS_ORIGINS 覆盖。
+  origins:
+    - "http://localhost:5173"
+    - "http://localhost:5174"
+    - "http://127.0.0.1:5173"
+    - "http://127.0.0.1:5174"
+
+rate_limit:
+  enabled: true
+  per_minute: 60
+  per_hour: 1000
+
+auth:
+  # JWT 签名密钥：生产环境必须由 AUTH_SECRET_KEY 环境变量注入 ≥32 字符随机串
+  # 生成方式：python -c "from src.utils.security import generate_secret_key; print(generate_secret_key())"
+  secret_key: ""
+  algorithm: "HS256"
+  access_token_expire_minutes: 10080
+  refresh_token_expire_days: 30
+
+database:
+  # 容器网络内指向 MySQL 服务；账号密码由 MYSQL_USER / MYSQL_PASSWORD 环境变量注入
+  host: "mysql"
+  port: 3306
+  user: ""
+  password: ""
+  database: "hanjiang"
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: 3600
+  echo: false
+
+redis:
+  # 容器网络内指向 Redis 服务；密码由 REDIS_PASSWORD 环境变量注入
+  host: "redis"
+  port: 6379
+  user: "default"
+  password: ""
+  db: 0
+  pool_size: 10
+  max_connections: 50
+  decode_responses: true
+  socket_timeout: 5
+
+storage:
+  provider: "local"
+  local:
+    base_dir: "statics"
+  s3:
+    endpoint_url: ""
+    access_key: ""
+    secret_key: ""
+    bucket: "x-hanjiang"
+    region: "cn-south-1"
+    prefix: "uploads"
+    public_url: ""
+    use_ssl: true
+
+smtp:
+  host: ""
+  port: 465
+  username: ""
+  password: ""
+  use_tls: true
+  from_name: "HanJiang"
+  from_address: ""
+
+notification:
+  enabled: true
+  retry_interval_seconds: 60
+  alert_email: ""
+  dingtalk_app_key: ""
+  dingtalk_app_secret: ""
+  dingtalk_agent_id: ""
+  dingtalk_webhook: ""
+  dingtalk_secret: ""
+  feishu_app_id: ""
+  feishu_app_secret: ""
+  feishu_webhook: ""
+  feishu_secret: ""
+  sms_access_key: ""
+  sms_secret_key: ""
+  sms_sign_name: ""
+  sms_template_code: ""
+
+ai:
+  enabled: true
+  llm:
+    provider: "openai_compat"
+    base_url: "https://api.xiaomimimo.com/v1"
+    # API Key 由 AI_LLM_API_KEY 环境变量注入
+    api_key: ""
+    model: "mimo-v2.5-pro"
+    temperature: 0.7
+    max_tokens: 2048
+    timeout_seconds: 60
+    chat_request_timeout_seconds: 180
+  memory:
+    enabled: true
+    recent_raw_rounds: 6
+    token_budget: 32000
+    summary_model: ""
+    long_term:
+      enabled: false
+      consolidate_interval: 5
+      profile_model: ""
+      max_profile_tokens: 500
+  retriever:
+    enabled: false
+    provider: "null"
+    top_k: 3
+  tools:
+    mcp_enabled: false
+    mcp_server_url: ""
+    mcp_extra_config: ""

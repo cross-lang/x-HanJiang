@@ -1,5 +1,4 @@
-"""站内信服务。
-"""
+"""站内信服务。"""
 
 from datetime import datetime
 from typing import Any

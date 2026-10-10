@@ -58,9 +58,7 @@ class OpenGatewayService:
         # 管理端自建应用无审批概念，创建时 approved 直接置 True。
         # 审批状态与批次（申请ID、审批意见）记录在 openapi_app_registrations 表。
         if not app.approved:
-            raise AuthorizationException(
-                message=f"应用 {app.app_id} 未通过审批，请联系管理员"
-            )
+            raise AuthorizationException(message=f"应用 {app.app_id} 未通过审批，请联系管理员")
         try:
             mode = AppAuthMode(app.auth_mode or AppAuthMode.PLAIN.value)
         except ValueError:

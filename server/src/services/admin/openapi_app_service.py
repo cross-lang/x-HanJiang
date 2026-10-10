@@ -230,9 +230,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             action="禁用" if status != AppStatus.ACTIVE.value else "启用",
             event=NotificationEvent.OPENAPI_APP_UPDATED,
             operator=operator,
-            content_suffix=(
-                "，其待审批的申请已一并驳回。" if approval_rejected else None
-            ),
+            content_suffix=("，其待审批的申请已一并驳回。" if approval_rejected else None),
         )
         self._repository.flush()
         self._commit()
@@ -353,9 +351,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             ConflictException: 应用为开发者自助归属（owner_type=developer）时
         """
         if e.owner_type == AppOwnerType.DEVELOPER.value:
-            raise ConflictException(
-                message=f"应用「{e.name}」为开发者自助应用，请由开发者在开放平台门户自行{action}"
-            )
+            raise ConflictException(message=f"应用「{e.name}」为开发者自助应用，请由开发者在开放平台门户自行{action}")
 
     # ── 归属方站内信通知 ────────────────────────────────
 
@@ -389,10 +385,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
                     DeveloperMessageEntity(
                         developer_id=e.owner_id,
                         title=f"应用{action}通知",
-                        content=(
-                            f"{app_ref}已被管理系统{action}（操作人：{op_name}）"
-                            f"{suffix}，如有疑问请联系管理员。"
-                        ),
+                        content=(f"{app_ref}已被管理系统{action}（操作人：{op_name}）{suffix}，如有疑问请联系管理员。"),
                         category=DeveloperMessageCategory.NOTIFY.value,
                         status=DeveloperMessageStatus.UNREAD.value,
                     )

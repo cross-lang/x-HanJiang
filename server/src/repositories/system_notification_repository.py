@@ -57,9 +57,7 @@ class SystemNotificationRepository:
         """
         return (
             self._session.execute(
-                select(SystemNotificationEntity).where(
-                    SystemNotificationEntity.client_request_id == client_request_id
-                )
+                select(SystemNotificationEntity).where(SystemNotificationEntity.client_request_id == client_request_id)
             )
             .scalars()
             .first()

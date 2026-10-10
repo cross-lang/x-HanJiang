@@ -49,10 +49,7 @@ def list_configs(
     Returns:
         统一响应，包含全部通知渠道的配置项列表。
     """
-    items = [
-        SystemNotificationConfigResponse.model_validate(cfg).model_dump()
-        for cfg in service.list_configs()
-    ]
+    items = [SystemNotificationConfigResponse.model_validate(cfg).model_dump() for cfg in service.list_configs()]
     return success_response({"items": items}, request)
 
 

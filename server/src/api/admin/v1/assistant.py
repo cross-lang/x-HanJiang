@@ -12,9 +12,8 @@ SSE 通道说明：chat 接口返回 text/event-stream，事件为 data: <json> 
 该接口不使用统一 success_response 包装（属 SSE 通道特例），其余接口保持统一响应。
 """
 
-from collections.abc import Iterator
-
 import asyncio
+from collections.abc import Iterator
 
 from anyio.from_thread import run as _run_from_thread
 from fastapi import APIRouter, Depends, Request
@@ -57,7 +56,7 @@ async def _probe_disconnect_async(request: Request) -> bool:
     """在事件循环中检测客户端是否已断开（带短超时，避免阻塞）。"""
     try:
         return await asyncio.wait_for(request.is_disconnected(), timeout=_DISCONNECT_PROBE_TIMEOUT)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return False
 
 
@@ -101,8 +100,7 @@ def chat(
     operator = get_user_operator_context(current_user, request)
 
     def generate() -> Iterator[str]:
-        """事件流生成器：服务层直通，api 层不做业务处理。
-        """
+        """事件流生成器：服务层直通，api 层不做业务处理。"""
         for event in service.chat_stream(
             current_user,
             body.conversation_id,

@@ -132,10 +132,7 @@ def sync_scopes_to_db(app: FastAPI) -> tuple[int, int]:
             d.is_deprecated = True
             logger.info(f"Scope deprecated (not found in routes): {d.scope_code}")
 
-    logger.info(
-        f"OpenAPI scopes auto-synced: {len(collected_scopes)} active, "
-        f"{len(deprecated_scopes)} deprecated"
-    )
+    logger.info(f"OpenAPI scopes auto-synced: {len(collected_scopes)} active, {len(deprecated_scopes)} deprecated")
     return len(collected_scopes), len(deprecated_scopes)
 
 

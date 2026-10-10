@@ -34,7 +34,6 @@ import yaml
 from src.constants.assistant import ASSISTANT_ENTRY_CATALOG
 from src.utils.helpers import find_project_root
 
-
 # ============================================================
 # FAQ 数据模型与加载器
 # ============================================================
@@ -258,13 +257,11 @@ class SystemPromptBuilder:
             entries = ASSISTANT_ENTRY_CATALOG
         else:
             entries = tuple(
-                item for item in ASSISTANT_ENTRY_CATALOG
+                item
+                for item in ASSISTANT_ENTRY_CATALOG
                 if not item["permission"] or item["permission"] in user_permissions
             )
-        return "\n".join(
-            f"- {item['title']}（{item['path']}）：{item['description']}"
-            for item in entries
-        )
+        return "\n".join(f"- {item['title']}（{item['path']}）：{item['description']}" for item in entries)
 
     def build_system_prompt(
         self,

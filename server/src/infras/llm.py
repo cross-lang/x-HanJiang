@@ -322,9 +322,7 @@ class OpenAICompatProvider(LLMProvider):
                             index=tool_chunk.index,
                             call_id=tool_chunk.id,
                             name=function.name if function is not None else None,
-                            arguments_delta=function.arguments
-                            if function is not None and function.arguments
-                            else "",
+                            arguments_delta=function.arguments if function is not None and function.arguments else "",
                         )
         except Exception as exc:  # noqa: BLE001 - 统一转换为系统异常，避免暴露 SDK 原生异常
             raise ExternalServiceException(message=f"大模型流式调用失败: {exc}") from exc

@@ -89,9 +89,7 @@ class QuerySystemStatsTool(BaseTool):
     """系统概况统计工具（复用仪表盘只读聚合查询，需 dashboard:view 权限）。"""
 
     name = QUERY_SYSTEM_STATS_TOOL_NAME
-    description = (
-        "查询系统概况统计：活跃用户数、启用角色数、活跃应用数、今日登录次数、开发者账号数"
-    )
+    description = "查询系统概况统计：活跃用户数、启用角色数、活跃应用数、今日登录次数、开发者账号数"
     skill = "data"
     parameters: ClassVar[dict[str, object]] = {
         "type": "object",
@@ -221,10 +219,7 @@ class QueryMyPermissionsTool(BaseTool):
             ToolResult: 角色 + 权限码清单文本
         """
         name_map = {member.value: member.perm_name for member in PermissionCode}
-        lines = [
-            f"- {code}（{name_map[code]}）" if code in name_map else f"- {code}"
-            for code in user.permissions
-        ]
+        lines = [f"- {code}（{name_map[code]}）" if code in name_map else f"- {code}" for code in user.permissions]
         perm_block = "\n".join(lines) if lines else "（无）"
         return ToolResult(
             content=(

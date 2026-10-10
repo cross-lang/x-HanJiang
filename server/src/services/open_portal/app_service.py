@@ -102,8 +102,11 @@ class DeveloperOpenApiAppService:
     ) -> _MyAppsPage:
         """分页查询当前开发者名下的应用（含派生审批状态）。"""
         apps, total = self._repo.search_by_keyword(
-            keyword=keyword, owner_type=AppOwnerType.DEVELOPER.value, owner_id=developer_id,
-            skip=(page - 1) * page_size, limit=page_size,
+            keyword=keyword,
+            owner_type=AppOwnerType.DEVELOPER.value,
+            owner_id=developer_id,
+            skip=(page - 1) * page_size,
+            limit=page_size,
         )
         return {
             "items": [self._to_response(a) for a in apps],
@@ -126,19 +129,21 @@ class DeveloperOpenApiAppService:
         """
         from src.models.entities.app_entity import OpenApiScopeEntity
 
-        scopes = self._session.execute(
-            select(OpenApiScopeEntity)
-            .where(OpenApiScopeEntity.is_deprecated.is_(False))
-            .order_by(OpenApiScopeEntity.sort_order, OpenApiScopeEntity.id)
-        ).scalars().all()
+        scopes = (
+            self._session.execute(
+                select(OpenApiScopeEntity)
+                .where(OpenApiScopeEntity.is_deprecated.is_(False))
+                .order_by(OpenApiScopeEntity.sort_order, OpenApiScopeEntity.id)
+            )
+            .scalars()
+            .all()
+        )
         result = build_scope_dict_list(list(scopes))
         for item, entity in zip(result, scopes, strict=False):
             item["sort_order"] = entity.sort_order
         return result
 
-    def list_approvals(
-        self, app_id: int, developer_id: int
-    ) -> list[OpenAppApprovalResponse]:
+    def list_approvals(self, app_id: int, developer_id: int) -> list[OpenAppApprovalResponse]:
         """查询应用的全部申请/审批记录（仅限本人名下应用，最新在前）。
 
         审批历史 = openapi_app_registrations 批次：开发者每次创建/修改申请
@@ -153,9 +158,7 @@ class DeveloperOpenApiAppService:
         approver_ids = {r.approved_by for r in regs if r.approved_by}
         names: dict[int, str] = {}
         if approver_ids:
-            users = self._session.execute(
-                select(UserEntity).where(UserEntity.id.in_(approver_ids))
-            ).scalars().all()
+            users = self._session.execute(select(UserEntity).where(UserEntity.id.in_(approver_ids))).scalars().all()
             names = {u.id: (u.name or u.username or f"管理员#{u.id}") for u in users}
         return [
             OpenAppApprovalResponse(
@@ -178,9 +181,7 @@ class DeveloperOpenApiAppService:
         ]
 
     # ── 写操作（全部走申请审批流）─────────────────────────
-    def create_app(
-        self, developer_id: int, *, payload: OpenAppCreateRequest
-    ) -> OpenAppResponse:
+    def create_app(self, developer_id: int, *, payload: OpenAppCreateRequest) -> OpenAppResponse:
         """提交创建应用申请：创建应用记录（approved=False）+ 生成 create 申请批次。
 
         Raises:
@@ -188,9 +189,7 @@ class DeveloperOpenApiAppService:
             ConflictException: 开发者名下存在同名应用时
         """
         self._validate_auth_mode(payload.auth_mode)
-        same_name = self._repo.find_by_name_owner(
-            payload.name, AppOwnerType.DEVELOPER.value, developer_id
-        )
+        same_name = self._repo.find_by_name_owner(payload.name, AppOwnerType.DEVELOPER.value, developer_id)
         if same_name is not None:
             raise ConflictException(message=f"开发者名下已存在名为「{payload.name}」的应用")
         app_id = generate_app_id()
@@ -231,9 +230,7 @@ class DeveloperOpenApiAppService:
         logger.info("developer %s submitted create-app application app_id=%s", developer_id, entity.app_id)
         return self._to_response(entity)
 
-    def update_app(
-        self, app_id: int, developer_id: int, *, payload: OpenAppUpdateRequest
-    ) -> OpenAppResponse:
+    def update_app(self, app_id: int, developer_id: int, *, payload: OpenAppUpdateRequest) -> OpenAppResponse:
         """提交修改应用申请（基本信息调整，更新类审批通过后快照落地）。
 
         仅写申请表，不直接修改应用表；存在 pending 申请时返回 409。
@@ -257,9 +254,7 @@ class DeveloperOpenApiAppService:
         logger.info("developer %s submitted update-app application reg_id=%s", developer_id, registration.id)
         return self._to_response(entity)
 
-    def apply_scopes(
-        self, app_id: int, developer_id: int, *, payload: OpenAppScopeApplyRequest
-    ) -> OpenAppResponse:
+    def apply_scopes(self, app_id: int, developer_id: int, *, payload: OpenAppScopeApplyRequest) -> OpenAppResponse:
         """提交权限范围调整申请（scope 变更，审批通过后快照落地）。"""
         entity = self._require_owned(app_id, developer_id)
         self._require_operable(entity)
@@ -302,9 +297,7 @@ class DeveloperOpenApiAppService:
         if not entity.approved:
             raise ConflictException(message="应用尚未通过创建审批，无法查看密钥")
         if entity.app_key_viewed_at is not None:
-            raise ConflictException(
-                message="AppKey 明文已展示过一次，如需再次获取请重置密钥"
-            )
+            raise ConflictException(message="AppKey 明文已展示过一次，如需再次获取请重置密钥")
         if not entity.app_key_encrypted:
             raise ConflictException(message="应用密钥数据异常，请重置密钥")
         plain = security.decrypt_text(entity.app_key_encrypted)
@@ -335,6 +328,7 @@ class DeveloperOpenApiAppService:
             if not self._registration_repo.code_exists(code):
                 return code
         raise ConflictException(message="申请码生成失败，请稍后重试")
+
     def _submit_update_registration(
         self,
         entity: OpenApiAppEntity,
@@ -374,10 +368,7 @@ class DeveloperOpenApiAppService:
         entity = self._repo.get_by_id(app_id)
         if entity is None:
             raise NotFoundException(message="应用不存在或已被删除")
-        if (
-            entity.owner_type != AppOwnerType.DEVELOPER.value
-            or entity.owner_id != developer_id
-        ):
+        if entity.owner_type != AppOwnerType.DEVELOPER.value or entity.owner_id != developer_id:
             raise NotFoundException(message="应用不存在或已被删除")
         return entity
 
@@ -408,9 +399,7 @@ class DeveloperOpenApiAppService:
             pending_registration_id = None
         else:
             latest = self._registration_repo.find_latest_by_app(entity.id)
-            approval_status = (
-                latest.status if latest is not None else None
-            )
+            approval_status = latest.status if latest is not None else None
             pending_registration_id = None
         return OpenAppResponse(
             id=entity.id,

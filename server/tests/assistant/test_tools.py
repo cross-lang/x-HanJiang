@@ -221,7 +221,11 @@ class TestQuerySystemStatsTool:
 class TestQueryAnnouncementsTool:
     def test_accessible_without_permission(self):
         repo = FakeAnnouncementRepository(
-            (_FakeAnnouncement("系统维护通知", "本周六 02:00-04:00 系统维护\n请提前保存工作。", datetime(2026, 1, 1, 8, 0)),)
+            (
+                _FakeAnnouncement(
+                    "系统维护通知", "本周六 02:00-04:00 系统维护\n请提前保存工作。", datetime(2026, 1, 1, 8, 0)
+                ),
+            )
         )
         result = QueryAnnouncementsTool(repo).execute({}, _make_user([]))
         assert "系统维护通知" in result.content

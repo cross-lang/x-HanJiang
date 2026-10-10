@@ -23,9 +23,7 @@ class AssistantConversationEntity(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="所属用户ID")
-    title: Mapped[str | None] = mapped_column(
-        String(60), nullable=True, comment="会话主题名（AI 自动归纳，页面展示）"
-    )
+    title: Mapped[str | None] = mapped_column(String(60), nullable=True, comment="会话主题名（AI 自动归纳，页面展示）")
     summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="滚动摘要（第2层记忆，压缩远历史）")
     is_pinned: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("0"), default=False, comment="是否置顶"

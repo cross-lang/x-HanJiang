@@ -26,9 +26,7 @@ class StationMessageEntity(Base):
         comment="消息来源（system_notice/station/alert/openapi_app）",
     )
     event_type: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="事件类型（前端跳转依据）")
-    is_read: Mapped[bool] = mapped_column(
-        nullable=False, server_default=text("0"), comment="是否已读"
-    )
+    is_read: Mapped[bool] = mapped_column(nullable=False, server_default=text("0"), comment="是否已读")
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="阅读时间")
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

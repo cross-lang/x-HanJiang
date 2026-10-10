@@ -115,7 +115,7 @@ def delete_file(
     file_id: int = Path(ge=1, description="文件 ID"),
     app: CurrentApp = Depends(get_current_app),
     service: FileStorageService = Depends(get_file_service),
-    ) -> JSONResponse:
+) -> JSONResponse:
     """软删除文件（需 `file:write` scope）。"""
     service.delete_file(file_id, operator=get_app_operator_context(app, request))
     return success_response({"deleted": True}, request)

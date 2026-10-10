@@ -8,7 +8,6 @@ operator 上下文记录为调用方应用，而非终端用户。
 不对外部应用开放，避免第三方集成方改动权限体系。
 """
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, Path, Query, Request
@@ -123,7 +122,9 @@ def update_role(
     service: RoleService = Depends(get_role_service),
 ) -> JSONResponse:
     """更新角色信息（需 `role:write` scope）。"""
-    result = service.update(role_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app, request))
+    result = service.update(
+        role_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app, request)
+    )
     return success_response(result.model_dump(), request)
 
 

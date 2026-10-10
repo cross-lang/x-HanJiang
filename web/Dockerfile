@@ -1,8 +1,8 @@
 # 汉江（HanJiang）前端镜像：Node 构建两个 SPA + Nginx 托管
 # 构建上下文为 web/ 目录（docker-compose.yml 的 build.context=./web）。
 # 同域路由规划（详见 nginx.conf）：
-#   /           → 管理系统前端（web/admin）
-#   /portal/    → 开放平台门户前端（web/open_portal，vite base=/portal/）
+#   /admin/       → 管理系统前端（web/admin，vite base=/admin/）
+#   /open-portal/ → 开放平台门户前端（web/open_portal，vite base=/open-portal/）
 
 # ==========================================
 # Stage 1: 构建管理系统前端（web/admin）
@@ -37,9 +37,12 @@ FROM nginx:1.27-alpine
 # 同域路由配置（覆盖默认站点配置）
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# admin 产物平铺到站点根（挂 / 路由）
-COPY --from=admin-builder /build/admin/dist/ /usr/share/nginx/html/
-# open_portal 产物放 portal/ 子目录（挂 /portal/ 路由，vite base=/portal/）
-COPY --from=portal-builder /build/open_portal/dist/ /usr/share/nginx/html/portal/
+# 清理基础镜像默认页，避免直访 /index.html 暴露 nginx 欢迎页
+RUN rm -f /usr/share/nginx/html/index.html /usr/share/nginx/html/50x.html
+
+# admin 产物放 admin/ 子目录（挂 /admin/ 路由，vite base=/admin/）
+COPY --from=admin-builder /build/admin/dist/ /usr/share/nginx/html/admin/
+# open_portal 产物放 open-portal/ 子目录（挂 /open-portal/ 路由，vite base=/open-portal/）
+COPY --from=portal-builder /build/open_portal/dist/ /usr/share/nginx/html/open-portal/
 
 EXPOSE 80

@@ -128,9 +128,7 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
             raise ConflictException(
                 message=f"申请（申请码：{reg.registration_code}）已被处理（当前状态：{reg.status}），不能重复审批"
             )
-        target_status = (
-            AppApprovalStatus.APPROVED.value if approved else AppApprovalStatus.REJECTED.value
-        )
+        target_status = AppApprovalStatus.APPROVED.value if approved else AppApprovalStatus.REJECTED.value
         # 通过时落地应用：create→置授权标记；update→快照整体覆盖应用字段
         if approved:
             if reg.registration_type == AppRegistrationType.CREATE.value:
@@ -154,9 +152,7 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
 
     # ── 内部辅助 ────────────────────────────────────────
 
-    def _require_registration(
-        self, registration_id: int
-    ) -> tuple[OpenApiAppRegistrationEntity, OpenApiAppEntity]:
+    def _require_registration(self, registration_id: int) -> tuple[OpenApiAppRegistrationEntity, OpenApiAppEntity]:
         """查询申请记录及其关联应用，不存在/应用已删除抛异常。"""
         reg = self._repository.get_by_id(registration_id)
         if reg is None:

@@ -64,7 +64,6 @@ if TYPE_CHECKING:
     from src.services.admin.system_notification_service import SystemNotificationService
 
 
-
 def get_user_repository(
     db_session: Session = Depends(get_db_session),
 ) -> UserRepository:

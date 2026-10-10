@@ -50,4 +50,3 @@ async def openapi_version(
         },
         request,
     )
-

@@ -3,7 +3,6 @@
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
-from starlette.responses import Response
 
 from src.api.admin.dependencies import (
     get_current_user,
