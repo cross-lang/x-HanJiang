@@ -99,9 +99,7 @@ class ProfileService:
         data: dict[str, Any] = current_user.model_dump(exclude={"role_code"})
         roles = self._user_repository.get_roles_by_user_id(current_user.id)
         # 字段命名与用户列表接口的 roles 结构保持一致（role_name/role_code）
-        data["roles"] = [
-            {"id": r.id, "role_name": r.role_name, "role_code": r.role_code} for r in roles
-        ]
+        data["roles"] = [{"id": r.id, "role_name": r.role_name, "role_code": r.role_code} for r in roles]
         if "*" not in current_user.permissions:
             role_ids = [r.id for r in roles]
             perms = self._user_repository.get_permissions_by_role_ids(role_ids)
@@ -163,6 +161,7 @@ class ProfileService:
         # 改密后强制撤销全部已签发令牌（与开放平台门户域行为对齐）
         try:
             from src.infras.cache import get_cached_cache_provider
+
             provider = get_cached_cache_provider()
             provider.delete(f"login:{user_id}")
         except Exception as e:  # noqa: BLE001
@@ -276,9 +275,7 @@ class ProfileService:
             events.append({"event": event.mark, "name": event.desc, "channels": channels})
         return {"events": events}
 
-    def update_notification_preferences(
-        self, user_id: int, prefs: dict[str, dict[str, bool]]
-    ) -> None:
+    def update_notification_preferences(self, user_id: int, prefs: dict[str, dict[str, bool]]) -> None:
         """按 (user, event, channel) 唯一键 upsert 通知开关。
 
         recipient 与事件无关：非 email/station 渠道（如已配置 webhook）继承该渠道

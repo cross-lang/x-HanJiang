@@ -348,9 +348,7 @@ class DeveloperAuthService:
         dev = self._repository.get_by_email(email)
         if dev is None:
             logger.info("forgot password for unregistered email=%s", email)
-            return {
-                "message": "如果该邮箱已注册，重置链接已发送至邮箱，请查收（30 分钟内有效）"
-            }
+            return {"message": "如果该邮箱已注册，重置链接已发送至邮箱，请查收（30 分钟内有效）"}
         token = secrets.token_urlsafe(32)
         try:
             provider = self._cache_provider()
@@ -370,9 +368,7 @@ class DeveloperAuthService:
                 provider.delete(f"{self._PWD_RESET_KEY_PREFIX}{token}")
             logger.error(f"重置邮件发送失败: email={email} error={e}")
             raise ConflictException(message="重置邮件发送失败，请稍后重试或联系管理员") from e
-        return {
-            "message": "如果该邮箱已注册，重置链接已发送至邮箱，请查收（30 分钟内有效）"
-        }
+        return {"message": "如果该邮箱已注册，重置链接已发送至邮箱，请查收（30 分钟内有效）"}
 
     def reset_password(self, token: str, new_password: str, confirm_password: str) -> None:
         """重置密码：校验邮件中的令牌后更新密码，撤销该开发者全部登录态并作废令牌。"""

@@ -143,8 +143,7 @@ class AlertService:
         """
         # 1. 规范化调用方指定接收人（值统一为列表）
         merged: dict[str, list[str]] = {
-            channel: ([value] if isinstance(value, str) else list(value))
-            for channel, value in recipients.items()
+            channel: ([value] if isinstance(value, str) else list(value)) for channel, value in recipients.items()
         }
         # 2. 发送渠道 = 告警默认路由 ∪ 系统配置渠道（超管短信渠道按需补入）
         channels: list[str] = [c.value for c in DEFAULT_ROUTES[NotificationEvent.SYSTEM_ALERT]]

@@ -22,9 +22,7 @@ class UserNotificationConfigEntity(Base):
     __tablename__ = "user_notification_configs"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="用户ID")
-    event_type: Mapped[str] = mapped_column(
-        String(64), nullable=False, comment="事件类型（如 user.password_changed）"
-    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False, comment="事件类型（如 user.password_changed）")
     channel: Mapped[str] = mapped_column(
         String(32), nullable=False, comment="通知渠道（station/email/dingtalk/feishu）"
     )

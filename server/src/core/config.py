@@ -770,9 +770,7 @@ class Settings:
         smtp_raw = self._config.get("smtp", {})
         self.smtp = SmtpConfig(**smtp_raw)
         # 开放平台门户前端地址（用于邮件中的重置密码链接等，可通过 OPEN_PORTAL_BASE_URL 覆盖）
-        self.open_portal_base_url: str = os.environ.get(
-            "OPEN_PORTAL_BASE_URL", "http://localhost:5174"
-        ).rstrip("/")
+        self.open_portal_base_url: str = os.environ.get("OPEN_PORTAL_BASE_URL", "http://localhost:5174").rstrip("/")
         # 通知渠道配置
         notification_raw = self._config.get("notification", {})
         self.notification = NotificationConfig(**notification_raw)

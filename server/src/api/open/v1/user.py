@@ -4,7 +4,6 @@
 operator 上下文记录为调用方应用，而非终端用户。
 """
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, Path, Query, Request
@@ -115,7 +114,9 @@ def update_user(
     service: UserService = Depends(get_user_service),
 ) -> JSONResponse:
     """更新用户信息（需 `user:write` scope）。"""
-    result = service.update(user_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app, request))
+    result = service.update(
+        user_id, body.model_dump(exclude_unset=True), operator=get_app_operator_context(app, request)
+    )
     return success_response(result.model_dump(), request)
 
 

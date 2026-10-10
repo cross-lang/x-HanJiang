@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 HTTP 客户端基础设施模块
 本模块提供通用的 HTTP 请求客户端封装，支持 GET、POST、PUT、DELETE 等方法。

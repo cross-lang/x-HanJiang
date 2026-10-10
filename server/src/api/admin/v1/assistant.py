@@ -101,8 +101,7 @@ def chat(
     operator = get_user_operator_context(current_user, request)
 
     def generate() -> Iterator[str]:
-        """事件流生成器：服务层直通，api 层不做业务处理。
-        """
+        """事件流生成器：服务层直通，api 层不做业务处理。"""
         for event in service.chat_stream(
             current_user,
             body.conversation_id,

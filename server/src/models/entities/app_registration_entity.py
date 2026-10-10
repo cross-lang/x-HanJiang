@@ -40,9 +40,7 @@ class OpenApiAppRegistrationEntity(Base):
     auth_mode: Mapped[str] = mapped_column(
         String(10), nullable=False, server_default="plain", comment="申请的鉴权模式：plain/hmac/both"
     )
-    apply_reason: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, comment="开发者填写的申请说明/用途"
-    )
+    apply_reason: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="开发者填写的申请说明/用途")
     # ── 审批结果 ────────────────────────────────────────
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="pending", comment="审批状态：pending/approved/rejected"

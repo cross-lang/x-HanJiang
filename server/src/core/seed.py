@@ -245,11 +245,7 @@ def _seed_menus(session: Session) -> None:
     openapi_parent = parent_map.get("开放平台")
     if openapi_parent is not None:
         for m in existing:
-            if (
-                m.parent_id == openapi_parent.id
-                and m.title == "用户管理"
-                and m.path == "/open-developers"
-            ):
+            if m.parent_id == openapi_parent.id and m.title == "用户管理" and m.path == "/open-developers":
                 m.title = "开发者管理"
                 logger.info("Seed menu renamed: 开放平台/用户管理 → 开发者管理")
     existing = session.execute(select(MenuEntity)).scalars().all()

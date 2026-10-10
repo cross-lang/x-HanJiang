@@ -177,8 +177,7 @@ def rotate_key(
 @router.post(
     "/{app_id}/view-secret",
     summary="查看 AppKey（一次性）",
-    description="创建审批通过后且从未查看过时可查看一次明文 AppKey；"
-    "查看后该入口关闭，再次获取需重置密钥",
+    description="创建审批通过后且从未查看过时可查看一次明文 AppKey；查看后该入口关闭，再次获取需重置密钥",
 )
 def view_secret(
     app_id: int,

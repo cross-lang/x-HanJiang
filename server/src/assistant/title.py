@@ -49,11 +49,7 @@ def generate_title(
     Raises:
         ExternalServiceException: 大模型调用失败时抛出
     """
-    dialog_text = (
-        f"历史摘要：{summary if summary else '（无）'}\n"
-        f"用户：{query}\n"
-        f"助手：{reply}"
-    )
+    dialog_text = f"历史摘要：{summary if summary else '（无）'}\n用户：{query}\n助手：{reply}"
     result = llm.chat(
         messages=cast(
             ChatMessage,
@@ -67,5 +63,5 @@ def generate_title(
         # 预算过小会导致思考未完成即截断、content 为空；1024 可保证最终答案输出
         max_tokens=1024,
     )
-    title = (result.content or "").strip().strip('"“”\'').strip()
+    title = (result.content or "").strip().strip("\"“”'").strip()
     return title[:_TITLE_MAX_LENGTH]

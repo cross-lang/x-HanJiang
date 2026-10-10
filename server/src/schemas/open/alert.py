@@ -15,5 +15,5 @@ class AlertSendRequest(BaseModel):
     message: str = Field(..., description="告警内容", max_length=2000)
     recipients: dict[str, str] = Field(
         default_factory=dict,
-        description="额外接收人（渠道→地址，如 {\"email\": \"a@b.com\"}），超管渠道自动追加",
+        description='额外接收人（渠道→地址，如 {"email": "a@b.com"}），超管渠道自动追加',
     )

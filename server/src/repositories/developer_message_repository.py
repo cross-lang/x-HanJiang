@@ -51,9 +51,7 @@ class DeveloperMessageRepository(BaseRepository[DeveloperMessageEntity, int]):
     ) -> tuple[list[DeveloperMessageEntity], int]:
         """分页查询开发者站内信（按时间倒序）。"""
         base = self._developer_query(developer_id)
-        total = (
-            self.session.execute(select(func.count()).select_from(base.subquery())).scalar() or 0
-        )
+        total = self.session.execute(select(func.count()).select_from(base.subquery())).scalar() or 0
         rows = list(
             self.session.execute(base.order_by(DeveloperMessageEntity.created_at.desc()).offset(skip).limit(limit))
             .scalars()

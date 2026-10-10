@@ -31,9 +31,7 @@ class NotificationDeliveryEntity(Base):
     user_id: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, comment="目标用户ID（渠道级投递如告警webhook为空）"
     )
-    channel: Mapped[str] = mapped_column(
-        String(32), nullable=False, comment="外发渠道（email/sms/dingtalk/feishu）"
-    )
+    channel: Mapped[str] = mapped_column(String(32), nullable=False, comment="外发渠道（email/sms/dingtalk/feishu）")
     recipient: Mapped[str] = mapped_column(String(512), nullable=False, comment="接收人（发送时实际地址快照）")
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="pending", comment="发送状态")
     retry_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("0"), comment="已重试次数")

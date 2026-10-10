@@ -84,8 +84,7 @@ def get_registration(
     "/{registration_id}/approval",
     summary="审批应用申请",
     description=(
-        "通过/驳回一条应用申请；通过时 create 类置应用已授权、"
-        "update 类将申请快照落地到应用表，驳回仅记录审批意见"
+        "通过/驳回一条应用申请；通过时 create 类置应用已授权、update 类将申请快照落地到应用表，驳回仅记录审批意见"
     ),
     dependencies=[Depends(require_user_permission(PermissionCode.OPENAPI_APP_APPROVE.mark))],
 )

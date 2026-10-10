@@ -264,4 +264,3 @@ def list_notice_deliveries(
         page_size=page_size,
     )
     return success_response(result.model_dump(), request)
-

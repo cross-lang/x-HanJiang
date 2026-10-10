@@ -142,9 +142,7 @@ class AssistantService:
         Returns:
             AssistantConversationEntity: 新建会话实体
         """
-        created = self._conversation_repository.create(
-            self._conversation_repository.model_class(user_id=user_id)
-        )
+        created = self._conversation_repository.create(self._conversation_repository.model_class(user_id=user_id))
         self._conversation_repository.commit()
         return created
 
@@ -311,7 +309,10 @@ class AssistantService:
 
             # 3. 组装四层记忆上下文（系统提示词 / 长期记忆 / 滚动摘要 / 近期消息）
             messages = self._memory_facade.build_context(
-                conversation, user.id, message, user_permissions=set(user.permissions),
+                conversation,
+                user.id,
+                message,
+                user_permissions=set(user.permissions),
             )
             messages.append({"role": "user", "content": message})
 
@@ -374,10 +375,7 @@ class AssistantService:
                 now = time.monotonic()
                 # 1. 请求级超时：在事件边界检查，超时则主动结束
                 if now - start_time > request_timeout:
-                    logger.warning(
-                        f"AI 助手对话超时（>{request_timeout}s），主动终止；"
-                        f"conversation={conversation_id}"
-                    )
+                    logger.warning(f"AI 助手对话超时（>{request_timeout}s），主动终止；conversation={conversation_id}")
                     yield {
                         "type": AssistantEventType.ERROR.mark,
                         "message": "AI 助手响应超时，请稍后重试",
@@ -390,16 +388,10 @@ class AssistantService:
                     return
 
                 # 2. 客户端断连：节流检测，命中则静默终止（客户端已收不到事件）
-                if (
-                    disconnect_checker is not None
-                    and now - last_disconnect_check >= _DISCONNECT_CHECK_INTERVAL
-                ):
+                if disconnect_checker is not None and now - last_disconnect_check >= _DISCONNECT_CHECK_INTERVAL:
                     last_disconnect_check = now
                     if disconnect_checker():
-                        logger.info(
-                            f"AI 助手客户端已断开，终止对话流；"
-                            f"conversation={conversation_id}"
-                        )
+                        logger.info(f"AI 助手客户端已断开，终止对话流；conversation={conversation_id}")
                         return
                 yield event
         except Exception as exc:  # noqa: BLE001 - SSE 通道最后防线，仅兜底不可预期异常
@@ -438,9 +430,7 @@ class AssistantService:
         Yields:
             dict[str, object]: DONE 事件
         """
-        saved = self._save_message(
-            conversation.id, AssistantMessageRole.ASSISTANT.value, content
-        )
+        saved = self._save_message(conversation.id, AssistantMessageRole.ASSISTANT.value, content)
         # DONE 先行：客户端立即结束加载态，后续重活不再阻塞用户
         yield self._done_event(conversation.id, saved.id)
         # 重活后置：此时代码仍在流式响应体内执行，请求级 session 尚未关闭
@@ -502,9 +492,7 @@ class AssistantService:
             if conversation is None or conversation.user_id != user_id:
                 raise NotFoundException(message="会话不存在")
             return conversation
-        created = self._conversation_repository.create(
-            self._conversation_repository.model_class(user_id=user_id)
-        )
+        created = self._conversation_repository.create(self._conversation_repository.model_class(user_id=user_id))
         self._conversation_repository.commit()
         return created
 

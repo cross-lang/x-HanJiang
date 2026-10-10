@@ -39,9 +39,7 @@ class OpenApiAppRepository(BaseRepository[OpenApiAppEntity, int]):
         stmt = self._base_query().where(OpenApiAppEntity.app_id == app_id)
         return self.session.execute(stmt).scalars().first()
 
-    def find_by_name_owner(
-        self, name: str, owner_type: str, owner_id: int
-    ) -> OpenApiAppEntity | None:
+    def find_by_name_owner(self, name: str, owner_type: str, owner_id: int) -> OpenApiAppEntity | None:
         """按应用名 + 归属方查询未删除应用（创建应用查重用）。
 
         Args:

@@ -128,9 +128,7 @@ class SystemNotificationService:
             existing = self._notice_repository.get_by_client_request_id(client_request_id)
             if existing is not None:
                 sent_count = int((existing.metadata_json or {}).get("sent_count", 0))
-                logger.info(
-                    "System notice idempotent hit: id=%s client_request_id=%s", existing.id, client_request_id
-                )
+                logger.info("System notice idempotent hit: id=%s client_request_id=%s", existing.id, client_request_id)
                 return existing, sent_count, True
 
         # 录入系统通知记录

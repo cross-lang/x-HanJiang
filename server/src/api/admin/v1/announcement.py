@@ -307,5 +307,3 @@ def get_announcement(
     """
     entity = service.get(announcement_id)
     return success_response(_to_response(entity).model_dump(), request)
-
-

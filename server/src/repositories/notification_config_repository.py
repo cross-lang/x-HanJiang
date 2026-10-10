@@ -30,9 +30,7 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
         stmt = self._base_query().where(self.model_class.user_id == user_id)
         return list(self.session.execute(stmt).scalars().all())
 
-    def list_by_user_and_event(
-        self, user_id: int, event_type: str
-    ) -> list[UserNotificationConfigEntity]:
+    def list_by_user_and_event(self, user_id: int, event_type: str) -> list[UserNotificationConfigEntity]:
         """查询用户在指定事件下的所有渠道配置。"""
         stmt = self._base_query().where(
             self.model_class.user_id == user_id,

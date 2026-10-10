@@ -66,18 +66,14 @@ class TestExtractTextToolCall:
 
     def test_array_multiple_elements_takes_first(self):
         """数组多元素：取第一个可识别的 navigate 动作。"""
-        call = _extract(
-            '[{"action":"navigate","action_input":{"path":"/users"}},'
-            '{"action":"navigate","page":"roles"}]'
-        )
+        call = _extract('[{"action":"navigate","action_input":{"path":"/users"}},{"action":"navigate","page":"roles"}]')
         assert call is not None
         assert json.loads(call.arguments) == {"page": "users"}
 
     def test_array_of_openai_function_calls(self):
         """数组元素为 OpenAI function 序列化（function 键）时应识别。"""
         call = _extract(
-            '[{"id":"call_1","type":"function","function":{"name":"navigate",'
-            '"arguments":"{\\"page\\":\\"users\\"}"}}]'
+            '[{"id":"call_1","type":"function","function":{"name":"navigate","arguments":"{\\"page\\":\\"users\\"}"}}]'
         )
         assert call is not None
         assert call.name == "navigate"
@@ -85,10 +81,7 @@ class TestExtractTextToolCall:
 
     def test_openai_text_tool_calls(self):
         """OpenAI 文本形式：顶层 tool_calls 数组（原有形式保持兼容）。"""
-        call = _extract(
-            '{"tool_calls":[{"function":{"name":"navigate",'
-            '"arguments":"{\\"page\\":\\"users\\"}"}}]}'
-        )
+        call = _extract('{"tool_calls":[{"function":{"name":"navigate","arguments":"{\\"page\\":\\"users\\"}"}}]}')
         assert call is not None
         assert call.name == "navigate"
         assert call.arguments == '{"page":"users"}'
@@ -143,7 +136,7 @@ class TestInlineToolCallGate:
         gate = InlineToolCallGate()
         payload = "<tool_call><tool_name>navigate</tool_name>"
         assert gate.feed(payload) == []
-        assert gate.feed('<page>users</page></tool_call>') == []
+        assert gate.feed("<page>users</page></tool_call>") == []
         assert gate.is_holding
 
     def test_xml_broken_prefix_releases(self):
