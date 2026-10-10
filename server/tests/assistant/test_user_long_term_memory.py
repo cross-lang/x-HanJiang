@@ -13,15 +13,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from unittest.mock import patch
 
-import pytest
-
 from src.assistant.memories import (
     DbUserLongTermMemory,
     NullUserLongTermMemory,
     build_user_long_term_memory,
 )
 from src.infras.llm import LLMChatResult, LLMProvider
-
 
 # ============================================================
 # 测试用 fakes

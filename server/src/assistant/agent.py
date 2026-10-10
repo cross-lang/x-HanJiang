@@ -222,7 +222,8 @@ class AssistantAgent:
                     "content": stream_event.text,
                 }
 
-            # 背景：模型决定调工具时，一个完整的工具调用是被 拆成碎片 流式到达的（id 一片、name 一片、arguments 的 JSON 字符串一片一片）。单看任何一片都不完整
+            # 背景：模型决定调工具时，一个完整的工具调用是被 拆成碎片
+            # 流式到达的（id 一片、name 一片、arguments 的 JSON 字符串一片一片）。单看任何一片都不完整
             # 解决：将所有碎片累积起来，等完整一个工具调用后再处理
             elif isinstance(stream_event, ToolCallDelta):
                 state.tool_accumulator.add(stream_event)

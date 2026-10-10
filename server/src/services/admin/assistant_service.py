@@ -29,7 +29,6 @@ from sqlalchemy.orm import Session
 from src.assistant.agent import AssistantAgent
 from src.assistant.memories import (
     MemoryFacade,
-    NullUserLongTermMemory,
     SystemPromptBuilder,
     UserLongTermMemory,
     build_user_long_term_memory,
@@ -60,7 +59,6 @@ from src.repositories.assistant_repository import (
 )
 from src.schemas.admin.assistant import FeedbackRequest
 from src.schemas.admin.auth import CurrentUser
-
 
 #: 客户端断连检测间隔（秒）：节流调用 disconnect_checker，避免逐事件检测
 _DISCONNECT_CHECK_INTERVAL: float = 2.0

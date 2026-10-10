@@ -34,7 +34,6 @@ import yaml
 from src.constants.assistant import ASSISTANT_ENTRY_CATALOG
 from src.utils.helpers import find_project_root
 
-
 # ============================================================
 # FAQ 数据模型与加载器
 # ============================================================
