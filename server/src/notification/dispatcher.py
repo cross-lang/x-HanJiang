@@ -38,7 +38,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.constants.enums import (
+from src.constants.notification import (
+    DEFAULT_ENABLED_CHANNEL,
     DEFAULT_ROUTES,
     NotificationChannel,
     NotificationEvent,
@@ -269,12 +270,14 @@ class NotificationDispatcher:
         event_type_str = event_type.value if isinstance(event_type, NotificationEvent) else str(event_type)
         recipients = config_repo.build_recipients_map(user_id, event_type_str)
         if not recipients:
-            logger.warning(
-                "No notification config found for user_id={}, event={}",
+            # 用户未配置任何通知偏好：按默认规则回退站内信（默认启用渠道），
+            # 保证"站内信默认开启"的展示与真实投递一致
+            logger.info(
+                "No notification config for user_id={}, event={}; fallback to default station channel",
                 user_id,
                 event_type_str,
             )
-            return []
+            recipients = {DEFAULT_ENABLED_CHANNEL: f"user:{user_id}"}
         # 订阅即路由：用户在偏好矩阵勾选的渠道（recipients 的键）就是发送渠道，
         # 不再受 DEFAULT_ROUTES 事件级白名单限制；调用方显式传入 channels 时以其为准
         if channels is None:

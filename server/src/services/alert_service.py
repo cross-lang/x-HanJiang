@@ -13,14 +13,13 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.constants.constants import MAX_BROADCAST_USER_LIMIT
-from src.constants.enums import (
+from src.constants.enums import SystemRoleCode, UserStatus
+from src.constants.notification import (
     DEFAULT_ROUTES,
+    MAX_BROADCAST_USER_LIMIT,
     NotificationChannel,
     NotificationEvent,
     NotificationSource,
-    SystemRoleCode,
-    UserStatus,
 )
 from src.core.logger import logger
 from src.models.entities.notification_delivery_entity import NotificationDeliveryEntity

@@ -25,8 +25,8 @@ from src.constants.enums import (
     AppOwnerType,
     AppRegistrationType,
     AppStatus,
-    NotificationSource,
 )
+from src.constants.notification import NotificationSource
 from src.constants.permissions import PermissionCode
 from src.core.exceptions import (
     ConflictException,

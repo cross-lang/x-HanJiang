@@ -9,7 +9,7 @@ Classes:
 
 from typing import TYPE_CHECKING, Any
 
-from src.constants.enums import NotificationEvent, NotificationSource
+from src.constants.notification import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger

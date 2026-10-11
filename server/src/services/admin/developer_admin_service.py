@@ -20,9 +20,8 @@ from src.constants.enums import (
     AppOwnerType,
     DeveloperMessageCategory,
     DeveloperMessageStatus,
-    NotificationEvent,
-    NotificationSource,
 )
+from src.constants.notification import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException
 from src.core.logger import logger

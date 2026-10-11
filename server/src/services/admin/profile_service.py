@@ -23,21 +23,21 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from src.constants.constants import (
-    DEFAULT_ENABLED_CHANNEL,
     MENU_ROOT_PARENT_ID,
     MENU_TYPE_DIRECTORY,
     VERIFY_CODE_CACHE_PREFIX,
     VERIFY_CODE_EMAIL_PREFIX,
-    VERIFY_CODE_EVENT,
     VERIFY_CODE_MAX,
     VERIFY_CODE_MIN,
     VERIFY_CODE_RESEND_INTERVAL,
     VERIFY_CODE_SMS_PREFIX,
     VERIFY_CODE_TTL_SECONDS,
 )
-from src.constants.enums import (
+from src.constants.notification import (
+    DEFAULT_ENABLED_CHANNEL,
     PERSONAL_SUBSCRIBABLE_CHANNELS,
     PERSONAL_SUBSCRIBABLE_EVENTS,
+    VERIFY_CODE_EVENT,
     NotificationChannel,
     NotificationEvent,
 )
@@ -267,6 +267,7 @@ class ProfileService:
         """
         configs = self._config_repository.list_by_user_id(user_id)
         config_by_channel = {config.channel: config for config in configs}
+        has_any_config = bool(configs)
         subscriptions = {(sub.config_id, sub.event_type) for sub in self._config_repository.list_subscriptions(user_id)}
         events = []
         for event in NotificationEvent:
@@ -281,8 +282,10 @@ class ProfileService:
                     enabled = (config.id, event.mark) in subscriptions
                     recipient = config.recipient or ""
                 else:
-                    # 默认站内信开，其他渠道关；未配置渠道不展示 recipient
-                    enabled = channel.mark == DEFAULT_ENABLED_CHANNEL
+                    # 从未保存过任何偏好：按默认规则展示（站内信开、其他渠道关）；
+                    # 已保存过偏好但本渠道未配置：如实显示关闭，
+                    # 避免"看似开启、实际未订阅"（默认开启只对全新用户成立）
+                    enabled = (not has_any_config) and channel.mark == DEFAULT_ENABLED_CHANNEL
                     recipient = ""
                 channels.append(
                     {
@@ -309,6 +312,11 @@ class ProfileService:
         """
         allowed_events = {event.mark for event in PERSONAL_SUBSCRIBABLE_EVENTS}
         allowed_channels = {channel.mark for channel in PERSONAL_SUBSCRIBABLE_CHANNELS}
+        # 首次保存偏好（尚无任何渠道配置）时，把展示层的"默认站内信开"对本次操作的事件一并落库，
+        # 避免 UI 显示已开启而实际未订阅
+        station_config = None
+        if not self._config_repository.list_by_user_id(user_id):
+            station_config = self._config_repository.get_or_create_channel_config(user_id, DEFAULT_ENABLED_CHANNEL)
         # 涉及 email 渠道时，取当前用户表邮箱（惰性查询，最多一次）
         user_email: str | None = None
         for event_type, channels in prefs.items():
@@ -321,6 +329,8 @@ class ProfileService:
             # 白名单外的事件/渠道不接受订阅（系统事件、预留事件、未接入的短信渠道）
             if event_type not in allowed_events:
                 continue
+            if station_config is not None:
+                self._config_repository.subscribe(station_config.id, event_type)
             for channel, enabled in channels.items():
                 if channel not in allowed_channels:
                     continue

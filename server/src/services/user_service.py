@@ -13,7 +13,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from src.constants.constants import SUPERADMIN_USERNAME
-from src.constants.enums import NotificationEvent, NotificationSource, UserStatus
+from src.constants.enums import UserStatus
+from src.constants.notification import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import AuthorizationException, ConflictException, NotFoundException
 from src.core.logger import logger

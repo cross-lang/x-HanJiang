@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from src.constants.enums import NotificationEvent, NotificationSource
+from src.constants.notification import NotificationEvent, NotificationSource
 from src.models.entities.station_message_entity import StationMessageEntity
 from src.repositories.station_message_repository import StationMessageRepository
 

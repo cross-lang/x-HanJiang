@@ -316,7 +316,7 @@ class DeveloperAuthService:
 
     def _dispatch_verify_email(self, to_email: str, code: str, username: str) -> None:
         """通过通知调度器向开发者邮箱发送验证码邮件（复用管理系统同款事件与模板）。"""
-        from src.constants.constants import VERIFY_CODE_EVENT
+        from src.constants.notification import VERIFY_CODE_EVENT
         from src.infras.notification import get_registry
         from src.notification.dispatcher import NotificationDispatcher
 

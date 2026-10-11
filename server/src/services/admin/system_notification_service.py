@@ -18,15 +18,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from src.constants.constants import MAX_BROADCAST_USER_LIMIT
-from src.constants.enums import (
+from src.constants.enums import UserStatus
+from src.constants.notification import (
+    MAX_BROADCAST_USER_LIMIT,
     NotificationErrorCode,
     NotificationEvent,
     NotificationSource,
     NotificationTargetType,
     SystemNotificationStatus,
     SystemNotificationType,
-    UserStatus,
 )
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException, ValidationException

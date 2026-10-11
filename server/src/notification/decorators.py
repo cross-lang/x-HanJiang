@@ -17,7 +17,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any, Concatenate, ParamSpec, TypeVar, cast
 
-from src.constants.enums import NotificationEvent, NotificationSource
+from src.constants.notification import NotificationEvent, NotificationSource
 from src.core.logger import logger
 
 _P = ParamSpec("_P")

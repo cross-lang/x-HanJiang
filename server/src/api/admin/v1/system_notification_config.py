@@ -14,7 +14,7 @@ from src.api.admin.dependencies import (
 )
 from src.api.admin.permission_decorator import permission
 from src.api.response import success_response
-from src.constants.enums import NotificationErrorCode
+from src.constants.notification import NotificationErrorCode
 from src.constants.permissions import PermissionCode
 from src.core.logger import logger
 from src.schemas.admin.auth import CurrentUser

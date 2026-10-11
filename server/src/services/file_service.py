@@ -16,7 +16,7 @@ from fastapi import UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.responses import Response
 
-from src.constants.enums import NotificationEvent, NotificationSource
+from src.constants.notification import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger

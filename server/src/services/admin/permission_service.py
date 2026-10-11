@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from src.constants.enums import AuditAction, NotificationEvent, NotificationSource, SystemRoleCode
+from src.constants.enums import AuditAction, SystemRoleCode
+from src.constants.notification import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction, PermissionModule
 from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger

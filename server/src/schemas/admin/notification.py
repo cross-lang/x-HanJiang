@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from src.constants.enums import NotificationChannel, NotificationTargetType, SystemNotificationType
+from src.constants.notification import NotificationChannel, NotificationTargetType, SystemNotificationType
 
 
 class PublishNotificationRequest(BaseModel):

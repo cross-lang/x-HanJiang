@@ -11,9 +11,8 @@ from src.constants.enums import (
     AppApprovalStatus,
     AppRegistrationType,
     LoginType,
-    NotificationChannel,
-    NotificationStatus,
 )
+from src.constants.notification import NotificationChannel, NotificationStatus
 from src.repositories.dashboard_repository import DashboardRepository
 
 # 通知渠道标识 → 中文名称映射（以 NotificationChannel 枚举为唯一权威来源）
