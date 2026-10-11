@@ -4,7 +4,7 @@
 本模块提供管理后台核心认证接口。
 
 Endpoints:
-    POST /auth/login:    用户名/邮箱 + 密码登录
+    POST /auth/login:    用户名/手机号/邮箱 + 密码登录
     POST /auth/refresh:  刷新令牌
     POST /auth/logout:   退出登录
 """
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/auth", tags=["管理系统：身份认证"])
 @router.post(
     "/login",
     summary="用户登录",
-    description="用户名或邮箱 + 密码登录，成功后返回访问/刷新令牌",
+    description="用户名/手机号/邮箱 + 密码登录，成功后返回访问/刷新令牌",
 )
 def login(
     body: LoginRequest,

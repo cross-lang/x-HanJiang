@@ -16,8 +16,9 @@
     - database: DatabaseProvider → MySqlProvider
     - cache:    CacheProvider → RedisCacheProvider
     - email:    EmailProvider → SmtpEmailProvider
+    - sms:      SmsProvider → TencentCloudSmsProvider / AliyunSmsProvider
     - http:     HttpProvider → RequestsHttpProvider
     - storage:  StorageProvider → LocalStorage / S3CompatibleStorage
 """
 
-__all__ = ["cache", "database", "email", "http", "storage"]
+__all__ = ["cache", "database", "email", "http", "sms", "storage"]

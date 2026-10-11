@@ -242,7 +242,7 @@
                 <el-form-item label="验证码">
                   <div class="code-row">
                     <el-input v-model="phoneForm.code" placeholder="6 位验证码" />
-                    <el-button @click="sendCode" :loading="codeLoading">发送验证码</el-button>
+                    <el-button @click="sendPhoneCode" :loading="codeLoading">发送短信验证码</el-button>
                   </div>
                 </el-form-item>
                 <el-form-item>
@@ -267,7 +267,7 @@
                 <el-form-item label="验证码">
                   <div class="code-row">
                     <el-input v-model="emailForm.code" placeholder="6 位验证码" />
-                    <el-button @click="sendCode" :loading="codeLoading">发送验证码</el-button>
+                    <el-button @click="sendEmailCodeBtn" :loading="codeLoading">发送邮件验证码</el-button>
                   </div>
                 </el-form-item>
                 <el-form-item>
@@ -326,6 +326,8 @@ import {
   updateMe,
   changePassword,
   sendVerifyCode,
+  sendSmsCode,
+  sendEmailCode,
   updatePhone,
   updateEmail,
   getNotificationPreferences,
@@ -426,6 +428,38 @@ async function sendCode() {
   codeLoading.value = true
   try {
     await sendVerifyCode()
+    ElMessage.success('验证码已发送至邮箱，5 分钟内有效')
+  } catch {
+    // 错误已处理
+  } finally {
+    codeLoading.value = false
+  }
+}
+
+async function sendPhoneCode() {
+  if (!phoneForm.value.phone) {
+    ElMessage.warning('请输入新手机号')
+    return
+  }
+  codeLoading.value = true
+  try {
+    await sendSmsCode(phoneForm.value.phone)
+    ElMessage.success('短信验证码已发送至手机号，5 分钟内有效')
+  } catch {
+    // 错误已处理
+  } finally {
+    codeLoading.value = false
+  }
+}
+
+async function sendEmailCodeBtn() {
+  if (!emailForm.value.email) {
+    ElMessage.warning('请输入新邮箱')
+    return
+  }
+  codeLoading.value = true
+  try {
+    await sendEmailCode(emailForm.value.email)
     ElMessage.success('验证码已发送至邮箱，5 分钟内有效')
   } catch {
     // 错误已处理

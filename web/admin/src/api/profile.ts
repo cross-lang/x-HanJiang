@@ -30,9 +30,19 @@ export function changePassword(oldPassword: string, newPassword: string, code: s
   })
 }
 
-/** 发送短信/邮件验证码 */
+/** 发送验证码（当前邮箱，修改密码场景） */
 export function sendVerifyCode() {
   return request.post<{ message: string }>('/profile/send-verify-code')
+}
+
+/** 发送短信验证码（目标手机号，更换/绑定手机号场景） */
+export function sendSmsCode(phone: string) {
+  return request.post<{ message: string }>('/profile/send-sms-code', { phone })
+}
+
+/** 发送邮件验证码（目标邮箱，修改邮箱场景） */
+export function sendEmailCode(email: string) {
+  return request.post<{ message: string }>('/profile/send-email-code', { email })
 }
 
 /** 更新手机号（需验证码） */

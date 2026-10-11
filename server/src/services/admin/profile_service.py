@@ -17,6 +17,7 @@ Classes:
 from __future__ import annotations
 
 import random
+import re
 from contextlib import suppress
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -26,9 +27,12 @@ from src.constants.constants import (
     MENU_ROOT_PARENT_ID,
     MENU_TYPE_DIRECTORY,
     VERIFY_CODE_CACHE_PREFIX,
+    VERIFY_CODE_EMAIL_PREFIX,
     VERIFY_CODE_EVENT,
     VERIFY_CODE_MAX,
     VERIFY_CODE_MIN,
+    VERIFY_CODE_RESEND_INTERVAL,
+    VERIFY_CODE_SMS_PREFIX,
     VERIFY_CODE_TTL_SECONDS,
 )
 from src.constants.enums import NotificationChannel, NotificationEvent
@@ -36,6 +40,7 @@ from src.constants.permissions import PermissionModule
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.cache import CacheProvider, get_cached_cache_provider
+from src.infras.sms import get_cached_sms_provider
 from src.models.entities.notification_config_entity import UserNotificationConfigEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.menu_repository import MenuRepository
@@ -154,7 +159,7 @@ class ProfileService:
         user = self._require_user(user_id)
         if not verify_password(request.old_password, user.password_hash or ""):
             raise ValidationException(message="原密码错误")
-        if not self._check_email_code(user.id, request.code):
+        if not self._check_code(f"{VERIFY_CODE_CACHE_PREFIX}{user.id}", request.code):
             raise ValidationException(message="验证码错误或已过期")
         user.password_hash = hash_password(request.new_password)
         self._user_repository.commit()
@@ -462,7 +467,7 @@ class ProfileService:
             logger.warning("User webhook test failed user={} channel={}: {}", user_id, channel, exc)
             return {"success": False, "error": "发送失败，请检查 Webhook 地址"}
 
-    # ── 安全设置：邮箱二次认证 ─────────────────────────────
+    # ── 安全设置：验证码二次认证 ─────────────────────────────
 
     def send_verify_code(self, user_id: int) -> None:
         """向当前用户邮箱发送 6 位验证码（5 分钟有效）。
@@ -489,39 +494,124 @@ class ProfileService:
             logger.error("验证码邮件发送失败: user_id={} error={}", user.id, exc)
             raise ValidationException(message="验证码邮件发送失败，请稍后重试") from exc
 
-    def verify_and_update_phone(self, user_id: int, code: str, phone: str) -> None:
-        """通过验证码校验后修改手机号。
+    def send_sms_code(self, user_id: int, phone: str) -> None:
+        """发送短信验证码到目标手机号（更换/绑定手机号场景）。
+
+        安全策略：
+        - 验证码存 Redis：键 `verify_code_sms:{phone}`，5 分钟有效、一次性；
+        - 同一手机号 60 秒内不可重发（防止短信轰炸）；
+        - 目标手机号已被其他用户绑定时拒绝；
+        - 发送走 SmsProvider（阿里云短信/腾讯云短信），失败抛业务异常。
 
         Args:
             user_id: 当前用户 ID
-            code: 验证码（一次性）
+            phone: 目标手机号
+
+        Raises:
+            ValidationException: 手机号格式错误/已被绑定/发送失败/服务未配置时抛出
+        """
+        phone = phone.strip()
+        if not re.fullmatch(r"1\d{10}", phone):
+            raise ValidationException(message="手机号格式不正确")
+        user = self._require_user(user_id)
+        existing = self._user_repository.get_by_phone(phone)
+        if existing is not None and existing.id != user.id:
+            raise ValidationException(message="该手机号已被其他用户绑定")
+        key = f"{VERIFY_CODE_SMS_PREFIX}{phone}"
+        self._enforce_resend_interval(key)
+        code = f"{random.randint(VERIFY_CODE_MIN, VERIFY_CODE_MAX)}"
+        self._cache.set(key, code, ttl=VERIFY_CODE_TTL_SECONDS)
+        self._mark_sent(key)
+        provider = get_cached_sms_provider()
+        if provider is None:
+            raise ValidationException(message="短信服务未启用，请稍后重试")
+        try:
+            ok = provider.send_sms(phone, "", {"code": code})
+        except Exception as exc:  # noqa: BLE001 - 发送失败统一收敛为业务异常
+            logger.error("短信验证码发送异常: phone={} error={}", phone, exc)
+            raise ValidationException(message="短信验证码发送失败，请稍后重试") from exc
+        if not ok:
+            raise ValidationException(message="短信验证码发送失败，请检查短信服务配置")
+        logger.info("短信验证码已发送: user_id={} phone={}", user_id, phone)
+
+    def send_email_code(self, user_id: int, email: str) -> None:
+        """发送邮件验证码到目标邮箱（修改邮箱场景）。
+
+        安全策略：
+        - 验证码存 Redis：键 `verify_code_email:{email}`，5 分钟有效、一次性；
+        - 同一邮箱 60 秒内不可重发；
+        - 目标邮箱已被其他用户绑定时拒绝。
+
+        Args:
+            user_id: 当前用户 ID
+            email: 目标邮箱
+
+        Raises:
+            ValidationException: 邮箱格式错误/已被绑定/邮件发送失败时抛出
+        """
+        email = self._normalize_email(email)
+        user = self._require_user(user_id)
+        existing = self._user_repository.get_by_email(email)
+        if existing is not None and existing.id != user.id:
+            raise ValidationException(message="该邮箱已被其他用户绑定")
+        key = f"{VERIFY_CODE_EMAIL_PREFIX}{email}"
+        self._enforce_resend_interval(key)
+        code = f"{random.randint(VERIFY_CODE_MIN, VERIFY_CODE_MAX)}"
+        self._cache.set(key, code, ttl=VERIFY_CODE_TTL_SECONDS)
+        self._mark_sent(key)
+        try:
+            self._dispatch_email(
+                event_type=VERIFY_CODE_EVENT,
+                email=email,
+                variables={"code": code, "username": user.name or user.username},
+            )
+        except Exception as exc:  # noqa: BLE001 - 发送失败统一收敛为业务异常
+            logger.error("验证码邮件发送失败: email={} error={}", email, exc)
+            raise ValidationException(message="验证码邮件发送失败，请稍后重试") from exc
+
+    def verify_and_update_phone(self, user_id: int, code: str, phone: str) -> None:
+        """通过短信验证码校验后修改手机号。
+
+        Args:
+            user_id: 当前用户 ID
+            code: 短信验证码（一次性，发到目标手机号）
             phone: 新手机号
 
         Raises:
             NotFoundException: 用户不存在时抛出
-            ValidationException: 验证码错误或过期时抛出
+            ValidationException: 验证码错误或过期/手机号已被占用时抛出
         """
         user = self._require_user(user_id)
-        if not self._check_email_code(user.id, code):
+        phone = phone.strip()
+        key = f"{VERIFY_CODE_SMS_PREFIX}{phone}"
+        if not self._check_code(key, code):
             raise ValidationException(message="验证码错误或已过期")
+        existing = self._user_repository.get_by_phone(phone)
+        if existing is not None and existing.id != user.id:
+            raise ValidationException(message="该手机号已被其他用户绑定")
         user.phone = phone
         self._user_repository.commit()
 
     def verify_and_update_email(self, user_id: int, code: str, email: str) -> None:
-        """通过原验证码校验后修改邮箱。
+        """通过邮件验证码校验后修改邮箱。
 
         Args:
             user_id: 当前用户 ID
-            code: 原验证码（一次性）
+            code: 邮件验证码（一次性，发到目标邮箱）
             email: 新邮箱地址
 
         Raises:
             NotFoundException: 用户不存在时抛出
-            ValidationException: 验证码错误或过期时抛出
+            ValidationException: 验证码错误或过期/邮箱已被占用时抛出
         """
         user = self._require_user(user_id)
-        if not self._check_email_code(user.id, code):
-            raise ValidationException(message="原验证码错误或已过期")
+        email = self._normalize_email(email)
+        key = f"{VERIFY_CODE_EMAIL_PREFIX}{email}"
+        if not self._check_code(key, code):
+            raise ValidationException(message="验证码错误或已过期")
+        existing = self._user_repository.get_by_email(email)
+        if existing is not None and existing.id != user.id:
+            raise ValidationException(message="该邮箱已被其他用户绑定")
         user.email = email
         self._user_repository.commit()
 
@@ -534,11 +624,29 @@ class ProfileService:
             raise NotFoundException(message="用户不存在")
         return user
 
-    def _check_email_code(self, user_id: int, code: str) -> bool:
+    @staticmethod
+    def _normalize_email(email: str) -> str:
+        """规范化邮箱：去空格 + 小写 + 基本格式校验。"""
+        email = email.strip().lower()
+        if "@" not in email or len(email) > 254:
+            raise ValidationException(message="邮箱格式不正确")
+        return email
+
+    def _enforce_resend_interval(self, key: str) -> None:
+        """同一目标在重发间隔内禁止再次发送（防轰炸）。"""
+        sent_key = f"{key}:sent_at"
+        if self._cache.get(sent_key):
+            raise ValidationException(message=f"验证码发送过于频繁，请 {VERIFY_CODE_RESEND_INTERVAL} 秒后重试")
+
+    def _mark_sent(self, key: str) -> None:
+        """记录目标最近一次发送时间（重发间隔标记，TTL=间隔秒数）。"""
+        self._cache.set(f"{key}:sent_at", "1", ttl=VERIFY_CODE_RESEND_INTERVAL)
+
+    def _check_code(self, key: str, code: str) -> bool:
         """校验验证码（一次性，校验通过后立即删除）。
 
         Args:
-            user_id: 用户 ID
+            key: 验证码 Redis Key（按目标值隔离）
             code: 待校验的验证码
 
         Returns:
@@ -546,7 +654,6 @@ class ProfileService:
         """
         if not code:
             return False
-        key = f"{VERIFY_CODE_CACHE_PREFIX}{user_id}"
         saved = self._cache.get(key)
         if saved != code:
             return False

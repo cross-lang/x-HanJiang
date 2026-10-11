@@ -92,15 +92,27 @@ class NotificationRecipientUpdateRequest(BaseModel):
     enabled: bool | None = None
 
 
+class SendSmsCodeRequest(BaseModel):
+    """发送短信验证码入参（发送到目标手机号）。"""
+
+    phone: str
+
+
+class SendEmailCodeRequest(BaseModel):
+    """发送邮件验证码入参（发送到目标邮箱）。"""
+
+    email: str
+
+
 class UpdatePhoneRequest(BaseModel):
-    """修改手机号入参（需验证码二次认证）。"""
+    """修改手机号入参（需短信验证码二次认证）。"""
 
     phone: str
     code: str
 
 
 class UpdateEmailRequest(BaseModel):
-    """修改邮箱入参（需原验证码二次认证）。"""
+    """修改邮箱入参（需邮件验证码二次认证）。"""
 
     email: str
     code: str

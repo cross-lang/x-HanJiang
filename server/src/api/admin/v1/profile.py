@@ -18,7 +18,9 @@ Endpoints:
     POST   /profile/notification-recipients:  保存渠道接收方（upsert）
     PUT    /profile/notification-recipients:  更新渠道接收方（upsert）
     DELETE /profile/notification-recipients:  清空渠道接收方并禁用该渠道
-    POST   /profile/send-verify-code:          发送验证码
+    POST   /profile/send-verify-code:          发送验证码（当前邮箱，修改密码用）
+    POST   /profile/send-sms-code:             发送短信验证码（目标手机号，更换/绑定手机号用）
+    POST   /profile/send-email-code:           发送邮件验证码（目标邮箱，修改邮箱用）
     POST   /profile/update-phone:              修改手机号
     POST   /profile/update-email:              修改邮箱
 """
@@ -39,6 +41,8 @@ from src.schemas.admin.profile import (
     ChangePasswordRequest,
     NotificationRecipientCreateRequest,
     NotificationRecipientUpdateRequest,
+    SendEmailCodeRequest,
+    SendSmsCodeRequest,
     UpdateEmailRequest,
     UpdateMeRequest,
     UpdateNotificationPreferencesRequest,
@@ -239,13 +243,13 @@ def test_my_recipient(
     return success_response(result, request)
 
 
-# ── 安全设置：邮箱二次认证 ──────────────────────────────────
+# ── 安全设置：验证码二次认证 ──────────────────────────────────
 
 
 @router.post(
     "/send-verify-code",
     summary="发送验证码",
-    description="安全设置二次认证：向当前用户邮箱发送 6 位验证码，5 分钟有效",
+    description="安全设置二次认证：向当前用户邮箱发送 6 位验证码，5 分钟有效（修改密码场景）",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EDIT.mark))],
 )
 @permission(PermissionCode.PROFILE_EDIT)
@@ -260,9 +264,47 @@ def send_verify_code(
 
 
 @router.post(
+    "/send-sms-code",
+    summary="发送短信验证码",
+    description=(
+        "更换/绑定手机号：向目标手机号发送 6 位短信验证码，5 分钟有效（阿里云短信/腾讯云短信，需配置签名与模板）"
+    ),
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_PHONE.mark))],
+)
+@permission(PermissionCode.PROFILE_PHONE)
+def send_sms_code(
+    request: Request,
+    body: SendSmsCodeRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    profile_service: ProfileService = Depends(get_profile_service),
+) -> JSONResponse:
+    """向目标手机号发送短信验证码。"""
+    profile_service.send_sms_code(current_user.id, body.phone)
+    return success_response({"message": "短信验证码已发送至手机号"}, request)
+
+
+@router.post(
+    "/send-email-code",
+    summary="发送邮件验证码",
+    description="修改邮箱：向目标邮箱发送 6 位邮件验证码，5 分钟有效",
+    dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EMAIL.mark))],
+)
+@permission(PermissionCode.PROFILE_EMAIL)
+def send_email_code(
+    request: Request,
+    body: SendEmailCodeRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    profile_service: ProfileService = Depends(get_profile_service),
+) -> JSONResponse:
+    """向目标邮箱发送邮件验证码。"""
+    profile_service.send_email_code(current_user.id, body.email)
+    return success_response({"message": "验证码已发送至邮箱"}, request)
+
+
+@router.post(
     "/update-phone",
     summary="修改手机号",
-    description="需通过验证码二次认证",
+    description="需通过短信验证码二次认证",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_PHONE.mark))],
 )
 @permission(PermissionCode.PROFILE_PHONE)
@@ -272,7 +314,7 @@ def update_phone(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """通过验证码校验后修改手机号。"""
+    """通过短信验证码校验后修改手机号。"""
     profile_service.verify_and_update_phone(current_user.id, body.code, body.phone)
     return success_response({"message": "手机号修改成功"}, request)
 
@@ -280,7 +322,7 @@ def update_phone(
 @router.post(
     "/update-email",
     summary="修改邮箱",
-    description="需通过原验证码二次认证",
+    description="需通过邮件验证码二次认证",
     dependencies=[Depends(require_user_permission(PermissionCode.PROFILE_EMAIL.mark))],
 )
 @permission(PermissionCode.PROFILE_EMAIL)
@@ -290,6 +332,6 @@ def update_email(
     current_user: CurrentUser = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ) -> JSONResponse:
-    """通过原验证码校验后修改邮箱。"""
+    """通过邮件验证码校验后修改邮箱。"""
     profile_service.verify_and_update_email(current_user.id, body.code, body.email)
     return success_response({"message": "邮箱修改成功"}, request)

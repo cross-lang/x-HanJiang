@@ -18,7 +18,7 @@
             <el-form-item class="field">
               <el-input
                 v-model="form.username"
-                placeholder="请输入账号"
+                placeholder="用户名 / 邮箱 / 手机号"
                 prefix-icon="User"
                 size="large"
                 name="username"

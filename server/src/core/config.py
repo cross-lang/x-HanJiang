@@ -210,6 +210,32 @@ class SmtpConfig:
 
 
 @dataclass
+class SmsConfig:
+    """短信服务配置（infras/sms.py 使用）。
+
+    provider: "mock" | "tencent" | "aliyun" | "none"
+        - mock:               本地模拟（SMS_MOCK，仅日志/记录，前后端联调用）
+        - tencent:            腾讯云短信（SMS_TENCENT_*）
+        - aliyun:             阿里云短信（SMS_ALIYUN_*）
+        - none:               未启用（业务调用 get_sms_provider() 返回 None）
+    sign_name: 短信签名（腾讯/阿里短信共用，可在发送时按模板覆盖）
+    """
+
+    provider: str = "aliyun"  # 默认阿里云短信 SDK（未配置凭据时安全跳过）
+    # 腾讯云
+    tencent_secret_id: str = ""
+    tencent_secret_key: str = ""
+    tencent_sdk_app_id: str = ""
+    tencent_region: str = "ap-guangzhou"
+    # 阿里云
+    aliyun_access_key_id: str = ""
+    aliyun_access_key_secret: str = ""
+    aliyun_endpoint: str = "dysmsapi.aliyuncs.com"
+    # 公共
+    sign_name: str = ""
+
+
+@dataclass
 class NotificationConfig:
     """通知渠道配置。"""
 
@@ -355,6 +381,20 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     ),
     "storage": ("STORAGE_", ["provider"]),
     "smtp": ("SMTP_", ["host", "port", "username", "password", "use_tls", "from_name", "from_address"]),
+    "sms": (
+        "SMS_",
+        [
+            "provider",
+            "tencent_secret_id",
+            "tencent_secret_key",
+            "tencent_sdk_app_id",
+            "tencent_region",
+            "aliyun_access_key_id",
+            "aliyun_access_key_secret",
+            "aliyun_endpoint",
+            "sign_name",
+        ],
+    ),
     "notification": (
         "NOTIFICATION_",
         [
@@ -509,6 +549,17 @@ class Settings:
                 "use_tls": True,
                 "from_name": "HanJiang",
                 "from_address": "",
+            },
+            "sms": {
+                "provider": "aliyun",
+                "tencent_secret_id": "",
+                "tencent_secret_key": "",
+                "tencent_sdk_app_id": "",
+                "tencent_region": "ap-guangzhou",
+                "aliyun_access_key_id": "",
+                "aliyun_access_key_secret": "",
+                "aliyun_endpoint": "dysmsapi.aliyuncs.com",
+                "sign_name": "",
             },
             "notification": {
                 "enabled": True,
@@ -696,6 +747,20 @@ class Settings:
             smtp["from_name"] = value
         if value := os.environ.get("SMTP_FROM_ADDRESS"):
             smtp["from_address"] = value
+        # 短信服务配置（SMS_ 前缀环境变量覆盖）
+        sms = config.setdefault("sms", {})
+        for key, field_def in SmsConfig.__dataclass_fields__.items():
+            env_key = f"SMS_{key.upper()}"
+            if env_key in os.environ:
+                raw = os.environ[env_key]
+                if key in ("tencent_region", "aliyun_endpoint") and not raw:
+                    continue
+                if field_def.type is int:
+                    sms[key] = _to_int(raw, field_def.default)
+                elif field_def.type is bool:
+                    sms[key] = _to_bool(raw)
+                else:
+                    sms[key] = raw
         # AI 助手配置的环境变量（AI_LLM_* / AI_MEMORY_* / AI_RETRIEVER_* / AI_TOOLS_*）
         ai = config.setdefault("ai", {})
         ai_llm = ai.setdefault("llm", {})
@@ -769,6 +834,9 @@ class Settings:
         # SMTP 邮件配置
         smtp_raw = self._config.get("smtp", {})
         self.smtp = SmtpConfig(**smtp_raw)
+        # 短信服务配置
+        sms_raw = self._config.get("sms", {})
+        self.sms = SmsConfig(**sms_raw)
         # 开放平台门户前端地址（用于邮件中的重置密码链接等，可通过 OPEN_PORTAL_BASE_URL 覆盖）
         self.open_portal_base_url: str = os.environ.get("OPEN_PORTAL_BASE_URL", "http://localhost:5174").rstrip("/")
         # 通知渠道配置

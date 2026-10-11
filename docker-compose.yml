@@ -40,6 +40,16 @@ services:
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
       # AI 助手大模型密钥（敏感信息仅经环境变量注入，不落镜像/代码）
       - AI_LLM_API_KEY=${AI_LLM_API_KEY:-}
+      # 短信服务（infras/sms.py，SMS_* 透传；测试环境默认 mock，生产在 .env 指定 aliyun / tencent）
+      - SMS_PROVIDER=${SMS_PROVIDER:-mock}
+      - SMS_TENCENT_SECRET_ID=${SMS_TENCENT_SECRET_ID:-}
+      - SMS_TENCENT_SECRET_KEY=${SMS_TENCENT_SECRET_KEY:-}
+      - SMS_TENCENT_SDK_APP_ID=${SMS_TENCENT_SDK_APP_ID:-}
+      - SMS_TENCENT_REGION=${SMS_TENCENT_REGION:-ap-guangzhou}
+      - SMS_ALIYUN_ACCESS_KEY_ID=${SMS_ALIYUN_ACCESS_KEY_ID:-}
+      - SMS_ALIYUN_ACCESS_KEY_SECRET=${SMS_ALIYUN_ACCESS_KEY_SECRET:-}
+      - SMS_ALIYUN_ENDPOINT=${SMS_ALIYUN_ENDPOINT:-dysmsapi.aliyuncs.com}
+      - SMS_SIGN_NAME=${SMS_SIGN_NAME:-}
     depends_on:
       mysql:
         condition: service_healthy

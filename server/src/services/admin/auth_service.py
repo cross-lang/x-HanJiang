@@ -75,7 +75,7 @@ class AuthService:
         ip_address: str | None = None,
     ) -> TokenResponse:
         """用户登录。
-        校验用户名/邮箱 + 密码，成功后签发 access/refresh 令牌并写入 Redis 登录态。
+        校验用户名/手机号/邮箱 + 密码，成功后签发 access/refresh 令牌并写入 Redis 登录态。
         无论成功失败均记录 login_logs。
         """
         user = self._find_account(account)
@@ -92,7 +92,7 @@ class AuthService:
             # ── 连续登录失败告警 ──
             if user is not None:
                 self._check_login_failures(user, ip_address)
-            raise AuthenticationException(message="用户名/邮箱或密码错误")
+            raise AuthenticationException(message="用户名/手机号/邮箱或密码错误")
         # 新设备登录检测并通知（失败不阻断登录主流程）
         self._notify_new_device_login(user.id, ip_address or "")
         return self._issue_tokens(user, ip_address=ip_address)
@@ -227,9 +227,21 @@ class AuthService:
             logger.warning(f"Redis 登录态清除失败: {e}")
 
     def _find_account(self, account: str) -> UserEntity | None:
-        """按用户名或邮箱查找用户。"""
+        """按用户名、手机号或邮箱查找用户（登录三通道识别）。
+        识别规则：
+            - 含 @ → 邮箱
+            - 11 位纯数字 → 手机号（查不到再回退按用户名查）
+            - 其他 → 用户名
+        """
+        account = account.strip()
         if "@" in account:
             return self._user_repository.get_by_email(account)
+        if account.isdigit() and len(account) == 11:
+            user = self._user_repository.get_by_phone(account)
+            if user is not None:
+                return user
+            # 手机号未命中时回退用户名，兼容未绑定手机号的存量账号
+            return self._user_repository.get_by_username(account)
         return self._user_repository.get_by_username(account)
 
     def _check_login_failures(

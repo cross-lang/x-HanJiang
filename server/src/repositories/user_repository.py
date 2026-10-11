@@ -60,6 +60,11 @@ class UserRepository(BaseRepository[UserEntity, int]):
         stmt = select(UserEntity).where(UserEntity.email == email)
         return self.session.execute(stmt).scalars().first()
 
+    def get_by_phone(self, phone: str) -> UserEntity | None:
+        """根据手机号查询用户（含软删除，用于唯一性校验）。"""
+        stmt = select(UserEntity).where(UserEntity.phone == phone)
+        return self.session.execute(stmt).scalars().first()
+
     def get_by_role_id(self, role_id: int) -> list[UserEntity]:
         """根据角色 ID 查询所有关联该角色的未删除用户（多对多）。"""
         stmt = (

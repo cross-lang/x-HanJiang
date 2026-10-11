@@ -66,6 +66,10 @@ VERIFY_CODE_MIN: int = 100000  # 验证码随机范围下界（含）
 VERIFY_CODE_MAX: int = 999999  # 验证码随机范围上界（含）
 VERIFY_CODE_CACHE_PREFIX: str = "verify_code:"  # 验证码 Redis Key 前缀
 VERIFY_CODE_EVENT: str = "security.verify_code"  # 验证码邮件事件类型
+# 安全设置目标导向验证码：键按目标值（新手机号/新邮箱）隔离，与账号 ID 无关
+VERIFY_CODE_SMS_PREFIX: str = "verify_code_sms:"  # 短信验证码键前缀（按手机号）
+VERIFY_CODE_EMAIL_PREFIX: str = "verify_code_email:"  # 邮箱验证码键前缀（按邮箱）
+VERIFY_CODE_RESEND_INTERVAL: int = 60  # 同一目标重发验证码的最小间隔（秒）
 
 # ── 开放平台门户：开发者邮箱二次认证验证码 ────────────
 # 与管理端 verify_code:{user_id} 键隔离（用户 ID 与开发者 ID 各自从 1 起，避免覆盖）

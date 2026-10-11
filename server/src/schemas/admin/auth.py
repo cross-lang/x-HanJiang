@@ -17,14 +17,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class LoginRequest(BaseModel):
     """登录请求模型。
-    支持用户名或邮箱 + 密码登录。
+    支持用户名、手机号或邮箱 + 密码登录。
 
     Attributes:
-        username: 用户名或邮箱
+        username: 用户名/手机号/邮箱
         password: 密码
     """
 
-    username: str = Field(min_length=3, max_length=100, description="用户名或邮箱")
+    username: str = Field(min_length=3, max_length=100, description="用户名/手机号/邮箱")
     password: str = Field(min_length=1, max_length=64, description="密码")
     model_config = ConfigDict(from_attributes=True)
 
