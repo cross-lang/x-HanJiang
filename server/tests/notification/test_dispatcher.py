@@ -165,3 +165,39 @@ class TestDispatchProviderSelection:
         assert deliveries[0].status == "success"
         assert deliveries[0].recipient == "user:5"
         assert len(station_provider.sent) == 1
+
+
+class TestEmptyTemplateDefense:
+    """模板段缺失时的渠道跳过行为（防止空消息/空邮件/failed 投递）。"""
+
+    def test_empty_render_skips_channel_without_sending(self, monkeypatch) -> None:
+        """渲染结果为空：该渠道整体跳过，不调用 provider、不产生投递明细。"""
+        monkeypatch.setattr(dispatcher_module, "render_template", lambda *a, **kw: ("", ""))
+        email_provider = FakeEmailProvider()
+        registry = FakeRegistry({"email": email_provider})
+        dispatcher = _build_dispatcher({}, registry)
+
+        deliveries = dispatcher.dispatch(
+            event_type="user.profile_updated",
+            recipients={"email": "user@example.com"},
+            channels=["email"],
+        )
+
+        assert deliveries == []
+        assert email_provider.sent == []
+
+    def test_pre_rendered_bypasses_template_check(self) -> None:
+        """pre_rendered 直传内容不受空模板检查影响（系统通知广播场景）。"""
+        email_provider = FakeEmailProvider()
+        registry = FakeRegistry({"email": email_provider})
+        dispatcher = _build_dispatcher({}, registry)
+
+        deliveries = dispatcher.dispatch(
+            event_type="system.notice",
+            recipients={"email": "user@example.com"},
+            channels=["email"],
+            pre_rendered=("维护通知", "今晚 22:00 系统维护"),
+        )
+
+        assert deliveries[0].status == "success"
+        assert len(email_provider.sent) == 1

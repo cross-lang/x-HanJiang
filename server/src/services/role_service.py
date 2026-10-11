@@ -7,8 +7,9 @@ Classes:
     RoleService: 角色业务逻辑实现
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from src.constants.enums import NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger
@@ -27,6 +28,9 @@ from src.schemas.role import (
 )
 from src.services.admin.base_service import BaseService, audit_crud
 
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
+
 
 class RoleService(BaseService[RoleResponse, int, RoleRepository]):
     """角色业务逻辑实现。
@@ -43,13 +47,34 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
     def __init__(
         self,
         role_repository: RoleRepository,
-        role_permission_repository: RolePermissionRepository | None = None,
+        role_permission_repository: PermissionRepository | None = None,
         permission_repository: PermissionRepository | None = None,
+        dispatcher: "NotificationDispatcher | None" = None,
     ) -> None:
         """初始化角色服务。"""
         self._repository: RoleRepository = role_repository
         self._rp_repository = role_permission_repository or RolePermissionRepository(session=role_repository.session)
         self._permission_repository = permission_repository or PermissionRepository(session=role_repository.session)
+        self._dispatcher = dispatcher
+
+    def _dispatch_notification(
+        self,
+        user_id: int,
+        event_type: NotificationEvent,
+        variables: dict[str, Any],
+    ) -> None:
+        """发送通知（失败不阻断业务主流程）。"""
+        if self._dispatcher is None:
+            return
+        try:
+            self._dispatcher.dispatch_for_user(
+                user_id=user_id,
+                event_type=event_type,
+                variables=variables,
+                source=NotificationSource.MANUAL.value,
+            )
+        except Exception:
+            logger.exception("Dispatch notification failed: event={}", event_type.value)
 
     def search(
         self,
@@ -139,6 +164,14 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
         if deleted:
             self._commit()
             logger.info(f"Role deleted: id={id} code={existing.role_code}")
+            # ── 通知：操作者业务回执（前置校验保证删除成功时无关联用户，无需通知当事人）──
+            operator_id = (operator or {}).get("operator_id")
+            if isinstance(operator_id, int):
+                self._dispatch_notification(
+                    operator_id,
+                    NotificationEvent.ROLE_DELETED,
+                    {"role_name": existing.role_name},
+                )
         return deleted
 
     def get_permissions(self, role_id: int) -> list[PermissionResponse]:

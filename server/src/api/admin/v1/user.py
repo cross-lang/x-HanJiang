@@ -9,6 +9,7 @@ Endpoints:
     GET    /users/export:   导出用户列表（CSV 文件下载，支持筛选）
     GET    /users/{id}:     查询单个用户
     POST   /users/{id}/update: 更新用户信息
+    POST   /users/{id}/status: 启用/禁用用户账号
     POST   /users/{id}/reset-password: 重置用户密码
     POST   /users/{id}/delete: 删除用户（软删除）
     POST   /users/import:   批量导入用户
@@ -31,7 +32,7 @@ from src.constants.enums import Gender, UserStatus
 from src.constants.permissions import PermissionCode
 from src.core.exceptions import ValidationException
 from src.schemas.admin.auth import CurrentUser
-from src.schemas.admin.user import AdminResetPasswordRequest
+from src.schemas.admin.user import AdminResetPasswordRequest, UserStatusUpdateRequest
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import UserCreateRequest, UserResponse, UserUpdateRequest
 from src.services.user_service import UserService
@@ -180,6 +181,24 @@ def update_user(
     result = service.update(
         user_id, body.model_dump(exclude_unset=True), operator=get_user_operator_context(current_user, request)
     )
+    return success_response(result.model_dump(), request)
+
+
+@router.post(
+    "/{user_id}/status",
+    summary="启用/禁用用户",
+    description="独立启停入口：启用或禁用用户账号（区别于通用编辑）",
+    dependencies=[Depends(require_user_permission(PermissionCode.USER_STATUS.mark))],
+)
+@permission(PermissionCode.USER_STATUS)
+def update_user_status(
+    user_id: int,
+    body: UserStatusUpdateRequest,
+    request: Request,
+    service: UserService = Depends(get_user_service),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> JSONResponse:
+    result = service.update_status(user_id, body.status, operator=get_user_operator_context(current_user, request))
     return success_response(result.model_dump(), request)
 
 

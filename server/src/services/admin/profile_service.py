@@ -35,7 +35,12 @@ from src.constants.constants import (
     VERIFY_CODE_SMS_PREFIX,
     VERIFY_CODE_TTL_SECONDS,
 )
-from src.constants.enums import NotificationChannel, NotificationEvent
+from src.constants.enums import (
+    PERSONAL_SUBSCRIBABLE_CHANNELS,
+    PERSONAL_SUBSCRIBABLE_EVENTS,
+    NotificationChannel,
+    NotificationEvent,
+)
 from src.constants.permissions import PermissionModule
 from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
@@ -265,8 +270,12 @@ class ProfileService:
         subscriptions = {(sub.config_id, sub.event_type) for sub in self._config_repository.list_subscriptions(user_id)}
         events = []
         for event in NotificationEvent:
+            if event not in PERSONAL_SUBSCRIBABLE_EVENTS:
+                continue
             channels = []
             for channel in NotificationChannel:
+                if channel not in PERSONAL_SUBSCRIBABLE_CHANNELS:
+                    continue
                 config = config_by_channel.get(channel.mark)
                 if config is not None:
                     enabled = (config.id, event.mark) in subscriptions
@@ -298,16 +307,23 @@ class ProfileService:
             user_id: 当前用户 ID
             prefs: {event_type: {channel: enabled}} 偏好结构
         """
+        allowed_events = {event.mark for event in PERSONAL_SUBSCRIBABLE_EVENTS}
+        allowed_channels = {channel.mark for channel in PERSONAL_SUBSCRIBABLE_CHANNELS}
         # 涉及 email 渠道时，取当前用户表邮箱（惰性查询，最多一次）
         user_email: str | None = None
-        for _event_type, channels in prefs.items():
-            if "email" in channels:
+        for event_type, channels in prefs.items():
+            if event_type in allowed_events and "email" in channels and "email" in allowed_channels:
                 user_email = self._require_user(user_id).email or None
                 break
 
         config_by_channel: dict[str, Any] = {}
         for event_type, channels in prefs.items():
+            # 白名单外的事件/渠道不接受订阅（系统事件、预留事件、未接入的短信渠道）
+            if event_type not in allowed_events:
+                continue
             for channel, enabled in channels.items():
+                if channel not in allowed_channels:
+                    continue
                 config = config_by_channel.get(channel)
                 if config is None:
                     config = self._config_repository.get_or_create_channel_config(user_id, channel)

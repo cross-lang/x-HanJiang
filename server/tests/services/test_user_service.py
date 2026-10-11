@@ -153,6 +153,32 @@ class TestUserService:
         with pytest.raises(NotFoundException):
             self.service.delete(999)
 
+    # ── 启停（update_status）──────────────────────────────
+
+    def test_update_status_disable_user(self):
+        """禁用启用态用户成功，状态翻转为 disabled。"""
+        created = self.service.create(UserCreateRequest(**self._payload(username="erin", name="Erin")).model_dump())
+        result = self.service.update_status(created.id, "disabled", operator={"operator_id": 1})
+        assert result.status == "disabled"
+
+    def test_update_status_enable_user(self):
+        """启用禁用态用户成功，状态翻转为 enabled。"""
+        created = self.service.create(UserCreateRequest(**self._payload(username="frank", name="Frank")).model_dump())
+        self.service.update_status(created.id, "disabled", operator={"operator_id": 1})
+        result = self.service.update_status(created.id, "enabled", operator={"operator_id": 1})
+        assert result.status == "enabled"
+
+    def test_update_status_idempotent_when_same(self):
+        """目标状态与当前一致时幂等返回，不报错。"""
+        created = self.service.create(UserCreateRequest(**self._payload(username="grace", name="Grace")).model_dump())
+        result = self.service.update_status(created.id, "enabled", operator={"operator_id": 1})
+        assert result.status == "enabled"
+
+    def test_update_status_missing_user_raises_not_found(self):
+        """启停不存在的用户抛 NotFoundException。"""
+        with pytest.raises(NotFoundException):
+            self.service.update_status(999, "disabled", operator={"operator_id": 1})
+
     def test_get_all_pagination(self):
         """分页查询正确返回元数据。"""
         for i in range(5):

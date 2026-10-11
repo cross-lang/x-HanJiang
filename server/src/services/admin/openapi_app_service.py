@@ -17,7 +17,7 @@ src/services/open/gateway_service.py（开放接口域）；
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.constants.enums import (
     AppApprovalStatus,
@@ -30,6 +30,7 @@ from src.constants.enums import (
 )
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException
+from src.core.logger import logger
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
 from src.models.entities.station_message_entity import StationMessageEntity
@@ -48,6 +49,9 @@ from src.utils.openapi_utils import (
 )
 from src.utils.security import generate_secret_key
 
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
+
 
 class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepository]):
     """开放应用管理（应用自身信息 CRUD；审批动作见 OpenApiAppRegistrationService）。"""
@@ -58,9 +62,11 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self,
         repo: OpenApiAppRepository,
         registration_repo: OpenApiAppRegistrationRepository,
+        dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         self._repository = repo
         self._registration_repo = registration_repo
+        self._dispatcher = dispatcher
 
     # ── 创建 ────────────────────────────────────────────
 
@@ -107,6 +113,20 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         )
         created = self._repository.create(entity)
         self._commit()
+        # ── 通知：归属方站内信（developer 代建场景）+ 操作者订阅回执 ──
+        self._notify_owner_action(
+            created,
+            action="创建",
+            event=NotificationEvent.OPENAPI_APP_CREATED,
+            operator=operator,
+        )
+        operator_id = (operator or {}).get("operator_id")
+        if isinstance(operator_id, int):
+            self._dispatch_notification(
+                operator_id,
+                NotificationEvent.OPENAPI_APP_CREATED,
+                {"name": created.name, "app_id": created.app_id},
+            )
         return self._to_response(created), app_key_plain
 
     # ── 查询 ────────────────────────────────────────────
@@ -352,6 +372,25 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         """
         if e.owner_type == AppOwnerType.DEVELOPER.value:
             raise ConflictException(message=f"应用「{e.name}」为开发者自助应用，请由开发者在开放平台门户自行{action}")
+
+    def _dispatch_notification(
+        self,
+        user_id: int,
+        event_type: NotificationEvent,
+        variables: dict[str, Any],
+    ) -> None:
+        """发送管理系统通知（失败不阻断业务主流程）。"""
+        if self._dispatcher is None:
+            return
+        try:
+            self._dispatcher.dispatch_for_user(
+                user_id=user_id,
+                event_type=event_type,
+                variables=variables,
+                source=NotificationSource.OPENAPI_APP.value,
+            )
+        except Exception:
+            logger.exception("Dispatch notification failed: event={}", event_type.value)
 
     # ── 归属方站内信通知 ────────────────────────────────
 

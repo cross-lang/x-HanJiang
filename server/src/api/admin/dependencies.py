@@ -244,6 +244,7 @@ def get_login_log_service(
 
 def get_openapi_app_service(
     db_session: Session = Depends(get_db_session),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> OpenApiAppService:
     """创建开放平台应用管理服务（管理端 CRUD/scope 授权/启停）。"""
     from src.repositories.openapi_app_registration_repository import (
@@ -255,11 +256,13 @@ def get_openapi_app_service(
     return OpenApiAppService(
         repo=OpenApiAppRepository(session=db_session),
         registration_repo=OpenApiAppRegistrationRepository(session=db_session),
+        dispatcher=dispatcher,
     )
 
 
 def get_openapi_app_registration_service(
     db_session: Session = Depends(get_db_session),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> OpenApiAppRegistrationService:
     """创建开放平台应用审批服务（管理端申请批次列表/审批）。"""
     from src.repositories.openapi_app_registration_repository import (
@@ -273,11 +276,13 @@ def get_openapi_app_registration_service(
     return OpenApiAppRegistrationService(
         repo=OpenApiAppRegistrationRepository(session=db_session),
         app_repo=OpenApiAppRepository(session=db_session),
+        dispatcher=dispatcher,
     )
 
 
 def get_developer_service(
     db_session: Session = Depends(get_db_session),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> DeveloperService:
     """创建开放平台开发者用户管理服务（管理端查询）。"""
     from src.repositories.developer_repository import DeveloperRepository
@@ -293,7 +298,9 @@ def get_developer_service(
         openapi_app_service=OpenApiAppService(
             repo=OpenApiAppRepository(session=db_session),
             registration_repo=OpenApiAppRegistrationRepository(session=db_session),
+            dispatcher=dispatcher,
         ),
+        dispatcher=dispatcher,
     )
 
 

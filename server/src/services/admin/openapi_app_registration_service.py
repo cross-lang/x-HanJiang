@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from src.constants.enums import (
     AppApprovalStatus,
@@ -21,9 +21,12 @@ from src.constants.enums import (
     AppRegistrationType,
     DeveloperMessageCategory,
     DeveloperMessageStatus,
+    NotificationEvent,
+    NotificationSource,
 )
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException
+from src.core.logger import logger
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.app_registration_entity import OpenApiAppRegistrationEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
@@ -34,6 +37,9 @@ from src.repositories.openapi_app_repository import OpenApiAppRepository
 from src.schemas.admin.openapi_app_registration import AppRegistrationResponse
 from src.services.admin.base_service import BaseService, audit_crud
 from src.utils.openapi_utils import parse_scopes
+
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
 
 _REGISTRATION_TYPE_LABELS = {
     AppRegistrationType.CREATE.value: "创建应用",
@@ -54,9 +60,11 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
         self,
         repo: OpenApiAppRegistrationRepository,
         app_repo: OpenApiAppRepository,
+        dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         self._repository = repo
         self._app_repo = app_repo
+        self._dispatcher = dispatcher
 
     # ── 查询 ────────────────────────────────────────────
 
@@ -148,9 +156,40 @@ class OpenApiAppRegistrationService(BaseService[AppRegistrationResponse, int, Op
             self._notify_developer(app, reg, approved)
         self._repository.flush()
         self._commit()
+        # ── 通知：操作者订阅回执（审批通过/驳回）──
+        operator_id = (operator or {}).get("operator_id")
+        if isinstance(operator_id, int):
+            self._dispatch_notification(
+                operator_id,
+                NotificationEvent.OPENAPI_APP_REGISTRATION,
+                {
+                    "name": app.name,
+                    "app_id": app.app_id,
+                    "result": _APPROVAL_ACTION_LABELS.get(target_status, target_status),
+                },
+            )
         return self._to_registration_response(reg, app)
 
     # ── 内部辅助 ────────────────────────────────────────
+
+    def _dispatch_notification(
+        self,
+        user_id: int,
+        event_type: NotificationEvent,
+        variables: dict[str, Any],
+    ) -> None:
+        """发送管理系统通知（失败不阻断业务主流程）。"""
+        if self._dispatcher is None:
+            return
+        try:
+            self._dispatcher.dispatch_for_user(
+                user_id=user_id,
+                event_type=event_type,
+                variables=variables,
+                source=NotificationSource.MANUAL.value,
+            )
+        except Exception:
+            logger.exception("Dispatch notification failed: event={}", event_type.value)
 
     def _require_registration(self, registration_id: int) -> tuple[OpenApiAppRegistrationEntity, OpenApiAppEntity]:
         """查询申请记录及其关联应用，不存在/应用已删除抛异常。"""

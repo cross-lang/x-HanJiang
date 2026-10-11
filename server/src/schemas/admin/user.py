@@ -5,6 +5,8 @@
 本文件仅保留管理系统渠道特有的请求模型。
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -26,4 +28,15 @@ class AdminResetPasswordRequest(BaseModel):
         max_length=64,
         description="确认密码",
     )
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserStatusUpdateRequest(BaseModel):
+    """管理员启停用户请求模型。
+
+    Attributes:
+        status: 目标账号状态（enabled 启用 / disabled 禁用）
+    """
+
+    status: Literal["enabled", "disabled"] = Field(description="目标账号状态：enabled 启用 / disabled 禁用")
     model_config = ConfigDict(from_attributes=True)

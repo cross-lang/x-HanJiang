@@ -153,9 +153,30 @@ class PermissionCode(BaseEnum):
         "查看用户列表与详情",
         1,
     )
-    USER_CREATE = ("user:create", "创建用户", PermissionModule.USER.mark, PermissionAction.CREATE.mark, "创建新用户", 2)
-    USER_EDIT = ("user:edit", "编辑用户", PermissionModule.USER.mark, PermissionAction.EDIT.mark, "编辑用户信息", 3)
-    USER_DELETE = ("user:delete", "删除用户", PermissionModule.USER.mark, PermissionAction.DELETE.mark, "删除用户", 4)
+    USER_CREATE = (
+        "user:create",
+        "创建用户",
+        PermissionModule.USER.mark,
+        PermissionAction.CREATE.mark,
+        "创建新用户",
+        2,
+    )
+    USER_EDIT = (
+        "user:edit",
+        "编辑用户",
+        PermissionModule.USER.mark,
+        PermissionAction.EDIT.mark,
+        "编辑用户信息",
+        3,
+    )
+    USER_DELETE = (
+        "user:delete",
+        "删除用户",
+        PermissionModule.USER.mark,
+        PermissionAction.DELETE.mark,
+        "删除用户",
+        4,
+    )
     USER_EXPORT = (
         "user:export",
         "导出用户",
@@ -171,6 +192,14 @@ class PermissionCode(BaseEnum):
         PermissionAction.IMPORT.mark,
         "导入用户列表",
         6,
+    )
+    USER_STATUS = (
+        "user:status",
+        "启停用户",
+        PermissionModule.USER.mark,
+        PermissionAction.STATUS.mark,
+        "启用或禁用用户账号",
+        7,
     )
 
     # ── 角色域 ────────────────────────────────────────────
@@ -190,7 +219,14 @@ class PermissionCode(BaseEnum):
         "创建新角色",
         11,
     )
-    ROLE_EDIT = ("role:edit", "编辑角色", PermissionModule.ROLE.mark, PermissionAction.EDIT.mark, "编辑角色信息", 12)
+    ROLE_EDIT = (
+        "role:edit",
+        "编辑角色",
+        PermissionModule.ROLE.mark,
+        PermissionAction.EDIT.mark,
+        "编辑角色信息",
+        12,
+    )
     ROLE_PERMISSION = (
         "role:permission",
         "分配角色权限",
@@ -199,7 +235,14 @@ class PermissionCode(BaseEnum):
         "为角色绑定或解绑权限",
         13,
     )
-    ROLE_DELETE = ("role:delete", "删除角色", PermissionModule.ROLE.mark, PermissionAction.DELETE.mark, "删除角色", 14)
+    ROLE_DELETE = (
+        "role:delete",
+        "删除角色",
+        PermissionModule.ROLE.mark,
+        PermissionAction.DELETE.mark,
+        "删除角色",
+        14,
+    )
 
     # ── 权限域 ────────────────────────────────────────
     PERMISSION_VIEW = (
@@ -220,8 +263,22 @@ class PermissionCode(BaseEnum):
         "查看文件列表与详情",
         20,
     )
-    FILE_CREATE = ("file:create", "上传文件", PermissionModule.FILE.mark, PermissionAction.CREATE.mark, "上传文件", 21)
-    FILE_DELETE = ("file:delete", "删除文件", PermissionModule.FILE.mark, PermissionAction.DELETE.mark, "删除文件", 22)
+    FILE_CREATE = (
+        "file:create",
+        "上传文件",
+        PermissionModule.FILE.mark,
+        PermissionAction.CREATE.mark,
+        "上传文件",
+        21,
+    )
+    FILE_DELETE = (
+        "file:delete",
+        "删除文件",
+        PermissionModule.FILE.mark,
+        PermissionAction.DELETE.mark,
+        "删除文件",
+        22,
+    )
 
     # ── 日志域 ────────────────────────────────────────────
     AUDIT_LOG_VIEW = (

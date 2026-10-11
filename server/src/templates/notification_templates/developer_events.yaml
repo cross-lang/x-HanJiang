@@ -1,0 +1,50 @@
+# 开发者域事件通知模板（操作者回执：开发者本人走门户站内信，不经订阅矩阵）
+
+developer.enabled:
+  email:
+    subject: "【汉江管理系统】开发者启用回执"
+    content: |
+      <h2>开发者账号已启用</h2>
+      <p>您已启用开发者账号「{developer_username}」，该账号可正常登录开放平台门户。</p>
+      <p>名下开放应用不会自动恢复启用，需在应用管理页单独控制。</p>
+  station:
+    subject: "开发者账号已启用"
+    content: "您已启用开发者账号「{developer_username}」，名下应用需单独恢复启用"
+  dingtalk:
+    subject: "开发者账号已启用"
+    content: "您已启用开发者账号「{developer_username}」，名下开放应用不会自动恢复，需在应用管理页单独控制"
+  feishu:
+    subject: "开发者账号已启用"
+    content: "您已启用开发者账号「{developer_username}」，名下开放应用不会自动恢复，需在应用管理页单独控制"
+
+developer.disabled:
+  email:
+    subject: "【汉江管理系统】开发者禁用回执"
+    content: |
+      <h2>开发者账号已禁用</h2>
+      <p>您已禁用开发者账号「{developer_username}」，其名下全部开放应用已一并禁用，待审批申请已驳回。</p>
+  station:
+    subject: "开发者账号已禁用"
+    content: "您已禁用开发者账号「{developer_username}」，名下应用已一并禁用"
+  dingtalk:
+    subject: "开发者账号已禁用"
+    content: "您已禁用开发者账号「{developer_username}」，其名下全部开放应用已一并禁用，待审批申请已驳回"
+  feishu:
+    subject: "开发者账号已禁用"
+    content: "您已禁用开发者账号「{developer_username}」，其名下全部开放应用已一并禁用，待审批申请已驳回"
+
+developer.deleted:
+  email:
+    subject: "【汉江管理系统】开发者删除回执"
+    content: |
+      <h2>开发者账号已删除</h2>
+      <p>您已删除开发者账号「{developer_username}」，其名下全部开放应用已一并删除，删除不可恢复。</p>
+  station:
+    subject: "开发者账号已删除"
+    content: "您已删除开发者账号「{developer_username}」，名下应用已一并删除，不可恢复"
+  dingtalk:
+    subject: "开发者账号已删除"
+    content: "您已删除开发者账号「{developer_username}」，其名下全部开放应用已一并删除，删除不可恢复"
+  feishu:
+    subject: "开发者账号已删除"
+    content: "您已删除开发者账号「{developer_username}」，其名下全部开放应用已一并删除，删除不可恢复"

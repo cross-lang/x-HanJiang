@@ -80,6 +80,7 @@ def get_user_service(
 
 def get_role_service(
     db_session: Session = Depends(get_db_session),
+    dispatcher: NotificationDispatcher = Depends(get_notification_dispatcher),
 ) -> RoleService:
     """创建角色服务（管理系统 / 开放接口两域共用）。"""
     from src.repositories.permission_repository import PermissionRepository
@@ -91,6 +92,7 @@ def get_role_service(
         role_repository=RoleRepository(session=db_session),
         role_permission_repository=RolePermissionRepository(session=db_session),
         permission_repository=PermissionRepository(session=db_session),
+        dispatcher=dispatcher,
     )
 
 

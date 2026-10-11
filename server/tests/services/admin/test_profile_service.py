@@ -269,6 +269,45 @@ class TestNotificationPreferences:
         assert by_event["user.disabled"]["dingtalk"]["enabled"] is True
         assert by_event["user.profile_updated"]["dingtalk"]["enabled"] is False
 
+    def test_preferences_matrix_excludes_non_subscribable(self) -> None:
+        """矩阵只展示白名单：无 sms 渠道、无验证码/系统告警/预留事件。"""
+        service = _build_service(FakeUserNotificationConfigRepository())
+
+        data = service.get_notification_preferences(1)
+
+        event_codes = {e["event"] for e in data["events"]}
+        assert "sms" not in {c["code"] for e in data["events"] for c in e["channels"]}
+        assert "security.verify_code" not in event_codes
+        assert "system.alert" not in event_codes
+        assert "system.notice" not in event_codes
+        assert "file.uploaded" not in event_codes
+        assert "openapi_app.key_reset" not in event_codes
+        # 白名单事件正常展示
+        assert "user.disabled" in event_codes
+        assert "openapi_app.created" in event_codes
+
+    def test_update_preferences_ignores_non_whitelist_keys(self) -> None:
+        """保存矩阵：白名单外的事件/渠道键被忽略，不落订阅行。"""
+        repo = FakeUserNotificationConfigRepository()
+        service = _build_service(repo, user=_make_user())
+
+        service.update_notification_preferences(
+            1,
+            {
+                "security.verify_code": {"sms": True, "station": True},
+                "system.alert": {"dingtalk": True},
+                "user.disabled": {"sms": True, "dingtalk": True},
+            },
+        )
+
+        # sms 渠道行不创建，白名单事件也不接受 sms 订阅
+        assert repo.get_by_user_channel(1, "sms") is None
+        dingtalk = repo.get_by_user_channel(1, "dingtalk")
+        assert dingtalk is not None
+        assert repo.get_subscription(dingtalk.id, "user.disabled") is not None
+        assert repo.get_subscription(dingtalk.id, "system.alert") is None
+        assert repo.get_subscription(dingtalk.id, "security.verify_code") is None
+
     def test_get_recipients_lists_bound_channels_only(self) -> None:
         """接收人列表：仅返回已绑定（recipient 非空）的非站内信渠道。"""
         repo = FakeUserNotificationConfigRepository()

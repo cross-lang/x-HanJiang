@@ -10,6 +10,13 @@ user.password_changed:
   station:
     subject: "密码已修改"
     content: "您的密码已于 {changed_at} 修改"
+  dingtalk:
+    subject: "密码已修改"
+    content: "您的密码已于 {changed_at} 修改，如非本人操作请立即联系管理员"
+
+  feishu:
+    subject: "密码已修改"
+    content: "您的密码已于 {changed_at} 修改，如非本人操作请立即联系管理员"
 
 user.created:
   email:
@@ -25,10 +32,26 @@ user.created:
     subject: "账号已创建"
     content: "用户 {username} 的账号已创建"
 
+  feishu:
+    subject: "账号已创建"
+    content: "用户 {username} 的账号已创建"
+
 user.profile_updated:
+  email:
+    subject: "【汉江管理系统】资料变更通知"
+    content: |
+      <h2>个人资料已更新</h2>
+      <p>您的个人资料已更新，如非本人操作请联系管理员核实。</p>
   station:
     subject: "个人资料已更新"
     content: "您的个人资料已更新"
+  dingtalk:
+    subject: "个人资料已更新"
+    content: "您的个人资料已更新，如非本人操作请联系管理员核实"
+
+  feishu:
+    subject: "个人资料已更新"
+    content: "您的个人资料已更新，如非本人操作请联系管理员核实"
 
 user.enabled:
   email:
@@ -40,6 +63,10 @@ user.enabled:
     subject: "账号已启用"
     content: "您的账号已被管理员启用（原因：{reason}）"
   dingtalk:
+    subject: "账号已启用"
+    content: "您的账号已被管理员启用（原因：{reason}）"
+
+  feishu:
     subject: "账号已启用"
     content: "您的账号已被管理员启用（原因：{reason}）"
 
@@ -56,3 +83,61 @@ user.disabled:
   dingtalk:
     subject: "账号已被禁用"
     content: "您的账号已被管理员禁用（原因：{reason}），如非本人预期请联系管理员核实"
+
+  feishu:
+    subject: "账号已被禁用"
+    content: "您的账号已被管理员禁用（原因：{reason}），如非本人预期请联系管理员核实"
+
+user.deleted:
+  email:
+    subject: "【汉江管理系统】账号删除通知"
+    content: |
+      <h2>账号已删除</h2>
+      <p>您的账号已被管理员删除并注销，相关数据将按保留策略处理。</p>
+      <p>如非本人预期，请联系管理员核实。</p>
+  station:
+    subject: "账号已删除"
+    content: "您的账号已被管理员删除并注销，如非本人预期请联系管理员核实"
+  dingtalk:
+    subject: "账号已删除"
+    content: "您的账号已被管理员删除并注销，如非本人预期请联系管理员核实"
+
+  feishu:
+    subject: "账号已删除"
+    content: "您的账号已被管理员删除并注销，如非本人预期请联系管理员核实"
+
+user.login_failed:
+  email:
+    subject: "【汉江管理系统】登录异常告警"
+    content: |
+      <h2>连续登录失败告警</h2>
+      <p>账号 {username} 在近期 30 分钟内连续登录失败 {fail_count} 次。</p>
+      <p>最近一次尝试时间：{attempt_time}，来源 IP：{ip_address}。</p>
+      <p>如非本人操作，请立即修改密码并联系管理员。</p>
+  station:
+    subject: "登录异常告警"
+    content: "账号 {username} 近 30 分钟内登录失败 {fail_count} 次（最近 IP：{ip_address}），如非本人操作请立即修改密码"
+  dingtalk:
+    subject: "登录异常告警"
+    content: "账号 {username} 近 30 分钟内登录失败 {fail_count} 次（最近 IP：{ip_address}），如非本人操作请立即修改密码"
+
+  feishu:
+    subject: "登录异常告警"
+    content: "账号 {username} 近 30 分钟内登录失败 {fail_count} 次（最近 IP：{ip_address}），如非本人操作请立即修改密码"
+
+login.new_device:
+  email:
+    subject: "【汉江管理系统】新设备登录提醒"
+    content: |
+      <h2>检测到新设备登录</h2>
+      <p>您的账号刚从新 IP（{ip}）登录系统。</p>
+      <p>如非本人操作，请立即修改密码并联系管理员。</p>
+  station:
+    subject: "新设备登录提醒"
+    content: "您的账号刚从新 IP（{ip}）登录，如非本人操作请立即修改密码"
+  dingtalk:
+    subject: "新设备登录提醒"
+    content: "您的账号刚从新 IP（{ip}）登录，如非本人操作请立即修改密码"
+  feishu:
+    subject: "新设备登录提醒"
+    content: "您的账号刚从新 IP（{ip}）登录，如非本人操作请立即修改密码"

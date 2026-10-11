@@ -155,6 +155,9 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         existing = self._repository.get_by_id(id)
         if existing is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
+        # 快照旧状态：repository.update 会经 identity map 原地修改 existing，
+        # 更新后 existing.status 即为新值，状态变更检测必须基于更新前的快照
+        old_status = existing.status
         # 超级管理员保护：非 superadmin 不能修改 superadmin
         if (
             existing.username == SUPERADMIN_USERNAME
@@ -227,16 +230,16 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                 {"username": updated.username, "changed_at": datetime.now().strftime("%Y-%m-%d %H:%M")},
             )
         else:
-            # ── 通知：资料变更 ──
-            changed_keys = [k for k in patch_dict if k != "password_hash"]
+            # ── 通知：资料变更（status/角色属状态与权限域，不计入资料字段）──
+            changed_keys = [k for k in patch_dict if k not in ("password_hash", "status")]
             if changed_keys:
                 self._dispatch_notification(
                     updated.id,
                     NotificationEvent.USER_PROFILE_UPDATED,
                     {"username": updated.username, "updated_fields": "、".join(changed_keys)},
                 )
-        # ── 通知：状态变更（按新状态拆分为启用/禁用事件）──
-        if "status" in patch_dict and patch_dict["status"] != existing.status:
+        # ── 通知：状态变更（按新状态拆分为启用/禁用事件，基于更新前快照判断）──
+        if "status" in patch_dict and patch_dict["status"] != old_status:
             status_event = (
                 NotificationEvent.USER_ENABLED
                 if patch_dict["status"] == UserStatus.ENABLED.value
@@ -298,6 +301,44 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             {"username": existing.username, "changed_at": datetime.now().strftime("%Y-%m-%d %H:%M")},
         )
         return True
+
+    @audit_crud(PermissionAction.STATUS.mark)
+    def update_status(self, id: int, status: str, operator: dict[str, Any] | None = None) -> UserResponse:
+        """启用或禁用用户账号（独立于通用编辑的启停入口）。
+
+        业务规则：
+            1. 超级管理员账号不可被禁用（仅 superadmin 本人可操作自己）
+            2. 目标状态与当前状态一致时幂等返回，不重复通知
+            3. 状态实际变更时双目标派发通知：被操作用户本人 + 操作者业务回执
+        """
+        existing = self._repository.get_by_id(id)
+        if existing is None:
+            raise NotFoundException(message=f"用户 {id} 不存在")
+        # 超级管理员保护
+        if (
+            existing.username == SUPERADMIN_USERNAME
+            and operator
+            and operator.get("operator_name") != SUPERADMIN_USERNAME
+        ):
+            raise AuthorizationException(message="不能禁用超级管理员账号")
+        old_status = existing.status
+        if status == old_status:
+            return self._to_response(existing)
+        # 直接原地修改（本方法自行控制读取/写入顺序，不经 base_repository.update，无 identity map 污染问题）
+        existing.status = status
+        self._commit()
+        result = self._to_response(existing)
+        logger.info(f"User status updated: id={result.id} username={result.username} status={old_status}->{status}")
+        # ── 通知：按新状态派发启用/禁用事件（本人 + 操作者回执，同一人去重）──
+        status_event = (
+            NotificationEvent.USER_ENABLED if status == UserStatus.ENABLED.value else NotificationEvent.USER_DISABLED
+        )
+        status_vars = {"username": existing.username, "reason": "管理员操作"}
+        self._dispatch_notification(existing.id, status_event, status_vars)
+        operator_id = (operator or {}).get("operator_id")
+        if isinstance(operator_id, int) and operator_id != existing.id:
+            self._dispatch_notification(operator_id, status_event, status_vars)
+        return result
 
     def verify_credentials(self, account: str, password: str) -> UserEntity | None:
         """校验登录凭据（供 AuthService 调用）。

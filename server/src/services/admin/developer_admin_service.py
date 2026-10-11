@@ -14,21 +14,27 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.constants.enums import (
     AppOwnerType,
     DeveloperMessageCategory,
     DeveloperMessageStatus,
+    NotificationEvent,
+    NotificationSource,
 )
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import NotFoundException
+from src.core.logger import logger
 from src.models.entities.developer_entity import DeveloperEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
 from src.repositories.developer_repository import DeveloperRepository
 from src.schemas.admin.developer import DeveloperResponse
 from src.services.admin.base_service import BaseService, audit_crud
 from src.services.admin.openapi_app_service import OpenApiAppService
+
+if TYPE_CHECKING:
+    from src.notification.dispatcher import NotificationDispatcher
 
 
 class DeveloperService(BaseService[DeveloperResponse, int, DeveloperRepository]):
@@ -40,9 +46,15 @@ class DeveloperService(BaseService[DeveloperResponse, int, DeveloperRepository])
 
     entity_type = "developer"
 
-    def __init__(self, repository: DeveloperRepository, openapi_app_service: OpenApiAppService) -> None:
+    def __init__(
+        self,
+        repository: DeveloperRepository,
+        openapi_app_service: OpenApiAppService,
+        dispatcher: NotificationDispatcher | None = None,
+    ) -> None:
         self._repository = repository
         self._openapi_app_service = openapi_app_service
+        self._dispatcher = dispatcher
 
     # ── 查询 ────────────────────────────────────────────
 
@@ -155,6 +167,13 @@ class DeveloperService(BaseService[DeveloperResponse, int, DeveloperRepository])
             self._notify_developer(e, action="启用", operator=operator)
         self._repository.flush()
         self._commit()
+        # ── 通知：操作者业务回执（开发者非管理系统用户，仅回执操作者）──
+        status_event = (
+            NotificationEvent.DEVELOPER_ENABLED if status == "enabled" else NotificationEvent.DEVELOPER_DISABLED
+        )
+        operator_id = (operator or {}).get("operator_id")
+        if isinstance(operator_id, int):
+            self._dispatch_notification(operator_id, status_event, {"developer_username": e.username})
         return self._to_response(e)
 
     @audit_crud(PermissionAction.DELETE.mark)
@@ -183,7 +202,34 @@ class DeveloperService(BaseService[DeveloperResponse, int, DeveloperRepository])
         e.deleted_at = datetime.now()
         self._repository.flush()
         self._commit()
+        # 开发者本人告知：门户站内信（删除不可恢复，说明级联影响）
+        self._notify_developer(e, action="删除", operator=operator, extra="，其名下开放应用已一并删除")
+        # ── 通知：操作者业务回执 ──
+        operator_id = (operator or {}).get("operator_id")
+        if isinstance(operator_id, int):
+            self._dispatch_notification(
+                operator_id, NotificationEvent.DEVELOPER_DELETED, {"developer_username": e.username}
+            )
         return True
+
+    def _dispatch_notification(
+        self,
+        user_id: int,
+        event_type: NotificationEvent,
+        variables: dict[str, Any],
+    ) -> None:
+        """发送管理系统通知（失败不阻断业务主流程）。"""
+        if self._dispatcher is None:
+            return
+        try:
+            self._dispatcher.dispatch_for_user(
+                user_id=user_id,
+                event_type=event_type,
+                variables=variables,
+                source=NotificationSource.MANUAL.value,
+            )
+        except Exception:
+            logger.exception("Dispatch notification failed: event={}", event_type.value)
 
     # ── 内部工具 ────────────────────────────────────────
 

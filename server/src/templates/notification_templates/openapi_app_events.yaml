@@ -1,1 +1,81 @@
-﻿# 系统域事件通知模板
+# 开放应用域事件通知模板
+
+openapi_app_registration:
+  email:
+    subject: "【汉江管理系统】应用申请审批回执"
+    content: |
+      <h2>应用申请已{result}</h2>
+      <p>应用「{name}」（App ID：{app_id}）的申请已审批{result}。</p>
+  station:
+    subject: "应用申请已{result}"
+    content: "应用「{name}」（App ID：{app_id}）的申请已审批{result}"
+  dingtalk:
+    subject: "应用申请已{result}"
+    content: "应用「{name}」（App ID：{app_id}）的申请已审批{result}"
+  feishu:
+    subject: "应用申请已{result}"
+    content: "应用「{name}」（App ID：{app_id}）的申请已审批{result}"
+
+openapi_app.created:
+  email:
+    subject: "【汉江管理系统】开放应用创建回执"
+    content: |
+      <h2>开放应用已创建</h2>
+      <p>应用「{name}」（App ID：{app_id}）已创建。AppKey 仅在创建时返回一次，请妥善保管。</p>
+  station:
+    subject: "开放应用已创建"
+    content: "应用「{name}」（App ID：{app_id}）已创建，AppKey 仅创建时返回一次，请妥善保管"
+  dingtalk:
+    subject: "开放应用已创建"
+    content: "应用「{name}」（App ID：{app_id}）已创建，AppKey 仅创建时返回一次，请妥善保管"
+  feishu:
+    subject: "开放应用已创建"
+    content: "应用「{name}」（App ID：{app_id}）已创建，AppKey 仅创建时返回一次，请妥善保管"
+
+openapi_app.updated:
+  email:
+    subject: "【汉江管理系统】开放应用变更通知"
+    content: |
+      <h2>开放应用信息变更</h2>
+      <p>应用「{name}」（App ID：{app_id}）的信息已被管理系统变更，如有疑问请联系管理员核实。</p>
+  station:
+    subject: "开放应用信息变更"
+    content: "应用「{name}」（App ID：{app_id}）的信息已被管理系统变更"
+  dingtalk:
+    subject: "开放应用信息变更"
+    content: "应用「{name}」（App ID：{app_id}）的信息已被管理系统变更，如非本人预期请联系管理员核实"
+  feishu:
+    subject: "开放应用信息变更"
+    content: "应用「{name}」（App ID：{app_id}）的信息已被管理系统变更，如非本人预期请联系管理员核实"
+
+openapi_app.deleted:
+  email:
+    subject: "【汉江管理系统】开放应用删除回执"
+    content: |
+      <h2>开放应用已删除</h2>
+      <p>应用「{name}」（App ID：{app_id}）已删除，AppKey 立即失效，删除不可恢复。</p>
+  station:
+    subject: "开放应用已删除"
+    content: "应用「{name}」（App ID：{app_id}）已删除，AppKey 立即失效，不可恢复"
+  dingtalk:
+    subject: "开放应用已删除"
+    content: "应用「{name}」（App ID：{app_id}）已删除，AppKey 立即失效，删除不可恢复"
+  feishu:
+    subject: "开放应用已删除"
+    content: "应用「{name}」（App ID：{app_id}）已删除，AppKey 立即失效，删除不可恢复"
+
+openapi_app.key_reset:
+  email:
+    subject: "【汉江管理系统】AppKey 重置回执"
+    content: |
+      <h2>AppKey 已重置</h2>
+      <p>应用「{name}」（App ID：{app_id}）的 AppKey 已重置，原 AppKey 立即失效，请更新调用方凭证。</p>
+  station:
+    subject: "AppKey 已重置"
+    content: "应用「{name}」（App ID：{app_id}）的 AppKey 已重置，原凭证立即失效"
+  dingtalk:
+    subject: "AppKey 已重置"
+    content: "应用「{name}」（App ID：{app_id}）的 AppKey 已重置，原 AppKey 立即失效，请更新调用方凭证"
+  feishu:
+    subject: "AppKey 已重置"
+    content: "应用「{name}」（App ID：{app_id}）的 AppKey 已重置，原 AppKey 立即失效，请更新调用方凭证"

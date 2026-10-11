@@ -171,6 +171,14 @@ class NotificationDispatcher:
                 subject, content = pre_rendered
             else:
                 subject, content = render_template(event_type_str, channel_str, variables)
+                # 模板段缺失时渲染为空串：跳过该渠道，避免发送空消息/空邮件或产生 failed 投递
+                if not subject.strip() and not content.strip():
+                    logger.warning(
+                        "Empty template for event={} channel={}, skipping channel",
+                        event_type_str,
+                        channel_str,
+                    )
+                    continue
             for recipient in recipient_list:
                 if not recipient:
                     continue

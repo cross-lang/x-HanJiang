@@ -21,6 +21,11 @@ export function updateUser(id: number, data: Partial<UserFormPayload>) {
   return request.post<UserItem>(`/users/${id}/update`, data)
 }
 
+/** 启用/禁用用户（独立启停权限 user:status，区别于通用编辑） */
+export function updateUserStatus(id: number, status: 'enabled' | 'disabled') {
+  return request.post<UserItem>(`/users/${id}/status`, { status })
+}
+
 export function resetUserPassword(id: number, newPassword: string) {
   return request.post<{ message: string }>(`/users/${id}/reset-password`, {
     new_password: newPassword,

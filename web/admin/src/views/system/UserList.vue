@@ -107,7 +107,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/format'
 import { downloadResponseBlob } from '@/utils/download'
-import { listUsers, updateUser, resetUserPassword, exportUsersCsv } from '@/api/user'
+import { listUsers, updateUserStatus, resetUserPassword, exportUsersCsv } from '@/api/user'
 import type { UserItem } from '@/types/user'
 import UserFormDialog from './components/UserFormDialog.vue'
 
@@ -173,11 +173,11 @@ function onUserSubmitted() {
   fetchList()
 }
 
-async function handleToggleStatus(row: UserItem, status: string) {
+async function handleToggleStatus(row: UserItem, status: 'enabled' | 'disabled') {
   const action = status === 'enabled' ? '启用' : '禁用'
   try {
     await ElMessageBox.confirm(`确定要${action}用户 ${row.username} 吗？`, '提示', { type: 'warning' })
-    await updateUser(row.id, { status })
+    await updateUserStatus(row.id, status)
     ElMessage.success(`${action}成功`)
     fetchList()
   } catch {

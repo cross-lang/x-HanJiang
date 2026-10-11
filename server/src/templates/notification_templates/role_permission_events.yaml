@@ -14,6 +14,27 @@ role.assigned:
     subject: "角色已变更"
     content: "您的账号角色已由管理员调整（当前角色数：{role_count}），如非本人预期请联系管理员核实"
 
+  feishu:
+    subject: "角色已变更"
+    content: "您的账号角色已由管理员调整（当前角色数：{role_count}），如非本人预期请联系管理员核实"
+
+role.deleted:
+  email:
+    subject: "【汉江管理系统】角色删除回执"
+    content: |
+      <h2>角色已删除</h2>
+      <p>您已删除角色「{role_name}」。该角色已无关联用户，相关权限绑定随之解除。</p>
+  station:
+    subject: "角色已删除"
+    content: "您已删除角色「{role_name}」，相关权限绑定随之解除"
+  dingtalk:
+    subject: "角色已删除"
+    content: "您已删除角色「{role_name}」，该角色已无关联用户，相关权限绑定随之解除"
+
+  feishu:
+    subject: "角色已删除"
+    content: "您已删除角色「{role_name}」，该角色已无关联用户，相关权限绑定随之解除"
+
 permission.granted:
   email:
     subject: "【汉江管理系统】权限授予通知"
@@ -27,6 +48,10 @@ permission.granted:
     subject: "权限已授予"
     content: "您所在的角色已被授予新权限：{permission_name}（{permission_code}）"
 
+  feishu:
+    subject: "权限已授予"
+    content: "您所在的角色已被授予新权限：{permission_name}（{permission_code}）"
+
 permission.revoked:
   email:
     subject: "【汉江管理系统】权限回收通知"
@@ -37,5 +62,8 @@ permission.revoked:
     subject: "权限已回收"
     content: "您所在的角色已被回收权限：{permission_name}（{permission_code}）"
   dingtalk:
+    subject: "权限已回收"
+    content: "您所在的角色已被回收权限：{permission_name}（{permission_code}），相关功能将不再可用"
+  feishu:
     subject: "权限已回收"
     content: "您所在的角色已被回收权限：{permission_name}（{permission_code}），相关功能将不再可用"

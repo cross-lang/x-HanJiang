@@ -1,13 +1,18 @@
-# 系统域事件通知模板
+# 系统域事件通知模板（system.notice 走 pre_rendered 直传内容，无需模板；验证码模板在 security_events.yaml）
 
-security.verify_code:
+system.alert:
   email:
-    subject: "【汉江】邮箱验证码：{code}"
+    subject: "【汉江告警】{alert_title}"
     content: |
-      <p>您好，{username}：</p>
-      <p>您正在进行安全操作，本次邮箱验证码为：</p>
-      <p style="font-size:24px;font-weight:bold;letter-spacing:2px">{code}</p>
-      <p>验证码 5 分钟内有效，请勿向他人泄露。</p>
-  default:
-    subject: "【汉江】邮箱验证码：{code}"
-    content: "您好，{username}，您的邮箱验证码为 {code}，5 分钟内有效。"
+      <h2>{alert_title}</h2>
+      <p>{alert_message}</p>
+      <p>请相关人员及时关注处理。</p>
+  station:
+    subject: "{alert_title}"
+    content: "{alert_message}"
+  dingtalk:
+    subject: "{alert_title}"
+    content: "{alert_message}"
+  feishu:
+    subject: "{alert_title}"
+    content: "{alert_message}"

@@ -198,6 +198,12 @@ class NotificationEvent(StrBaseEnum):
     OPENAPI_APP_DELETED = "openapi_app.deleted", "开放应用已删除"
     OPENAPI_APP_KEY_RESET = "openapi_app.key_reset", "AppKey已重置"
     OPENAPI_APP_REGISTRATION = "openapi_app_registration", "开放应用审批"
+    # ── 开发者域 ──────────────────────────────────
+    # 开发者与管理系统用户分表平行（无 user_id 关联），本域事件仅投递操作者回执；
+    # 开发者本人感知走门户站内信（developers 站内信表），不经订阅矩阵
+    DEVELOPER_ENABLED = "developer.enabled", "开发者启用"
+    DEVELOPER_DISABLED = "developer.disabled", "开发者禁用"
+    DEVELOPER_DELETED = "developer.deleted", "开发者删除"
     # ── 角色权限域 ──────────────────────────────
     ROLE_ASSIGNED = "role.assigned", "角色变更"
     ROLE_DELETED = "role.deleted", "角色已删除"
@@ -214,6 +220,50 @@ class NotificationEvent(StrBaseEnum):
     FILE_DOWNLOADED = "file.downloaded", "文件被下载"
     # ── 安全域 ──────────────────────────────────
     SECURITY_VERIFY_CODE = "security.verify_code", "邮箱验证码"
+
+
+# 个人通知偏好矩阵可订阅的事件白名单。
+# 不在此列的事件不进矩阵、不接受个人订阅：
+# - SYSTEM_ALERT 走系统监控渠道（系统级 webhook/邮件组），与个人订阅无关
+# - SYSTEM_NOTICE / STATION_MESSAGE 为直传内容或直写入库型通知
+# - SECURITY_VERIFY_CODE 为验证码直发邮件，无订阅语义
+# - FILE_UPLOADED / FILE_DOWNLOADED / OPENAPI_APP_KEY_RESET 为预留事件（业务触发点未实现）
+PERSONAL_SUBSCRIBABLE_EVENTS: frozenset[NotificationEvent] = frozenset(
+    {
+        NotificationEvent.USER_PASSWORD_CHANGED,
+        NotificationEvent.USER_PROFILE_UPDATED,
+        NotificationEvent.USER_ENABLED,
+        NotificationEvent.USER_DISABLED,
+        NotificationEvent.USER_LOGIN_FAILED,
+        NotificationEvent.USER_CREATED,
+        NotificationEvent.USER_DELETED,
+        NotificationEvent.LOGIN_NEW_DEVICE,
+        NotificationEvent.OPENAPI_APP_CREATED,
+        NotificationEvent.OPENAPI_APP_UPDATED,
+        NotificationEvent.OPENAPI_APP_DELETED,
+        NotificationEvent.OPENAPI_APP_REGISTRATION,
+        NotificationEvent.DEVELOPER_ENABLED,
+        NotificationEvent.DEVELOPER_DISABLED,
+        NotificationEvent.DEVELOPER_DELETED,
+        NotificationEvent.ROLE_ASSIGNED,
+        NotificationEvent.ROLE_DELETED,
+        NotificationEvent.PERMISSION_GRANTED,
+        NotificationEvent.PERMISSION_REVOKED,
+        NotificationEvent.FILE_DELETED,
+    }
+)
+
+# 个人通知偏好矩阵可订阅的渠道白名单。
+# sms 当前仅承担验证码直发（无个人短信接收方绑定入口、通知短信签名模板未接入），
+# 个人事件短信通道接入后再将其纳入白名单。
+PERSONAL_SUBSCRIBABLE_CHANNELS: frozenset[NotificationChannel] = frozenset(
+    {
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK,
+        NotificationChannel.FEISHU,
+    }
+)
 
 
 # 默认通知路由表：事件类型 → 默认发送渠道
