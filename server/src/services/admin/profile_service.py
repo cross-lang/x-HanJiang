@@ -41,7 +41,6 @@ from src.core.exceptions import NotFoundException, ValidationException
 from src.core.logger import logger
 from src.infras.cache import CacheProvider, get_cached_cache_provider
 from src.infras.sms import get_cached_sms_provider
-from src.models.entities.notification_config_entity import UserNotificationConfigEntity
 from src.models.entities.user_entity import UserEntity
 from src.repositories.menu_repository import MenuRepository
 from src.repositories.notification_config_repository import UserNotificationConfigRepository
@@ -249,7 +248,11 @@ class ProfileService:
     # ── 通知偏好（事件 × 渠道）──────────────────────────────
 
     def get_notification_preferences(self, user_id: int) -> dict[str, Any]:
-        """获取当前用户的完整通知偏好（事件 × 渠道开关，从 user_notification_configs 读取）。
+        """获取当前用户的完整通知偏好（事件 × 渠道开关）。
+
+        渠道配置（含 recipient）来自 user_notification_configs，
+        事件订阅状态来自 user_event_notifications；
+        从未保存过偏好的用户无任何配置行，按默认规则展示（站内信开、其他渠道关）。
 
         Args:
             user_id: 当前用户 ID
@@ -257,50 +260,44 @@ class ProfileService:
         Returns:
             dict[str, Any]: {"events": [{event, name, channels: [{code, name, enabled, recipient}]}]}
         """
-        rows = self._config_repository.list_by_user_id(user_id)
-        # 按 event 聚合已配置行
-        configured: dict[str, dict[str, tuple[bool, str]]] = {}
-        for row in rows:
-            configured.setdefault(row.event_type, {})[row.channel] = (bool(row.enabled), row.recipient or "")
+        configs = self._config_repository.list_by_user_id(user_id)
+        config_by_channel = {config.channel: config for config in configs}
+        subscriptions = {(sub.config_id, sub.event_type) for sub in self._config_repository.list_subscriptions(user_id)}
         events = []
         for event in NotificationEvent:
             channels = []
             for channel in NotificationChannel:
-                cfg = configured.get(event.mark, {}).get(channel.mark)
-                # 默认站内信开，其他渠道关；未配置行不展示 recipient
-                default_enabled = channel.mark == DEFAULT_ENABLED_CHANNEL
+                config = config_by_channel.get(channel.mark)
+                if config is not None:
+                    enabled = (config.id, event.mark) in subscriptions
+                    recipient = config.recipient or ""
+                else:
+                    # 默认站内信开，其他渠道关；未配置渠道不展示 recipient
+                    enabled = channel.mark == DEFAULT_ENABLED_CHANNEL
+                    recipient = ""
                 channels.append(
                     {
                         "code": channel.mark,
                         "name": channel.desc,
-                        "enabled": cfg[0] if cfg else default_enabled,
-                        "recipient": cfg[1] if cfg else "",
+                        "enabled": enabled,
+                        "recipient": recipient,
                     }
                 )
             events.append({"event": event.mark, "name": event.desc, "channels": channels})
         return {"events": events}
 
     def update_notification_preferences(self, user_id: int, prefs: dict[str, dict[str, bool]]) -> None:
-        """按 (user, event, channel) 唯一键 upsert 通知开关。
+        """保存通知偏好矩阵：按 (user, channel) 维护渠道配置，按 (config, event) 维护订阅关系。
 
-        recipient 与事件无关：非 email/station 渠道（如已配置 webhook）继承该渠道
-        已有 recipient；station 渠道 recipient 恒为空串；
+        渠道配置行不存在时自动创建默认行（recipient 空、启用）；
         email 渠道的 recipient 固定取当前用户表中的邮箱地址（未绑定邮箱时置空），
-        每次保存同步刷新，保证邮件推送始终落到本人邮箱。
+        每次保存同步刷新，保证邮件推送始终落到本人邮箱；
+        事件维度仅维护 user_event_notifications 订阅行的存在性。
 
         Args:
             user_id: 当前用户 ID
             prefs: {event_type: {channel: enabled}} 偏好结构
         """
-        # 缓存每个 channel 当前的 recipient，避免逐行查库
-        existing_by_channel: dict[str, str] = {}
-        for ch in NotificationChannel:
-            rows = self._config_repository.list_by_user_and_channel(user_id, ch.mark)
-            for r in rows:
-                if r.recipient:
-                    existing_by_channel[ch.mark] = r.recipient
-                    break
-
         # 涉及 email 渠道时，取当前用户表邮箱（惰性查询，最多一次）
         user_email: str | None = None
         for _event_type, channels in prefs.items():
@@ -308,37 +305,25 @@ class ProfileService:
                 user_email = self._require_user(user_id).email or None
                 break
 
+        config_by_channel: dict[str, Any] = {}
         for event_type, channels in prefs.items():
             for channel, enabled in channels.items():
-                row = self._config_repository.get_by_user_event_channel(
-                    user_id=user_id, event_type=event_type, channel=channel
-                )
-                if row:
-                    row.enabled = bool(enabled)
-                    if channel == "email":
-                        row.recipient = user_email or ""
+                config = config_by_channel.get(channel)
+                if config is None:
+                    config = self._config_repository.get_or_create_channel_config(user_id, channel)
+                    config_by_channel[channel] = config
+                if channel == "email":
+                    config.recipient = user_email or ""
+                if enabled:
+                    self._config_repository.subscribe(config.id, event_type)
                 else:
-                    if channel == "station":
-                        recipient = ""
-                    elif channel == "email":
-                        recipient = user_email or ""
-                    else:
-                        recipient = existing_by_channel.get(channel, "")
-                    self._config_repository.create(
-                        UserNotificationConfigEntity(
-                            user_id=user_id,
-                            event_type=event_type,
-                            channel=channel,
-                            recipient=recipient,
-                            enabled=bool(enabled),
-                        )
-                    )
+                    self._config_repository.unsubscribe(config.id, event_type)
         self._config_repository.commit()
 
     # ── 通知接收人（渠道级 recipient，与事件无关）────────────
 
     def get_recipients(self, user_id: int) -> dict[str, Any]:
-        """获取当前用户各渠道的接收方（按渠道聚合，每个渠道取一份 recipient）。
+        """获取当前用户各渠道的接收方（每渠道一份渠道级配置）。
 
         Args:
             user_id: 当前用户 ID
@@ -346,34 +331,26 @@ class ProfileService:
         Returns:
             dict[str, Any]: {"items": [{channel, recipient, enabled}]}
         """
-        rows = self._config_repository.list_by_user_id(user_id)
-        # 按 channel 聚合：取该 channel 下任一非空 recipient
-        channel_recipient: dict[str, str] = {}
-        channel_enabled: dict[str, bool] = {}
-        for row in rows:
-            if row.channel == "station":
-                continue
-            if row.recipient and row.channel not in channel_recipient:
-                channel_recipient[row.channel] = row.recipient
-            channel_enabled.setdefault(row.channel, bool(row.enabled))
+        configs = self._config_repository.list_by_user_id(user_id)
         items = [
             {
-                "channel": channel,
-                "recipient": recipient,
-                "enabled": channel_enabled.get(channel, False),
+                "channel": config.channel,
+                "recipient": config.recipient,
+                "enabled": bool(config.enabled),
             }
-            for channel, recipient in channel_recipient.items()
+            for config in configs
+            if config.channel != "station" and config.recipient
         ]
         return {"items": items}
 
     def add_recipient(self, user_id: int, request: NotificationRecipientCreateRequest) -> None:
-        """新增/更新当前用户某渠道的接收方（单值，同步刷新该渠道下所有事件行）。
+        """新增/更新当前用户某渠道的接收方（渠道级单值，upsert 语义）。
 
         Args:
             user_id: 当前用户 ID
             request: 接收人入参（channel/recipient/enabled）
         """
-        self._config_repository.upsert_channel_recipient(
+        self._write_channel_recipient(
             user_id=user_id,
             channel=request.channel,
             recipient=request.recipient,
@@ -392,37 +369,55 @@ class ProfileService:
             user_id: 当前用户 ID
             request: 更新入参（channel/recipient/enabled）
         """
-        recipient = request.recipient
-        enabled = request.enabled if request.enabled is not None else True
-        self._config_repository.upsert_channel_recipient(
+        self._write_channel_recipient(
             user_id=user_id,
             channel=request.channel,
-            recipient=recipient or "",
-            enabled=bool(enabled),
+            recipient=request.recipient or "",
+            enabled=request.enabled,
         )
         self._config_repository.commit()
 
+    def _write_channel_recipient(
+        self,
+        user_id: int,
+        channel: str,
+        recipient: str,
+        enabled: bool | None,
+    ) -> None:
+        """写入渠道级 recipient：按 (user, channel) upsert 渠道配置行。
+
+        渠道配置与事件订阅分表维护，本方法仅写 user_notification_configs，
+        不影响 user_event_notifications 订阅关系。
+
+        Args:
+            user_id: 当前用户 ID
+            channel: 渠道标识
+            recipient: 接收方单值（webhook URL / 邮箱地址）
+            enabled: 是否启用该渠道推送（None 视为 True）
+        """
+        config = self._config_repository.get_or_create_channel_config(user_id, channel)
+        config.recipient = recipient
+        config.enabled = bool(enabled) if enabled is not None else True
+
     def delete_recipient(self, user_id: int, channel: str, recipient: str) -> None:
-        """清空当前用户某渠道的接收方（所有事件行 recipient 置空并禁用该渠道）。
+        """清空当前用户某渠道的接收方（recipient 置空并禁用该渠道）。
 
         Args:
             user_id: 当前用户 ID
             channel: 通知渠道
             recipient: 接收人地址（保留参数兼容旧调用，单值场景下不校验）
         """
-        self._config_repository.upsert_channel_recipient(
-            user_id=user_id,
-            channel=channel,
-            recipient="",
-            enabled=False,
-        )
+        config = self._config_repository.get_by_user_channel(user_id, channel)
+        if config is not None:
+            config.recipient = ""
+            config.enabled = False
         self._config_repository.commit()
 
     def test_recipient(self, user_id: int, channel: str) -> dict[str, Any]:
         """用当前用户在指定渠道配置的接收方发一条测试消息。
 
         仅支持 dingtalk / feishu（webhook 群机器人）。从 user_notification_configs
-        读该用户在该 channel 下的 recipient，临时构造 provider 发测试消息，
+        读该用户在该 channel 下的渠道配置 recipient，临时构造 provider 发测试消息，
         不经过系统级 registry（系统 registry 用的是管理员配置的 webhook）。
 
         Args:
@@ -437,8 +432,8 @@ class ProfileService:
         """
         if channel not in ("dingtalk", "feishu"):
             raise NotFoundException(message="仅支持测试钉钉/飞书 Webhook")
-        rows = self._config_repository.list_by_user_and_channel(user_id, channel)
-        recipient = next((r.recipient for r in rows if r.recipient), "")
+        config = self._config_repository.get_by_user_channel(user_id, channel)
+        recipient = config.recipient if config is not None else ""
         if not recipient:
             raise NotFoundException(message=f"尚未配置{channel} Webhook，请先填写并保存")
 

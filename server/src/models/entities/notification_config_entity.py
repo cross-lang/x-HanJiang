@@ -1,4 +1,4 @@
-"""用户通知渠道配置实体（合并原 user_notification_preferences）。"""
+"""用户通知渠道配置实体。"""
 
 from datetime import datetime
 
@@ -9,20 +9,19 @@ from src.infras.database import Base
 
 
 class UserNotificationConfigEntity(Base):
-    """用户通知配置表（事件 × 渠道 二维配置）。
+    """用户通知渠道配置表（渠道级，与事件解耦）。
 
-    一行 = 一个用户在某个事件下、某个渠道的推送配置：
-    - enabled: 该 (事件, 渠道) 是否启用；
-    - recipient: 该渠道的接收方（单值，email 为邮箱地址，dingtalk/feishu 为 webhook URL，station 为空串）。
+    一行 = 一个用户在某个渠道的一份接收方配置：
+    - recipient: 该渠道的接收方（单值，email 为邮箱地址，dingtalk/feishu 为 webhook URL，station 为空串）；
+    - enabled: 该渠道是否启用推送（渠道级总开关）。
 
-    同一用户在同一事件下可配置多个渠道；同一用户同一渠道仅维护一份 recipient，
-    后端在 upsert recipient 时会把该渠道下所有事件行的 recipient 同步刷新。
+    事件维度的订阅关系由 user_event_notifications 表维护
+    （一行 = 把某渠道配置订阅到某事件），本表不再含 event_type 字段。
     """
 
     __tablename__ = "user_notification_configs"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="用户ID")
-    event_type: Mapped[str] = mapped_column(String(64), nullable=False, comment="事件类型（如 user.password_changed）")
     channel: Mapped[str] = mapped_column(
         String(32), nullable=False, comment="通知渠道（station/email/dingtalk/feishu）"
     )
@@ -48,5 +47,5 @@ class UserNotificationConfigEntity(Base):
     )
     __table_args__ = (
         Index("idx_user_id", "user_id"),
-        Index("uk_user_event_channel", "user_id", "event_type", "channel", unique=True),
+        Index("uk_user_channel", "user_id", "channel", unique=True),
     )

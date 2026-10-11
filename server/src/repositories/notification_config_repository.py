@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
-
-from sqlalchemy import update
-from sqlalchemy.engine import CursorResult
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from src.models.entities.notification_config_entity import UserNotificationConfigEntity
+from src.models.entities.user_event_notification_entity import UserEventNotificationEntity
 from src.repositories.base_repository import BaseRepository
 
 
 class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEntity, int]):
     """用户通知渠道配置 Repository。
 
-    表结构已合并原 user_notification_preferences：一行 = (user, event_type, channel)。
+    渠道级配置（user_notification_configs，一行 = 用户 × 渠道）与
+    事件订阅关系（user_event_notifications，一行 = 渠道配置 × 事件）分表维护，
+    本类同时提供两表的访问方法。
     """
 
     model_class = UserNotificationConfigEntity
@@ -23,76 +23,78 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
     def __init__(self, session: Session | None = None) -> None:
         super().__init__(session)
 
-    # ── 查询 ────────────────────────────────────────────────
+    # ── 渠道配置查询 ────────────────────────────────────────
 
     def list_by_user_id(self, user_id: int) -> list[UserNotificationConfigEntity]:
-        """查询用户全部通知配置（含未启用，供管理界面展示）。"""
+        """查询用户全部渠道配置（含未启用，供管理界面展示）。"""
         stmt = self._base_query().where(self.model_class.user_id == user_id)
         return list(self.session.execute(stmt).scalars().all())
 
-    def list_by_user_and_event(self, user_id: int, event_type: str) -> list[UserNotificationConfigEntity]:
-        """查询用户在指定事件下的所有渠道配置。"""
+    def get_by_user_channel(self, user_id: int, channel: str) -> UserNotificationConfigEntity | None:
+        """按 (user, channel) 唯一键查询渠道配置。"""
         stmt = self._base_query().where(
             self.model_class.user_id == user_id,
-            self.model_class.event_type == event_type,
-        )
-        return list(self.session.execute(stmt).scalars().all())
-
-    def get_by_user_event_channel(
-        self, user_id: int, event_type: str, channel: str
-    ) -> UserNotificationConfigEntity | None:
-        """按 (user, event, channel) 唯一键查询。"""
-        stmt = self._base_query().where(
-            self.model_class.user_id == user_id,
-            self.model_class.event_type == event_type,
             self.model_class.channel == channel,
         )
         return self.session.execute(stmt).scalars().first()
 
-    def list_by_user_and_channel(self, user_id: int, channel: str) -> list[UserNotificationConfigEntity]:
-        """查询用户在指定渠道下所有事件的配置（用于 recipient 同步）。"""
-        stmt = self._base_query().where(
-            self.model_class.user_id == user_id,
-            self.model_class.channel == channel,
-        )
-        return list(self.session.execute(stmt).scalars().all())
+    def get_or_create_channel_config(self, user_id: int, channel: str) -> UserNotificationConfigEntity:
+        """按 (user, channel) 取渠道配置，不存在则创建默认行（recipient 空、启用）。
 
-    # ── 写入 ────────────────────────────────────────────────
-
-    def upsert_channel_recipient(
-        self,
-        user_id: int,
-        channel: str,
-        recipient: str,
-        enabled: bool = True,
-    ) -> int:
-        """同步刷新用户在某渠道下所有事件行的 recipient。
-
-        渠道级 recipient（邮箱地址 / webhook URL）与事件无关，
-        这里把该用户在该 channel 下已有的所有 event 行的 recipient 统一更新；
-        若该用户在该 channel 下还没有任何行，则跳过（事件×渠道开关由 update_notification_preferences 维护）。
+        事务提交由服务层控制，此处仅 flush。
 
         Args:
             user_id: 用户 ID
             channel: 渠道标识
-            recipient: 接收方单值
-            enabled: 是否同时启用该渠道
-
-        Returns:
-            int: 受影响行数
         """
-        result = self.session.execute(
-            update(self.model_class)
-            .where(
-                self.model_class.user_id == user_id,
-                self.model_class.channel == channel,
+        config = self.get_by_user_channel(user_id, channel)
+        if config is None:
+            config = self.create(
+                UserNotificationConfigEntity(user_id=user_id, channel=channel, recipient="", enabled=True)
             )
-            .values(recipient=recipient, enabled=enabled)
+        return config
+
+    # ── 事件订阅（user_event_notifications）─────────────────
+
+    def list_subscriptions(self, user_id: int) -> list[UserEventNotificationEntity]:
+        """查询用户全部事件订阅行（join 渠道配置过滤 user_id）。"""
+        stmt = (
+            select(UserEventNotificationEntity)
+            .join(
+                self.model_class,
+                self.model_class.id == UserEventNotificationEntity.config_id,
+            )
+            .where(self.model_class.user_id == user_id)
         )
-        return int(cast(CursorResult[Any], result).rowcount or 0)
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_subscription(self, config_id: int, event_type: str) -> UserEventNotificationEntity | None:
+        """按 (config, event) 唯一键查询订阅行。"""
+        stmt = select(UserEventNotificationEntity).where(
+            UserEventNotificationEntity.config_id == config_id,
+            UserEventNotificationEntity.event_type == event_type,
+        )
+        return self.session.execute(stmt).scalars().first()
+
+    def subscribe(self, config_id: int, event_type: str) -> None:
+        """订阅：把渠道配置与事件建立映射（幂等，已存在则跳过）。"""
+        if self.get_subscription(config_id, event_type) is None:
+            self.session.add(UserEventNotificationEntity(config_id=config_id, event_type=event_type))
+            self.session.flush()
+
+    def unsubscribe(self, config_id: int, event_type: str) -> None:
+        """退订：删除渠道配置与事件的映射行（幂等，不存在则跳过）。"""
+        self.session.execute(
+            delete(UserEventNotificationEntity).where(
+                UserEventNotificationEntity.config_id == config_id,
+                UserEventNotificationEntity.event_type == event_type,
+            )
+        )
+
+    # ── 调度读取 ────────────────────────────────────────────
 
     def build_recipients_map(self, user_id: int, event_type: str) -> dict[str, str]:
-        """构建事件下 渠道→接收方 映射（仅 enabled 行，station 渠道不返回）。
+        """构建事件下 渠道→接收方 映射（仅 已订阅 + 渠道启用 行，station 渠道不返回）。
 
         Args:
             user_id: 用户 ID
@@ -101,11 +103,21 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
         Returns:
             {"email": "a@b.com", "dingtalk": "https://oapi.dingtalk.com/...", ...}
         """
-        rows = self.list_by_user_and_event(user_id, event_type)
+        stmt = (
+            select(self.model_class)
+            .join(
+                UserEventNotificationEntity,
+                UserEventNotificationEntity.config_id == self.model_class.id,
+            )
+            .where(
+                self.model_class.user_id == user_id,
+                UserEventNotificationEntity.event_type == event_type,
+                self.model_class.enabled.is_(True),
+            )
+        )
+        rows = list(self.session.execute(stmt).scalars().all())
         result: dict[str, str] = {}
         for row in rows:
-            if not row.enabled:
-                continue
             if row.channel == "station":
                 # 站内信不通过 dispatcher 外发，由 station_service 直接写站内信表
                 continue
@@ -116,8 +128,3 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
     @staticmethod
     def _entity_name() -> str:
         return "用户通知配置"
-
-    # ── 类型占位（与原签名兼容，无运行时作用） ─────────────────
-    def parse_recipient_items(self, raw: Any) -> list[dict[str, Any]]:  # pragma: no cover
-        """已废弃：recipient 改为单值字符串，此方法仅为兼容旧引用保留。"""
-        raise NotImplementedError("recipient 已改为单值字符串，不再支持 JSON 数组解析")

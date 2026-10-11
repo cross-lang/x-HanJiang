@@ -215,7 +215,8 @@ class NotificationDispatcher:
     ) -> list[NotificationDeliveryEntity]:
         """根据用户通知配置自动发送通知。
 
-        从 user_notification_configs 表查询用户已启用的渠道配置，
+        按事件订阅关系（user_event_notifications）join 渠道配置
+        （user_notification_configs）查询用户已启用渠道，
         自动构建 recipients 映射后委托 dispatch() 发送。
 
         Args:

@@ -175,14 +175,15 @@ CREATE TABLE `system_notifications` (
     KEY `idx_notice_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统通知表';
 
--- 用户通知渠道配置表
+-- 用户通知渠道配置表（渠道级，与事件解耦；事件订阅关系见 user_event_notifications）
+DROP TABLE IF EXISTS `user_event_notifications`;
 DROP TABLE IF EXISTS `user_notification_configs`;
 CREATE TABLE `user_notification_configs` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
-    `channel` VARCHAR(32) NOT NULL COMMENT '通知渠道（email/sms/dingtalk/feishu）',
-    `recipient` JSON NOT NULL COMMENT '渠道接收人列表 JSON，如 [{"recipient":"xxx@qq.com","label":"私人邮箱","enabled":1}]（enabled 1=启用 0=禁用）',
-    `enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
+    `channel` VARCHAR(32) NOT NULL COMMENT '通知渠道（station/email/sms/dingtalk/feishu）',
+    `recipient` VARCHAR(512) NOT NULL DEFAULT '' COMMENT '渠道接收方（单值；email 为邮箱地址，dingtalk/feishu 为 webhook URL，station 为空串）',
+    `enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用（渠道级推送总开关）',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -190,6 +191,20 @@ CREATE TABLE `user_notification_configs` (
     UNIQUE KEY `uk_user_channel` (`user_id`, `channel`),
     CONSTRAINT `fk_unc_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户通知渠道配置表';
+
+-- 用户事件通知订阅表（一行 = 把某渠道配置订阅到某事件；发送需同时满足订阅存在 + 渠道启用 + recipient 非空）
+CREATE TABLE `user_event_notifications` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `config_id` BIGINT NOT NULL COMMENT '渠道配置ID（user_notification_configs.id）',
+    `event_type` VARCHAR(64) NOT NULL COMMENT '事件类型（如 user.password_changed）',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_config_id` (`config_id`),
+    KEY `idx_event_type` (`event_type`),
+    UNIQUE KEY `uk_config_event` (`config_id`, `event_type`),
+    CONSTRAINT `fk_uen_config` FOREIGN KEY (`config_id`) REFERENCES `user_notification_configs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户事件通知订阅表';
 
 -- 系统通知渠道配置表（全局共用，非用户级）
 DROP TABLE IF EXISTS `system_notification_configs`;
