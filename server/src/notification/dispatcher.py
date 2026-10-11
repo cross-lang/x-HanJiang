@@ -47,6 +47,8 @@ from src.constants.enums import (
 )
 from src.core.logger import logger
 from src.infras.notification import (
+    DingTalkNotificationProvider,
+    FeishuNotificationProvider,
     NotificationMessage,
     NotificationProviderRegistry,
 )
@@ -59,6 +61,19 @@ from src.repositories.notification_config_repository import (
 from src.repositories.notification_delivery_repository import NotificationDeliveryRepository
 
 _STATION_RECIPIENT_RE = re.compile(r"^user:(\d+)$")
+
+# webhook 型渠道 → 接收方即 webhook URL 的渠道 Provider 类
+# 该类渠道的接收方是用户个人配置的 webhook 地址，需按接收方临时构造 Provider 发送
+# （registry 中的 Provider 指向系统级 webhook，仅用于系统广播），不能复用
+_WEBHOOK_CHANNEL_PROVIDER_CLASSES: dict[str, type] = {
+    NotificationChannel.DINGTALK.value: DingTalkNotificationProvider,
+    NotificationChannel.FEISHU.value: FeishuNotificationProvider,
+}
+
+
+def _is_webhook_recipient(recipient: str) -> bool:
+    """判断接收方是否为 webhook URL（http/https 开头）。"""
+    return recipient.startswith(("http://", "https://"))
 
 
 def _resolve_event(event_type: str) -> NotificationEvent:
@@ -142,10 +157,16 @@ class NotificationDispatcher:
                 )
                 continue
             recipient_list = recipient_spec if isinstance(recipient_spec, list) else [recipient_spec]
-            provider = self._registry.get(channel_str)
-            if provider is None:
-                logger.warning("No provider registered for channel={}, skipping", channel_str)
-                continue
+            provider_class = _WEBHOOK_CHANNEL_PROVIDER_CLASSES.get(channel_str)
+            if provider_class is not None:
+                # webhook 型渠道（钉钉/飞书）：接收方即个人 webhook URL，
+                # 按接收方临时构造 Provider（registry 中是系统级 webhook，不能复用）
+                provider = None
+            else:
+                provider = self._registry.get(channel_str)
+                if provider is None:
+                    logger.warning("No provider registered for channel={}, skipping", channel_str)
+                    continue
             if pre_rendered is not None:
                 subject, content = pre_rendered
             else:
@@ -170,7 +191,11 @@ class NotificationDispatcher:
                     metadata=metadata or {},
                 )
                 try:
-                    success = provider.send(message)
+                    send_provider = provider
+                    if provider_class is not None and _is_webhook_recipient(recipient):
+                        # 个人 webhook 接收方：按接收方 URL 构造本次发送的 Provider
+                        send_provider = provider_class(webhook_url=recipient)
+                    success = send_provider.send(message)
                     if success:
                         delivery.status = NotificationStatus.SUCCESS.value
                         delivery.receive_at = datetime.now()
@@ -242,6 +267,10 @@ class NotificationDispatcher:
                 event_type_str,
             )
             return []
+        # 订阅即路由：用户在偏好矩阵勾选的渠道（recipients 的键）就是发送渠道，
+        # 不再受 DEFAULT_ROUTES 事件级白名单限制；调用方显式传入 channels 时以其为准
+        if channels is None:
+            channels = list(recipients.keys())
         return self.dispatch(
             event_type=event_type,
             recipients=recipients,
