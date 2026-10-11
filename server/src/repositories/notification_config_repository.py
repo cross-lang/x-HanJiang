@@ -5,6 +5,10 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from src.constants.notification import (
+    PERSONAL_SUBSCRIBABLE_EVENTS,
+    NotificationChannel,
+)
 from src.models.entities.notification_config_entity import UserNotificationConfigEntity
 from src.models.entities.user_event_notification_entity import UserEventNotificationEntity
 from src.repositories.base_repository import BaseRepository
@@ -53,6 +57,27 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
                 UserNotificationConfigEntity(user_id=user_id, channel=channel, recipient="", enabled=True)
             )
         return config
+
+    def ensure_default_station_subscriptions(self, user_id: int) -> bool:
+        """确保默认站内信订阅真实落库（幂等）。
+
+        用户尚无 station 渠道配置时视为"未初始化"：创建 station 配置行，
+        并对全部可订阅事件建立站内信订阅，使偏好页默认勾选与实际投递一致；
+        已存在 station 配置行（用户已初始化 / 已按习惯修改过）时不补全，
+        尊重用户后续的开关调整。
+
+        Args:
+            user_id: 用户 ID
+
+        Returns:
+            bool: 是否执行了初始化（首次创建 station 配置行并全量订阅）
+        """
+        if self.get_by_user_channel(user_id, NotificationChannel.STATION.value) is not None:
+            return False
+        config = self.get_or_create_channel_config(user_id, NotificationChannel.STATION.value)
+        for event in PERSONAL_SUBSCRIBABLE_EVENTS:
+            self.subscribe(config.id, event.value)
+        return True
 
     # ── 事件订阅（user_event_notifications）─────────────────
 

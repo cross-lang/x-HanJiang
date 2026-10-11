@@ -257,7 +257,8 @@ class ProfileService:
 
         渠道配置（含 recipient）来自 user_notification_configs，
         事件订阅状态来自 user_event_notifications；
-        从未保存过偏好的用户无任何配置行，按默认规则展示（站内信开、其他渠道关）。
+        首次访问时若用户尚无站内信配置，自动初始化默认站内信订阅并落库
+        （默认勾选 = 真实订阅，不再只是展示层假象），后续允许用户按习惯修改。
 
         Args:
             user_id: 当前用户 ID
@@ -265,6 +266,10 @@ class ProfileService:
         Returns:
             dict[str, Any]: {"events": [{event, name, channels: [{code, name, enabled, recipient}]}]}
         """
+        # 首次访问懒初始化：无 station 配置行 → 建行并对全部可订阅事件建立站内信订阅（落库）；
+        # 已初始化（station 配置行已存在）不动，尊重用户后续开关调整
+        if self._config_repository.ensure_default_station_subscriptions(user_id):
+            self._config_repository.commit()
         configs = self._config_repository.list_by_user_id(user_id)
         config_by_channel = {config.channel: config for config in configs}
         has_any_config = bool(configs)

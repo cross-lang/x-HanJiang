@@ -52,13 +52,20 @@ def get_pagination(
 def get_notification_dispatcher(
     db_session: Session = Depends(get_db_session),
 ) -> NotificationDispatcher:
-    """获取通知调度器实例（供 AlertService 等内部服务使用）。"""
+    """获取通知调度器实例（供 AlertService 等内部服务使用）。
+
+    站内信收件箱与外部渠道解耦：dispatcher 只负责外部 Provider 投递与明细，
+    站内信写入注入 StationMessageService 统一处理。
+    """
     from src.infras.notification import get_registry
     from src.notification.dispatcher import NotificationDispatcher
+    from src.repositories.station_message_repository import StationMessageRepository
+    from src.services.admin.station_service import StationMessageService
 
     return NotificationDispatcher(
         registry=get_registry(),
         session=db_session,
+        station_service=StationMessageService(repository=StationMessageRepository(session=db_session)),
     )
 
 

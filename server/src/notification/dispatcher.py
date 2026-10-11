@@ -54,12 +54,12 @@ from src.infras.notification import (
     NotificationProviderRegistry,
 )
 from src.models.entities.notification_delivery_entity import NotificationDeliveryEntity
-from src.models.entities.station_message_entity import StationMessageEntity
 from src.notification.template import render_template
 from src.repositories.notification_config_repository import (
     UserNotificationConfigRepository,
 )
 from src.repositories.notification_delivery_repository import NotificationDeliveryRepository
+from src.services.admin.station_service import StationMessageService
 
 _STATION_RECIPIENT_RE = re.compile(r"^user:(\d+)$")
 
@@ -88,23 +88,30 @@ def _resolve_event(event_type: str) -> NotificationEvent:
 class NotificationDispatcher:
     """通知调度器。
 
-    面向抽象渠道 Provider 发送，并将每次投递的实际情况写入
-    notifications_delivery（外部渠道）/ station_messages（站内信）。
+    职责边界：
+    - 外部渠道（email/dingtalk/feishu/sms）：面向抽象 Provider 发送，写投递明细，
+      失败入 Redis 重试队列；
+    - 站内信（station）：平台内收件箱，不注册外部 Provider，
+      收件箱写入统一委托 StationMessageService（dispatch 末尾一次性落库），
+      保持"应用内收件箱"与"外部投递通道"两条路径解耦。
     """
 
     def __init__(
         self,
         registry: NotificationProviderRegistry,
         session: Session | None = None,
+        station_service: StationMessageService | None = None,
     ) -> None:
         """初始化调度器。
 
         Args:
-            registry: 渠道 Provider 注册表
+            registry: 外部渠道 Provider 注册表（不含 station）
             session: SQLAlchemy 会话（可选，未提供则投递明细不落库）
+            station_service: 站内信收件箱服务（可选，未提供则站内信只记投递明细、不写收件箱）
         """
         self._registry = registry
         self._session = session
+        self._station_service = station_service
         self._repository = NotificationDeliveryRepository(session=session) if session else None
 
     def dispatch(
@@ -158,8 +165,13 @@ class NotificationDispatcher:
                 )
                 continue
             recipient_list = recipient_spec if isinstance(recipient_spec, list) else [recipient_spec]
+            is_station = channel_str == NotificationChannel.STATION.value
             provider_class = _WEBHOOK_CHANNEL_PROVIDER_CLASSES.get(channel_str)
-            if provider_class is not None:
+            if is_station:
+                # 站内信：平台内收件箱，不经外部 Provider，
+                # 收件箱写入由 _write_station_inboxes 统一委托 StationMessageService
+                provider = None
+            elif provider_class is not None:
                 # webhook 型渠道（钉钉/飞书）：接收方即个人 webhook URL，
                 # 按接收方临时构造 Provider（registry 中是系统级 webhook，不能复用）
                 provider = None
@@ -200,11 +212,16 @@ class NotificationDispatcher:
                     metadata=metadata or {},
                 )
                 try:
-                    send_provider = provider
-                    if provider_class is not None and _is_webhook_recipient(recipient):
-                        # 个人 webhook 接收方：按接收方 URL 构造本次发送的 Provider
-                        send_provider = provider_class(webhook_url=recipient)
-                    success = send_provider.send(message)
+                    if is_station:
+                        # 站内信不经外部 Provider：投递明细记为成功，
+                        # 收件箱写入延后到 _write_station_inboxes 统一委托收件箱服务
+                        success = True
+                    else:
+                        send_provider = provider
+                        if provider_class is not None and _is_webhook_recipient(recipient):
+                            # 个人 webhook 接收方：按接收方 URL 构造本次发送的 Provider
+                            send_provider = provider_class(webhook_url=recipient)
+                        success = send_provider.send(message)
                     if success:
                         delivery.status = NotificationStatus.SUCCESS.value
                         delivery.receive_at = datetime.now()
@@ -351,35 +368,34 @@ class NotificationDispatcher:
         source: str,
         inbox_items: list[tuple[NotificationDeliveryEntity, str, str]],
     ) -> None:
-        """将站内信渠道的投递同步写入 station_messages 收件箱。
+        """将站内信投递写入用户收件箱（统一委托 StationMessageService，保持职责单一）。
+
+        按 (主题, 正文, 事件) 分组后批量写入，减少事务次数；
+        未注入收件箱服务时仅记录告警日志（站内信明细已随投递明细落库）。
 
         Args:
             source: 通知来源
             inbox_items: (投递明细, 主题, 正文) 三元组列表
         """
-        if self._session is None:
+        if self._station_service is None:
+            logger.warning("No station service injected, station inbox not written (deliveries persisted only)")
             return
-        messages: list[StationMessageEntity] = []
+        grouped: dict[tuple[str, str, str], list[int]] = {}
         for delivery, subject, content in inbox_items:
             match = _STATION_RECIPIENT_RE.match(delivery.recipient)
             if match is None:
                 continue
-            messages.append(
-                StationMessageEntity(
-                    user_id=int(match.group(1)),
-                    subject=subject,
-                    content=content,
-                    source=source,
-                    event_type=delivery.event_type,
-                    is_read=False,
-                )
-            )
-        if messages:
-            self._session.add_all(messages)
+            grouped.setdefault((subject, content, delivery.event_type), []).append(int(match.group(1)))
+        for (subject, content, event_type), user_ids in grouped.items():
             try:
-                self._session.commit()
+                self._station_service.send_station_batch(
+                    user_ids,
+                    subject,
+                    content,
+                    source=source,
+                    event_type=event_type,
+                )
             except Exception as exc:
-                self._session.rollback()
                 logger.error("Failed to persist station inbox messages: {}", exc)
 
     def _enqueue_retry(self, retry_items: list[tuple[NotificationDeliveryEntity, str, str]]) -> None:
