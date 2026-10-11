@@ -148,3 +148,20 @@ class TestDispatchProviderSelection:
 
         assert deliveries[0].status == "success"
         assert len(email_provider.sent) == 1
+
+    def test_station_channel_uses_registry_provider(self, monkeypatch) -> None:
+        """站内信渠道：复用 registry 中的站内信 Provider（收件箱写入由 dispatcher 完成）。"""
+        station_provider = FakeEmailProvider()  # 任意 no-op Provider 即可代表 station
+        registry = FakeRegistry({"station": station_provider})
+        dispatcher = _build_dispatcher({}, registry)
+
+        deliveries = dispatcher.dispatch(
+            event_type="user.profile_updated",
+            recipients={"station": "user:5"},
+            channels=["station"],
+            pre_rendered=("资料变更", "你的资料已更新"),
+        )
+
+        assert deliveries[0].status == "success"
+        assert deliveries[0].recipient == "user:5"
+        assert len(station_provider.sent) == 1

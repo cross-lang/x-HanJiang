@@ -69,6 +69,11 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             "page_size": page_size,
         }
 
+    @notify(
+        NotificationEvent.USER_CREATED,
+        target=("self", "operator"),
+        vars_extractor=lambda r: {"username": r.username},
+    )
     @audit_crud(PermissionAction.CREATE.mark)
     def create(self, data: dict[str, Any], operator: dict[str, Any] | None = None) -> UserResponse:
         """创建新用户.
@@ -189,9 +194,11 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         if "name" in patch_dict:
             patch.name = patch_dict["name"]
         # 更新角色关联（经仓库）
+        role_ids_changed = False
         if "role_ids" in patch_dict:
             role_ids = patch_dict.pop("role_ids")
             self._repository.replace_user_roles(id, role_ids)
+            role_ids_changed = True
         updated = self._repository.update(id, patch)
         if updated is None:
             raise NotFoundException(message=f"用户 {id} 不存在")
@@ -203,7 +210,15 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         self._commit()
         result = self._to_response(updated)
         logger.info(f"User updated: id={result.id} username={result.username}")
-        # 角色变更通知由 @notify 装饰器处理
+        # 操作者与被操作用户不是同一人时，操作者同步收业务回执
+        operator_id = (operator or {}).get("operator_id")
+        notify_operator = isinstance(operator_id, int) and operator_id != updated.id
+        # ── 通知：角色变更 ──
+        if role_ids_changed:
+            role_vars = {"username": updated.username, "role_count": len(role_ids)}
+            self._dispatch_notification(updated.id, NotificationEvent.ROLE_ASSIGNED, role_vars)
+            if notify_operator:
+                self._dispatch_notification(operator_id, NotificationEvent.ROLE_ASSIGNED, role_vars)
         # ── 通知：密码变更 ──
         if "password_hash" in patch_dict:
             self._dispatch_notification(
@@ -220,20 +235,20 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
                     NotificationEvent.USER_PROFILE_UPDATED,
                     {"username": updated.username, "updated_fields": "、".join(changed_keys)},
                 )
-        # ── 通知：状态变更 ──
+        # ── 通知：状态变更（按新状态拆分为启用/禁用事件）──
         if "status" in patch_dict and patch_dict["status"] != existing.status:
-            self._dispatch_notification(
-                updated.id,
-                NotificationEvent.USER_STATUS_CHANGED,
-                {
-                    "username": updated.username,
-                    "new_status": patch_dict["status"],
-                    "reason": "管理员操作",
-                },
+            status_event = (
+                NotificationEvent.USER_ENABLED
+                if patch_dict["status"] == UserStatus.ENABLED.value
+                else NotificationEvent.USER_DISABLED
             )
+            status_vars = {"username": updated.username, "reason": "管理员操作"}
+            self._dispatch_notification(updated.id, status_event, status_vars)
+            if notify_operator:
+                self._dispatch_notification(operator_id, status_event, status_vars)
         return result
 
-    @notify(NotificationEvent.USER_DELETED, target="self")
+    @notify(NotificationEvent.USER_DELETED, target=("self", "operator"))
     @audit_crud(PermissionAction.DELETE.mark)
     def delete(self, id: int, operator: dict[str, Any] | None = None) -> bool:
         """软删除用户。"""

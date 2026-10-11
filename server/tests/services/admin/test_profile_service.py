@@ -68,13 +68,14 @@ class FakeUserNotificationConfigRepository:
     def build_recipients_map(self, user_id: int, event_type: str) -> dict[str, str]:
         result: dict[str, str] = {}
         for config in self.list_by_user_id(user_id):
+            if not config.enabled or (config.id, event_type) not in self._subscriptions:
+                continue
             if config.channel == "station":
+                # 站内信接收方为收件箱协议地址
+                result["station"] = f"user:{user_id}"
                 continue
-            if not config.enabled or not config.recipient:
-                continue
-            if (config.id, event_type) not in self._subscriptions:
-                continue
-            result[config.channel] = config.recipient
+            if config.recipient:
+                result[config.channel] = config.recipient
         return result
 
     def commit(self) -> None:
@@ -150,14 +151,14 @@ class TestChannelRecipient:
         )
         config = repo.get_by_user_channel(1, "dingtalk")
         assert config is not None
-        repo.subscribe(config.id, "user.status_changed")
+        repo.subscribe(config.id, "user.disabled")
 
         service.update_recipient(
             1,
             NotificationRecipientUpdateRequest(channel="dingtalk", recipient="https://oapi.dingtalk.com/new"),
         )
 
-        assert repo.get_subscription(config.id, "user.status_changed") is not None
+        assert repo.get_subscription(config.id, "user.disabled") is not None
         assert config.recipient == "https://oapi.dingtalk.com/new"
 
     def test_delete_recipient_clears_and_disables(self) -> None:
@@ -217,7 +218,7 @@ class TestNotificationPreferences:
         repo = FakeUserNotificationConfigRepository()
         service = _build_service(repo, user=_make_user())
         prefs = {
-            "user.status_changed": {"station": True, "dingtalk": True},
+            "user.disabled": {"station": True, "dingtalk": True},
             "user.profile_updated": {"station": True, "dingtalk": False},
         }
 
@@ -227,10 +228,10 @@ class TestNotificationPreferences:
         dingtalk = repo.get_by_user_channel(1, "dingtalk")
         assert station is not None and dingtalk is not None
         assert dingtalk.recipient == ""
-        assert repo.get_subscription(station.id, "user.status_changed") is not None
+        assert repo.get_subscription(station.id, "user.disabled") is not None
         assert repo.get_subscription(station.id, "user.profile_updated") is not None
         # 勾选 dingtalk 的仅 status_changed 一行
-        assert repo.get_subscription(dingtalk.id, "user.status_changed") is not None
+        assert repo.get_subscription(dingtalk.id, "user.disabled") is not None
         assert repo.get_subscription(dingtalk.id, "user.profile_updated") is None
 
     def test_update_preferences_syncs_email_recipient(self) -> None:
@@ -238,7 +239,7 @@ class TestNotificationPreferences:
         repo = FakeUserNotificationConfigRepository()
         service = _build_service(repo, user=_make_user(email="new@qq.com"))
 
-        service.update_notification_preferences(1, {"user.status_changed": {"email": True}})
+        service.update_notification_preferences(1, {"user.disabled": {"email": True}})
 
         email_config = repo.get_by_user_channel(1, "email")
         assert email_config is not None
@@ -260,19 +261,19 @@ class TestNotificationPreferences:
         """矩阵展示以订阅关系为准：订阅行存在即开，与渠道启用状态独立。"""
         repo = FakeUserNotificationConfigRepository()
         service = _build_service(repo, user=_make_user())
-        service.update_notification_preferences(1, {"user.status_changed": {"dingtalk": True}})
+        service.update_notification_preferences(1, {"user.disabled": {"dingtalk": True}})
 
         data = service.get_notification_preferences(1)
 
         by_event = {e["event"]: {c["code"]: c for c in e["channels"]} for e in data["events"]}
-        assert by_event["user.status_changed"]["dingtalk"]["enabled"] is True
+        assert by_event["user.disabled"]["dingtalk"]["enabled"] is True
         assert by_event["user.profile_updated"]["dingtalk"]["enabled"] is False
 
     def test_get_recipients_lists_bound_channels_only(self) -> None:
         """接收人列表：仅返回已绑定（recipient 非空）的非站内信渠道。"""
         repo = FakeUserNotificationConfigRepository()
         service = _build_service(repo, user=_make_user())
-        service.update_notification_preferences(1, {"user.status_changed": {"email": True}})
+        service.update_notification_preferences(1, {"user.disabled": {"email": True}})
         service.add_recipient(
             1, NotificationRecipientCreateRequest(channel="dingtalk", recipient="https://oapi.dingtalk.com/x")
         )
@@ -296,36 +297,45 @@ class TestBuildRecipientsMap:
     def test_subscribed_enabled_with_recipient(self) -> None:
         repo = FakeUserNotificationConfigRepository()
         config = self._setup_bound(repo)
-        repo.subscribe(config.id, "user.status_changed")
+        repo.subscribe(config.id, "user.disabled")
 
-        assert repo.build_recipients_map(1, "user.status_changed") == {"dingtalk": "https://oapi.dingtalk.com/x"}
+        assert repo.build_recipients_map(1, "user.disabled") == {"dingtalk": "https://oapi.dingtalk.com/x"}
 
     def test_not_subscribed_excluded(self) -> None:
         repo = FakeUserNotificationConfigRepository()
         self._setup_bound(repo)  # 未订阅任何事件
 
-        assert repo.build_recipients_map(1, "user.status_changed") == {}
+        assert repo.build_recipients_map(1, "user.disabled") == {}
 
     def test_disabled_channel_excluded(self) -> None:
         repo = FakeUserNotificationConfigRepository()
         config = self._setup_bound(repo)
-        repo.subscribe(config.id, "user.status_changed")
+        repo.subscribe(config.id, "user.disabled")
         config.enabled = False
 
-        assert repo.build_recipients_map(1, "user.status_changed") == {}
+        assert repo.build_recipients_map(1, "user.disabled") == {}
 
     def test_empty_recipient_excluded(self) -> None:
         repo = FakeUserNotificationConfigRepository()
         config = self._setup_bound(repo)
-        repo.subscribe(config.id, "user.status_changed")
+        repo.subscribe(config.id, "user.disabled")
         config.recipient = ""
 
-        assert repo.build_recipients_map(1, "user.status_changed") == {}
+        assert repo.build_recipients_map(1, "user.disabled") == {}
 
-    def test_station_channel_excluded(self) -> None:
-        """站内信不经 dispatcher 外发，恒不进入 recipients 映射。"""
+    def test_station_subscription_maps_to_inbox_protocol(self) -> None:
+        """站内信订阅：接收方映射为收件箱协议地址 user:{user_id}，无需配置 recipient。"""
         repo = FakeUserNotificationConfigRepository()
         config = repo.get_or_create_channel_config(1, "station")
         repo.subscribe(config.id, "user.status_changed")
+
+        assert repo.build_recipients_map(1, "user.status_changed") == {"station": "user:1"}
+
+    def test_station_disabled_config_excluded(self) -> None:
+        """站内信渠道被禁用时不投递。"""
+        repo = FakeUserNotificationConfigRepository()
+        config = repo.get_or_create_channel_config(1, "station")
+        repo.subscribe(config.id, "user.status_changed")
+        config.enabled = False
 
         assert repo.build_recipients_map(1, "user.status_changed") == {}

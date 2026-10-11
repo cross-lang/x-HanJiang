@@ -94,14 +94,17 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
     # ── 调度读取 ────────────────────────────────────────────
 
     def build_recipients_map(self, user_id: int, event_type: str) -> dict[str, str]:
-        """构建事件下 渠道→接收方 映射（仅 已订阅 + 渠道启用 行，station 渠道不返回）。
+        """构建事件下 渠道→接收方 映射（仅 已订阅 + 渠道启用 行）。
+
+        station 渠道特判：接收方固定为协议地址 user:{user_id}，
+        dispatch 据此写入 station_messages 收件箱，无需用户配置 recipient。
 
         Args:
             user_id: 用户 ID
             event_type: 事件类型
 
         Returns:
-            {"email": "a@b.com", "dingtalk": "https://oapi.dingtalk.com/...", ...}
+            {"station": "user:5", "email": "a@b.com", "dingtalk": "https://oapi.dingtalk.com/...", ...}
         """
         stmt = (
             select(self.model_class)
@@ -119,7 +122,8 @@ class UserNotificationConfigRepository(BaseRepository[UserNotificationConfigEnti
         result: dict[str, str] = {}
         for row in rows:
             if row.channel == "station":
-                # 站内信不通过 dispatcher 外发，由 station_service 直接写站内信表
+                # 站内信：订阅 + 渠道启用即投递，接收方为 user:{user_id} 协议地址
+                result["station"] = f"user:{user_id}"
                 continue
             if row.recipient:
                 result[row.channel] = row.recipient

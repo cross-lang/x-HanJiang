@@ -1,1 +1,41 @@
-﻿# 系统域事件通知模板
+# 角色权限域事件通知模板
+
+role.assigned:
+  email:
+    subject: "【汉江管理系统】角色变更通知"
+    content: |
+      <h2>您的角色已调整</h2>
+      <p>您的账号角色已由管理员调整（当前角色数：{role_count}），权限范围可能发生变化。</p>
+      <p>如非本人预期，请联系管理员核实。</p>
+  station:
+    subject: "角色已变更"
+    content: "您的账号角色已由管理员调整（当前角色数：{role_count}）"
+  dingtalk:
+    subject: "角色已变更"
+    content: "您的账号角色已由管理员调整（当前角色数：{role_count}），如非本人预期请联系管理员核实"
+
+permission.granted:
+  email:
+    subject: "【汉江管理系统】权限授予通知"
+    content: |
+      <h2>新增功能权限</h2>
+      <p>您所在的角色已被授予新权限：{permission_name}（{permission_code}）。</p>
+  station:
+    subject: "权限已授予"
+    content: "您所在的角色已被授予新权限：{permission_name}（{permission_code}）"
+  dingtalk:
+    subject: "权限已授予"
+    content: "您所在的角色已被授予新权限：{permission_name}（{permission_code}）"
+
+permission.revoked:
+  email:
+    subject: "【汉江管理系统】权限回收通知"
+    content: |
+      <h2>功能权限已回收</h2>
+      <p>您所在的角色已被回收权限：{permission_name}（{permission_code}），相关功能将不再可用。</p>
+  station:
+    subject: "权限已回收"
+    content: "您所在的角色已被回收权限：{permission_name}（{permission_code}）"
+  dingtalk:
+    subject: "权限已回收"
+    content: "您所在的角色已被回收权限：{permission_name}（{permission_code}），相关功能将不再可用"

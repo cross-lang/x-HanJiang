@@ -186,7 +186,8 @@ class NotificationEvent(StrBaseEnum):
     # ── 用户域 ──────────────────────────────────
     USER_PASSWORD_CHANGED = "user.password_changed", "密码修改"
     USER_PROFILE_UPDATED = "user.profile_updated", "资料变更"
-    USER_STATUS_CHANGED = "user.status_changed", "账号状态变更"
+    USER_ENABLED = "user.enabled", "用户启用"
+    USER_DISABLED = "user.disabled", "用户禁用"
     USER_LOGIN_FAILED = "user.login_failed", "连续登录失败告警"
     USER_CREATED = "user.created", "新用户创建"
     USER_DELETED = "user.deleted", "用户已删除"
@@ -221,7 +222,12 @@ DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
     # 用户域
     NotificationEvent.USER_PASSWORD_CHANGED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
     NotificationEvent.USER_PROFILE_UPDATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
-    NotificationEvent.USER_STATUS_CHANGED: [
+    NotificationEvent.USER_ENABLED: [
+        NotificationChannel.STATION,
+        NotificationChannel.EMAIL,
+        NotificationChannel.DINGTALK,
+    ],
+    NotificationEvent.USER_DISABLED: [
         NotificationChannel.STATION,
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,

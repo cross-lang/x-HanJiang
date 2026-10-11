@@ -1,4 +1,4 @@
-﻿# 用户域事件通知模板
+# 用户域事件通知模板
 
 user.password_changed:
   email:
@@ -13,16 +13,46 @@ user.password_changed:
 
 user.created:
   email:
-    subject: "【汉江管理系统】欢迎使用"
+    subject: "【汉江管理系统】账号创建通知"
     content: |
-      <h2>欢迎，{username}！</h2>
-      <p>您的账号已创建，初始密码为：{temp_password}</p>
-      <p>首次登录后请及时修改密码。</p>
+      <h2>账号已创建</h2>
+      <p>用户 {username} 的账号已创建。</p>
+      <p>若是您的账号，请使用管理员提供的初始密码登录，并尽快修改密码。</p>
   station:
     subject: "账号已创建"
-    content: "管理员已为您创建账号"
+    content: "用户 {username} 的账号已创建，请使用初始密码登录并尽快修改密码"
+  dingtalk:
+    subject: "账号已创建"
+    content: "用户 {username} 的账号已创建"
 
 user.profile_updated:
   station:
     subject: "个人资料已更新"
     content: "您的个人资料已更新"
+
+user.enabled:
+  email:
+    subject: "【汉江管理系统】账号启用通知"
+    content: |
+      <h2>账号已启用</h2>
+      <p>您的账号已被管理员启用（原因：{reason}），现在可以正常登录使用。</p>
+  station:
+    subject: "账号已启用"
+    content: "您的账号已被管理员启用（原因：{reason}）"
+  dingtalk:
+    subject: "账号已启用"
+    content: "您的账号已被管理员启用（原因：{reason}）"
+
+user.disabled:
+  email:
+    subject: "【汉江管理系统】账号禁用通知"
+    content: |
+      <h2>账号已被禁用</h2>
+      <p>您的账号已被管理员禁用（原因：{reason}），将无法登录系统。</p>
+      <p>如非本人预期，请联系管理员核实。</p>
+  station:
+    subject: "账号已被禁用"
+    content: "您的账号已被管理员禁用（原因：{reason}），将无法登录系统"
+  dingtalk:
+    subject: "账号已被禁用"
+    content: "您的账号已被管理员禁用（原因：{reason}），如非本人预期请联系管理员核实"
