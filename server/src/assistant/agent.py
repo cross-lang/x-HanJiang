@@ -39,7 +39,7 @@ ReAct 对应关系：
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator, Iterator
 from dataclasses import dataclass, field
 from typing import TypeAlias, cast
 
@@ -299,6 +299,9 @@ class AssistantAgent:
             dict[str, object]: STEP / NAVIGATE / TOKEN / DONE 事件
         """
         text_call = state.text_tool_call
+        if text_call is None:
+            # 防御：入口分支已前置校验非空，此处兜底避免属性访问崩溃
+            return
         yield {
             "type": AssistantEventType.STEP.mark,
             "content": f"正在调用工具：{text_call.name}",
@@ -407,7 +410,7 @@ class AssistantAgent:
         self,
         messages: list[dict[str, object]],
         llm_provider: LLMProvider,
-    ) -> Iterator[dict[str, object]]:
+    ) -> Generator[dict[str, object], None, str]:
         """不传 tools 的最终回答流式调用：实时透出 REASONING / TOKEN。
 
         用于两处：结构化工具执行完后的收尾回答；首轮流式为空时的重试。

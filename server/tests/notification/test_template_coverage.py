@@ -3,25 +3,22 @@
 
 锁定约束，防止再次出现空模板/漏模板导致渲染空消息：
     - 个人可订阅事件 × 4 个个人渠道（站内信/邮件/钉钉/飞书）：模板段齐全且非空
-    - 系统告警、预留事件：模板同样四段就绪（预留事件接线即可用）
+    - 系统告警：模板四段就绪
     - 验证码仅邮件；直传/直写型事件无需模板
     - 事件键不得跨文件重复、不得出现枚举之外的拼写
 """
 
 import yaml
-from src.constants.enums import (
+from src.constants.notification import (
     PERSONAL_SUBSCRIBABLE_CHANNELS,
     PERSONAL_SUBSCRIBABLE_EVENTS,
     NotificationEvent,
 )
 from src.notification import template as template_module
 
-# 模板四段就绪的非个人订阅事件
+# 模板四段就绪的非个人订阅事件（系统级渠道）
 _FOUR_SECTION_EVENTS = {
-    NotificationEvent.SYSTEM_ALERT,  # 系统告警走系统级渠道
-    NotificationEvent.FILE_UPLOADED,  # 预留：接线即可用
-    NotificationEvent.FILE_DOWNLOADED,
-    NotificationEvent.OPENAPI_APP_KEY_RESET,
+    NotificationEvent.SYSTEM_ALERT,
 }
 
 # 无需模板的事件：pre_rendered 直传内容 / 直写入库 / 仅邮件的验证码
@@ -57,8 +54,8 @@ class TestTemplateCoverage:
                     problems.append(f"{event.value}.{channel.mark}: subject/content 为空")
         assert problems == [], "个人订阅事件模板缺段:\n" + "\n".join(problems)
 
-    def test_system_and_reserved_events_have_four_sections(self) -> None:
-        """系统告警与预留事件：站内信/邮件/钉钉/飞书四段就绪。"""
+    def test_system_events_have_four_sections(self) -> None:
+        """系统告警：站内信/邮件/钉钉/飞书四段就绪。"""
         templates = _load_all_templates()
         required = ["station", "email", "dingtalk", "feishu"]
         problems = []
@@ -73,7 +70,7 @@ class TestTemplateCoverage:
                 content = str(section.get("content", "")).strip() if section else ""
                 if not subject or not content:
                     problems.append(f"{event.value}.{ch}: 段缺失或为空")
-        assert problems == [], "系统/预留事件模板缺段:\n" + "\n".join(problems)
+        assert problems == [], "系统事件模板缺段:\n" + "\n".join(problems)
 
     def test_verify_code_email_section(self) -> None:
         """验证码事件仅邮件段，但必须非空。"""

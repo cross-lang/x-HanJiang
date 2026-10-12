@@ -1,20 +1,4 @@
-# 文件域事件通知模板（通知发给文件上传者；file.uploaded/downloaded 为预留，接线时模板已就绪）
-
-file.uploaded:
-  email:
-    subject: "【汉江管理系统】文件上传成功"
-    content: |
-      <h2>文件上传成功</h2>
-      <p>文件「{filename}」已上传至系统文件库。</p>
-  station:
-    subject: "文件上传成功"
-    content: "文件「{filename}」已上传至系统文件库"
-  dingtalk:
-    subject: "文件上传成功"
-    content: "文件「{filename}」已上传至系统文件库"
-  feishu:
-    subject: "文件上传成功"
-    content: "文件「{filename}」已上传至系统文件库"
+# 文件域事件通知模板（通知发给文件上传者）
 
 file.deleted:
   email:
@@ -32,19 +16,3 @@ file.deleted:
   feishu:
     subject: "文件已被删除"
     content: "您上传的文件「{filename}」已被 {operator} 删除，如非本人预期请联系管理员核实"
-
-file.downloaded:
-  email:
-    subject: "【汉江管理系统】文件下载通知"
-    content: |
-      <h2>文件已被下载</h2>
-      <p>文件「{filename}」已被操作者 {operator} 下载。</p>
-  station:
-    subject: "文件已被下载"
-    content: "文件「{filename}」已被 {operator} 下载"
-  dingtalk:
-    subject: "文件已被下载"
-    content: "文件「{filename}」已被 {operator} 下载"
-  feishu:
-    subject: "文件已被下载"
-    content: "文件「{filename}」已被 {operator} 下载"

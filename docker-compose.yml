@@ -109,6 +109,9 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=caching_sha2_password
+      # 忽略客户端握手字符集，强制 client/connection 跟随 server=utf8mb4，
+      # 避免外部工具/命令行以 latin1 连接执行含中文 COMMENT 的 DDL 产生乱码
+      - --skip-character-set-client-handshake
       - --port=${MYSQL_PORT:-3306}
     volumes:
       - mysql_data:/var/lib/mysql

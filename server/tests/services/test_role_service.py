@@ -8,7 +8,7 @@
 """
 
 import pytest
-from src.constants.enums import NotificationEvent
+from src.constants.notification import NotificationEvent
 from src.core.exceptions import ConflictException, NotFoundException
 from src.models.entities.user_entity import RoleEntity
 from src.services.role_service import RoleService

@@ -10,7 +10,7 @@
 
 from datetime import UTC, datetime
 
-from src.constants.enums import NotificationEvent
+from src.constants.notification import NotificationEvent
 from src.models.entities.app_entity import OpenApiAppEntity
 from src.models.entities.developer_message_entity import DeveloperMessageEntity
 from src.services.admin.openapi_app_service import OpenApiAppService

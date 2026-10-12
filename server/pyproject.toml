@@ -56,6 +56,7 @@ dev = [
     "httpx>=0.27.0",
     "ruff>=0.6.0",
     "mypy>=1.11.0",
+    "types-psutil>=6.0.0",
 ]
 
 [project.scripts]
@@ -105,12 +106,16 @@ warn_unused_configs = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 
 # 无类型存根的第三方库：跳过缺失/未类型化导入检查，仅对这些模块生效
+# 可选云短信 SDK（腾讯云/阿里云）与 S3 存储 SDK（boto3/botocore）依赖不强制安装：
+# 测试/联调走 Mock 实现，生产按需 `pip install` 对应 SDK 后即可用
 [[tool.mypy.overrides]]
 module = [
+    "yaml",
     "boto3",
     "botocore.*",
-    "psutil",
-    "yaml",
-    "slowapi.*",
+    "tencentcloud.*",
+    "alibabacloud_dysmsapi20170525",
+    "alibabacloud_dysmsapi20170525.*",
+    "alibabacloud_tea_openapi.*",
 ]
 ignore_missing_imports = true

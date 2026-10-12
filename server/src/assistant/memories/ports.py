@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Protocol
 
 
@@ -26,7 +27,7 @@ class Message(Protocol):
 class MessageRepository(Protocol):
     """消息存储端口（契约）：声明消息读写能力，实现方在 repositories/assistant_repository.py。"""
 
-    def list_by_conversation(self, conversation_id: int, limit: int = 100) -> list[Message]:
+    def list_by_conversation(self, conversation_id: int, limit: int = 100) -> Sequence[Message]:
         """按时间正序返回会话最近 limit 条消息。"""
 
     def count_by_conversation(self, conversation_id: int) -> int:
@@ -37,7 +38,7 @@ class MessageRepository(Protocol):
         conversation_id: int,
         keep_count: int,
         limit: int = 10,
-    ) -> list[Message]:
+    ) -> Sequence[Message]:
         """跳过最近 keep_count 条，按时间正序返回最旧的 limit 条。"""
 
     def delete_by_ids(self, message_ids: list[int]) -> None:

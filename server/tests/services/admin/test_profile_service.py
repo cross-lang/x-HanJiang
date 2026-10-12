@@ -11,6 +11,7 @@
 from types import SimpleNamespace
 
 import pytest
+from src.constants.notification import PERSONAL_SUBSCRIBABLE_EVENTS
 from src.core.exceptions import NotFoundException
 from src.models.entities.notification_config_entity import UserNotificationConfigEntity
 from src.models.entities.user_entity import UserEntity
@@ -45,6 +46,15 @@ class FakeUserNotificationConfigRepository:
 
     def get_or_create_channel_config(self, user_id: int, channel: str) -> UserNotificationConfigEntity:
         return self._config_by_key.get((user_id, channel)) or self._insert(user_id, channel)
+
+    def ensure_default_station_subscriptions(self, user_id: int) -> bool:
+        """用户尚无 station 配置行时建行并对全部可订阅事件建立站内信订阅（幂等）。"""
+        if self.get_by_user_channel(user_id, "station") is not None:
+            return False
+        config = self.get_or_create_channel_config(user_id, "station")
+        for event in PERSONAL_SUBSCRIBABLE_EVENTS:
+            self.subscribe(config.id, event.value)
+        return True
 
     def list_subscriptions(self, user_id: int) -> list[UserEventNotificationEntity]:
         owned_ids = {c.id for c in self.list_by_user_id(user_id)}
@@ -280,8 +290,6 @@ class TestNotificationPreferences:
         assert "security.verify_code" not in event_codes
         assert "system.alert" not in event_codes
         assert "system.notice" not in event_codes
-        assert "file.uploaded" not in event_codes
-        assert "openapi_app.key_reset" not in event_codes
         # 白名单事件正常展示
         assert "user.disabled" in event_codes
         assert "openapi_app.created" in event_codes

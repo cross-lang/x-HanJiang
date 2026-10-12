@@ -67,7 +67,7 @@ class MemoryFacade:
         self.system_prompt_builder: SystemPromptBuilder = system_prompt_builder
         self._user_long_term_memory: UserLongTermMemory = user_long_term_memory or NullUserLongTermMemory()
         self._retriever: RetrieverProvider = retriever or get_retriever_provider()
-        self.layers: tuple[MemoryLayer] = (
+        self.layers: tuple[MemoryLayer, ...] = (
             # L0 系统提示词层（纯渲染：从 ctx 读取 L1/RAG 内容，不持有 L1/RAG 引用）
             SystemPromptLayer(self.system_prompt_builder),
             # L2 滚动摘要层
@@ -133,7 +133,10 @@ class MemoryFacade:
         Args:
             conversation: 会话实体
         """
-        summary_layer: SummaryMemoryLayer = self.layers[1]
+        # 装配不变量：_layers 顺序固定为 L0 系统提示词 / L2 滚动摘要 / L3 最近原文
+        summary_layer = self.layers[1]
+        if not isinstance(summary_layer, SummaryMemoryLayer):
+            raise RuntimeError("记忆层装配顺序错误：第 2 层必须是滚动摘要层")
         summary_layer.consolidate(conversation)
 
     def consolidate_user_profile(self, user_id: int, conversation_id: int) -> None:

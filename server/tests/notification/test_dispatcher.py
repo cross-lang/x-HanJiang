@@ -94,8 +94,8 @@ class TestDispatchForUser:
         assert len(FakeWebhookProvider.instances) == 1
         assert FakeWebhookProvider.instances[0].webhook_url == "https://oapi.dingtalk.com/robot/send?access_token=abc"
 
-    def test_unsubscribed_user_sends_nothing(self, monkeypatch) -> None:
-        """无任何订阅 → 不发送、不查询 registry。"""
+    def test_unsubscribed_user_falls_back_to_station(self, monkeypatch) -> None:
+        """无任何订阅 → 回退默认站内信发送（保证"默认勾选=真实投递"），不经 registry。"""
         monkeypatch.setattr(
             dispatcher_module, "UserNotificationConfigRepository", lambda session: FakeConfigRepository({})
         )
@@ -104,7 +104,10 @@ class TestDispatchForUser:
 
         deliveries = dispatcher.dispatch_for_user(user_id=5, event_type="user.profile_updated")
 
-        assert deliveries == []
+        assert len(deliveries) == 1
+        assert deliveries[0].channel == "station"
+        assert deliveries[0].recipient == "user:5"
+        assert deliveries[0].status == "success"
         assert registry.asked == []
 
 
@@ -149,9 +152,9 @@ class TestDispatchProviderSelection:
         assert deliveries[0].status == "success"
         assert len(email_provider.sent) == 1
 
-    def test_station_channel_uses_registry_provider(self, monkeypatch) -> None:
-        """站内信渠道：复用 registry 中的站内信 Provider（收件箱写入由 dispatcher 完成）。"""
-        station_provider = FakeEmailProvider()  # 任意 no-op Provider 即可代表 station
+    def test_station_channel_bypasses_registry(self, monkeypatch) -> None:
+        """站内信渠道：不经外部 Provider/registry，由 dispatcher 收件箱路径处理。"""
+        station_provider = FakeEmailProvider()
         registry = FakeRegistry({"station": station_provider})
         dispatcher = _build_dispatcher({}, registry)
 
@@ -164,7 +167,8 @@ class TestDispatchProviderSelection:
 
         assert deliveries[0].status == "success"
         assert deliveries[0].recipient == "user:5"
-        assert len(station_provider.sent) == 1
+        assert registry.asked == []  # 未查询 registry
+        assert len(station_provider.sent) == 0  # registry Provider 未被调用
 
 
 class TestEmptyTemplateDefense:

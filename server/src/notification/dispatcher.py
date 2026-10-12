@@ -150,7 +150,10 @@ class NotificationDispatcher:
         # 统一转为枚举，兼容字符串和枚举入参
         event_enum = event_type if isinstance(event_type, NotificationEvent) else _resolve_event(str(event_type))
         event_type_str = event_enum.value
-        target_channels = channels or DEFAULT_ROUTES.get(event_enum, [NotificationChannel.EMAIL])
+        # 默认路由仅覆盖直发型事件（SYSTEM_ALERT / SYSTEM_NOTICE / STATION_MESSAGE /
+        # SECURITY_VERIFY_CODE）；订阅型事件应走 dispatch_for_user（订阅即路由），
+        # 未定义路由的事件默认不发送，需调用方显式指定渠道
+        target_channels = channels or DEFAULT_ROUTES.get(event_enum, [])
         deliveries: list[NotificationDeliveryEntity] = []
         inbox_items: list[tuple[NotificationDeliveryEntity, str, str]] = []
         retry_items: list[tuple[NotificationDeliveryEntity, str, str]] = []
@@ -221,6 +224,10 @@ class NotificationDispatcher:
                         if provider_class is not None and _is_webhook_recipient(recipient):
                             # 个人 webhook 接收方：按接收方 URL 构造本次发送的 Provider
                             send_provider = provider_class(webhook_url=recipient)
+                        if send_provider is None:
+                            # webhook 型渠道但接收方非有效 URL（如空串）：
+                            # 无 Provider 可发送，按失败处理而非静默崩溃
+                            raise RuntimeError(f"No provider available for channel={channel_str}")
                         success = send_provider.send(message)
                     if success:
                         delivery.status = NotificationStatus.SUCCESS.value

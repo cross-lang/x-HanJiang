@@ -47,7 +47,7 @@ class RoleService(BaseService[RoleResponse, int, RoleRepository]):
     def __init__(
         self,
         role_repository: RoleRepository,
-        role_permission_repository: PermissionRepository | None = None,
+        role_permission_repository: RolePermissionRepository | None = None,
         permission_repository: PermissionRepository | None = None,
         dispatcher: "NotificationDispatcher | None" = None,
     ) -> None:

@@ -215,13 +215,14 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
         result = self._to_response(updated)
         logger.info(f"User updated: id={result.id} username={result.username}")
         # 操作者与被操作用户不是同一人时，操作者同步收业务回执
-        operator_id = (operator or {}).get("operator_id")
-        notify_operator = isinstance(operator_id, int) and operator_id != updated.id
+        raw_operator_id = (operator or {}).get("operator_id")
+        operator_id: int | None = raw_operator_id if isinstance(raw_operator_id, int) else None
+        notify_operator = operator_id is not None and operator_id != updated.id
         # ── 通知：角色变更 ──
         if role_ids_changed:
             role_vars = {"username": updated.username, "role_count": len(role_ids)}
             self._dispatch_notification(updated.id, NotificationEvent.ROLE_ASSIGNED, role_vars)
-            if notify_operator:
+            if notify_operator and operator_id is not None:
                 self._dispatch_notification(operator_id, NotificationEvent.ROLE_ASSIGNED, role_vars)
         # ── 通知：密码变更 ──
         if "password_hash" in patch_dict:
@@ -248,7 +249,7 @@ class UserService(BaseService[UserResponse, int, UserRepository]):
             )
             status_vars = {"username": updated.username, "reason": "管理员操作"}
             self._dispatch_notification(updated.id, status_event, status_vars)
-            if notify_operator:
+            if notify_operator and operator_id is not None:
                 self._dispatch_notification(operator_id, status_event, status_vars)
         return result
 

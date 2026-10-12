@@ -17,7 +17,7 @@ import yaml
 from src.assistant.memories.ports import MessageRepository, UserProfileRepository
 from src.core.config import settings
 from src.core.logger import logger
-from src.infras.llm import LLMProvider, get_llm_provider
+from src.infras.llm import ChatMessage, LLMProvider, get_llm_provider
 from src.utils.helpers import find_project_root
 
 
@@ -154,7 +154,7 @@ class DbUserLongTermMemory(UserLongTermMemory):
             max_profile_tokens=long_term_cfg.max_profile_tokens,
         )
         # 4. 调 LLM 抽取新档案
-        messages: list[dict[str, str]] = [
+        messages: ChatMessage = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": "请抽取用户档案。"},
         ]

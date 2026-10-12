@@ -584,12 +584,14 @@ class AssistantService:
         try:
             from src.services.admin.audit_service import AuditService
 
+            raw_ip = (operator or {}).get("ip_address")
+            ip_address = raw_ip if isinstance(raw_ip, str) else None
             AuditService().log_event(
                 entity_type=ASSISTANT_ENTITY_TYPE,
                 entity_id=conversation_id,
                 action="navigate",
                 operator_id=user.id,
-                ip_address=(operator or {}).get("ip_address"),
+                ip_address=ip_address,
                 remarks=f"AI 助手跳转到 {event_data.get('path', '')}",
             )
         except Exception as exc:  # noqa: BLE001 - 审计失败不应阻断主流程

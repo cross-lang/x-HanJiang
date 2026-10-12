@@ -2,7 +2,7 @@
 """文件管理接口。"""
 
 from fastapi import APIRouter, Depends, File, Path, Query, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from src.api.admin.dependencies import (
     get_current_user,
@@ -73,7 +73,7 @@ def get_file(
     file_path: str = Path(...),
     service: FileStorageService = Depends(get_file_service),
     current_user: CurrentUser = Depends(get_current_user),
-):
+) -> Response:
     result = service.download_file(
         file_path,
         operator=get_user_operator_context(current_user, request),

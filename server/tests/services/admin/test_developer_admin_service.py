@@ -11,7 +11,7 @@
 from datetime import UTC, datetime
 
 import pytest
-from src.constants.enums import NotificationEvent
+from src.constants.notification import NotificationEvent
 from src.core.exceptions import NotFoundException
 from src.models.entities.developer_entity import DeveloperEntity
 from src.services.admin.developer_admin_service import DeveloperService

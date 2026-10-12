@@ -58,11 +58,11 @@ class NotificationEvent(StrBaseEnum):
     OPENAPI_APP_CREATED = "openapi_app.created", "开放应用已创建"
     OPENAPI_APP_UPDATED = "openapi_app.updated", "开放应用已更新"
     OPENAPI_APP_DELETED = "openapi_app.deleted", "开放应用已删除"
-    OPENAPI_APP_KEY_RESET = "openapi_app.key_reset", "AppKey已重置"
     OPENAPI_APP_REGISTRATION = "openapi_app_registration", "开放应用审批"
     # ── 开发者域 ──────────────────────────────────
-    # 开发者与管理系统用户分表平行（无 user_id 关联），本域事件仅投递操作者回执；
-    # 开发者本人感知走门户站内信（developers 站内信表），不经订阅矩阵
+    # 本域事件由管理端对开发者执行启用/禁用/删除时触发，仅投递"操作者"回执
+    # （经订阅矩阵，管理员可按需订阅）；开发者本人感知走门户站内信
+    # （developers 站内信表），与管理端订阅矩阵无关联
     DEVELOPER_ENABLED = "developer.enabled", "开发者启用"
     DEVELOPER_DISABLED = "developer.disabled", "开发者禁用"
     DEVELOPER_DELETED = "developer.deleted", "开发者删除"
@@ -77,9 +77,7 @@ class NotificationEvent(StrBaseEnum):
     # ── 站内信域 ────────────────────────────────
     STATION_MESSAGE = "station.message", "站内消息"
     # ── 文件域 ──────────────────────────────────
-    FILE_UPLOADED = "file.uploaded", "文件上传完成"
     FILE_DELETED = "file.deleted", "文件已删除"
-    FILE_DOWNLOADED = "file.downloaded", "文件被下载"
     # ── 安全域 ──────────────────────────────────
     SECURITY_VERIFY_CODE = "security.verify_code", "邮箱验证码"
 
@@ -89,7 +87,6 @@ class NotificationEvent(StrBaseEnum):
 # - SYSTEM_ALERT 走系统监控渠道（系统级 webhook/邮件组），与个人订阅无关
 # - SYSTEM_NOTICE / STATION_MESSAGE 为直传内容或直写入库型通知
 # - SECURITY_VERIFY_CODE 为验证码直发邮件，无订阅语义
-# - FILE_UPLOADED / FILE_DOWNLOADED / OPENAPI_APP_KEY_RESET 为预留事件（业务触发点未实现）
 PERSONAL_SUBSCRIBABLE_EVENTS: frozenset[NotificationEvent] = frozenset(
     {
         NotificationEvent.USER_PASSWORD_CHANGED,
@@ -116,60 +113,22 @@ PERSONAL_SUBSCRIBABLE_EVENTS: frozenset[NotificationEvent] = frozenset(
 )
 
 
-# 默认通知路由表：事件类型 → 默认发送渠道
-# 未显式指定渠道的 dispatch 调用使用该路由表决定发送渠道。
+# 默认路由表：仅覆盖"非订阅型直发事件"的默认渠道。
+# 订阅型事件（PERSONAL_SUBSCRIBABLE_EVENTS）由用户偏好矩阵路由——
+# dispatch_for_user 以订阅渠道为唯一事实源（订阅即路由），无需在此重复维护；
+# 新增订阅型事件时不要加入本表。
 DEFAULT_ROUTES: dict[NotificationEvent, list[NotificationChannel]] = {
-    # 用户域
-    NotificationEvent.USER_PASSWORD_CHANGED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
-    NotificationEvent.USER_PROFILE_UPDATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
-    NotificationEvent.USER_ENABLED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL,
-        NotificationChannel.DINGTALK,
-    ],
-    NotificationEvent.USER_DISABLED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL,
-        NotificationChannel.DINGTALK,
-    ],
-    NotificationEvent.USER_LOGIN_FAILED: [NotificationChannel.EMAIL, NotificationChannel.DINGTALK],
-    NotificationEvent.USER_CREATED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
-    NotificationEvent.USER_DELETED: [NotificationChannel.EMAIL],
-    NotificationEvent.LOGIN_NEW_DEVICE: [NotificationChannel.EMAIL],
-    # 角色权限域
-    NotificationEvent.ROLE_ASSIGNED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL,
-        NotificationChannel.DINGTALK,
-    ],
-    NotificationEvent.PERMISSION_GRANTED: [NotificationChannel.STATION, NotificationChannel.EMAIL],
-    NotificationEvent.PERMISSION_REVOKED: [
-        NotificationChannel.STATION,
-        NotificationChannel.EMAIL,
-        NotificationChannel.DINGTALK,
-    ],
-    NotificationEvent.ROLE_DELETED: [NotificationChannel.STATION],
-    # 文件域
-    NotificationEvent.FILE_UPLOADED: [NotificationChannel.STATION],
-    NotificationEvent.FILE_DELETED: [NotificationChannel.STATION],
-    NotificationEvent.FILE_DOWNLOADED: [NotificationChannel.STATION],
-    # 安全域
-    NotificationEvent.SECURITY_VERIFY_CODE: [NotificationChannel.EMAIL],
-    # 开放应用域
-    NotificationEvent.OPENAPI_APP_CREATED: [NotificationChannel.STATION],
-    NotificationEvent.OPENAPI_APP_UPDATED: [NotificationChannel.STATION],
-    NotificationEvent.OPENAPI_APP_DELETED: [NotificationChannel.STATION],
-    NotificationEvent.OPENAPI_APP_KEY_RESET: [NotificationChannel.EMAIL],
-    # 系统域
+    # 系统域：系统级告警（系统 webhook/邮件组，与个人订阅无关）
     NotificationEvent.SYSTEM_ALERT: [
         NotificationChannel.EMAIL,
         NotificationChannel.DINGTALK,
         NotificationChannel.FEISHU,
     ],
-    # 系统通知 / 站内信：直接入库型事件，仅走站内信；
-    # 显式配置以防 dispatch 未传渠道时兜底误发邮件
+    # 系统通知 / 站内信：直接入库型事件，仅走站内信
     NotificationEvent.SYSTEM_NOTICE: [NotificationChannel.STATION],
     NotificationEvent.STATION_MESSAGE: [NotificationChannel.STATION],
+    # 安全域：验证码直发邮件
+    NotificationEvent.SECURITY_VERIFY_CODE: [NotificationChannel.EMAIL],
 }
 
 

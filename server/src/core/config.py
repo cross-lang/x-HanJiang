@@ -756,7 +756,8 @@ class Settings:
                 if key in ("tencent_region", "aliyun_endpoint") and not raw:
                     continue
                 if field_def.type is int:
-                    sms[key] = _to_int(raw, field_def.default)
+                    # field_def.default 在 dataclasses 中为 `Any | MISSING`，经 isinstance 收窄为 int
+                    sms[key] = _to_int(raw, field_def.default if isinstance(field_def.default, int) else 0)
                 elif field_def.type is bool:
                     sms[key] = _to_bool(raw)
                 else:
