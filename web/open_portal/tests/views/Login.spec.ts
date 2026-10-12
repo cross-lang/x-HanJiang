@@ -1,5 +1,5 @@
 // 开发者登录页（src/views/login/Login.vue）行为测试：
-// 空账号密码拦截、未过滑块拦截、合法输入且通过滑块后触发登录提交。
+// 空账号密码拦截、未过滑块拦截、合法输入且通过滑块后触发登录提交（先取公钥→RSA 加密）。
 // 接口层 mock，ElMessage 用 spy 断言提示，路由 push 用 mock 断言跳转。
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
@@ -8,9 +8,17 @@ import { setActivePinia, createPinia } from 'pinia'
 import ElementPlus, { ElMessage } from 'element-plus'
 import Login from '@/views/login/Login.vue'
 
-// mock 登录接口
-const { loginMock } = vi.hoisted(() => ({ loginMock: vi.fn() }))
-vi.mock('@/api/auth', () => ({ login: loginMock }))
+// mock 登录/公钥接口
+const { loginMock, publicKeyMock } = vi.hoisted(() => ({
+  loginMock: vi.fn(),
+  publicKeyMock: vi.fn(),
+}))
+vi.mock('@/api/auth', () => ({ login: loginMock, getLoginPublicKey: publicKeyMock }))
+
+// mock 密码加密（真实 JSEncrypt 依赖公钥且慢，这里验证编排而非加密算法本身）
+vi.mock('@/utils/loginCrypto', () => ({
+  encryptLoginPassword: vi.fn((password: string) => `enc:${password}`),
+}))
 
 // mock 路由：断言跳转
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }))
@@ -21,6 +29,14 @@ vi.mock('vue-router', async (importOriginal) => {
 
 // happy-dom 兜底：滑块 pointerdown 会调用 setPointerCapture
 ;(Element.prototype as unknown as Record<string, unknown>).setPointerCapture = vi.fn()
+
+/** 模拟公钥接口响应（结构与后端 DeveloperPublicKeyResponse 对齐） */
+const fakePublicKey = {
+  public_key: '-----BEGIN PUBLIC KEY-----MOCK-----END PUBLIC KEY-----',
+  nonce: 'n-0001',
+  timestamp: 1780000000,
+  expires_in: 300,
+}
 
 function mountLogin(): VueWrapper {
   return mount(Login, {
@@ -42,6 +58,7 @@ describe('views/login 登录表单行为', () => {
     localStorage.clear()
     setActivePinia(createPinia())
     loginMock.mockReset()
+    publicKeyMock.mockReset()
     pushMock.mockReset()
     warnSpy = vi.spyOn(ElMessage, 'warning').mockReturnValue(undefined as never)
     succSpy = vi.spyOn(ElMessage, 'success').mockReturnValue(undefined as never)
@@ -81,7 +98,8 @@ describe('views/login 登录表单行为', () => {
     expect(loginMock).not.toHaveBeenCalled()
   })
 
-  it('账号密码合法且通过滑块：发起登录、写令牌、提示成功并跳转首页', async () => {
+  it('账号密码合法且通过滑块：取公钥→RSA加密→发起登录、写令牌、提示成功并跳转首页', async () => {
+    publicKeyMock.mockResolvedValue({ data: fakePublicKey })
     loginMock.mockResolvedValue({ data: { access_token: 'acc-1', refresh_token: 'ref-1' } })
     wrapper = mountLogin()
     await flushPromises()
@@ -98,7 +116,13 @@ describe('views/login 登录表单行为', () => {
     await wrapper.find('button.login-btn').trigger('click')
     await flushPromises()
 
-    expect(loginMock).toHaveBeenCalledWith({ account: 'dev@example.com', password: 'secret' })
+    // 登录前先请求公钥；登录载荷携带 RSA 密文与一次性 nonce（不出现明文密码）
+    expect(publicKeyMock).toHaveBeenCalledTimes(1)
+    expect(loginMock).toHaveBeenCalledWith({
+      account: 'dev@example.com',
+      encrypted_password: 'enc:secret',
+      nonce: 'n-0001',
+    })
     expect(succSpy).toHaveBeenCalledWith('登录成功')
     expect(pushMock).toHaveBeenCalledWith('/home')
   })

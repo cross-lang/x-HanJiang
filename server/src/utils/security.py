@@ -4,6 +4,7 @@
 - SHA256 哈希
 - HMAC-SHA256 签名计算
 - Fernet 对称加解密（主密钥从 settings.auth.secret_key 派生）
+- RSA-OAEP(SHA-256) 非对称加解密（登录密码加密传输；私钥来源配置驱动）
 - bcrypt 密码哈希与校验
 - 随机密钥生成
 - 常量时间字符串比对（防时序侧信道）
@@ -15,11 +16,16 @@ import base64
 import hashlib
 import hmac
 import secrets
+from pathlib import Path
 
 import bcrypt
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
 from cryptography.fernet import Fernet
 
 from src.core.config import settings
+from src.core.logger import logger
 
 # bcrypt 密码最大长度限制（字节），超出会抛 ValueError
 _BCRYPT_MAX_BYTES = 72
@@ -129,6 +135,58 @@ def decrypt_text(ciphertext: str | None) -> str | None:
         return None
 
 
+# ============================================================
+# RSA 非对称加解密（RSA-4096 / PKCS1_OAEP / SHA-256）
+# ============================================================
+
+_rsa_private_key: RSA.RsaKey | None = None
+
+
+def _get_rsa_private_key() -> RSA.RsaKey:
+    """惰性加载 RSA 私钥。
+
+    来源优先级：AUTH_RSA_PRIVATE_KEY_PATH（PEM 文件，docker 挂载）
+    > AUTH_RSA_PRIVATE_KEY（PEM 字符串，.env 中以 \\n 转义）
+    > 未配置时生成临时 4096 密钥对（仅限开发兜底，重启后失效）。
+
+    注意：轮换私钥会导致已加密的密文无法解密（预期行为，与 Fernet 主密钥同理）。
+    """
+    global _rsa_private_key
+    if _rsa_private_key is None:
+        if key_path := settings.auth.rsa_private_key_path:
+            pem = Path(key_path).read_text(encoding="utf-8")
+            logger.info(f"RSA 私钥从文件加载: {key_path}")
+            _rsa_private_key = RSA.import_key(pem)
+        elif pem := settings.auth.rsa_private_key:
+            logger.info("RSA 私钥从环境变量加载")
+            _rsa_private_key = RSA.import_key(pem)
+        else:
+            logger.warning("RSA_PRIVATE_KEY 未配置，使用临时密钥对（重启后失效，仅限开发环境）")
+            _rsa_private_key = RSA.generate(4096)
+    return _rsa_private_key
+
+
+def rsa_public_key_pem() -> str:
+    """导出公钥 PEM（下发给前端用于加密密码）。"""
+    return _get_rsa_private_key().public_key().export_key(format="PEM").decode("ascii")
+
+
+def rsa_decrypt(cipher_b64: str) -> str:
+    """解密 base64 密文（OAEP-SHA256），返回明文。
+
+    Raises:
+        ValueError: 密文非法 / 解密失败
+    """
+    # 每次调用新建 cipher：pycryptodome 的 OAEP 对象含内部状态，并发下不可复用
+    try:
+        cipher = PKCS1_OAEP.new(_get_rsa_private_key(), hashAlgo=SHA256)
+        plain = cipher.decrypt(base64.b64decode(cipher_b64))
+        return plain.decode("utf-8")
+    except Exception as e:
+        logger.warning(f"RSA decrypt failed: {e}")
+        raise ValueError("密文解密失败") from e
+
+
 __all__ = [
     "generate_secret_key",
     "hash_password",
@@ -138,4 +196,6 @@ __all__ = [
     "hmac_sha256_hex",
     "encrypt_text",
     "decrypt_text",
+    "rsa_public_key_pem",
+    "rsa_decrypt",
 ]

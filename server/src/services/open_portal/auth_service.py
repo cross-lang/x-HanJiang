@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import random
 import secrets
+import time
 from datetime import datetime
 
 from src.constants.constants import TOKEN_TTL_SECONDS
@@ -33,9 +34,14 @@ from src.core.tokens import (
 from src.infras.cache import CacheProvider
 from src.models.entities.developer_entity import DeveloperEntity
 from src.repositories.developer_repository import DeveloperRepository
-from src.schemas.open_portal.auth import CurrentDeveloper, DeveloperTokenResponse
+from src.schemas.open_portal.auth import (
+    CurrentDeveloper,
+    DeveloperPublicKeyResponse,
+    DeveloperTokenResponse,
+)
 from src.schemas.open_portal.developer import DeveloperProfileResponse
-from src.utils.security import hash_password, verify_password
+from src.services.login_crypto import decrypt_login_password
+from src.utils.security import hash_password, rsa_public_key_pem, verify_password
 
 # Redis 登录态键前缀：login_dev:{developer_id} -> 当前生效的 access token jti
 # （与管理端 login: 前缀隔离，防止开发者 ID 与用户 ID 空间互相覆盖）
@@ -100,8 +106,29 @@ class DeveloperAuthService:
 
     # ── 登录 ────────────────────────────────────────────
 
-    def login(self, account: str, password: str) -> DeveloperTokenResponse:
-        """开发者登录（账号=用户名或邮箱），成功后签发令牌对并写入 Redis 登录态。"""
+    def get_public_key(self) -> DeveloperPublicKeyResponse:
+        """获取登录公钥与一次性 nonce（登录前调用，供前端加密密码）。
+
+        安全策略：
+        - nonce 在签发时预写缓存（TTL 300s），登录消费时原子删除，防重放；
+        - 每次调用生成新 nonce，过期后旧 nonce 自动失效。
+        """
+        from src.services.login_crypto import _NONCE_TTL, issue_login_nonce
+
+        return DeveloperPublicKeyResponse(
+            public_key=rsa_public_key_pem(),
+            nonce=issue_login_nonce(self._cache_provider()),
+            timestamp=int(time.time()),
+            expires_in=_NONCE_TTL,
+        )
+
+    def login(self, account: str, encrypted_password: str, nonce: str) -> DeveloperTokenResponse:
+        """开发者登录（账号=用户名或邮箱；密码 RSA 加密传输）。
+
+        先解密（nonce 一次性消费 + 时间窗校验；AUTH_ENCRYPTION_ENABLED=false
+        时直通明文，便于本地联调），再走原有账号密码校验。
+        """
+        password = decrypt_login_password(encrypted_password, nonce, self._cache_provider())
         dev = self._find_account(account)
         if dev is None or not verify_password(password, dev.password_hash or ""):
             raise AuthenticationException(message="用户名/邮箱或密码错误")

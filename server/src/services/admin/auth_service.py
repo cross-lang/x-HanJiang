@@ -11,6 +11,7 @@ Classes:
 
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -33,11 +34,14 @@ from src.repositories.role_repository import RoleRepository
 from src.repositories.user_repository import UserRepository
 from src.schemas.admin.auth import (
     CurrentUser,
+    LoginPublicKeyResponse,
     TokenResponse,
 )
-from src.utils.security import verify_password
+from src.services.login_crypto import decrypt_login_password
+from src.utils.security import rsa_public_key_pem, verify_password
 
 if TYPE_CHECKING:
+    from src.infras.cache import CacheProvider
     from src.notification.dispatcher import NotificationDispatcher
 
 # Redis 登录态键前缀：login:{user_id} -> 当前生效的 access token jti
@@ -62,16 +66,36 @@ class AuthService:
         self._login_log_repository = login_log_repository or LoginLogRepository(session=user_repository.session)
         self._dispatcher = dispatcher
 
+    def get_public_key(self) -> LoginPublicKeyResponse:
+        """获取登录公钥与一次性 nonce（登录前调用，供前端加密密码）。
+
+        安全策略：
+        - nonce 在签发时预写缓存（TTL 300s），登录消费时原子删除，防重放；
+        - 每次调用生成新 nonce，过期后旧 nonce 自动失效。
+        """
+        from src.services.login_crypto import _NONCE_TTL, issue_login_nonce
+
+        return LoginPublicKeyResponse(
+            public_key=rsa_public_key_pem(),
+            nonce=issue_login_nonce(self._cache_provider()),
+            timestamp=int(time.time()),
+            expires_in=_NONCE_TTL,
+        )
+
     def login(
         self,
         account: str,
-        password: str,
+        encrypted_password: str,
+        nonce: str,
         ip_address: str | None = None,
     ) -> TokenResponse:
         """用户登录。
-        校验用户名/手机号/邮箱 + 密码，成功后签发 access/refresh 令牌并写入 Redis 登录态。
-        无论成功失败均记录 login_logs。
+
+        密码经 RSA-OAEP 加密传输：先解密（nonce 一次性消费 + 时间窗校验；
+        AUTH_ENCRYPTION_ENABLED=false 时直通明文，便于本地 curl 联调），
+        再走原有账号密码校验。无论成功失败均记录 login_logs。
         """
+        password = decrypt_login_password(encrypted_password, nonce, self._cache_provider())
         user = self._find_account(account)
         success = False
         if user is not None and user.status == UserStatus.ENABLED.value:
@@ -219,6 +243,12 @@ class AuthService:
             provider.delete(f"{_LOGIN_KEY_PREFIX}{user_id}")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Redis 登录态清除失败: {e}")
+
+    def _cache_provider(self) -> CacheProvider:
+        """延迟获取缓存提供者（登录 nonce 消费 / 公钥签发预写用）。"""
+        from src.infras.cache import get_cached_cache_provider
+
+        return get_cached_cache_provider()
 
     def _find_account(self, account: str) -> UserEntity | None:
         """按用户名、手机号或邮箱查找用户（登录三通道识别）。

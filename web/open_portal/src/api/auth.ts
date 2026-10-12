@@ -2,6 +2,7 @@ import request from './request'
 import type {
   ChangePasswordRequest,
   ForgotPasswordRequest,
+  LoginPublicKey,
   LoginRequest,
   LoginResult,
   RegisterRequest,
@@ -21,7 +22,12 @@ export function register(data: RegisterRequest) {
   return request.post<{ message: string }>('/auth/register', data)
 }
 
-/** 登录（用户名或邮箱 + 密码） */
+/** 获取登录公钥与一次性 nonce（登录前调用，用于 RSA 加密密码） */
+export function getLoginPublicKey() {
+  return request.get<LoginPublicKey>('/auth/public-key')
+}
+
+/** 登录（用户名或邮箱 + RSA 加密密码） */
 export function login(data: LoginRequest) {
   return request.post<LoginResult>('/auth/login', data)
 }

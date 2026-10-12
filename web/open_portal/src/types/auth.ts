@@ -12,11 +12,22 @@ export interface RegisterRequest {
   certification_type: 'personal' | 'enterprise'
 }
 
-/** 登录请求 */
+/** 登录请求（密码 RSA 加密传输，不再直传明文） */
 export interface LoginRequest {
   /** 用户名或邮箱 */
   account: string
-  password: string
+  /** RSA-OAEP 加密后的密码（明文 = nonce|timestamp|password） */
+  encrypted_password: string
+  /** 一次性 nonce（来自 GET /auth/public-key） */
+  nonce: string
+}
+
+/** 登录公钥响应（登录前先获取，用于加密密码） */
+export interface LoginPublicKey {
+  public_key: string
+  nonce: string
+  timestamp: number
+  expires_in: number
 }
 
 /** 登录结果（有状态会话：JWT + 服务端登录态，登出/改密后旧令牌即失效） */

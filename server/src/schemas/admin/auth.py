@@ -16,16 +16,35 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class LoginRequest(BaseModel):
-    """登录请求模型。
-    支持用户名、手机号或邮箱 + 密码登录。
+    """登录请求模型（RSA 加密传输）。
+    支持用户名、手机号或邮箱登录；密码以 RSA-OAEP 密文提交，不再直传明文。
 
     Attributes:
         username: 用户名/手机号/邮箱
-        password: 密码
+        encrypted_password: RSA 加密后的密码（密文 = nonce|timestamp|password）
+        nonce: 一次性随机串（须来自 GET /auth/public-key 的下发值）
     """
 
     username: str = Field(min_length=3, max_length=100, description="用户名/手机号/邮箱")
-    password: str = Field(min_length=1, max_length=64, description="密码")
+    encrypted_password: str = Field(min_length=1, max_length=1024, description="RSA 加密后的密码")
+    nonce: str = Field(min_length=1, max_length=64, description="一次性 nonce")
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LoginPublicKeyResponse(BaseModel):
+    """登录公钥响应模型（登录前先获取，用于前端加密密码）。
+
+    Attributes:
+        public_key: RSA 公钥 PEM（前端 JSEncrypt 加密用）
+        nonce: 一次性随机串（登录时随密文提交，防重放）
+        timestamp: 服务器 epoch 秒（前端原样拼进密文，用于时间窗校验）
+        expires_in: nonce 有效期（秒）
+    """
+
+    public_key: str = Field(description="RSA 公钥 PEM")
+    nonce: str = Field(description="一次性 nonce")
+    timestamp: int = Field(description="服务器时间戳（epoch 秒）")
+    expires_in: int = Field(description="nonce 有效期（秒）")
     model_config = ConfigDict(from_attributes=True)
 
 

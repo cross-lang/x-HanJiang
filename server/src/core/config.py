@@ -107,6 +107,10 @@ class AuthConfig:
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080
     refresh_token_expire_days: int = 30
+    # 登录密码 RSA 加密传输
+    encryption_enabled: bool = True  # false 时后端直通密文字段（本地 curl 联调）
+    rsa_private_key: str = ""  # RSA 私钥 PEM（.env 中以 \n 转义；生产必须配置）
+    rsa_private_key_path: str = ""  # RSA 私钥 PEM 文件路径（docker 挂载；优先级高于字符串）
 
 
 @dataclass
@@ -362,7 +366,18 @@ _ENV_SECTION_MAP: dict[str, tuple[str, list[str]]] = {
     "logging": ("LOGGING_", ["level", "format", "file_path", "rotation", "retention", "compression", "console_output"]),
     "cors": ("CORS_", ["enabled", "origins", "allow_credentials", "allow_methods", "allow_headers"]),
     "rate_limit": ("RATE_LIMIT_", ["enabled", "per_minute", "per_hour"]),
-    "auth": ("AUTH_", ["secret_key", "algorithm", "access_token_expire_minutes", "refresh_token_expire_days"]),
+    "auth": (
+        "AUTH_",
+        [
+            "secret_key",
+            "algorithm",
+            "access_token_expire_minutes",
+            "refresh_token_expire_days",
+            "encryption_enabled",
+            "rsa_private_key",
+            "rsa_private_key_path",
+        ],
+    ),
     "database": ("DATABASE_", ["enabled", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"]),
     "redis": (
         "REDIS_",
@@ -498,6 +513,9 @@ class Settings:
                 "algorithm": "HS256",
                 "access_token_expire_minutes": 10080,
                 "refresh_token_expire_days": 30,
+                "encryption_enabled": True,
+                "rsa_private_key": "",
+                "rsa_private_key_path": "",
             },
             "database": {
                 "enabled": True,

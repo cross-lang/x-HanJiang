@@ -14,6 +14,7 @@
 from types import SimpleNamespace
 
 import pytest
+from src.core.config import settings
 from src.core.exceptions import AuthenticationException
 from src.core.tokens import create_access_token, create_refresh_token, decode_token
 from src.models.entities.user_entity import UserEntity
@@ -24,6 +25,16 @@ from src.utils.security import hash_password
 _PASSWORD = "S3cret@123"
 # 登录态缓存键前缀，与被测实现保持一致（避免硬编码业务语义外的魔数）
 _LOGIN_KEY = "login:"
+
+
+@pytest.fixture(autouse=True)
+def _encryption_passthrough(monkeypatch: pytest.MonkeyPatch) -> None:
+    """登录密码加密开关直通：service 测试聚焦认证链路，不拼 RSA 密文。
+
+    login() 内部先解密再校验，测试直接传明文口令 + 占位 nonce，
+    由 AUTH_ENCRYPTION_ENABLED=false 直通跳过解密与 nonce 消费。
+    """
+    monkeypatch.setattr(settings.auth, "encryption_enabled", False)
 
 
 class FakeCacheProvider:
@@ -182,6 +193,28 @@ def cache(monkeypatch: pytest.MonkeyPatch) -> FakeCacheProvider:
     return fake
 
 
+class TestGetPublicKey:
+    """登录公钥签发（AuthService.get_public_key，业务下沉后由 service 承担）。"""
+
+    def test_returns_key_nonce_timestamp(
+        self,
+        cache: FakeCacheProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """返回 RSA 公钥、一次性 nonce 与服务器时间戳，且 nonce 已预写缓存。"""
+        from Crypto.PublicKey import RSA
+
+        test_key = RSA.generate(2048)
+        monkeypatch.setattr("src.utils.security._get_rsa_private_key", lambda: test_key)
+        svc = _make_service(FakeUserRepository())
+        resp = svc.get_public_key()
+        assert resp.public_key == test_key.public_key().export_key(format="PEM").decode("ascii")
+        assert resp.nonce
+        assert resp.expires_in == 300
+        # nonce 已预写缓存，供登录时一次性消费（防重放）
+        assert cache.store.get(f"auth:nonce:{resp.nonce}") is not None
+
+
 class TestLogin:
     """登录主流程与三通道识别。"""
 
@@ -192,7 +225,7 @@ class TestLogin:
         login_log_repo = FakeLoginLogRepository()
         svc = _make_service(user_repo, login_log_repo=login_log_repo)
 
-        resp = svc.login("alice", _PASSWORD, ip_address="1.2.3.4")
+        resp = svc.login("alice", _PASSWORD, "nonce-fake", ip_address="1.2.3.4")
         assert resp.token_type == "Bearer"
         assert resp.access_token and resp.refresh_token
         # 成功登录写了一条 success 日志
@@ -208,7 +241,7 @@ class TestLogin:
         user_repo.add(_make_user())
         svc = _make_service(user_repo)
 
-        resp = svc.login("alice@example.com", _PASSWORD)
+        resp = svc.login("alice@example.com", _PASSWORD, "nonce-fake")
         assert resp.access_token
 
     def test_login_by_phone_channel(self, cache: FakeCacheProvider) -> None:
@@ -217,7 +250,7 @@ class TestLogin:
         user_repo.add(_make_user())
         svc = _make_service(user_repo)
 
-        resp = svc.login("13800000001", _PASSWORD)
+        resp = svc.login("13800000001", _PASSWORD, "nonce-fake")
         assert resp.access_token
 
     def test_login_phone_falls_back_to_username(self, cache: FakeCacheProvider) -> None:
@@ -227,7 +260,7 @@ class TestLogin:
         user_repo.add(_make_user(username="13900000002", phone=""))
         svc = _make_service(user_repo)
 
-        resp = svc.login("13900000002", _PASSWORD)
+        resp = svc.login("13900000002", _PASSWORD, "nonce-fake")
         assert resp.access_token
 
     def test_login_user_not_found(self, cache: FakeCacheProvider) -> None:
@@ -237,7 +270,7 @@ class TestLogin:
         svc = _make_service(user_repo, login_log_repo=login_log_repo)
 
         with pytest.raises(AuthenticationException):
-            svc.login("ghost", _PASSWORD)
+            svc.login("ghost", _PASSWORD, "nonce-fake")
         assert login_log_repo.created[-1].status == "failed"
 
     def test_login_wrong_password(self, cache: FakeCacheProvider) -> None:
@@ -247,7 +280,7 @@ class TestLogin:
         svc = _make_service(user_repo)
 
         with pytest.raises(AuthenticationException):
-            svc.login("alice", "wrong-password")
+            svc.login("alice", "wrong-password", "nonce-fake")
 
     def test_login_disabled_user(self, cache: FakeCacheProvider) -> None:
         """账号被禁用 → 认证异常。"""
@@ -256,7 +289,7 @@ class TestLogin:
         svc = _make_service(user_repo)
 
         with pytest.raises(AuthenticationException):
-            svc.login("alice", _PASSWORD)
+            svc.login("alice", _PASSWORD, "nonce-fake")
 
     def test_login_failure_triggers_alert_when_threshold_exceeded(self, cache: FakeCacheProvider) -> None:
         """连续失败达阈值（>=3）时派发告警通知。"""
@@ -268,7 +301,7 @@ class TestLogin:
         svc = _make_service(user_repo, login_log_repo=login_log_repo, dispatcher=dispatcher)
 
         with pytest.raises(AuthenticationException):
-            svc.login("alice", "wrong-password")
+            svc.login("alice", "wrong-password", "nonce-fake")
         assert len(dispatcher.calls) == 1
 
     def test_login_failure_below_threshold_no_alert(self, cache: FakeCacheProvider) -> None:
@@ -281,7 +314,7 @@ class TestLogin:
         svc = _make_service(user_repo, login_log_repo=login_log_repo, dispatcher=dispatcher)
 
         with pytest.raises(AuthenticationException):
-            svc.login("alice", "wrong-password")
+            svc.login("alice", "wrong-password", "nonce-fake")
         assert dispatcher.calls == []
 
 
@@ -359,7 +392,7 @@ class TestGetCurrentUser:
     def _seed_logged_in_user(self, user_repo: FakeUserRepository, cache: FakeCacheProvider) -> str:
         """登录成功后返回 access 令牌，并把 jti 写入缓存。"""
         svc = _make_service(user_repo)
-        svc.login("alice", _PASSWORD)
+        svc.login("alice", _PASSWORD, "nonce-fake")
         token = create_access_token(1, extra_claims={"username": "alice"})
         cache.store[f"{_LOGIN_KEY}1"] = decode_token(token).get("jti")
         return token

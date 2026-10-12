@@ -23,10 +23,21 @@ class DeveloperRegisterRequest(BaseModel):
 
 
 class DeveloperLoginRequest(BaseModel):
-    """开发者登录请求（账号=用户名或邮箱）。"""
+    """开发者登录请求（账号=用户名或邮箱；密码 RSA 加密传输）。"""
 
     account: str = Field(min_length=1, max_length=100, description="用户名或邮箱")
-    password: str = Field(min_length=1, max_length=64, description="密码")
+    encrypted_password: str = Field(min_length=1, max_length=1024, description="RSA 加密后的密码")
+    nonce: str = Field(min_length=1, max_length=64, description="一次性 nonce")
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DeveloperPublicKeyResponse(BaseModel):
+    """开发者登录公钥响应模型（登录前先获取，用于前端加密密码）。"""
+
+    public_key: str = Field(description="RSA 公钥 PEM")
+    nonce: str = Field(description="一次性 nonce")
+    timestamp: int = Field(description="服务器时间戳（epoch 秒）")
+    expires_in: int = Field(description="nonce 有效期（秒）")
     model_config = ConfigDict(from_attributes=True)
 
 

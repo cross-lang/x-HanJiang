@@ -13,6 +13,7 @@ Redis、邮件、通知一律离线替身或 monkeypatch，不触网、不连库
 
 import pytest
 from src.constants.constants import VERIFY_CODE_DEV_CACHE_PREFIX
+from src.core.config import settings
 from src.core.exceptions import (
     AuthenticationException,
     ConflictException,
@@ -25,6 +26,16 @@ from src.utils.security import hash_password
 
 _PASSWORD = "DevPass@123"
 _LOGIN_KEY = "login_dev:"
+
+
+@pytest.fixture(autouse=True)
+def _encryption_passthrough(monkeypatch: pytest.MonkeyPatch) -> None:
+    """登录密码加密开关直通：service 测试聚焦认证链路，不拼 RSA 密文。
+
+    login() 内部先解密再校验，测试直接传明文口令 + 占位 nonce，
+    由 AUTH_ENCRYPTION_ENABLED=false 直通跳过解密与 nonce 消费。
+    """
+    monkeypatch.setattr(settings.auth, "encryption_enabled", False)
 
 
 class FakeCacheProvider:
@@ -129,6 +140,28 @@ def cache(monkeypatch: pytest.MonkeyPatch) -> FakeCacheProvider:
     return fake
 
 
+class TestGetPublicKey:
+    """登录公钥签发（DeveloperAuthService.get_public_key，业务下沉后由 service 承担）。"""
+
+    def test_returns_key_nonce_timestamp(
+        self,
+        cache: FakeCacheProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """返回 RSA 公钥、一次性 nonce 与服务器时间戳，且 nonce 已预写缓存。"""
+        from Crypto.PublicKey import RSA
+
+        test_key = RSA.generate(2048)
+        monkeypatch.setattr("src.utils.security._get_rsa_private_key", lambda: test_key)
+        svc = DeveloperAuthService(repository=FakeDeveloperRepository())
+        resp = svc.get_public_key()
+        assert resp.public_key == test_key.public_key().export_key(format="PEM").decode("ascii")
+        assert resp.nonce
+        assert resp.expires_in == 300
+        # nonce 已预写缓存，供登录时一次性消费（防重放）
+        assert cache.store.get(f"auth:nonce:{resp.nonce}") is not None
+
+
 @pytest.fixture
 def repo() -> FakeDeveloperRepository:
     r = FakeDeveloperRepository()
@@ -199,27 +232,27 @@ class TestLogin:
     """开发者登录。"""
 
     def test_login_success_by_username(self, svc: DeveloperAuthService, cache: FakeCacheProvider) -> None:
-        resp = svc.login("devone", _PASSWORD)
+        resp = svc.login("devone", _PASSWORD, "nonce-fake")
         assert resp.access_token and resp.refresh_token
         assert cache.store.get(f"{_LOGIN_KEY}1")
 
     def test_login_by_email(self, svc: DeveloperAuthService) -> None:
-        resp = svc.login("devone@example.com", _PASSWORD)
+        resp = svc.login("devone@example.com", _PASSWORD, "nonce-fake")
         assert resp.access_token
 
     def test_login_unknown_account(self, svc: DeveloperAuthService) -> None:
         with pytest.raises(AuthenticationException):
-            svc.login("ghost", _PASSWORD)
+            svc.login("ghost", _PASSWORD, "nonce-fake")
 
     def test_login_wrong_password(self, svc: DeveloperAuthService) -> None:
         with pytest.raises(AuthenticationException):
-            svc.login("devone", "bad-password")
+            svc.login("devone", "bad-password", "nonce-fake")
 
     def test_login_disabled(self, repo: FakeDeveloperRepository) -> None:
         repo.add(_make_dev(dev_id=2, username="disableddev", email="d@example.com", status="disabled"))
         svc = DeveloperAuthService(repository=repo)
         with pytest.raises(AuthenticationException):
-            svc.login("disableddev", _PASSWORD)
+            svc.login("disableddev", _PASSWORD, "nonce-fake")
 
 
 class TestRefresh:
@@ -249,7 +282,7 @@ class TestGetCurrentDeveloper:
     """当前开发者解析。"""
 
     def _seed(self, svc: DeveloperAuthService, cache: FakeCacheProvider) -> str:
-        svc.login("devone", _PASSWORD)
+        svc.login("devone", _PASSWORD, "nonce-fake")
         token = create_access_token(1, extra_claims={"username": "devone"})
         cache.store[f"{_LOGIN_KEY}1"] = decode_token(token).get("jti")
         return token

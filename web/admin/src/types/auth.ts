@@ -1,8 +1,20 @@
 /** 登录 / 当前用户 / 菜单相关类型（与 server/src/schemas/auth.py、menu 接口对齐） */
 
+/** 登录请求（密码 RSA 加密传输，不再直传明文） */
 export interface LoginRequest {
   username: string
-  password: string
+  /** RSA-OAEP 加密后的密码（明文 = nonce|timestamp|password） */
+  encrypted_password: string
+  /** 一次性 nonce（来自 GET /auth/public-key） */
+  nonce: string
+}
+
+/** 登录公钥响应（登录前先获取，用于加密密码） */
+export interface LoginPublicKey {
+  public_key: string
+  nonce: string
+  timestamp: number
+  expires_in: number
 }
 
 export interface LoginResult {

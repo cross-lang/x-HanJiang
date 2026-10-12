@@ -56,6 +56,14 @@ class CacheProvider(ABC):
         """判断缓存键是否存在。"""
 
     @abstractmethod
+    def getdel(self, key: str) -> Any | None:
+        """原子地取值并删除该键（一次性消费语义）。
+
+        用于 nonce / 一次性令牌等防重放场景：并发下同一 key 只会被
+        一个调用方取到值，其余调用返回 None。
+        """
+
+    @abstractmethod
     def clear_pattern(self, pattern: str) -> None:
         """根据模式清除缓存。"""
 
@@ -142,6 +150,19 @@ class RedisCacheProvider(CacheProvider):
             return bool(self._client.exists(key))
         except Exception:
             return False
+
+    def getdel(self, key: str) -> Any | None:
+        try:
+            value = self._client.getdel(key)
+            if value is None:
+                return None
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
+        except Exception as e:
+            logger.warning(f"Cache getdel failed for key '{key}': {e}")
+            return None
 
     def clear_pattern(self, pattern: str) -> None:
         try:

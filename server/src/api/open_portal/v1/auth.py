@@ -3,6 +3,7 @@
 路由前缀：/api/open-portal/v1/auth
 说明：开发者账号存 developers 表（与管理系统 users 分表）；
      登录态为有状态会话（JWT + Redis），登出/修改密码后旧令牌即失效。
+     密码经 RSA-OAEP 加密传输（GET /auth/public-key 获取公钥与一次性 nonce）。
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -18,6 +19,7 @@ from src.schemas.open_portal.auth import (
     DeveloperChangePasswordRequest,
     DeveloperForgotPasswordRequest,
     DeveloperLoginRequest,
+    DeveloperPublicKeyResponse,
     DeveloperRefreshRequest,
     DeveloperRegisterRequest,
     DeveloperResetPasswordRequest,
@@ -27,6 +29,20 @@ from src.schemas.open_portal.auth import (
 from src.services.open_portal.auth_service import DeveloperAuthService
 
 router = APIRouter(prefix="/auth", tags=["开放平台：身份认证"])
+
+
+@router.get(
+    "/public-key",
+    summary="获取登录公钥",
+    description="下发 RSA 公钥与一次性 nonce；前端加密密码后随登录请求提交，防明文传输与重放",
+    response_model=DeveloperPublicKeyResponse,
+)
+def public_key(
+    request: Request,
+    service: DeveloperAuthService = Depends(get_developer_auth_service),
+) -> JSONResponse:
+    """获取登录公钥。"""
+    return success_response(service.get_public_key().model_dump(), request)
 
 
 @router.post(
@@ -53,14 +69,16 @@ def register(
 @router.post(
     "/login",
     summary="开发者登录",
-    description="账号=用户名或邮箱 + 密码，签发 access/refresh 令牌对并建立服务端登录态",
+    description="账号=用户名或邮箱 + RSA 加密密码，签发 access/refresh 令牌对并建立服务端登录态",
 )
 def login(
     body: DeveloperLoginRequest,
     request: Request,
     service: DeveloperAuthService = Depends(get_developer_auth_service),
 ) -> JSONResponse:
-    return success_response(service.login(body.account, body.password).model_dump(), request)
+    """开发者登录。"""
+    result = service.login(body.account, body.encrypted_password, body.nonce)
+    return success_response(result.model_dump(), request)
 
 
 @router.post(

@@ -26,7 +26,7 @@ from src.constants.enums import (
     DeveloperMessageCategory,
     DeveloperMessageStatus,
 )
-from src.constants.notification import NotificationEvent, NotificationSource
+from src.constants.notification import NotificationChannel, NotificationEvent, NotificationSource
 from src.constants.permissions import PermissionAction
 from src.core.exceptions import ConflictException, NotFoundException
 from src.core.logger import logger
@@ -50,6 +50,16 @@ from src.utils.security import generate_secret_key
 
 if TYPE_CHECKING:
     from src.notification.dispatcher import NotificationDispatcher
+
+
+# 归属方外部通知渠道：站内信由 _notify_owner_action 直接写入收件箱，
+# 外部渠道（钉钉/飞书/邮件/短信）按归属方订阅偏好经 dispatcher 推送，显式排除 station 避免重复收件。
+_OWNER_EXTERNAL_CHANNELS: tuple[NotificationChannel, ...] = (
+    NotificationChannel.DINGTALK,
+    NotificationChannel.FEISHU,
+    NotificationChannel.EMAIL,
+    NotificationChannel.SMS,
+)
 
 
 class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepository]):
@@ -199,6 +209,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             event=NotificationEvent.OPENAPI_APP_UPDATED,
             operator=operator,
         )
+        self._notify_owner_external(e, NotificationEvent.OPENAPI_APP_UPDATED, operator=operator)
         self._repository.flush()
         self._commit()
         return self._to_response(e)
@@ -219,6 +230,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             event=NotificationEvent.OPENAPI_APP_UPDATED,
             operator=operator,
         )
+        self._notify_owner_external(e, NotificationEvent.OPENAPI_APP_UPDATED, operator=operator)
         self._repository.flush()
         self._commit()
         return self._to_response(e)
@@ -251,6 +263,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             operator=operator,
             content_suffix=("，其待审批的申请已一并驳回。" if approval_rejected else None),
         )
+        self._notify_owner_external(e, NotificationEvent.OPENAPI_APP_UPDATED, operator=operator)
         self._repository.flush()
         self._commit()
         return self._to_response(e)
@@ -307,7 +320,7 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
 
     # ── 重置 AppKey（轮换）────────────────────────────
 
-    def rotate_key(self, id: int) -> tuple[OpenApiAppResponse, str]:
+    def rotate_key(self, id: int, operator: dict[str, Any] | None = None) -> tuple[OpenApiAppResponse, str]:
         """重置 AppKey：旧 key 立即失效，返回新明文（仅一次）。
 
         Raises:
@@ -321,6 +334,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         self._repository.flush()
         self._commit()
         self._log_action(PermissionAction.ROTATE_KEY.mark, id, app_id=e.app_id)
+        # 密钥重置为敏感操作：按归属方订阅偏好推送外部渠道（站内信同源一致）
+        self._notify_owner_external(e, NotificationEvent.OPENAPI_APP_UPDATED, operator=operator)
         return self._to_response(e), new_plain
 
     # ── 删除 ────────────────────────────────────────────
@@ -340,6 +355,8 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
             event=NotificationEvent.OPENAPI_APP_DELETED,
             operator=operator,
         )
+        # 外部渠道（钉钉/飞书/邮件/短信）：按归属方订阅偏好推送，排除 station 避免重复
+        self._notify_owner_external(e, NotificationEvent.OPENAPI_APP_DELETED, operator=operator)
         ok = self._repository.soft_delete(id)
         self._commit()
         return ok
@@ -377,8 +394,17 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
         user_id: int,
         event_type: NotificationEvent,
         variables: dict[str, Any],
+        channels: list[NotificationChannel | str] | None = None,
     ) -> None:
-        """发送管理系统通知（失败不阻断业务主流程）。"""
+        """发送管理系统通知（失败不阻断业务主流程）。
+
+        Args:
+            user_id: 管理系统用户 ID（通知偏好按该用户的事件订阅与渠道配置路由）
+            event_type: 通知事件
+            variables: 模板变量
+            channels: 指定发送渠道（None 则按用户订阅路由）；
+                显式传入时仍以用户订阅为准（未订阅的渠道不发），仅用于排除/限定渠道
+        """
         if self._dispatcher is None:
             return
         try:
@@ -386,10 +412,35 @@ class OpenApiAppService(BaseService[OpenApiAppResponse, int, OpenApiAppRepositor
                 user_id=user_id,
                 event_type=event_type,
                 variables=variables,
+                channels=channels,
                 source=NotificationSource.OPENAPI_APP.value,
             )
         except Exception:
             logger.exception("Dispatch notification failed: event={}", event_type.value)
+
+    # ── 归属方外部渠道通知 ──────────────────────────────
+
+    def _notify_owner_external(
+        self,
+        e: OpenApiAppEntity,
+        event: NotificationEvent,
+        operator: dict[str, Any] | None = None,
+    ) -> None:
+        """管理端操作后，按归属方订阅偏好派发外部渠道通知（钉钉/飞书/邮件/短信）。
+
+        站内信由 _notify_owner_action 写入收件箱，本方法只处理外部渠道，
+        显式排除 station 避免重复收件；仅 admin 归属且非本人操作时派发
+        （自管自用无需打扰，与站内信短路规则一致）。
+        """
+        op_id = (operator or {}).get("operator_id")
+        is_self_admin = e.owner_type == AppOwnerType.ADMIN.value and e.owner_id is not None and op_id == e.owner_id
+        if e.owner_type == AppOwnerType.ADMIN.value and e.owner_id is not None and not is_self_admin:
+            self._dispatch_notification(
+                e.owner_id,
+                event,
+                {"name": e.name, "app_id": e.app_id},
+                channels=list(_OWNER_EXTERNAL_CHANNELS),
+            )
 
     # ── 归属方站内信通知 ────────────────────────────────
 

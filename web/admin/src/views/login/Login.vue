@@ -92,7 +92,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowRight, Check } from '@element-plus/icons-vue'
-import { login } from '@/api/auth'
+import { login, getLoginPublicKey } from '@/api/auth'
+import { encryptLoginPassword } from '@/utils/loginCrypto'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -183,7 +184,14 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    const res = await login(form.value)
+    // 每次登录都重新获取公钥与一次性 nonce：nonce 登录后即作废，失败重试自动换新
+    const pub = (await getLoginPublicKey()).data
+    const encrypted = encryptLoginPassword(form.value.password, pub)
+    const res = await login({
+      username: form.value.username,
+      encrypted_password: encrypted,
+      nonce: pub.nonce,
+    })
     userStore.setToken(res.data.access_token)
     persistCredentials()
     ElMessage.success('登录成功')

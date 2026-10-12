@@ -4,9 +4,10 @@
 本模块提供管理后台核心认证接口。
 
 Endpoints:
-    POST /auth/login:    用户名/手机号/邮箱 + 密码登录
-    POST /auth/refresh:  刷新令牌
-    POST /auth/logout:   退出登录
+    GET  /auth/public-key: 获取登录公钥与一次性 nonce（密码加密传输）
+    POST /auth/login:      用户名/手机号/邮箱 + RSA 加密密码登录
+    POST /auth/refresh:    刷新令牌
+    POST /auth/logout:     退出登录
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -19,6 +20,7 @@ from src.api.admin.dependencies import (
 from src.api.response import success_response
 from src.schemas.admin.auth import (
     CurrentUser,
+    LoginPublicKeyResponse,
     LoginRequest,
     RefreshTokenRequest,
 )
@@ -28,23 +30,36 @@ from src.utils.helpers import get_client_ip
 router = APIRouter(prefix="/auth", tags=["管理系统：身份认证"])
 
 
+@router.get(
+    "/public-key",
+    summary="获取登录公钥",
+    description="下发 RSA 公钥与一次性 nonce；前端加密密码后随登录请求提交，防明文传输与重放",
+    response_model=LoginPublicKeyResponse,
+)
+def public_key(
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+) -> JSONResponse:
+    """获取登录公钥。"""
+    return success_response(service.get_public_key().model_dump(), request)
+
+
 @router.post(
     "/login",
     summary="用户登录",
-    description="用户名/手机号/邮箱 + 密码登录，成功后返回访问/刷新令牌",
+    description="用户名/手机号/邮箱 + RSA 加密密码登录，成功后返回访问/刷新令牌",
 )
 def login(
     body: LoginRequest,
     request: Request,
     service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
-    """登录接口。
-    登录成功/失败均会写入 login_logs 表。
-    """
+    """登录接口：密码解密与 nonce 校验在 AuthService 内完成（api 层不感知加密细节）。"""
     ip = get_client_ip(request)
     result = service.login(
         body.username,
-        body.password,
+        body.encrypted_password,
+        body.nonce,
         ip_address=ip,
     )
     return success_response(result.model_dump(), request)

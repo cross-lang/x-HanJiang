@@ -209,9 +209,13 @@ def update_app_status(
 def rotate_key(
     app_id: int,
     request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
     service: OpenApiAppService = Depends(get_openapi_app_service),
 ) -> JSONResponse:
-    resp, new_key = service.rotate_key(app_id)
+    resp, new_key = service.rotate_key(
+        app_id,
+        operator=get_user_operator_context(current_user, request),
+    )
     return success_response(
         {**resp.model_dump(), "app_key": new_key, "warning": "新 AppKey 仅本次返回"},
         request,
