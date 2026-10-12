@@ -8,6 +8,7 @@ Endpoints:
     POST /auth/login:      用户名/手机号/邮箱 + RSA 加密密码登录
     POST /auth/refresh:    刷新令牌
     POST /auth/logout:     退出登录
+    GET  /auth/me:         当前登录用户信息（认证模块取用户资料，委托 ProfileService）
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -16,6 +17,7 @@ from fastapi.responses import JSONResponse
 from src.api.admin.dependencies import (
     get_auth_service,
     get_current_user,
+    get_profile_service,
 )
 from src.api.response import success_response
 from src.schemas.admin.auth import (
@@ -25,6 +27,7 @@ from src.schemas.admin.auth import (
     RefreshTokenRequest,
 )
 from src.services.admin.auth_service import AuthService
+from src.services.admin.profile_service import ProfileService
 from src.utils.helpers import get_client_ip
 
 router = APIRouter(prefix="/auth", tags=["管理系统：身份认证"])
@@ -95,3 +98,20 @@ def logout(
     """
     service.logout(current_user.id)
     return success_response({"message": "退出登录成功"}, request)
+
+
+@router.get(
+    "/me",
+    summary="当前登录用户信息",
+    description=(
+        "认证模块获取当前用户资料（委托 ProfileService.get_my_profile，与 /profile/me 同源）；"
+        "仅需登录态即可访问，不校验业务权限——登录用户必然可以查看自己的资料"
+    ),
+)
+def me(
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    profile_service: ProfileService = Depends(get_profile_service),
+) -> JSONResponse:
+    """获取当前用户信息（认证/会话场景拉取用户资料）。"""
+    return success_response(profile_service.get_my_profile(current_user), request)
