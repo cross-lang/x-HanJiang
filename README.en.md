@@ -82,10 +82,10 @@ HanJiang is an out-of-the-box enterprise full-stack rapid development platform: 
 
 ```bash
 cd server
-uv run x-HanJiang --reload
+uv run x-HanJiang
 ```
 
-See [server/README.md](server/README.md) for configuration.
+Startup options (host/port/debug hot reload) are all read from the configuration file. See [server/README.md](server/README.md) for details.
 
 ### 🌐 Admin Console Frontend (web/admin)
 

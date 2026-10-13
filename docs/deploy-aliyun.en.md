@@ -20,7 +20,7 @@ Browser ── http://<SERVER_IP>
 ```
 
 - Frontend builds run inside `web/Dockerfile` (Node multi-stage build) — no Node.js needed on the server
-- Database initialization happens automatically at app startup (`init_db` creates tables + `init_seed_data` seeds data) — no manual migration
+- Database initialization happens automatically at app startup (`init_database` creates tables + `init_seed_data` seeds data) — no manual migration
 - MySQL / Redis run as self-hosted containers, persisted in the `mysql_data` / `redis_data` volumes
 
 ## 1. Prerequisites

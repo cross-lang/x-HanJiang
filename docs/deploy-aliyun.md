@@ -20,7 +20,7 @@
 ```
 
 - 前端构建在 `web/Dockerfile` 内完成（Node 多阶段构建），服务器无需安装 Node
-- 数据库初始化在应用启动时自动完成（`init_db` 建表 + `init_seed_data` 种子数据），无需手动迁移
+- 数据库初始化在应用启动时自动完成（`init_database` 建表 + `init_seed_data` 种子数据），无需手动迁移
 - MySQL / Redis 为容器自建，数据持久化在 `mysql_data` / `redis_data` 卷
 
 ## 一、前置条件

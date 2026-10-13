@@ -200,7 +200,7 @@ def release_mysql_lock(session: Session, lock_name: str) -> None:
     session.connection().execute(text(f"SELECT RELEASE_LOCK('{lock_name}')"))
 
 
-def init_db() -> None:
+def init_database() -> None:
     """初始化 MySQL 数据库，创建所有表。"""
     from src.models import entities  # noqa: F401
 
@@ -236,6 +236,6 @@ __all__ = [
     "get_database_provider",
     "get_cached_database_provider",
     "get_db_session",
-    "init_db",
+    "init_database",
     "drop_db",
 ]

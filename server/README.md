@@ -219,7 +219,7 @@ curl http://localhost:8000/api/open/v1/me \
 | 端口占用（Address already in use） | 8000 端口被其他进程占用 | 换端口启动：`uv run uvicorn src.main:app --port 8001`，或 `netstat -ano \| findstr :8000` 定位进程 |
 | uv 安装失败 | 网络受限或代理未配置 | 重装 uv 或配置镜像源：`UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple` |
 | 配置加载异常 | `.env` / `config.yaml` 未创建 | 执行 `cp .env.example .env` 或 `cp config.yaml.example config.yaml` |
-| MySQL 连接失败 | 数据库未启动 / 账号密码错误 | 检查 MySQL 服务与 `MYSQL_*` 配置，首次部署先执行 `uv run python scripts/init_db.py` |
+| MySQL 连接失败 | 数据库未启动 / 账号密码错误 | 检查 MySQL 服务与 `MYSQL_*` 配置，首次部署先执行 `uv run python scripts/init_database.py` |
 | Redis 连接失败 | Redis 未启动 / 密码未配置 | 检查 Redis 服务与 `REDIS_*` 配置 |
 | 接口返回 403 | 角色缺少权限或令牌过期 | 检查角色权限绑定，重新登录获取新令牌 |
 
@@ -238,7 +238,7 @@ server/
 │   └── openapi_client.py     # 开放 API 客户端示例
 ├── logs/                     # 运行日志输出
 ├── scripts/                  # 工程脚本
-│   ├── init_db.py            # 数据库初始化
+│   ├── init_database.py            # 数据库初始化
 │   └── export_openapi.py     # OpenAPI 规范导出
 ├── src/                      # 核心业务代码
 │   ├── main.py               # 应用入口（应用工厂、生命周期、中间件编排、CLI 参数）

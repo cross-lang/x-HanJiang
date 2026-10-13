@@ -82,10 +82,10 @@
 
 ```bash
 cd server
-uv run x-HanJiang --reload
+uv run x-HanJiang
 ```
 
-配置说明见 [server/README.md](server/README.md)。
+启动参数（host/port/debug 热重载）全部读取自配置文件，详见 [server/README.md](server/README.md)。
 
 ### 🌐 管理系统前端（web/admin）
 

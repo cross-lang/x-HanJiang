@@ -7,7 +7,7 @@
 在生产环境中，建议使用数据库迁移工具（如 Alembic）管理表结构变更。
 
 Usage:
-    uv run python scripts/init_db.py
+    uv run python scripts/init_database.py
 """
 
 import re
@@ -20,7 +20,7 @@ sys.path.insert(0, str(project_root))
 from src.core.config import settings  # noqa: E402
 from src.core.logger import logger, setup_logging  # noqa: E402
 from src.core.seed import init_seed_data  # noqa: E402
-from src.infras.database import Base, init_db  # noqa: E402
+from src.infras.database import Base, init_database  # noqa: E402
 
 
 def _mask_database_url(url: str) -> str:
@@ -44,7 +44,7 @@ def main() -> None:
     logger.info(f"连接池大小: {settings.database.pool_size}")
 
     try:
-        init_db()
+        init_database()
         init_seed_data()
 
         tables = Base.metadata.tables.keys()

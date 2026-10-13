@@ -219,7 +219,7 @@ curl http://localhost:8000/api/open/v1/me \
 | Port already in use (Address already in use) | Port 8000 occupied by another process | Start on another port: `uv run uvicorn src.main:app --port 8001`, or locate the process with `netstat -ano \| findstr :8000` |
 | uv install fails | Network restrictions or no proxy configured | Reinstall uv or use a mirror index: `UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple` |
 | Configuration loading errors | `.env` / `config.yaml` not created | Run `cp .env.example .env` or `cp config.yaml.example config.yaml` |
-| MySQL connection failure | Database not started / wrong credentials | Check the MySQL service and `MYSQL_*` config; run `uv run python scripts/init_db.py` on first deployment |
+| MySQL connection failure | Database not started / wrong credentials | Check the MySQL service and `MYSQL_*` config; run `uv run python scripts/init_database.py` on first deployment |
 | Redis connection failure | Redis not started / password missing | Check the Redis service and `REDIS_*` config |
 | 403 on endpoints | Role lacks permission or token expired | Check role-permission bindings and re-login for a new token |
 
@@ -238,7 +238,7 @@ server/
 │   └── openapi_client.py     # Open platform client example
 ├── logs/                     # Runtime log output
 ├── scripts/                  # Engineering scripts
-│   ├── init_db.py            # Database initialization
+│   ├── init_database.py            # Database initialization
 │   └── export_openapi.py     # OpenAPI spec export
 ├── src/                      # Core business code
 │   ├── main.py               # App entry (app factory, lifespan, middleware wiring, CLI args)

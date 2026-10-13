@@ -12,8 +12,6 @@ Functions:
 Usage:
     # 启动服务
     uv run x-HanJiang
-    # 启用热重载（开发模式）
-    uv run x-HanJiang --reload
     # 在代码中使用
     from src.main import app
 """
@@ -40,7 +38,7 @@ from src.core.middleware import (
 )
 from src.core.seed import init_seed_data
 from src.infras.cache import get_cached_cache_provider
-from src.infras.database import get_cached_database_provider, init_db
+from src.infras.database import get_cached_database_provider, init_database
 from src.infras.rate_limiter import get_cached_rate_limiter_provider
 from src.notification.bootstrap import setup_notification_system
 
@@ -55,7 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_cached_database_provider()
     logger.info("Database connection established")
     # 初始化数据库（表）
-    init_db()
+    init_database()
     logger.info("Database initialized successfully")
     # 初始化种子数据
     init_seed_data()
@@ -108,6 +106,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
+        openapi_url="/openapi.json",
     )
     # ============================================================
     # 中间件注册顺序（核心原则：后注册的在外层）
@@ -173,48 +172,15 @@ app: FastAPI = create_app()
 
 
 def main() -> None:
-    """命令行启动入口（pyproject.toml 中的 entry point）。
-    支持通过 CLI 参数控制启动行为：
-        uv run x-HanJiang                # 默认启动
-        uv run x-HanJiang --reload        # 热重载（开发模式）
-        uv run x-HanJiang --port 9000     # 自定义端口
-        uv run x-HanJiang -V              # 查看版本
+    """命令行启动入口（pyproject.toml 中的 entry point），启动参数全部读取自配置：
+    host / port 取自 settings.server，debug 模式自动启用热重载并固定单进程。
     """
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        prog="x-HanJiang",
-        description="一个基于 FastAPI 的生产级 Web 应用框架",
-    )
-    parser.add_argument(
-        "-V",
-        "--version",
-        action="version",
-        version=f"x-HanJiang {APP_VERSION}",
-    )
-    parser.add_argument(
-        "--host",
-        default=settings.server.host,
-        help=f"服务器监听地址（默认 {settings.server.host}）",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=settings.server.port,
-        help=f"服务器监听端口（默认 {settings.server.port}）",
-    )
-    parser.add_argument(
-        "--reload",
-        action="store_true",
-        help="启用热重载（开发模式）",
-    )
-    args = parser.parse_args()
-    reload = args.reload or settings.server.debug
+    reload = settings.server.debug
     workers = 1 if reload else settings.server.workers
     uvicorn.run(
         "src.main:app",
-        host=args.host,
-        port=args.port,
+        host=settings.server.host,
+        port=settings.server.port,
         reload=reload,
         workers=workers,
     )
