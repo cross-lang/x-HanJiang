@@ -85,7 +85,7 @@ cd server
 uv run x-HanJiang
 ```
 
-Startup options (host/port/debug hot reload) are all read from the configuration file. See [server/README.md](server/README.md) for details.
+Startup options default to the configuration file and can be overridden via CLI (`--host / --port / --reload / --no-reload / --workers`). See [server/README.md](server/README.md) for details.
 
 ### 🌐 Admin Console Frontend (web/admin)
 
@@ -126,7 +126,8 @@ x-HanJiang/
 │   │   ├── schemas/            # Pydantic request/response DTOs
 │   │   ├── services/           # Business logic layer
 │   │   ├── templates/          # Prompt templates (AI assistant)
-│   │   └── main.py             # Application entrypoint
+│   │   └── main.py             # Application entry (factory + lifespan)
+│   │   └── cli.py              # CLI launcher
 │   ├── alembic/                # Database migrations (0001~0033)
 │   ├── tests/                  # Unit tests (mirrors src/ layout)
 │   └── pyproject.toml          # Dependency declaration (uv lock file)

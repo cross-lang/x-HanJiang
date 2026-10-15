@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-应用入口模块
-本模块是 FastAPI 应用的核心入口，提供应用工厂函数和启动命令。
-负责编排所有组件的初始化顺序：配置加载 → 日志初始化 → 中间件注册 →
-异常处理器注册 → 路由挂载。
+应用（FastAPI）入口模块
+本模块是 FastAPI 应用的核心装配：配置加载 → 日志初始化 → 中间件注册 →
+异常处理器注册 → 路由挂载。命令行启动入口见 src/cli.py（uv run x-HanJiang）。
 
 Functions:
     create_app: 应用工厂函数，创建并配置 FastAPI 实例
-    main: 命令行启动入口
 
 Usage:
-    # 启动服务
+    # 启动服务（命令行入口，见 src/cli.py）
     uv run x-HanJiang
-    # 在代码中使用
+    # 在代码中使用（gunicorn / uvicorn / 测试 / 脚本）
     from src.main import app
 """
 
@@ -20,7 +18,6 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
-import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -169,22 +166,3 @@ def create_app() -> FastAPI:
 
 
 app: FastAPI = create_app()
-
-
-def main() -> None:
-    """命令行启动入口（pyproject.toml 中的 entry point），启动参数全部读取自配置：
-    host / port 取自 settings.server，debug 模式自动启用热重载并固定单进程。
-    """
-    reload = settings.server.debug
-    workers = 1 if reload else settings.server.workers
-    uvicorn.run(
-        "src.main:app",
-        host=settings.server.host,
-        port=settings.server.port,
-        reload=reload,
-        workers=workers,
-    )
-
-
-if __name__ == "__main__":
-    main()

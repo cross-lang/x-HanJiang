@@ -139,8 +139,10 @@ cp config.yaml.example config.yaml
 **Option 1: Local development with hot reload (recommended)**
 
 ```bash
-uv run x-HanJiang
+uv run x-HanJiang --reload
 ```
+
+Startup options default to the configuration file (host/port/workers) and can be overridden via CLI: `--host` / `--port` / `--reload` / `--no-reload` / `--workers`. The launcher lives in `src/cli.py` (argparse parsing + uvicorn delegation); `src/main.py` is a pure application assembly (factory + lifespan + `app` object) importable by gunicorn / uvicorn / tests / scripts.
 
 **Option 2: Docker deployment**
 
@@ -241,7 +243,8 @@ server/
 │   ├── init_database.py            # Database initialization
 │   └── export_openapi.py     # OpenAPI spec export
 ├── src/                      # Core business code
-│   ├── main.py               # App entry (app factory, lifespan, middleware wiring, CLI args)
+│   ├── main.py               # App entry (app factory, lifespan, middleware wiring)
+│   ├── cli.py                # CLI launcher (argparse parsing + uvicorn delegation)
 │   ├── api/                  # API route layer
 │   │   ├── admin/             # Admin routes (JWT auth, dual /api/v1 & /api/admin/v1)
 │   │   │   ├── permission_decorator.py # @permission decorator + permission scan & sync

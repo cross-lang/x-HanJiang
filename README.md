@@ -85,7 +85,7 @@ cd server
 uv run x-HanJiang
 ```
 
-启动参数（host/port/debug 热重载）全部读取自配置文件，详见 [server/README.md](server/README.md)。
+启动参数默认读取配置文件，亦支持 CLI 覆盖（`--host / --port / --reload / --no-reload / --workers`），详见 [server/README.md](server/README.md)。
 
 ### 🌐 管理系统前端（web/admin）
 
@@ -126,7 +126,8 @@ x-HanJiang/
 │   │   ├── schemas/            # Pydantic 请求 / 响应 DTO
 │   │   ├── services/           # 业务逻辑层
 │   │   ├── templates/          # 提示词模板（AI 助手）
-│   │   └── main.py             # 应用入口
+│   │   └── main.py             # 应用入口（工厂 + 生命周期）
+│   │   └── cli.py              # 命令行启动入口
 │   ├── alembic/                # 数据库迁移（0001~0033）
 │   ├── tests/                  # 单元测试（目录结构与 src/ 镜像）
 │   └── pyproject.toml          # 依赖声明（uv 管理锁文件）

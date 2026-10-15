@@ -142,6 +142,8 @@ cp config.yaml.example config.yaml
 uv run x-HanJiang --reload
 ```
 
+启动参数默认读取配置文件（host/port/workers），亦支持 CLI 覆盖：`--host` / `--port` / `--reload` / `--no-reload` / `--workers`。入口脚本定义于 `src/cli.py`（命令行参数解析 + uvicorn 委托），`src/main.py` 仅为纯应用装配（工厂 + 生命周期 + `app` 对象），供 gunicorn / uvicorn / 测试 / 脚本直接 import。
+
 **方式二：Docker 容器部署**
 
 编排文件位于**仓库根目录**（nginx + app + mysql + redis 四服务，nginx 统一 80 入口）：
@@ -241,7 +243,8 @@ server/
 │   ├── init_database.py            # 数据库初始化
 │   └── export_openapi.py     # OpenAPI 规范导出
 ├── src/                      # 核心业务代码
-│   ├── main.py               # 应用入口（应用工厂、生命周期、中间件编排、CLI 参数）
+│   ├── main.py               # 应用入口（应用工厂、生命周期、中间件编排）
+│   ├── cli.py                # 命令行启动入口（argparse 参数解析 + uvicorn 委托）
 │   ├── api/                  # API 路由层
 │   │   ├── admin/             # 管理系统路由（JWT 鉴权，/api/v1 与 /api/admin/v1 双路径兼容）
 │   │   │   ├── permission_decorator.py # @permission 装饰器 + 权限扫描注册

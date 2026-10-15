@@ -60,7 +60,7 @@ dev = [
 ]
 
 [project.scripts]
-x-HanJiang = "src.main:main"
+x-HanJiang = "src.cli:main"
 
 [project.optional-dependencies]
 s3 = ["boto3>=1.35.0"]
